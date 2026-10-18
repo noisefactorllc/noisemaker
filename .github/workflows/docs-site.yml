@@ -5,7 +5,7 @@ name: Docs site
 # static-site-release, which clones this repo at the pushed SHA, builds
 # the Noisemaker bundles and the Sphinx HTML, writes
 # deployment-meta.json, and rsyncs docs/_build/html/ to
-# ~/sites/docs.noisemaker.app/content on nf-toronto.
+# the production web server.
 #
 # Keeping the SSH key + server IP on the scaffold side means this
 # public repo carries no deploy secrets — only the EHSRE app private

@@ -2,8 +2,7 @@ name: Export kits
 
 # Public repo: holds NO deploy credentials. Dispatches scaffold's
 # export-kit-release.yml, which builds this repo's export kit at this exact
-# SHA and ships it to kits.noisedeck.app. See scaffold
-# docs/runbook/export-kits.md.
+# SHA and ships it to kits.noisedeck.app.
 #
 # noisemaker publishes two kits (webgl2, webgpu) that vendor nothing beyond
 # export-kit/, so one workflow dispatches both, sequentially.

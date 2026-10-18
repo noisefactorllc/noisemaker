@@ -109,7 +109,7 @@ work, verify it, then update the checkpoint and append a log line.
     edits were required.
   - 2026-09-23 — caught up through noisemaker `5b81e04f` / noisedeck
     `a5d448b2`: audited noisemaker range `dd38fdd2..5b81e04f` and noisedeck
-    `697d2df9..a5d448b2` (covering Tearoff #425 trigger `0a2a7012..df632d0a`).
+    `697d2df9..a5d448b2` (covering work queue item #425 trigger `0a2a7012..df632d0a`).
     In noisemaker, zero effect definitions or parameters were added or removed,
     leaving all 3,677 keys in exact parity across all seven catalogs (`en` and
     `de`, `es`, `fr`, `it`, `ja`, `pt`). In noisedeck, `sync.previewPaused` was
@@ -122,7 +122,7 @@ work, verify it, then update the checkpoint and append a log line.
     `tests/menu-shortcuts-accelerators.node-test.js` (7/7), and
     `tests/downstream-workflow.node-test.js` (1/1). No catalog edits were required.
   - 2026-09-22 — caught up through noisemaker `dd38fdd2` / noisedeck
-    `697d2df9`: audited noisemaker range `7ea31be3..dd38fdd2` (covering Tearoff
+    `697d2df9`: audited noisemaker range `7ea31be3..dd38fdd2` (covering work queue item
     #392 trigger `2f855c9c..36a519a2` through HEAD) and noisedeck
     `4e412eb5..697d2df9`. In noisemaker, commit `36a519a2` added
     `render/renderLandscape3d.filtering`, `render/renderLandscape3d.filtering.isosurface`,
@@ -137,7 +137,7 @@ work, verify it, then update the checkpoint and append a log line.
     `tests/menu-shortcuts-accelerators.node-test.js` (7/7). No catalog edits were
     required.
   - 2026-09-21 — caught up through noisemaker `7ea31be3` / noisedeck
-    `4e412eb5`: audited noisemaker range `1086890d..7ea31be3` (covering Tearoff
+    `4e412eb5`: audited noisemaker range `1086890d..7ea31be3` (covering work queue item
     #312 trigger `c68fb3c8..2f855c9c`) and noisedeck `e1146981..4e412eb5`.
     In noisemaker, commit `2f855c9c` retired `filter/bc`, `filter/colorspace`,
     and `filter/hs`, removing their 15 effect string definitions across all
@@ -149,7 +149,7 @@ work, verify it, then update the checkpoint and append a log line.
     `downstream-workflow` (1/1), and the Noisemaker JS test suite (57/57 passed).
     No catalog edits were required.
   - 2026-09-20 — caught up through noisemaker `1086890d` / noisedeck
-    `e1146981`: audited noisedeck range `73538a8f..e1146981` (covering Tearoff
+    `e1146981`: audited noisedeck range `73538a8f..e1146981` (covering work queue item
     #293 trigger `adef85dd..0a2a7012`) and noisemaker `da1b6985..1086890d`.
     UI string additions in noisedeck (`startup.statuses.enabled`,
     `startup.statuses.midiNoDevices`, `startup.statuses.midiPortFailed` in
@@ -161,7 +161,7 @@ work, verify it, then update the checkpoint and append a log line.
     `startup-backend` (13/13), and the Noisemaker JS test suite (58/58 passed).
     No catalog edits were required.
   - 2026-09-17 — caught up through noisemaker `da1b6985` / noisedeck
-    `73538a8f`: audited noisedeck range `47b145e0..73538a8f` (covering Tearoff
+    `73538a8f`: audited noisedeck range `47b145e0..73538a8f` (covering work queue item
     #194 trigger `adef85dd`) and noisemaker `c68fb3c8..da1b6985`. The only UI string
     addition in the range (`menus.app.downloadApp` in `adef85dd`) was already
     translated in all six UI locales (`de`, `es`, `fr`, `it`, `ja`, `pt`);
@@ -172,7 +172,7 @@ work, verify it, then update the checkpoint and append a log line.
     `standalone-account-menu`, and the Noisemaker JS test suite (58/58 passed).
     No catalog edits were required.
   - 2026-09-16 — caught up through noisemaker `c68fb3c8` / noisedeck
-    `47b145e0`, closing the gap left by incomplete Tearoff #156 (below) as
+    `47b145e0`, closing the gap left by incomplete work queue item #156 (below) as
     well as this task's own nominal range (noisemaker `ff1bfbc1..c68fb3c8`,
     noisedeck `458f7758..47b145e0`) — audited from the stale checkpoint
     forward rather than trusting #156's own narrative, per this file's
@@ -191,7 +191,7 @@ work, verify it, then update the checkpoint and append a log line.
     and complete; only this checkpoint had never been advanced to reflect
     it. #156's Log entry below is left untouched; its remaining
     non-i18n items (browser/runtime fixes) are outside this section's scope.
-  - 2026-09-12 — Tearoff #156 remains incomplete. Audited Noisemaker
+  - 2026-09-12 — work queue item #156 remains incomplete. Audited Noisemaker
     `7d6cc7127457..ff1bfbc1740c` and Noisedeck
     `94f4d0021133..458f77583394`. Removed four obsolete landscape-control
     keys from all seven effect catalogs. All six translations contain all
@@ -378,7 +378,7 @@ work, verify it, then update the checkpoint and append a log line.
     1.0.221 bundles passed, and `dist/` was restored after the check.
   - 2026-09-22 — caught up through noisemaker `1d581ffa` / noisedeck
     `697d2df9`: gap detection (`git log --diff-filter=A`) identified zero
-    new effects in range `eef25e91..1d581ffa` (covering Tearoff #393 trigger
+    new effects in range `eef25e91..1d581ffa` (covering work queue item #393 trigger
     `2f855c9c..36a519a2` through HEAD). Audited the one effect with changed
     definition in the range: `render/renderLandscape3d` (`36a519a2`), which
     added a pruned isosurface filtering mode. Both perspective and isometric
@@ -394,7 +394,7 @@ work, verify it, then update the checkpoint and append a log line.
     `tests/large-format-seams/enumerator.node-test.js`).
   - 2026-09-21 — caught up through noisemaker `eef25e91` / noisedeck
     `4e412eb5`: gap detection (`git log --diff-filter=A`) identified zero
-    new effects in range `ead42a5d..eef25e91` (covering Tearoff #313 trigger
+    new effects in range `ead42a5d..eef25e91` (covering work queue item #313 trigger
     `f2506d21..2f855c9c`). Audited the effects changed in the range: commit
     `2f855c9c` retired `filter/bc`, `filter/colorspace`, and `filter/hs`, none
     of which were in noisedeck's deny-lists (`hasStatefulEffects.js` or
@@ -452,7 +452,7 @@ work, verify it, then update the checkpoint and append a log line.
     scope): noisedeck's `preview` branch carries a second, older stash
     (`fix(fullscreen): restore canvas dimensions on exit for any entry
     path`) and a large set of uncommitted working-tree changes matching
-    the dangling Tearoff #156 I18n narrative — both predate this pass and
+    the dangling work queue item #156 I18n narrative — both predate this pass and
     were left exactly as found.
   - 2026-09-07 — caught up through noisemaker `827b2e91`: no new effects;
     rechecked the changed Remap definition and Text shader. Remap's active
@@ -520,7 +520,7 @@ work, verify it, then update the checkpoint and append a log line.
     `sphinx-build -b dirhtml docs` passes; its 19 warnings are the existing
     unregistered `dsl` lexer.
   - 2026-10-04 — caught up through `a1329096`: audited
-    `63cfbb7..a1329096`, including Tearoff item 804's observed
+    `63cfbb7..a1329096`, including work queue item 804's observed
     `378c8bf8..058d15dc` delivery. Both range endpoints are ancestors of
     the audited mainline tip. The shipped changes are portable-effect
     registration, live parameter aliases and reseed hints, degauss tile
@@ -536,7 +536,7 @@ work, verify it, then update the checkpoint and append a log line.
     `dirhtml` build succeeded with 18 existing warnings; docs static-path
     tests passed 4/4, ESLint passed, and the non-parity JS suite passed.
   - 2026-10-01 — caught up through `63cfbb7`: audited the job's trigger
-    range `dd4606e..63cfbb7` (Tearoff item 704, delivered as
+    range `dd4606e..63cfbb7` (work queue item 704, delivered as
     `a02f73e..63cfbb7`; the trigger's start `dd4606e` sits in the
     non-contiguous history but is an ancestor of published main). The
     range is already fully documented: the GAP-007 final leg
@@ -555,13 +555,13 @@ work, verify it, then update the checkpoint and append a log line.
     paths (`node --test test/docs-static-paths.test.js`, 4/4 pass),
     ESLint (`npm run lint`, clean), and the non-parity JS test suite
     (`node scripts/run-js-tests.js --skip-parity`, 0 failures). Measured
-    results above are archived in the job's run evidence (Worker Elves
+    results above are archived in the job's run evidence (Automated
     job `d441d8a4`, evidence `noisemaker-ledger-docs-704.txt`: clean
     full Sphinx build after removing `docs/_build/dirhtml` — the
     "1 warning" incremental re-run in that file predates the clean
     rebuild and does not reflect a from-scratch build).
   - 2026-10-01 — caught up through `ed47815`: audited range
-    `01e9d62..dd4606e` (Tearoff item 698; the trigger's start `01e9d62` had
+    `01e9d62..dd4606e` (work queue item 698; the trigger's start `01e9d62` had
     been force-pushed out of upstream main, so the objects were fetched
     directly by SHA and the observed delivery ranges
     `c2a19c70..dd4606e`, `a0e9bbffc..e24c844f`, `e24c844f..e105344` were
@@ -608,7 +608,7 @@ work, verify it, then update the checkpoint and append a log line.
     `deployment-meta.json`, so the pipeline.rst/effects.rst corrections in
     this commit reach the published docs with the next docs-site build.
   - 2026-09-26 — caught up through `01e9d62`: audited range
-    `6a0af04d..01e9d62` (Tearoff item 586). The range contains exactly one
+    `6a0af04d..01e9d62` (work queue item 586). The range contains exactly one
     commit, `01e9d62`, which is the prior Documentation pass's own Sphinx
     edits (GAP-006 texture-pooling opt-in and GAP-007 structured
     `ShaderDiagnostic` union in `docs/shaders/pipeline.rst` and
@@ -643,7 +643,7 @@ work, verify it, then update the checkpoint and append a log line.
     no workflow run applies to it and the deployment at `01e9d62` already
     serves all this pass's `.rst` content.
   - 2026-09-26 — caught up through `6a0af04d`: audited range
-    `6c3f9a26..6a0af04d` (Tearoff item 571, covering trigger
+    `6c3f9a26..6a0af04d` (work queue item 571, covering trigger
     `8eeb7b5a..6a0af04d` delivered as `6c3f9a26..428ea29..9574362..6a0af04d`,
     audited linearly in the local checkout). Gap detection confirmed zero
     missing `help.md` files across all effect definitions. Shipped features
@@ -669,7 +669,7 @@ work, verify it, then update the checkpoint and append a log line.
     4/4 pass), ESLint (`npm run lint`), and the non-parity JS test suite
     (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-25 — caught up through `6c3f9a26`: audited range
-    `69d83b80..6c3f9a26` (Tearoff item 557, covering `69d83b80..8eeb7b5a`
+    `69d83b80..6c3f9a26` (work queue item 557, covering `69d83b80..8eeb7b5a`
     and publication evidence at `6c3f9a26`). Gap detection confirmed zero
     missing `help.md` files across all 210 effect definitions and all 1,258
     documented parameters across 200 effects match definitions
@@ -691,7 +691,7 @@ work, verify it, then update the checkpoint and append a log line.
     ESLint (`npm run lint`), and non-parity JS test suite
     (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-25 — caught up through `69d83b80`: audited range
-    `fa4b2f02..69d83b80` (Tearoff item 538, delivered as the observed ranges
+    `fa4b2f02..69d83b80` (work queue item 538, delivered as the observed ranges
     `2f47612c..63349a7d` and `fa4b2f0..69d83b80`; the trigger end is a
     force-push/non-contiguous delivery, so the range was diffed directly in
     the checkout). Gap detection confirmed zero missing `help.md` files
@@ -734,7 +734,7 @@ work, verify it, then update the checkpoint and append a log line.
     in that deployment; it publishes with this documentation commit's own
     `docs-site.yml` run.
   - 2026-09-25 — caught up through `fa4b2f02`: audited range
-    `cfccdf96..fa4b2f02` (covering Tearoff #534 trigger `60b90af3..9d3474df`
+    `cfccdf96..fa4b2f02` (covering work queue item #534 trigger `60b90af3..9d3474df`
     through HEAD). Gap detection confirmed zero missing `help.md` files across
     all 210 effect definitions. Verified all 1,258 documented parameters across
     200 effects match definitions (`node shaders/tests/test_effect_help_params.mjs`).
@@ -746,7 +746,7 @@ work, verify it, then update the checkpoint and append a log line.
     structure suite (`npm run test:shaders:structure`, 206/206 pass), ESLint
     (`npm run lint`), and non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-25 — caught up through `cfccdf96`: audited range
-    `240740dd..cfccdf96` (covering Tearoff #522 trigger `60b90af3..5f4b7c43`
+    `240740dd..cfccdf96` (covering work queue item #522 trigger `60b90af3..5f4b7c43`
     through HEAD). Range consists entirely of documentation, ledger, and AI contract
     updates (`5a58a325`, `c85db3f0`, `5f4b7c43`, `cfccdf96`). Gap detection confirmed
     zero missing `help.md` files across all 210 effect definitions. Verified all 1,258
@@ -756,7 +756,7 @@ work, verify it, then update the checkpoint and append a log line.
     (`node --test test/docs-static-paths.test.js`, 4/4 pass), ESLint (`npm run lint`),
     and non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-25 — caught up through `240740dd`: audited range
-    `bbdeb56c..240740dd` (covering Tearoff #510 trigger `4891b995..60b90af3`
+    `bbdeb56c..240740dd` (covering work queue item #510 trigger `4891b995..60b90af3`
     through HEAD). Gap detection confirmed zero missing `help.md` files across
     all 210 effect definitions. Verified all 1,258 documented parameters across
     200 effects match definitions (`node shaders/tests/test_effect_help_params.mjs`).
@@ -770,7 +770,7 @@ work, verify it, then update the checkpoint and append a log line.
     docs static paths (`node --test test/docs-static-paths.test.js`, 4/4 pass), ESLint
     (`npm run lint`), and non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-24 — caught up through `bbdeb56c`: audited range
-    `aa96726d..bbdeb56c` (covering Tearoff #496 trigger `c9ee8a04..4891b995`
+    `aa96726d..bbdeb56c` (covering work queue item #496 trigger `c9ee8a04..4891b995`
     through HEAD). Gap detection confirmed zero missing `help.md` files across
     all 210 effect definitions. Verified all 1,258 documented parameters across
     200 effects match definitions (`node shaders/tests/test_effect_help_params.mjs`).
@@ -783,7 +783,7 @@ work, verify it, then update the checkpoint and append a log line.
     (`node --test test/docs-static-paths.test.js`, 4/4 pass), ESLint (`npm run lint`),
     and non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-24 — caught up through `aa96726d`: audited range
-    `30c47030..aa96726d` (covering Tearoff #482 trigger `c9ee8a04..13853dff`
+    `30c47030..aa96726d` (covering work queue item #482 trigger `c9ee8a04..13853dff`
     through HEAD). Gap detection confirmed zero missing `help.md` files across
     all 210 effect definitions. Verified all 1,258 documented parameters across
     200 effects match definitions (`node shaders/tests/test_effect_help_params.mjs`).
@@ -792,7 +792,7 @@ work, verify it, then update the checkpoint and append a log line.
     (`node --test test/docs-static-paths.test.js`, 4/4 pass), ESLint (`npm run lint`),
     and non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-24 — caught up through `30c47030`: audited range
-    `c7e9e09d..30c47030` (covering Tearoff #474 triggers `c9ee8a04..13fa8b54`,
+    `c7e9e09d..30c47030` (covering work queue item #474 triggers `c9ee8a04..13fa8b54`,
     GAP-002 subchain validation evidence `741333cb`, and site styling `30c47030`).
     Gap detection confirmed zero missing `help.md` files across all 210 effect
     definitions. Verified all 1,258 documented parameters across 200 effects match
@@ -802,7 +802,7 @@ work, verify it, then update the checkpoint and append a log line.
     under `docs/shaders/features.rst`. Verified docs static paths (`node --test test/docs-static-paths.test.js`,
     4/4 pass), ESLint (`npm run lint`), and non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-24 — caught up through `c7e9e09d`: audited range
-    `65ff358f..c7e9e09d` (covering Tearoff #455 triggers through `823bbff1`
+    `65ff358f..c7e9e09d` (covering work queue item #455 triggers through `823bbff1`
     and contract checkpoint advance `c7e9e09d`). Gap detection confirmed zero
     missing `help.md` files across all 210 effect definitions. Verified all 1,258
     documented parameters across 200 effects match definitions (`node shaders/tests/test_effect_help_params.mjs`).
@@ -810,7 +810,7 @@ work, verify it, then update the checkpoint and append a log line.
     feature guides required. Verified docs static paths (`node --test test/docs-static-paths.test.js`,
     4/4 pass), ESLint (`npm run lint`), and non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-24 — caught up through `65ff358f`: audited range
-    `7d0be45c..65ff358f` (covering Tearoff #442 triggers `9b88e567..c9ee8a04`
+    `7d0be45c..65ff358f` (covering work queue item #442 triggers `9b88e567..c9ee8a04`
     and `cc1ba268` through HEAD). Gap detection confirmed zero missing `help.md`
     files across all 210 effect definitions. Verified all 1,258 documented
     parameters across 200 effects match definitions (`node shaders/tests/test_effect_help_params.mjs`).
@@ -824,7 +824,7 @@ work, verify it, then update the checkpoint and append a log line.
     required. Verified docs static paths (`node --test test/docs-static-paths.test.js`,
     4/4 pass), ESLint (`npm run lint`), and non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-23 — caught up through `7d0be45c`: audited range
-    `ec952244..7d0be45c` (covering Tearoff #433 triggers `0766743e..9b88e567`
+    `ec952244..7d0be45c` (covering work queue item #433 triggers `0766743e..9b88e567`
     and `5b81e04f` through HEAD). Gap detection confirmed zero missing `help.md`
     files across all 210 effect definitions. Verified all 1,258 documented
     parameters across 200 effects match definitions (`node shaders/tests/test_effect_help_params.mjs`).
@@ -836,7 +836,7 @@ work, verify it, then update the checkpoint and append a log line.
     (`node --test test/docs-static-paths.test.js`, 4/4 pass), ESLint (`npm run lint`),
     and non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-23 — caught up through `ec952244`: audited range
-    `731b76e4..ec952244` (covering Tearoff #417 triggers `9e188535..0766743e`
+    `731b76e4..ec952244` (covering work queue item #417 triggers `9e188535..0766743e`
     through HEAD). Gap detection confirmed zero missing `help.md` files across
     all 210 effect definitions. Verified all 1,258 documented parameters across
     200 effects match definitions (`node shaders/tests/test_effect_help_params.mjs`).
@@ -849,7 +849,7 @@ work, verify it, then update the checkpoint and append a log line.
     Verified docs static paths (`node --test test/docs-static-paths.test.js`, 4/4 pass),
     ESLint (`npm run lint`), and non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-23 — caught up through `731b76e4`: audited range
-    `eb46047b..731b76e4` (covering Tearoff #402 triggers `44bc4ed4..9e188535`
+    `eb46047b..731b76e4` (covering work queue item #402 triggers `44bc4ed4..9e188535`
     and `532ed647..e32a5a4a` through HEAD). Gap detection confirmed zero missing
     `help.md` files across all 210 effect definitions. Verified all 1,258 documented
     parameters across 200 effects match definitions (`node shaders/tests/test_effect_help_params.mjs`).
@@ -862,7 +862,7 @@ work, verify it, then update the checkpoint and append a log line.
     test/docs-static-paths.test.js`, 4/4 pass), ESLint (`npm run lint`), and non-parity
     JS test suite (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-22 — caught up through `eb46047b`: audited range
-    `2779b409..eb46047b` (covering Tearoff #394 trigger `e5bd2013..44bc4ed4`
+    `2779b409..eb46047b` (covering work queue item #394 trigger `e5bd2013..44bc4ed4`
     through HEAD). Gap detection confirmed zero missing `help.md` files
     across all 210 effect definitions. Verified all 1,258 documented
     parameters across 200 effects match definitions (`node shaders/tests/test_effect_help_params.mjs`,
@@ -876,7 +876,7 @@ work, verify it, then update the checkpoint and append a log line.
     non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`,
     65 tests pass).
   - 2026-09-22 — caught up through `2779b409`: audited range
-    `e5bd2013..2779b409` (covering Tearoff #374 trigger `e5bd2013..643b2be1`
+    `e5bd2013..2779b409` (covering work queue item #374 trigger `e5bd2013..643b2be1`
     through HEAD). Gap detection confirmed zero missing `help.md` files
     across all 210 effect definitions. Verified all 1,257 documented
     parameters across 200 effects match definitions (`node shaders/tests/test_effect_help_params.mjs`).
@@ -889,7 +889,7 @@ work, verify it, then update the checkpoint and append a log line.
     (`node --test test/docs-static-paths.test.js`, 4/4 pass) and non-parity JS
     test suite (`node scripts/run-js-tests.js --skip-parity`, 64 tests pass).
   - 2026-09-22 — caught up through `e5bd2013`: audited range
-    `c9ca39ba..e5bd2013` (covering Tearoff #343 trigger `62bd24bc..e5bd2013`
+    `c9ca39ba..e5bd2013` (covering work queue item #343 trigger `62bd24bc..e5bd2013`
     through HEAD). Gap detection confirmed zero missing `help.md` files
     across all 210 effect definitions. Verified all 1,257 documented
     parameters across 200 effects match definitions (`node shaders/tests/test_effect_help_params.mjs`).
@@ -902,7 +902,7 @@ work, verify it, then update the checkpoint and append a log line.
     4/4 pass) and non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`,
     64 tests pass).
   - 2026-09-21 — caught up through `c9ca39ba`: audited range
-    `9d522a31..c9ca39ba` (covering Tearoff #327 trigger `50b8f909..62bd24bc`
+    `9d522a31..c9ca39ba` (covering work queue item #327 trigger `50b8f909..62bd24bc`
     through HEAD). Gap detection confirmed zero missing `help.md` files
     across all 210 effect definitions. Verified all 1,257 documented
     parameters across 200 effects match definitions. Invalidation audit
@@ -912,7 +912,7 @@ work, verify it, then update the checkpoint and append a log line.
     4/4 pass) and non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`,
     64 tests pass).
   - 2026-09-21 — caught up through `9d522a31`: audited range
-    `f61ac073..9d522a31` (covering Tearoff #315 trigger `2f855c9c..50b8f909`
+    `f61ac073..9d522a31` (covering work queue item #315 trigger `2f855c9c..50b8f909`
     through HEAD). Gap detection confirmed zero missing `help.md` files
     across all 210 effect definitions. Invalidation audit identified that
     the DSL grammar definition for `OutputRef` in `docs/shaders/language.rst`
@@ -923,7 +923,7 @@ work, verify it, then update the checkpoint and append a log line.
     parameters across 200 effects matching definitions), and `node scripts/run-js-tests.js --skip-parity`
     (57/57 passed).
   - 2026-09-21 — caught up through `f61ac073`: audited range
-    `ac8a8d90..f61ac073` (covering Tearoff #306 trigger `8ddf9e6e..2f855c9c`
+    `ac8a8d90..f61ac073` (covering work queue item #306 trigger `8ddf9e6e..2f855c9c`
     through HEAD). Gap detection confirmed zero missing `help.md` files
     across all 210 effect definitions (accounting for the removal of expired
     effects `bc`, `colorspace`, and `hs` in `2f855c9c`). Invalidation audit
@@ -1181,7 +1181,7 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
-  - 2026-10-15 — completed delivery pair for Tearoff item 1116. Audited the
+  - 2026-10-15 — completed delivery pair for work queue item 1116. Audited the
     complete Noisemaker range `b319e794..7e6c6130` and Shade MCP range
     `f36a5f62..830603b5`. The source identities are Noisemaker
     `7e6c613079b8074a7f9b0f0f7b3c7d8d87123f17` and Shade MCP
@@ -1217,9 +1217,9 @@ work, verify it, then update the checkpoint and append a log line.
     [Downstream](https://github.com/noisefactorllc/noisemaker/actions/runs/38807352648),
     and [code analysis](https://github.com/noisefactorllc/noisemaker/actions/runs/38807351428)
     workflows passed. Scaffold's
-    [site](https://github.com/noisefactorllc/scaffold/actions/runs/38807400753),
-    [docs site](https://github.com/noisefactorllc/scaffold/actions/runs/38807394781),
-    and [shader library](https://github.com/noisefactorllc/scaffold/actions/runs/38808888428)
+    site,
+    docs site,
+    and shader library
     release workflows passed for that commit. `noisemaker.app` and
     `docs.noisemaker.app` both serve deployment
     metadata naming `13eb5fb6`. The live `/llms-full.txt` response is HTTP
@@ -1230,7 +1230,7 @@ work, verify it, then update the checkpoint and append a log line.
     SHA-256 from `/1.0.295/`, `/1.0/`, and `/1/`. The complete pair is now
     delivered. This ledger-only commit advances the checkpoint to the two
     source SHAs in the contract snapshot block.
-  - 2026-10-03 — completed compatibility pass (Tearoff item 794): audited
+  - 2026-10-03 — completed compatibility pass (work queue item 794): audited
     Noisemaker `5ff0445939d0238c51f0ab93a30baa238a6509ec..bed7da28c32063b5837d4050843fed60847b602a`
     and the trigger range `d143cb51..058d15dc`; Shade MCP remained at
     `8e0c80a436fbe1ead57bdde3ff3b9f605d34f342`. The changed browser
@@ -1256,7 +1256,7 @@ work, verify it, then update the checkpoint and append a log line.
     backends with nonblank frames. The worked render returned 90x90 and
     warned that the requested 256x256 resolution was not honored. The
     worked benchmark reached 60.76 FPS at the measured 90x90 resolution.
-  - 2026-10-03 — completed compatibility pass (Tearoff item 774):
+  - 2026-10-03 — completed compatibility pass (work queue item 774):
     audited both complete checkpoint ranges and the trigger ranges through
     Noisemaker source `5ff0445939d0238c51f0ab93a30baa238a6509ec` and
     Shade MCP source `8e0c80a436fbe1ead57bdde3ff3b9f605d34f342`.
@@ -1294,7 +1294,7 @@ work, verify it, then update the checkpoint and append a log line.
     checked separately after publication. The contract removes resolved
     GAP-010, GAP-011, GAP-012, GAP-019, GAP-021, GAP-024, and GAP-029;
     GAP-015, GAP-017, and GAP-020 remain open.
-  - 2026-10-03 — delivery-blocked compatibility pass (Tearoff item 744):
+  - 2026-10-03 — delivery-blocked compatibility pass (work queue item 744):
     audited noisemaker `e9a357401f281405b5bf46e324238a3e160f1cd9..378c8bf80e5f61efeeaa479b0187ef92a242ff03`
     and shade-mcp `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d..0d7c071a0cd03adece1e5c3b7e19e15de3db30b8`.
     The Noisemaker changes include own-choice validation, uniform aliases,
@@ -1321,7 +1321,7 @@ work, verify it, then update the checkpoint and append a log line.
   - 2026-10-02 — compatibility pass auditing noisemaker
     `e9a357401f281405b5bf46e324238a3e160f1cd9..1fd893483c83f7602416cf8e9c48c9605a8f202c`
     and shade-mcp `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d..bdf186638b26fad4811b7d21aec25b3571f15040`
-    (Tearoff item 743; both ranges diffed from the local checkouts against this
+    (work queue item 743; both ranges diffed from the local checkouts against this
     checkpoint rather than trusted). The noisemaker range's watched-roots drift
     is empty — its commits are this ledger's and the gap register's own
     documentation (`f8d5940`..`1fd8934`, including the register's rework into
@@ -1421,7 +1421,7 @@ work, verify it, then update the checkpoint and append a log line.
     released, vendored and pinned); `shaders/tests/test_frame_readback.js` now
     source-guards the vendored verb's GL-only failure path, so the suite turns
     red exactly when a vendor refresh delivers the upstream fix and the
-    wrapper's WebGPU path must be re-derived. Receipts in the Worker Elves archive
+    wrapper's WebGPU path must be re-derived. Receipts in the automation archive
     `ledger-743`: `mcp-recapture-v030.json`, `mcp-recapture-v030-webgpu.json`,
     `mcp-recapture.mjs`, `mcp-recapture-webgpu.mjs`, test and smoke logs).
   - 2026-10-01 — delivery reconciliation: Shade MCP `v0.3.0` =
@@ -1491,7 +1491,7 @@ work, verify it, then update the checkpoint and append a log line.
     the timed `renderEffectFrame` call from stdio sessions at the tested
     immutable pin `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d` (receipts
     `pin-capture-030.json`, `pin-capture-2-030.json`). Archived run evidence
-    (Worker Elves archive `ledger-723`): `*-030.log`, `*-030.json`,
+    (automation archive `ledger-723`): `*-030.log`, `*-030.json`,
     `pin-capture-030.mjs`, `pin-capture-2-030.mjs`, and `vendor-check-030/`.
   - 2026-10-01 — Noise Factor AI delivery: Shade MCP `v0.3.0` is released
     from `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d`; exact-source
@@ -1518,7 +1518,7 @@ work, verify it, then update the checkpoint and append a log line.
   - 2026-10-01 — compatibility pass auditing noisemaker
     `e24c844f8dada85551ab084f41db8944fbc176c8..cb22a05eff9afed99fcf22a482b944c26f43e814`
     and shade-mcp `79c2e011a2a8088bf88462aae93ea7e2e135de10..687dbbd7d37a1220067ef08dacc350abfe62ebd5`
-    (Tearoff item 723, job `ledger-llms-contract`; both trigger ranges were diffed from the
+    (work queue item 723, job `ledger-llms-contract`; both trigger ranges were diffed from the
     local checkouts against this checkpoint rather than trusted. Noisemaker's forced start
     `e24c844` is a linear ancestor: its watched-root commits `dd4606e`/`a0e9bbf`/`e24c844`
     (GAP-007) and `ed47815` (GAP-010), the ledger's own documentation commits through
@@ -1571,7 +1571,7 @@ work, verify it, then update the checkpoint and append a log line.
     one-frame shape with `frame.image_uri: null`, keys `backend`/`console_errors`/`frame`/
     `metrics`/`status`, WebGL2, `mean_rgb` 0.232998/0.407600/0.448649, 929 unique sampled
     colors — the pin's documented live-frame read, nondeterministic with the capture moment.
-    Archived run evidence (Worker Elves archive `ledger-723`): `nm-tests.log`,
+    Archived run evidence (automation archive `ledger-723`): `nm-tests.log`,
     `nm-lint.log`, `shade-typecheck.log`, `shade-tests.log`, `shade-build.log`,
     `structure.log`, `webgl2-render.log`, `webgpu-render.log`, `browser-smoke.log`,
     `pin-capture.log`, `pin-capture.mjs`, `pin-capture.json`, and `vendor-check/`.
@@ -1594,7 +1594,7 @@ work, verify it, then update the checkpoint and append a log line.
   - 2026-10-01 — compatibility pass auditing noisemaker
     `4f5e0d28bdc155700393c314e9a5aafcc4da91fd..ed478159e5a31870c318be05ff755e533c754126`
     and shade-mcp `153eebd3b08c849a3fbf20d43527ae48a9dff746..79c2e011a2a8088bf88462aae93ea7e2e135de10`
-    (Tearoff item 699, job `ledger-llms-contract`; both trigger ranges were
+    (work queue item 699, job `ledger-llms-contract`; both trigger ranges were
     diffed from the local checkouts against this checkpoint rather than trusted —
     noisemaker's force-flagged deliveries resolve to the linear watched-root
     drift `c2a19c7`→`dd4606e`→`a0e9bbf`→`e24c844` (GAP-007) and
@@ -1662,7 +1662,7 @@ work, verify it, then update the checkpoint and append a log line.
     `backend_switch` `match`; `SHADE_SWIFTSHADER=1` with
     `VK_ICD_FILENAMES`/`VK_DRIVER_FILES` at the Playwright
     `chromium_headless_shell-1243` bundle's `vk_swiftshader_icd.json`,
-    `PLAYWRIGHT_BROWSERS_PATH=/state/cache/pw-browsers` holding both pinned
+    `PLAYWRIGHT_BROWSERS_PATH=<browser cache>` holding both pinned
     builds — chromium-1243 for noisemaker, chromium-1234 for shade-mcp); and
     Shade's real viewer smoke test (`NOISEMAKER=<this checkout> node
     scripts/browser-smoke.mjs` from the shade-mcp checkout at `79c2e01`, all
@@ -1679,7 +1679,7 @@ work, verify it, then update the checkpoint and append a log line.
     sampled colors — the pin's documented live-frame read) and the pin's
     `runDslProgram` (`status ok`, old one-frame shape, `frame.image_uri: null`,
     keys `backend`/`console_errors`/`frame`/`metrics`/`status`). Final-acceptance
-    evidence additions (Worker Elves archive `ledger-699`): exact-source CI at
+    evidence additions (automation archive `ledger-699`): exact-source CI at
     the audited noisemaker source tip `ed47815` observed via the public
     check-runs API (archived `check-runs-ed47815.json`) — 16 check runs, all
     `completed` with conclusion `success` or `skipped`, including shaders.yml's
@@ -1719,7 +1719,7 @@ work, verify it, then update the checkpoint and append a log line.
     upstream Shade before this item; this pass validated only the local
     Noisemaker-runtime DSL path against this checkout (verified defaults, no
     `SHADE_DSL_*` overrides) and makes no Portable claim. Archived run
-    evidence (Worker Elves archive `ledger-699`): `nm-tests.log`, `nm-lint.log`,
+    evidence (automation archive `ledger-699`): `nm-tests.log`, `nm-lint.log`,
     `shade-typecheck.log`, `shade-tests.log`, `structure.log`,
     `webgl2-render.log`, `webgpu-render.log`, `browser-smoke.log`,
     `pin-capture.log`, `pin-capture.mjs`, `vendor-check/`,
@@ -1730,7 +1730,7 @@ work, verify it, then update the checkpoint and append a log line.
   - 2026-09-29 — compatibility pass auditing noisemaker
     `73c15be00d6888f4b5d2835d8e242ee9e840df45..682739066d3b74962febbdcdae85b5aa4d2e19f3`
     and shade-mcp `00340b148e109464b1a87d89ff29fc7622d384c9..07af4ffa392197748216f3a0beaebee365d44292`
-    (Tearoff item 662, job `ledger-llms-contract`; both triggers were
+    (work queue item 662, job `ledger-llms-contract`; both triggers were
     force-pushed/non-contiguous, so both ranges were diffed from the local
     checkouts against this checkpoint rather than trusting the queue ranges —
     noisemaker's observed deliveries `3e21906..a505910`, `a505910..6827390` plus
@@ -1801,11 +1801,11 @@ work, verify it, then update the checkpoint and append a log line.
     synth/noise --backend webgpu --verbose`, 1/1 pass, `temporal_diff=0.216246`,
     identity `match`, generation 2→4, `backend_switch` `match`; run with
     `SHADE_SWIFTSHADER=1` and `VK_ICD_FILENAMES`/`VK_DRIVER_FILES` at
-    `/state/cache/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/vk_swiftshader_icd.json`
-    — Playwright browsers reinstalled to `PLAYWRIGHT_BROWSERS_PATH=/state/cache/pw-browsers`
+    `<browser cache>/chromium_headless_shell-1243/chrome-headless-shell-linux64/vk_swiftshader_icd.json`
+    — Playwright browsers reinstalled to `PLAYWRIGHT_BROWSERS_PATH=<browser cache>`
     (chromium-1243 for noisemaker, chromium-1234 for shade-mcp) and npm cache at
-    `/state/cache/npm`), and the live browser smoke test against the corrected
-    Shade build (`NOISEMAKER=/workspace/repos/noisemaker node
+    `<npm cache>`), and the live browser smoke test against the corrected
+    Shade build (`NOISEMAKER=<noisemaker checkout> node
     scripts/browser-smoke.mjs` from the Shade checkout, all 3 checks OK).
     Re-captured MCP initialization (server `shade-mcp` version `0.2.3`, protocol
     `2024-11-05`), 18 tools via `tools/list`, and the worked timed
@@ -1838,7 +1838,7 @@ work, verify it, then update the checkpoint and append a log line.
     environment made it run the corrected build at time 0.5, so its values
     were mislabeled as a pin capture; every capture in this entry was re-run
     with the explicit-provenance drivers archived beside the logs. Archived
-    run evidence (Worker Elves archive `ledger-662`):
+    run evidence (automation archive `ledger-662`):
     `pin-capture-time0-run1.log`, `pin-capture-time0-run2.log`,
     `pin-hang-time0.5.log`, `corrected-build-probe.log`, `audio-channel-red.log`,
     `audio-channel-green.log`, `nm-tests.log`,
@@ -1893,12 +1893,12 @@ work, verify it, then update the checkpoint and append a log line.
     before readback after `setPausedTime(time)`, so a nonzero requested time
     draws the time-0 frame there too; no caller currently requests a nonzero
     time through it.
-    Pass completion follow-up (Tearoff item 673): the entry's described ranges
+    Pass completion follow-up (work queue item 673): the entry's described ranges
     were re-diffed locally and extend exactly through noisemaker
     `4f5e0d28bdc155700393c314e9a5aafcc4da91fd` (`c4606d1`→`4d47b3f`→`4f5e0d2`,
     linear) and shade-mcp `153eebd3b08c849a3fbf20d43527ae48a9dff746`; both
     checkouts are in sync with their published mains. The validation battery
-    was completed on the exact pair on a real-GPU macOS host (Worker Elves
+    was completed on the exact pair on a real-GPU macOS host (Automated
     job `a88a5288`, evidence `ledger-673`, `host-run-note.md`): the full
     WebGL2 render chain exits 0 (synth/noise 1/1 with page-confirmed identity,
     `temporal_diff=0.216193`, plus the mesh first-frame, GLSL y-orientation
@@ -1983,7 +1983,7 @@ work, verify it, then update the checkpoint and append a log line.
     capture taken before that container's `npm ci` finished is superseded by
     the green rerun and kept only as the record of the failed attempt.
     `73c15be00d6888f4b5d2835d8e242ee9e840df45` / shade-mcp
-    `00340b148e109464b1a87d89ff29fc7622d384c9` (Worker Elves job `67ecc03a`,
+    `00340b148e109464b1a87d89ff29fc7622d384c9` (Automated job `67ecc03a`,
     selected existing GAP-029): the watched-root drift range `73c15be..HEAD`
     is empty (the range contains only this contract's own documentation
     advances and eslint/ruff dependency bumps outside the watched roots), so
@@ -2031,7 +2031,7 @@ work, verify it, then update the checkpoint and append a log line.
     `backend_switch` `match`; `SHADE_SWIFTSHADER=1` with
     `VK_ICD_FILENAMES`/`VK_DRIVER_FILES` at the Playwright
     `chromium_headless_shell-1243` bundle's `vk_swiftshader_icd.json` and
-    `PLAYWRIGHT_BROWSERS_PATH=/state/cache/pw-browsers` holding both pinned
+    `PLAYWRIGHT_BROWSERS_PATH=<browser cache>` holding both pinned
     Playwright browser builds — chromium-1243 for noisemaker, chromium-1234
     for shade-mcp), and the live browser smoke test (`NOISEMAKER=<noisemaker
     checkout> node scripts/browser-smoke.mjs` from the Shade checkout, all 3
@@ -2047,7 +2047,7 @@ work, verify it, then update the checkpoint and append a log line.
     `llms-full.txt` (GAP-029 row narrowed with the upstream evidence and the
     recorded limitation) and advanced this checkpoint together.
   - 2026-09-28 — caught up through noisemaker `73c15be00d6888f4b5d2835d8e242ee9e840df45`
-    / shade-mcp `00340b148e109464b1a87d89ff29fc7622d384c9` (Tearoff item 658, job
+    / shade-mcp `00340b148e109464b1a87d89ff29fc7622d384c9` (work queue item 658, job
     `ledger-llms-contract`): audited watched source roots across noisemaker range
     `296e0138c4744ed485b2e95de3eeb466c17629ee..73c15be00d6888f4b5d2835d8e242ee9e840df45`.
     The trigger's forced start `a912749` is the prior entry's audited range start
@@ -2111,10 +2111,10 @@ work, verify it, then update the checkpoint and append a log line.
     `backend_switch` `match` — run with `SHADE_SWIFTSHADER=1` and
     `VK_ICD_FILENAMES`/`VK_DRIVER_FILES` at the Playwright Chromium bundle's
     `vk_swiftshader_icd.json`; Playwright browsers reinstalled to
-    `PLAYWRIGHT_BROWSERS_PATH=/state/cache/pw-browsers` — chromium-1243 for
+    `PLAYWRIGHT_BROWSERS_PATH=<browser cache>` — chromium-1243 for
     noisemaker, chromium-1234 for shade-mcp — and npm used
-    `npm_config_cache=/state/cache/npm`), and the live browser smoke test
-    (`NOISEMAKER=/workspace/repos/noisemaker node scripts/browser-smoke.mjs` from
+    `npm_config_cache=<npm cache>`), and the live browser smoke test
+    (`NOISEMAKER=<noisemaker checkout> node scripts/browser-smoke.mjs` from
     the Shade checkout, all 3 checks OK: `compileEffect`, `renderEffectFrame`,
     module import from a `setContent` page). Re-captured MCP initialization
     (server `shade-mcp` version `0.2.3`, protocol `2024-11-05`), 18 tools via
@@ -2144,7 +2144,7 @@ work, verify it, then update the checkpoint and append a log line.
     extended across `296e013..73c15be`, and the 2026-09-28 re-capture evidence)
     and advanced this checkpoint together.
   - 2026-09-27 — caught up through noisemaker `296e0138c4744ed485b2e95de3eeb466c17629ee`
-    / shade-mcp `00340b1` (Tearoff item 644, job `ledger-llms-contract`): audited
+    / shade-mcp `00340b1` (work queue item 644, job `ledger-llms-contract`): audited
     watched source roots across noisemaker range
     `93229933b102ba82e713402be19db57207698850..296e0138c4744ed485b2e95de3eeb466c17629ee`.
     The trigger's forced start `12b4d74` is the prior entry's audited range start
@@ -2197,11 +2197,11 @@ work, verify it, then update the checkpoint and append a log line.
     (`npm run test:shaders:render:webgpu`, 1/1 pass, `temporal_diff=0.216246`,
     `is_no_animation=false`, `is_low_variety=false` — run with `SHADE_SWIFTSHADER=1`
     and `VK_ICD_FILENAMES`/`VK_DRIVER_FILES` at the Playwright Chromium bundle's
-    `vk_swiftshader_icd.json`; `/state/cache/pw-browsers` had been pruned, so
+    `vk_swiftshader_icd.json`; the browser cache had been pruned, so
     Playwright browsers were reinstalled to
-    `PLAYWRIGHT_BROWSERS_PATH=/state/cache/pw-browsers` — chromium-1243 for
+    `PLAYWRIGHT_BROWSERS_PATH=<browser cache>` — chromium-1243 for
     noisemaker, chromium-1234 for shade-mcp), and the live browser smoke test
-    (`NOISEMAKER=/workspace/repos/noisemaker node scripts/browser-smoke.mjs` from
+    (`NOISEMAKER=<noisemaker checkout> node scripts/browser-smoke.mjs` from
     the Shade checkout, all 3 checks OK: `compileEffect`, `renderEffectFrame`,
     module import from a `setContent` page). Re-captured MCP initialization (server
     `shade-mcp` version `0.2.3`, protocol `2024-11-05`), 18 tools via `tools/list`,
@@ -2225,7 +2225,7 @@ work, verify it, then update the checkpoint and append a log line.
     Shade-repository items, and GAP-013 stays closed on immutable pinning — no
     newer Shade release exists).
   - 2026-09-27 — caught up through noisemaker `93229933b102ba82e713402be19db57207698850`
-    / shade-mcp `00340b148e109464b1a87d89ff29fc7622d384c9` (Tearoff item 631, job
+    / shade-mcp `00340b148e109464b1a87d89ff29fc7622d384c9` (work queue item 631, job
     `ledger-llms-contract`): audited watched source roots across noisemaker range
     `12b4d74fb4f28d5f00bb1dde107fa8673814d8b9..93229933b102ba82e713402be19db57207698850`
     — linear, two commits: `8fe3cca` (documentation-only: post-publication
@@ -2268,11 +2268,11 @@ work, verify it, then update the checkpoint and append a log line.
     `temporal_diff=0.216246`, `is_no_animation=false`, `is_low_variety=false` —
     run with `SHADE_SWIFTSHADER=1` and `VK_ICD_FILENAMES`/`VK_DRIVER_FILES` at the
     Playwright Chromium bundle's `vk_swiftshader_icd.json`; the
-    `/state/cache/pw-browsers` cache had been pruned, so Playwright browsers were
-    reinstalled to `PLAYWRIGHT_BROWSERS_PATH=/state/cache/pw-browsers` —
+    browser cache had been pruned, so Playwright browsers were
+    reinstalled to `PLAYWRIGHT_BROWSERS_PATH=<browser cache>` —
     chromium-1243 for noisemaker, chromium-1234 for shade-mcp — and the MCP
-    re-capture used `npm_config_cache=/state/cache/npm`), and the live browser
-    smoke test (`NOISEMAKER=/workspace/repos/noisemaker node
+    re-capture used `npm_config_cache=<npm cache>`), and the live browser
+    smoke test (`NOISEMAKER=<noisemaker checkout> node
     scripts/browser-smoke.mjs` from the Shade checkout, all 3 checks OK:
     `compileEffect`, `renderEffectFrame`, module import from a `setContent` page).
     Re-captured MCP initialization (server `shade-mcp` version `0.2.3`, protocol
@@ -2298,7 +2298,7 @@ work, verify it, then update the checkpoint and append a log line.
     repository-side at `9322993`; the upstream Shade definition parser remains a
     Shade-repository item).
   - 2026-09-27 — caught up through noisemaker `12b4d74fb4f28d5f00bb1dde107fa8673814d8b9`
-    / shade-mcp `00340b1` (Tearoff item 619, job `ledger-llms-contract`): audited
+    / shade-mcp `00340b1` (work queue item 619, job `ledger-llms-contract`): audited
     watched source roots across noisemaker range
     `7443f6e6180300a45c5b97608459e5094504659d..12b4d74fb4f28d5f00bb1dde107fa8673814d8b9`.
     The trigger's three observed delivery ranges (`132d1bf..c2252f0`,
@@ -2352,12 +2352,12 @@ work, verify it, then update the checkpoint and append a log line.
     `is_no_animation=false`, `is_low_variety=false` — run with `SHADE_SWIFTSHADER=1`
     and `VK_ICD_FILENAMES`/`VK_DRIVER_FILES` at the Playwright Chromium bundle's
     `vk_swiftshader_icd.json`), and the live browser smoke test
-    (`NOISEMAKER=/workspace/repos/noisemaker node scripts/browser-smoke.mjs` from
+    (`NOISEMAKER=<noisemaker checkout> node scripts/browser-smoke.mjs` from
     the Shade checkout, all 3 checks OK: `compileEffect`, `renderEffectFrame`,
     module import from a `setContent` page). Playwright browsers were installed
-    to `PLAYWRIGHT_BROWSERS_PATH=/state/cache/pw-browsers` (noexec `$HOME` tmpfs;
+    to `PLAYWRIGHT_BROWSERS_PATH=<browser cache>` (noexec `$HOME` tmpfs;
     chromium-1243 for noisemaker, chromium-1234 for shade-mcp) and the MCP
-    re-capture used `npm_config_cache=/state/cache/npm`. Re-captured MCP
+    re-capture used `npm_config_cache=<npm cache>`. Re-captured MCP
     initialization (server `shade-mcp` version `0.2.3`, protocol `2024-11-05`),
     18 tools via `tools/list`, and a worked `checkEffectStructure` call with
     `effect_id: "synth/noise"` (status `ok`, passCount 1, no issues) from one
@@ -2386,7 +2386,7 @@ work, verify it, then update the checkpoint and append a log line.
     still open — GAP-009's closed row was wrongly still enumerated — and the
     post-publication deployed-contract evidence) and advanced this checkpoint together.
   - 2026-09-27 — caught up through noisemaker `7443f6e6` / shade-mcp `00340b1`
-    (Tearoff item 610, job `ledger-llms-contract`): audited watched source roots
+    (work queue item 610, job `ledger-llms-contract`): audited watched source roots
     across noisemaker range
     `9f85687d1bafc445dcd38e28cf5f0c6dfba562f8..7443f6e6180300a45c5b97608459e5094504659d`.
     The trigger's forced start `403c2a4` is the prior entry's source tip and
@@ -2437,12 +2437,12 @@ work, verify it, then update the checkpoint and append a log line.
     `temporal_diff=0.216246` — run with `SHADE_SWIFTSHADER=1` and
     `VK_ICD_FILENAMES`/`VK_DRIVER_FILES` at the Playwright Chromium bundle's
     `vk_swiftshader_icd.json`), and the live browser smoke test
-    (`NOISEMAKER=/workspace/repos/noisemaker node scripts/browser-smoke.mjs` from
+    (`NOISEMAKER=<noisemaker checkout> node scripts/browser-smoke.mjs` from
     the Shade checkout, all 3 checks OK: `compileEffect`, `renderEffectFrame`,
     module import from a `setContent` page). Playwright browsers were installed to
-    `PLAYWRIGHT_BROWSERS_PATH=/state/cache/pw-browsers` (noexec `$HOME` tmpfs;
+    `PLAYWRIGHT_BROWSERS_PATH=<browser cache>` (noexec `$HOME` tmpfs;
     chromium-1243 for noisemaker, chromium-1234 for shade-mcp) and the MCP
-    re-capture used `npm_config_cache=/state/cache/npm`. Re-captured MCP
+    re-capture used `npm_config_cache=<npm cache>`. Re-captured MCP
     initialization (server `shade-mcp` version `0.2.3`, protocol `2024-11-05`),
     18 tools via `tools/list`, and a worked `checkEffectStructure` call with
     `effect_id: "synth/noise"` (status `ok`, passCount 1, no issues) from one
@@ -2467,7 +2467,7 @@ work, verify it, then update the checkpoint and append a log line.
     `llms-full.txt` (snapshot block, worked-instance note extended across
     `9f85687d..7443f6e`) and advanced this checkpoint together.
   - 2026-09-26 — caught up through noisemaker `9f85687d` / shade-mcp `00340b1`
-    (Tearoff item 605, job `ledger-llms-contract`): audited watched source roots
+    (work queue item 605, job `ledger-llms-contract`): audited watched source roots
     across noisemaker range `0ac5250052e2b2e683f086959451c3bad8369a68..9f85687d1bafc445dcd38e28cf5f0c6dfba562f8`,
     which covers the trigger's forced start `403c2a4bf2cb56307448ea2fc1d6fa3cd74b7d6e`
     — `403c2a4` is the prior entry's source tip and `0ac5250` is the
@@ -2505,12 +2505,12 @@ work, verify it, then update the checkpoint and append a log line.
     run with `SHADE_SWIFTSHADER=1` and `VK_ICD_FILENAMES`/`VK_DRIVER_FILES` at the
     Playwright Chromium bundle's `vk_swiftshader_icd.json`; `synth/noise` →
     `temporal_diff=0.216246`, `is_no_animation=false`, `is_low_variety=false`), and
-    the live browser smoke test (`NOISEMAKER=/workspace/repos/noisemaker node
+    the live browser smoke test (`NOISEMAKER=<noisemaker checkout> node
     scripts/browser-smoke.mjs` from the Shade checkout, all 3 checks OK:
     `compileEffect`, `renderEffectFrame`, module import from a `setContent` page).
-    Playwright browsers were installed to `PLAYWRIGHT_BROWSERS_PATH=/state/cache/pw-browsers`
+    Playwright browsers were installed to `PLAYWRIGHT_BROWSERS_PATH=<browser cache>`
     (noexec `$HOME` tmpfs; chromium-1243 for noisemaker, chromium-1234 for
-    shade-mcp) and the MCP re-capture used `npm_config_cache=/state/cache/npm`.
+    shade-mcp) and the MCP re-capture used `npm_config_cache=<npm cache>`.
     Re-captured MCP initialization (server `shade-mcp` version `0.2.3`, protocol
     `2024-11-05`), 18 tools via `tools/list`, and a worked `checkEffectStructure`
     call with `effect_id: "synth/noise"` (status `ok`, passCount 1, no issues) from
@@ -2528,7 +2528,7 @@ work, verify it, then update the checkpoint and append a log line.
     `llms-full.txt` (snapshot block, worked-instance note extended across
     `403c2a4..9f85687`) and advanced this checkpoint together.
   - 2026-09-26 — caught up through noisemaker `403c2a4` / shade-mcp `00340b1`
-    (Tearoff item 601, job `ledger-llms-contract`): audited watched source roots
+    (work queue item 601, job `ledger-llms-contract`): audited watched source roots
     across noisemaker range `a651c075..403c2a4` (covering the trigger's
     `8eeb7b5a..403c2a4` delivery; `8eeb7b5` is a linear ancestor of the prior
     checkpoint `a651c075`, verified with `git merge-base --is-ancestor`, so the
@@ -2580,13 +2580,13 @@ work, verify it, then update the checkpoint and append a log line.
     Playwright Chromium bundle's `vk_swiftshader_icd.json`; `synth/noise` →
     `temporal_diff=0.216246`, `is_no_animation=false`, `is_low_variety=false`,
     matching the GAP-009 row's in-browser observation), and the live browser
-    smoke test (`NOISEMAKER=/workspace/repos/noisemaker node
+    smoke test (`NOISEMAKER=<noisemaker checkout> node
     scripts/browser-smoke.mjs`, all 3 checks OK: `compileEffect`,
     `renderEffectFrame`, module import from a `setContent` page). Both
     repositories' Playwright browsers were installed to
-    `PLAYWRIGHT_BROWSERS_PATH=/state/cache/pw-browsers` (noexec `$HOME` tmpfs;
+    `PLAYWRIGHT_BROWSERS_PATH=<browser cache>` (noexec `$HOME` tmpfs;
     chromium-1243 for noisemaker, chromium-1234 for shade-mcp) and the MCP
-    re-capture used `npm_config_cache=/state/cache/npm`. Re-captured MCP
+    re-capture used `npm_config_cache=<npm cache>`. Re-captured MCP
     initialization (server `shade-mcp` version `0.2.3`, protocol `2024-11-05`),
     18 tools via `tools/list`, and a worked `checkEffectStructure` call with
     `effect_id: "synth/noise"` (status `ok`, passCount 1, no issues) from one
@@ -2610,8 +2610,8 @@ work, verify it, then update the checkpoint and append a log line.
     section, Diagnose rejection strings, matrix cell, GAP-008 row,
     worked-instance note) and advanced this checkpoint together.
   - 2026-09-26 — caught up through noisemaker `a651c075` / shade-mcp `00340b1`
-    (Tearoff #570, job `ledger-llms-contract`): audited watched source roots
-    across noisemaker range `5e52a2a2..a651c075`, which closes Tearoff #570's
+    (work queue item #570, job `ledger-llms-contract`): audited watched source roots
+    across noisemaker range `5e52a2a2..a651c075`, which closes work queue item #570's
     three observed delivery ranges (`27590caa..8eeb7b5a`, `428ea29b..9574362`,
     `9574362..6a0af04`) — the trigger's forced start `4891b995` is a linear
     ancestor of `27590caa`, so trigger range `4891b995..8eeb7b5a` and this
@@ -2671,7 +2671,7 @@ work, verify it, then update the checkpoint and append a log line.
     open-gap count corrected to 16; advanced this checkpoint together.
   - 2026-09-25 — caught up through noisemaker `5e52a2a2` / shade-mcp `00340b1`:
     audited watched source roots across noisemaker range `69d83b80..5e52a2a2`
-    (covering Tearoff #551 trigger `4891b995..2f47612c` through HEAD).
+    (covering work queue item #551 trigger `4891b995..2f47612c` through HEAD).
     Commits `a021a283`, `62eb56fa`, and `2f47612c` implemented GAP-004 authorable
     mipmaps/persistent/3D filter texture policies across WebGL2 and WebGPU
     backends, compiler, and pipeline. Commit `85ded3a6` closed GAP-004 with
@@ -2700,7 +2700,7 @@ work, verify it, then update the checkpoint and append a log line.
     advanced `LEDGER.md` checkpoint together.
   - 2026-09-25 — caught up through noisemaker `69d83b80` / shade-mcp `00340b1`:
     audited watched source roots across noisemaker range `5f4b7c43..69d83b80`
-    (covering Tearoff #535 trigger `4891b995..9d3474df` through HEAD).
+    (covering work queue item #535 trigger `4891b995..9d3474df` through HEAD).
     Commits `ba87ffae` and `9d3474df` implemented GAP-003 runtime effect definition
     validation contract (`validateEffectDefinition` in `shaders/src/runtime/effect-validator.js`)
     with an explicit-denominator 210/210 corpus gate wired into test suites.
@@ -2727,7 +2727,7 @@ work, verify it, then update the checkpoint and append a log line.
     Updated `llms-full.txt` snapshot block and advanced `LEDGER.md` checkpoint together.
   - 2026-09-25 — caught up through noisemaker `5f4b7c43` / shade-mcp `00340b1`:
     audited watched source roots across noisemaker range `60b90af3..5f4b7c43`
-    (covering Tearoff #516 trigger `4891b995..240740dd` through HEAD).
+    (covering work queue item #516 trigger `4891b995..240740dd` through HEAD).
     Commit `66b2c721` implemented GAP-027 subchain-argument validation contract
     (P008 unknown/discarded key, P009 duplicate key, P010 missing comma separator,
     and `subchainArguments: 'strict'` opt-in rejection). Commit `240740dd`
@@ -2752,7 +2752,7 @@ work, verify it, then update the checkpoint and append a log line.
     Updated `llms-full.txt` snapshot block and advanced `LEDGER.md` checkpoint together.
   - 2026-09-24 — caught up through noisemaker `60b90af3` / shade-mcp `00340b1`:
     audited watched source roots across noisemaker range `13853dff..60b90af3`
-    (covering Tearoff #497 triggers `5b81e04f..4891b995` through HEAD).
+    (covering work queue item #497 triggers `5b81e04f..4891b995` through HEAD).
     Commit `4891b995` exposed structured call-form and expectation diagnostics
     (P007/P001), closing GAP-002 parser throw sites. Commit `9fa1a221` derived
     parser diagnostic coordinates from source positions. Commit `fca611fd`
@@ -2779,7 +2779,7 @@ work, verify it, then update the checkpoint and append a log line.
     Updated `llms-full.txt` snapshot block and advanced `LEDGER.md` checkpoint together.
   - 2026-09-24 — caught up through noisemaker `13853dff` / shade-mcp `00340b1`:
     audited watched source roots across noisemaker range `823bbff1..13853dff`
-    (covering Tearoff #475 triggers `5b81e04f..13fa8b54` through HEAD).
+    (covering work queue item #475 triggers `5b81e04f..13fa8b54` through HEAD).
     Commit `13fa8b54` narrowed GAP-002 by exposing structured parser diagnostics (P006)
     for explicit subchain validation sites (non-string arguments, missing body dot,
     empty body), preserving permissive argument keys/separators/duplicates and shared-expectation
@@ -2807,7 +2807,7 @@ work, verify it, then update the checkpoint and append a log line.
     and advanced `LEDGER.md` checkpoint together.
   - 2026-09-24 — caught up through noisemaker `823bbff1` / shade-mcp `00340b1`:
     audited watched source roots across noisemaker range `7a54ab38..823bbff1`
-    (covering Tearoff #453 triggers `5b81e04f..c9ee8a04` through HEAD).
+    (covering work queue item #453 triggers `5b81e04f..c9ee8a04` through HEAD).
     Commit `c9ee8a04` advanced AI development contract checkpoint for GAP-002 (P005).
     Commits `285e50f5` (site header strip program pixel density/AA ink), `65ff358f`
     (active-framework-gap docs reconciliation for GAP-002), and `823bbff1`
@@ -2832,7 +2832,7 @@ work, verify it, then update the checkpoint and append a log line.
     checkpoint together.
   - 2026-09-23 — caught up through noisemaker `7a54ab38` / shade-mcp `00340b1`:
     audited watched source roots across noisemaker range `e11f0767..7a54ab38`
-    (covering Tearoff #434 triggers `e32a5a4a..5b81e04f` through HEAD).
+    (covering work queue item #434 triggers `e32a5a4a..5b81e04f` through HEAD).
     Commit `9b88e567` optimized `classicNoisedeck/glitch` by guarding glitch, scanline,
     and snow work when amounts are zero and attested WebGL2/WebGPU pixel parity.
     Commit `5b81e04f` implemented output sink deferral via optional `deferRender()`
@@ -2861,7 +2861,7 @@ work, verify it, then update the checkpoint and append a log line.
     checkpoint together.
   - 2026-09-23 — caught up through noisemaker `e11f0767` / shade-mcp `00340b1`:
     audited watched source roots across noisemaker range `9e188535..e11f0767`
-    (covering Tearoff #415 trigger `44bc4ed4..e11f0767`).
+    (covering work queue item #415 trigger `44bc4ed4..e11f0767`).
     Commits `e32a5a4a`, `731b76e4`, `0766743e`, and `32f818e7` narrowed GAP-002 by
     exposing structured parser diagnostics for automation arguments (P003) and
     search directives (P004) with token coordinates and null spans while retaining
@@ -2884,7 +2884,7 @@ work, verify it, then update the checkpoint and append a log line.
     `llms-full.txt` snapshot block and `LEDGER.md` checkpoint together.
   - 2026-09-22 — caught up through noisemaker `9e188535` / shade-mcp `00340b1`:
     audited watched source roots across noisemaker range `ad60cc9b..9e188535`
-    (covering Tearoff #395 trigger `e5bd2013..44bc4ed4` through HEAD).
+    (covering work queue item #395 trigger `e5bd2013..44bc4ed4` through HEAD).
     Commits `36a519a2`, `31ab014f`, and `ae4e3302` added pruned isosurface mode
     to `renderLandscape3d` with coordinate fixes. Commits `44bc4ed4` and `dd38fdd2`
     narrowed GAP-002 by exposing structured parser expectation diagnostics
@@ -2905,7 +2905,7 @@ work, verify it, then update the checkpoint and append a log line.
     checkpoint together.
   - 2026-09-22 — caught up through noisemaker `ad60cc9b` / shade-mcp `00340b1`:
     audited watched source roots across noisemaker range `e5bd2013..ad60cc9b`
-    (covering Tearoff #375 trigger `e5bd2013..643b2be1` through HEAD).
+    (covering work queue item #375 trigger `e5bd2013..643b2be1` through HEAD).
     Commit `643b2be1` narrowed GAP-002 by attaching structured JSON-safe
     `error.diagnostic` (L001-L004) to thrown `SyntaxError` on DSL lexer failures
     in `shaders/src/lang/lexer.js` and `diagnostics.js`, preserving legacy error
@@ -3090,7 +3090,7 @@ work, verify it, then update the checkpoint and append a log line.
     Opened GAP-030 because MRT adaptation mutates graph formats without
     invalidating same-size reused backend textures. Reproduced the worked source
     graph and device-limit regression gates. Shade MCP did not move in this
-    Tearoff range, so its handshake, 18 tool schemas, historical browser
+    work queue range, so its handshake, 18 tool schemas, historical browser
     transcript, and MCP-side gaps remain pinned unchanged.
   - 2026-08-14 — caught up through noisemaker `f6b22ab3` / shade-mcp
     `ac4c6ba1`: verified that no Noisemaker watched source root changed,

@@ -4,7 +4,7 @@ name: Site
 # workflow just fires the workflow_dispatch at scaffold's
 # static-site-release, which clones this repo at the pushed SHA, runs
 # `npm run bundle:site`, writes deployment-meta.json, and rsyncs
-# dist/site/ to ~/sites/noisemaker.app/content on nf-toronto.
+# dist/site/ to the production web server.
 #
 # Keeping the SSH key + server IP on the scaffold side means this
 # public repo carries no deploy secrets — only the EHSRE app private
