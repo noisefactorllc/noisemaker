@@ -45,7 +45,9 @@ Quick Start
                canvas,
                width: 512,
                height: 512,
-               basePath: '../../shaders'
+               // Absolute URL: the manifest is fetched relative to the page,
+               // but definitions are imported relative to canvas.js
+               basePath: new URL('../../shaders', import.meta.url).href
            });
 
            await renderer.loadManifest();
@@ -75,7 +77,7 @@ The core rendering engine that manages the GPU pipeline:
        canvas: HTMLCanvasElement,     // Target canvas
        width: 1024,                   // Render resolution
        height: 1024,
-       basePath: '../../shaders',     // Path to shader assets
+       basePath: new URL('./shaders', import.meta.url).href,  // Absolute URL of shaders/
        preferWebGPU: false,           // Use WebGPU if available
        useBundles: false,             // Use pre-built effect bundles
        bundlePath: '../../dist/effects',
