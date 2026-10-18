@@ -16,6 +16,7 @@ function test(name, fn) {
     } catch (e) {
         console.error(`FAIL: ${name}`)
         console.error(e)
+        process.exitCode = 1
     }
 }
 

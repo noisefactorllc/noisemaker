@@ -7,17 +7,17 @@ import { expand } from '../src/runtime/expander.js'
 import { allocateResources } from '../src/runtime/resources.js'
 
 // Setup
-registerOp('osc', { name: 'osc', args: [{ name: 'freq', type: 'float', default: 60 }] })
-registerOp('kaleid', { name: 'kaleid', args: [{ name: 'n', type: 'float', default: 4 }] })
-registerStarterOps(['osc'])
+registerOp('synth.osc', { name: 'osc', args: [{ name: 'freq', type: 'float', default: 60 }] })
+registerOp('filter.kaleid', { name: 'kaleid', args: [{ name: 'n', type: 'float', default: 4 }] })
+registerStarterOps(['synth.osc'])
 
-registerEffect('osc', {
+registerEffect('synth.osc', {
     name: 'osc',
     passes: [{ type: 'render', program: 'osc', outputs: { color: 'outputTex' } }]
 })
-registerEffect('kaleid', {
+registerEffect('filter.kaleid', {
     name: 'kaleid',
-    passes: [{ type: 'render', program: 'kaleid', inputs: { tex: 'inputColor' }, outputs: { color: 'outputTex' } }]
+    passes: [{ type: 'render', program: 'kaleid', inputs: { tex: 'inputTex' }, outputs: { color: 'outputTex' } }]
 })
 
 function compileAndAllocate(code) {
@@ -47,7 +47,12 @@ try {
 
     const texA = passes[0].outputs.color // node_0_out
     const texB = passes[1].outputs.color // node_1_out
-    const texC = passes[2].outputs.color // node_2_out or global_o0
+    const texC = passes[2].outputs.color // node_2_out
+    // write(o0) adds a blit pass that copies node_2_out into global_o0.
+    if (passes.length !== 4) throw new Error(`Expected 4 passes, got ${passes.length}`)
+    if (passes[3].program !== 'blit') throw new Error(`Expected blit last, got ${passes[3].program}`)
+    if (passes[3].inputs.src !== texC) throw new Error(`Expected blit src=${texC}, got ${passes[3].inputs.src}`)
+    if (passes[3].outputs.color !== 'global_o0') throw new Error(`Expected blit output global_o0, got ${passes[3].outputs.color}`)
 
     const physA = allocations.get(texA)
     const physB = allocations.get(texB)
@@ -66,4 +71,5 @@ try {
 } catch (e) {
     console.error('FAIL: Phase 2 Integration')
     console.error(e)
+    process.exitCode = 1
 }
