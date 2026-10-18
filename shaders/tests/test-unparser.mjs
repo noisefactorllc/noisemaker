@@ -14,6 +14,9 @@ import noise from '../effects/synth/noise/definition.js';
 import scale from '../effects/filter/scale/definition.js';
 import heightmap from '../effects/synth3d/heightmap3d/definition.js';
 import landscape from '../effects/render/renderLandscape3d/definition.js';
+import Text from '../effects/filter/text/definition.js';
+import { registerEffect } from '../src/runtime/registry.js';
+import { ProgramState } from '../../demo/shaders/lib/program-state.js';
 
 let passed = 0;
 let failed = 0;
@@ -600,6 +603,85 @@ test('Bare state arguments preserve their runtime values after unparsing', () =>
         for (const value of [0, 7, 31]) {
             const state = { [name]: value };
             assert.equal(after.plans[0].chain[0].args.amount.fn(state), value);
+        }
+    }
+});
+
+// The lexer keeps a string literal's content as written, escapes included.
+// unparse must write that same content back, so a saved program reloads with
+// the same values and the text does not grow on each save.
+const textDefinition = new Text();
+registerOp('filter.text', { name: textDefinition.func, args: Object.entries(textDefinition.globals).map(([key, spec]) => ({ name: key, ...spec })) });
+registerEffect('filter.text', textDefinition);
+const stringOptions = { getEffectDef: name => name === 'filter.text' ? textDefinition : inlineDefinitions.get(name) };
+
+function stringValueCycles(source, read, options) {
+    const values = [];
+    let dsl = source;
+    for (let cycle = 0; cycle < 3; cycle++) {
+        const compiled = compile(dsl);
+        assert.deepEqual(compiled.diagnostics.filter(d => d.severity === 'error'), [], dsl);
+        values.push(read(compiled));
+        dsl = unparse(compiled, {}, options);
+    }
+    return values;
+}
+
+test('Existing text() literals compile to the same values as before', () => {
+    const read = literal => compile(`search synth, filter\nnoise().text(text: ${literal}).write(o0)\nrender(o0)`).plans[0].chain[1].args.text;
+    assertEqual(read(String.raw`"say \"hi\" C:\\temp"`), String.raw`say \"hi\" C:\\temp`, 'Double-quoted escapes stay in the value');
+    assertEqual(read(String.raw`"C:\new"`), String.raw`C:\new`, 'Backslash and n stay two characters');
+    assertEqual(read(`'say "hi"'`), 'say "hi"', 'Single quotes hold double quotes');
+    assertEqual(read('"""two\nlines"""'), 'two\nlines', 'Triple quotes hold newlines');
+});
+
+test('text() values with quotes, backslashes and newlines survive three unparse cycles', () => {
+    const literals = [String.raw`"say \"hi\" C:\\temp"`, String.raw`"C:\new"`, String.raw`"a \\ b"`, `'say "hi"'`,
+        String.raw`'it\'s'`, `"it's"`, '"""two\nlines"""', '"""say "hi"\nC:\\temp"""', String.raw`"tail \\"`, String.raw`"q\""`];
+    for (const literal of literals) {
+        const source = `search synth, filter\nnoise().text(text: ${literal}).write(o0)\nrender(o0)`;
+        const expected = compile(source).plans[0].chain[1].args.text;
+        for (const options of [{}, stringOptions]) {
+            assert.deepEqual(stringValueCycles(source, compiled => compiled.plans[0].chain[1].args.text, options),
+                [expected, expected, expected], literal);
+        }
+    }
+});
+
+test('Subchain names and ids with newlines, quotes and backslashes survive three unparse cycles', () => {
+    const literals = ['"""two\nlines"""', `'say "x"'`, String.raw`"back\\slash"`, String.raw`"q\"uote"`, String.raw`"C:\new"`];
+    const read = compiled => {
+        const begin = compiled.plans[0].chain.find(step => step.op === '_subchain_begin');
+        return [begin.args.name, begin.args.id];
+    };
+    for (const literal of literals) {
+        const source = `search synth, filter\nnoise().subchain(name: ${literal}, id: ${literal}) {\n  .invert()\n}.write(o0)\nrender(o0)`;
+        const expected = read(compile(source));
+        assert.ok(expected[0] && expected[1], `${literal} must compile to a subchain name and id`);
+        assert.deepEqual(stringValueCycles(source, read, stringOptions), [expected, expected, expected], literal);
+    }
+});
+
+test('ProgramState text values with quotes and backslashes keep the same DSL across saves', () => {
+    const renderer = { currentDsl: 'search synth, filter\n\nnoise()\n  .text(text: "start")\n  .write(o0)\n\nrender(o0)', enums: {} };
+    const state = new ProgramState({ renderer });
+    state.fromDsl(renderer.currentDsl);
+    // The first values have a literal form that holds them as written. The
+    // last has both quote kinds and ends with a double quote, so no form
+    // holds it; it gains backslashes once and is then stable.
+    const values = [String.raw`say "hi" C:\temp`, String.raw`C:\new`, 'two\nlines', 'say "hi"\nC:\\temp', 'tail\\', String.raw`it's "hi"`];
+    for (const value of values) {
+        state.setValue('step_1', 'text', value);
+        const first = state.toDsl();
+        renderer.currentDsl = first;
+        state.fromDsl(first);
+        const reloaded = state.getValue('step_1', 'text');
+        const second = state.toDsl();
+        assertEqual(second, first, `DSL must not change on the second save of ${JSON.stringify(value)}`);
+        if (value === String.raw`it's "hi"`) {
+            assertEqual(reloaded, String.raw`it's \"hi\"`, 'The value with no literal form gets one backslash per double quote');
+        } else {
+            assertEqual(reloaded, value, `${JSON.stringify(value)} must reload unchanged`);
         }
     }
 });

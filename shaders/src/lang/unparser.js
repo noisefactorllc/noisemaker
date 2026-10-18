@@ -201,6 +201,58 @@ function formatLosslessNumber(value) {
 }
 
 /**
+ * True when the lexer scan of `"value"` or `'value'` stops at the closing
+ * quote. The scan stops at an unescaped quote or newline, and a backslash
+ * always takes the next character with it.
+ */
+function quotedScanEndsAtClose(value, quote) {
+    const text = value + quote
+    let i = 0
+    while (i < text.length && text[i] !== quote && text[i] !== '\n') {
+        i += text[i] === '\\' && i + 1 < text.length ? 2 : 1
+    }
+    return i === value.length
+}
+
+/**
+ * The first quote form whose literal the lexer reads back as `value`, or
+ * null. Triple quotes come first for multi-line values.
+ */
+function stringQuoteFor(value) {
+    const forms = value.includes('\n') ? ['"""', '"', "'"] : ['"', "'", '"""']
+    return forms.find(form => form === '"""'
+        ? (value + '"""').indexOf('"""') === value.length
+        : quotedScanEndsAtClose(value, form)) ?? null
+}
+
+/**
+ * Format a string value as a DSL string literal.
+ *
+ * The lexer keeps the content of a string literal as written and does not
+ * decode escapes, so `"a\"b"` gives the value a, \, ", b. The value is
+ * written back with that same content, which compiles to the same value.
+ * A value that no quote form holds (for example it's "hi") gets a backslash
+ * before each double quote and newline that would end a double-quoted
+ * string, and before a last lone backslash. That text then stays the same.
+ */
+function formatStringLiteral(value) {
+    let content = value
+    if (!stringQuoteFor(content)) {
+        content = ''
+        for (let i = 0; i < value.length; i++) {
+            const char = value[i]
+            if (char === '\\') {
+                content += i + 1 < value.length ? char + value[++i] : '\\\\'
+            } else {
+                content += char === '"' || char === '\n' ? `\\${char}` : char
+            }
+        }
+    }
+    const quote = stringQuoteFor(content)
+    return `${quote}${content}${quote}`
+}
+
+/**
  * Format a value for DSL output
  * @param {any} value - The value to format
  * @param {object} spec - Optional parameter spec for type hints
@@ -402,13 +454,7 @@ function formatValue(value, spec, options = {}, sourceForm) {
         const needsQuoting = type === 'string' || (!isValidIdentifier && !isEnumPath)
 
         if (needsQuoting) {
-            // Use triple-quotes for multi-line strings
-            if (value.includes('\n')) {
-                return `"""${value}"""`
-            }
-            // Escape any quotes in the string
-            const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-            return `"${escaped}"`
+            return formatStringLiteral(value)
         }
         return value
     }
@@ -474,8 +520,7 @@ function formatValue(value, spec, options = {}, sourceForm) {
     if (typeof value === 'object') {
         // Handle String AST node
         if (value.type === 'String') {
-            const escaped = value.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-            return `"${escaped}"`
+            return formatStringLiteral(value.value)
         }
         // Handle oscillator configuration
         if (value.type === 'Oscillator') {
@@ -759,7 +804,7 @@ function formatLetExpr(expr, options = {}) {
         case 'Number':
             return String(expr.value)
         case 'String':
-            return JSON.stringify(expr.value)
+            return formatStringLiteral(expr.value)
         case 'Boolean':
             return expr.value ? 'true' : 'false'
         case 'Ident':
@@ -1053,8 +1098,8 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 const name = step.args?.name
                 const id = step.args?.id
                 const parts = []
-                if (name) parts.push(`name: "${name}"`)
-                if (id) parts.push(`id: "${id}"`)
+                if (name) parts.push(`name: ${formatStringLiteral(name)}`)
+                if (id) parts.push(`id: ${formatStringLiteral(id)}`)
                 const argsStr = parts.length > 0 ? parts.join(', ') : ''
                 const elem = { code: `subchain(${argsStr}) {`, isSubchainBegin: true }
                 if (step.leadingComments && step.leadingComments.length > 0) {
