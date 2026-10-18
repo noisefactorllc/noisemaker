@@ -9,6 +9,7 @@ function test(name, code, check, expectError = null) {
         if (expectError) {
             console.error(`FAIL: ${name}`)
             console.error('Expected error but parsing succeeded')
+            process.exitCode = 1
             return
         }
         check(ast)
@@ -22,11 +23,13 @@ function test(name, code, check, expectError = null) {
             } catch (validationError) {
                 console.error(`FAIL: ${name}`)
                 console.error(validationError)
+                process.exitCode = 1
             }
             return
         }
         console.error(`FAIL: ${name}`)
         console.error(e)
+        process.exitCode = 1
         try {
             const tokens = lex(code)
             const ast = parse(tokens)
