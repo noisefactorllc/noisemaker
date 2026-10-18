@@ -692,6 +692,7 @@ After registration, the DSL parser accepts the new namespace in the ``search`` d
 **Validation rules for namespace ids:**
 
 * Must match ``/^[a-z][a-zA-Z0-9]*$/`` (lowercase-leading identifier).
+* Must not start with a surface reference. The lexer reads ``o`` or ``s``, or ``vol``, ``geo``, ``xyz``, ``vel``, ``rgba`` or ``mesh``, followed by a digit as a surface reference (``o1``, ``s1``, ``vol0``, ``mesh6x``), and ``search`` cannot name it.
 * Must not be a DSL reserved keyword (``let``, ``render``, ``write``, ``write3d``, ``if``, ``elif``, ``else``, ``break``, ``continue``, ``return``, ``search``, ``subchain``, ``true``, ``false``).
 * Must not collide with an IO function name (``read``, ``write``, ``read3d``, ``write3d``, ``render``, ``render3d``).
 * Must not be a reserved function name (``from``, ``osc``, ``midi``, ``audio``, ``null``, ``undefined``).

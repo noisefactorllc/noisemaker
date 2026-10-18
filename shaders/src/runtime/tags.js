@@ -6,7 +6,7 @@
  * for effect groupings.
  */
 
-import { RESERVED_KEYWORDS } from '../lang/lexer.js'
+import { RESERVED_KEYWORDS, lex } from '../lang/lexer.js'
 
 /**
  * Tag definitions.
@@ -175,6 +175,21 @@ const _RESERVED_FUNCTION_NAMES = ['from', 'osc', 'midi', 'audio', 'null', 'undef
 const _ID_PATTERN = /^[a-z][a-zA-Z0-9]*$/
 
 /**
+ * True when the lexer reads `id` as one identifier token. The lexer reads a
+ * name that starts with a surface reference (o0-o7, s1, vol0, geo2, xyz3,
+ * vel4, rgba5, mesh6, ...) as a reference token, and `search` cannot name it.
+ */
+function _lexesAsIdentifier(id) {
+    let tokens
+    try {
+        tokens = lex(id)
+    } catch {
+        return false
+    }
+    return tokens.length === 2 && tokens[0].type === 'IDENT' && tokens[0].lexeme === id
+}
+
+/**
  * Read-only object view of all registered namespaces.
  * Mutation traps fire only for registered keys — unknown / Symbol keys
  * fall through to the empty target so primitive coercion (String(),
@@ -277,7 +292,8 @@ export function getNamespaceDescription(namespaceId) {
  * Register a new effect namespace. Once registered the id is accepted by
  * the DSL parser's `search` directive and by `isValidNamespace`.
  *
- * Validation rules: the id must match /^[a-z][a-zA-Z0-9]*$/, must not be
+ * Validation rules: the id must match /^[a-z][a-zA-Z0-9]*$/, must lex as
+ * one identifier (not a surface reference such as o1 or vol0), must not be
  * a DSL reserved keyword or function name, and must not collide with a
  * built-in namespace. Re-registering with the same description is an
  * idempotent no-op; with a different description, throws. Built-ins
@@ -298,6 +314,9 @@ export function registerNamespace(id, descriptor) {
     }
     if (Object.prototype.hasOwnProperty.call(RESERVED_KEYWORDS, id)) {
         throw new Error(`Cannot register namespace '${id}': reserved DSL keyword`)
+    }
+    if (!_lexesAsIdentifier(id)) {
+        throw new Error(`Cannot register namespace '${id}': the DSL reads it as a surface reference`)
     }
     if (IO_FUNCTIONS.includes(id)) {
         throw new Error(`Cannot register namespace '${id}': reserved IO function name`)
