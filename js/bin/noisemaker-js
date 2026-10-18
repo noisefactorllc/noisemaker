@@ -733,6 +733,16 @@ async function handleGenerate(args) {
     throw new Error("Error: Missing argument 'PRESET_NAME'.");
   }
 
+  let seed = options.seed;
+  if (!Number.isFinite(seed) || seed === null || seed === 0) {
+    seed = Math.floor(Math.random() * MAX_SEED_VALUE) + 1;
+  }
+
+  // Seed before PRESETS(), as the Python CLI does: PRESETS() advances the
+  // seeded RNG, so loading the presets first gives a different image.
+  setUtilSeed(seed);
+  setValueSeed(seed);
+
   const presets = PRESETS();
   let resolvedName = presetName;
 
@@ -746,14 +756,6 @@ async function handleGenerate(args) {
   } else if (!Object.prototype.hasOwnProperty.call(presets, resolvedName)) {
     throw new Error(`Unknown preset: ${resolvedName}`);
   }
-
-  let seed = options.seed;
-  if (!Number.isFinite(seed) || seed === null || seed === 0) {
-    seed = Math.floor(Math.random() * MAX_SEED_VALUE) + 1;
-  }
-
-  setUtilSeed(seed);
-  setValueSeed(seed);
 
   const debugMode = Boolean(options.debugPrint || options.debugOut);
   const preset = instantiatePreset(resolvedName, presets, seed, { debug: debugMode });
