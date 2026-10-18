@@ -1422,13 +1422,13 @@ export async function voronoi(
   ) {
     outTensor = await offsetTensor(outTensor, xOff, yOff)
   }
-  if (downsample) {
-    const splineOrder =
-      diagramType === VoronoiDiagramType.color_regions
-        ? InterpolationType.constant
-        : InterpolationType.bicubic
-    outTensor = await resample(outTensor, originalShape, splineOrder)
-  }
+  // Python resamples every diagram to the original shape, with or without
+  // downsampling, which also widens single-channel diagrams to its channels.
+  const splineOrder =
+    diagramType === VoronoiDiagramType.color_regions
+      ? InterpolationType.constant
+      : InterpolationType.bicubic
+  outTensor = await resample(outTensor, originalShape, splineOrder)
   if (withRefract) {
     // Python's voronoi effect calls value.refract() directly with the range
     // slice as the X reference.  When ``refract_y_from_offset`` is False it
