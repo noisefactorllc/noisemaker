@@ -437,11 +437,6 @@ Returns ``[{ effectId, namespace, name }, ...]`` for every call site in the DSL 
 
 The static-DSL quickstart loads its single effect directly by ID. Use ``extractEffectNamesFromDsl`` when you do not know the DSL text while writing the application.
 
-.. note::
-
-   The current bundle's ``extractEffectNamesFromDsl`` uses regex. It includes inline ``//`` comments after a ``search`` directive in the namespace name.
-   If your DSL uses such comments, move them to their own line. Alternatively, remove line comments before calling the helper: ``dsl.replace(/\/\/.*$/gm, '')``.
-
 Parameter Types
 ---------------
 

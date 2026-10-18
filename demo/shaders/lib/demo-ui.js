@@ -18,7 +18,7 @@
  * });
  */
 
-import { unparseCall, formatValue, formatDslError, isDslSyntaxError } from '../../../shaders/src/lang/index.js'
+import { lex, unparseCall, formatValue, formatDslError, isDslSyntaxError } from '../../../shaders/src/lang/index.js'
 import {
     getEffect,
     cloneParamValue,
@@ -110,93 +110,78 @@ export function createEffectDefCallback(getEffect) {
 }
 
 /**
- * Extract effect names from DSL text without compiling (for lazy loading)
+ * Extract effect names from DSL text without compiling (for lazy loading).
+ *
+ * Reads the DSL with the language lexer, so comments and line breaks follow
+ * the language rules. Every call site resolves against the manifest in the
+ * validator's order: the namespace of a `from(namespace, call())`, else the
+ * `search` directive. A call through a `let` name resolves to the bound
+ * effect. Program fragments, such as a chain that starts with `.`, also work.
  * @param {string} dsl - DSL source
  * @param {object} manifest - Shader manifest
- * @returns {Array} Array of { effectId, namespace, name }
+ * @returns {Array} Array of { effectId, namespace, name }; empty when the DSL does not lex
  */
 export function extractEffectNamesFromDsl(dsl, manifest) {
     const effects = []
     if (!dsl || typeof dsl !== 'string') return effects
 
+    let tokens
+    try {
+        tokens = lex(dsl).filter(token => token.type !== 'COMMENT')
+    } catch (_err) {
+        // compile() reports the lexical error to the host.
+        return effects
+    }
 
-    const lines = dsl.split('\n')
-    let searchNamespaces = []
-
-    for (const line of lines) {
-        const trimmed = line.trim()
-
-        // Handle semicolon-separated statements on one line
-        // Split by semicolon and process each statement
-        const statements = trimmed.split(';').map(s => s.trim()).filter(s => s)
-
-        for (const stmt of statements) {
-            if (stmt.startsWith('search ')) {
-                searchNamespaces = stmt.slice(7).split(',').map(s => s.trim())
-                continue
-            }
-
-            if (!stmt || stmt.startsWith('//')) continue
-
-            // Handle from(namespace, call(...)) syntax
-            // Pattern: from(namespace, effectName(...))
-            const fromPattern = /\bfrom\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*,\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g
-            let fromMatch
-            while ((fromMatch = fromPattern.exec(stmt)) !== null) {
-                const namespace = fromMatch[1]
-                const name = fromMatch[2]
-                const effectId = `${namespace}/${name}`
-                if (manifest[effectId] && !effects.find(e => e.effectId === effectId)) {
-                    effects.push({ effectId, namespace, name })
-                }
-            }
-
-            const callPattern = /\b([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?)\s*\(/g
-            let match
-
-            while ((match = callPattern.exec(stmt)) !== null) {
-                const fullName = match[1]
-                let namespace = null
-                let name = fullName
-
-                if (fullName.includes('.')) {
-                    const parts = fullName.split('.')
-                    namespace = parts[0]
-                    name = parts[1]
-                }
-
-                // Skip 'from' itself as it's handled above
-                const builtins = ['read', 'out', 'vec2', 'vec3', 'vec4', 'from']
-                if (builtins.includes(name)) continue
-
-                if (!namespace && searchNamespaces.length > 0) {
-                    for (const ns of searchNamespaces) {
-                        const testId = `${ns}/${name}`
-                        if (manifest[testId]) {
-                            namespace = ns
-                            break
-                        }
-                    }
-                }
-
-                if (!namespace) {
-                    for (const ns of ['classicNoisedeck', 'filter', 'mixer', 'synth']) {
-                        const testId = `${ns}/${name}`
-                        if (manifest[testId]) {
-                            namespace = ns
-                            break
-                        }
-                    }
-                }
-
-                if (namespace) {
-                    const effectId = `${namespace}/${name}`
-                    if (!effects.find(e => e.effectId === effectId)) {
-                        effects.push({ effectId, namespace, name })
-                    }
-                }
-            }
+    // search ns1, ns2, ... (namespace names can be keywords, such as render)
+    const searchOrder = []
+    const searchIndex = tokens.findIndex(token => token.type === 'SEARCH')
+    if (searchIndex !== -1) {
+        for (let i = searchIndex + 1; i < tokens.length && tokens[i].type !== 'EOF'; i += 2) {
+            searchOrder.push(tokens[i].lexeme)
+            if (tokens[i + 1]?.type !== 'COMMA') break
         }
+    }
+
+    // let name = target  or  let name = target(...)
+    const symbols = new Map()
+    for (let i = 0; i + 3 < tokens.length; i++) {
+        if (tokens[i].type === 'LET' && tokens[i + 1].type === 'IDENT' &&
+            tokens[i + 2].type === 'EQUAL' && tokens[i + 3].type === 'IDENT') {
+            symbols.set(tokens[i + 1].lexeme, tokens[i + 3].lexeme)
+        }
+    }
+    const resolveSymbol = (name) => {
+        const seen = new Set()
+        while (symbols.has(name) && !seen.has(name)) {
+            seen.add(name)
+            name = symbols.get(name)
+        }
+        return name
+    }
+
+    const seenIds = new Set()
+    const addEffect = (name, namespaces) => {
+        const namespace = namespaces.find(ns => manifest[`${ns}/${name}`])
+        if (namespace === undefined) return
+        const effectId = `${namespace}/${name}`
+        if (seenIds.has(effectId)) return
+        seenIds.add(effectId)
+        effects.push({ effectId, namespace, name })
+    }
+
+    // A call site is an identifier followed by '('.
+    for (let i = 0; i + 1 < tokens.length; i++) {
+        if (tokens[i].type !== 'IDENT' || tokens[i + 1].type !== 'LPAREN') continue
+        if (tokens[i].lexeme === 'from' && tokens[i + 2]?.type === 'IDENT' &&
+            tokens[i + 3]?.type === 'COMMA' && tokens[i + 4]?.type === 'IDENT' &&
+            tokens[i + 5]?.type === 'LPAREN') {
+            // from(namespace, call()) resolves the call in that namespace only.
+            addEffect(tokens[i + 4].lexeme, [tokens[i + 2].lexeme])
+            i += 4
+            continue
+        }
+        addEffect(resolveSymbol(tokens[i].lexeme), searchOrder)
     }
 
     return effects
