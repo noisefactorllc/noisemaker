@@ -1,7 +1,9 @@
 import { simplex } from '../js/noisemaker/simplex.js'
 import { spawnSync } from 'child_process'
 
-const shape = [2, 2]
+// 16 by 16 reaches every 3D gradient, so a change to any entry of the
+// JavaScript gradient table fails the comparison.
+const shape = [16, 16]
 const time = 0.25
 const seed = 12345
 const speed = 1.0
@@ -9,14 +11,10 @@ const js = simplex([...shape], { time, seed, speed })
 const jsVals = Array.from(js.read()).slice(0, shape[0]*shape[1])
 
 const pyCode = `
-from opensimplex import OpenSimplex
-import math, json
-seed=${seed}
-angle=math.tau*${time}
-z=math.cos(angle)*${speed}
-simp=OpenSimplex(seed)
-rows=[[ (simp.noise3d(x,y,z)+1)/2 for x in range(${shape[1]})] for y in range(${shape[0]})]
-print(json.dumps(rows))
+from noisemaker.simplex import simplex
+import json
+data=simplex([${shape[0]}, ${shape[1]}], time=${time}, seed=${seed}, speed=${speed}, as_np=True)
+print(json.dumps(data[:, :, 0].tolist()))
 `
 const py = spawnSync('python3', ['-'], { input: pyCode, encoding: 'utf8' })
 if (py.status !== 0) {
