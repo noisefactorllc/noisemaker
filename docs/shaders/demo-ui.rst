@@ -38,7 +38,7 @@ Quick Start
    <html>
    <head>
        <script type="module">
-           import { CanvasRenderer, UIController } from './lib/demo-ui.js';
+           import { CanvasRenderer } from '../../shaders/src/renderer/canvas.js';
 
            const canvas = document.getElementById('canvas');
            const renderer = new CanvasRenderer({
@@ -90,10 +90,9 @@ The core rendering engine that manages the GPU pipeline:
 
    renderer.start();
 
-   // Control playback
-   renderer.pause();
-   renderer.resume();
+   // Control playback: stop() ends the render loop, start() runs it again
    renderer.stop();
+   renderer.start();
 
 UIController
 ~~~~~~~~~~~~
@@ -114,8 +113,11 @@ Manages the demo UI — effect selection, controls, DSL editing:
        onRequestRecompile: () => { /* handle recompile requests */ }
    });
 
-   // Load an effect
-   await ui.loadEffect('synth/noise');
+   // Load an effect through the renderer, show its program, build its controls
+   const effect = await renderer.loadEffect('synth/noise');
+   ui.setDsl(ui.buildDslSource(effect));
+   await renderer.compile(ui.getDsl());
+   ui.loadDslAndCreateControls(ui.getDsl());
 
    // Get current DSL
    const dsl = ui.getDsl();
@@ -134,9 +136,9 @@ Compose effects using a chainable DSL:
 
    // Chained effects
    search synth, filter
-   noise(octaves: 4, scale: 2.0)
+   noise(octaves: 4, scaleX: 50, scaleY: 50)
      .posterize(levels: 8)
-     .bloom(radius: 0.5)
+     .bloom(radius: 16)
      .write(o0)
    render(o0)
 
@@ -144,8 +146,8 @@ Compose effects using a chainable DSL:
    search synth, mixer
    noise().write(o0)
    noise(seed: 42).write(o1)
-   blend(tex: read(o1), amount: 0.5).write(o0)
-   render(o0)
+   read(o0).blendMode(tex: read(o1), mode: mix).write(o2)
+   render(o2)
 
 See :doc:`language` for full DSL specification.
 
@@ -192,8 +194,8 @@ URL Parameters
 
 The demo supports URL parameters for deep linking:
 
-- ``?effect=synth/noise`` — Load specific effect
-- ``?backend=webgpu`` — Select rendering backend
+- ``?effect=synth.noise`` — Load specific effect. Write ``namespace.name`` with a dot. Other forms, such as ``synth/noise``, are ignored.
+- ``?backend=wgsl`` — Select rendering backend: ``wgsl`` for WebGPU or ``glsl`` for WebGL 2. Other values, such as ``webgpu``, are ignored.
 - ``?bundles=1`` — Use pre-built effect bundles
 
 Pluggable Controls
@@ -466,7 +468,6 @@ The ``demo-ui.js`` module exports:
        // Utilities
        camelToSpaceCase,
        formatEnumName,
-       formatValue,
        extractEffectsFromDsl,
 
        // Re-exported from canvas.js
