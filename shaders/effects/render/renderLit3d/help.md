@@ -42,8 +42,6 @@ This effect extends `render3d` with full lighting controls, allowing you to fine
 
 - **cube**: Classic box-bounded volume (default)
 - **sphere**: Spherical boundary for organic shapes
-- **plane**: Horizontal slab for terrain/landscape effects
-- **none**: Unbounded - marches until max distance (use with care)
 
 ### Usage Examples
 
@@ -54,8 +52,8 @@ noise3d().renderLit3d().write(o0)
 // Spherical bounding for organic look
 cell3d().renderLit3d(shape: sphere, shininess: 128).write(o0)
 
-// Terrain-style plane rendering
-fractal3d().renderLit3d(shape: plane, threshold: 0.3).write(o0)
+// Cube bounds with a lower surface threshold
+fractal3d().renderLit3d(shape: cube, threshold: 0.3).write(o0)
 
 // Dramatic rim lighting
 fractal3d().renderLit3d(rimIntensity: 0.5, rimPower: 2.0, ambientColor: [0.05, 0.05, 0.1]).write(o0)

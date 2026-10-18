@@ -23,9 +23,9 @@ meshLoader().meshRender(scale: 1.5, offsetY: -0.5).write(o0)
 ### View
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| rotateX | float | 0.0 | Rotation around X axis (radians) |
-| rotateY | float | 0.0 | Rotation around Y axis (radians) |
-| rotateZ | float | 0.0 | Rotation around Z axis (radians) |
+| rotateX | float | 0.0 | Rotation around X axis (degrees) |
+| rotateY | float | 0.0 | Rotation around Y axis (degrees) |
+| rotateZ | float | 0.0 | Rotation around Z axis (degrees) |
 | viewScale | float | 1.0 | Zoom/scale factor |
 | posX | float | 0.0 | Camera X position |
 | posY | float | 0.0 | Camera Y position |
@@ -62,7 +62,7 @@ Typically used after `meshLoader()`:
 
 ```
 // Load and render with transform
-meshLoader().meshRender(scale: 0.5, rotateY: time * 0.5).write(o0)
+meshLoader().meshRender(scale: 0.5, rotateY: 30).write(o0)
 ```
 
 Can also be chained with filters:

@@ -53,38 +53,38 @@ render(o0)
 
 ```
 // 12-fold petal mandala with 4 layers
-mandala({ symmetry: 12, layers: 4, shape: 0 })
+mandala(symmetry: 12, layers: 4, shape: petal)
   .write(o0)
 
 // 6-fold triangle mandala, slow rotation
-mandala({ symmetry: 6, shape: 1, animation: 1, speed: 1 })
+mandala(symmetry: 6, shape: triangle, animation: rotate, speed: 1)
   .write(o0)
 
 // 16-fold dot mandala, pulsing
-mandala({ symmetry: 16, shape: 2, animation: 2, speed: 1, pulseDepth: 0.25 })
+mandala(symmetry: 16, shape: dot, animation: pulse, speed: 1, pulseDepth: 0.25)
   .write(o0)
 
 // Spiral with twist + bindu
-mandala({ symmetry: 12, layers: 5, twist: 12, bindu: true })
+mandala(symmetry: 12, layers: 5, twist: 12, bindu: true)
   .write(o0)
 
 // Blooming outward growth
-mandala({ symmetry: 8, layers: 4, shapeGrowth: 0.7, layerSpacing: 2.0 })
+mandala(symmetry: 8, layers: 4, shapeGrowth: 0.7, layerSpacing: 2.0)
   .write(o0)
 
 // Whirlpool: each layer at its own speed
-mandala({ symmetry: 8, layers: 6, animation: 3, speed: 1 })
+mandala(symmetry: 8, layers: 6, animation: differential, speed: 1)
   .write(o0)
 
 // Counter-rotating rings
-mandala({ symmetry: 12, layers: 4, animation: 4, speed: 1 })
+mandala(symmetry: 12, layers: 4, animation: counterRotate, speed: 1)
   .write(o0)
 
 // Spiral that tightens and unwinds
-mandala({ symmetry: 8, layers: 5, twist: 20, animation: 5, speed: 1 })
+mandala(symmetry: 8, layers: 5, twist: 20, animation: spiralWave, speed: 1)
   .write(o0)
 
 // Ripple wave traveling outward
-mandala({ symmetry: 8, layers: 6, animation: 6, speed: 1, pulseDepth: 0.4 })
+mandala(symmetry: 8, layers: 6, animation: ripple, speed: 1, pulseDepth: 0.4)
   .write(o0)
 ```
