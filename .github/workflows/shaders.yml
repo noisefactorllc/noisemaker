@@ -183,7 +183,7 @@ jobs:
         retention-days: 7
 
   deploy-site:
-    name: Dispatch scaffold static-site-release
+    name: Dispatch the site release
     runs-on: ubuntu-latest
     needs: bundle
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -191,61 +191,91 @@ jobs:
 
     # The site showcases the shaders, so a shader change rebuilds it.
     # This dispatches the same `noisemaker-site` release that site.yml
-    # does; scaffold's per-site concurrency group serializes the two
+    # does; the release's per-site concurrency group serializes the two
     # triggers rather than racing two `rsync --delete` runs against one
-    # content root. Scaffold holds the deploy key, not this public repo.
+    # content root. The release holds the deploy key, not this public repo.
 
     steps:
-    - name: Mint scaffold GitHub App token
+    - name: Check the release dispatch configuration
+      env:
+        RELEASE_REPOSITORY: ${{ secrets.RELEASE_REPOSITORY }}
+        STATIC_SITE_RELEASE_WORKFLOW: ${{ secrets.STATIC_SITE_RELEASE_WORKFLOW }}
+      run: |
+        missing=""
+        [ -n "$RELEASE_REPOSITORY" ] || missing="$missing RELEASE_REPOSITORY"
+        [ -n "$STATIC_SITE_RELEASE_WORKFLOW" ] || missing="$missing STATIC_SITE_RELEASE_WORKFLOW"
+        if [ -n "$missing" ]; then
+          echo "::error::The release dispatch is not configured. Empty or unset secret(s):$missing"
+          exit 1
+        fi
+
+    - name: Mint release GitHub App token
       id: app-token
       uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
       with:
         client-id: Iv23liy6T6BW0BXuZRzx
         private-key: ${{ secrets.EHSRE_APP_PRIVATE_KEY }}
         owner: noisefactorllc
-        repositories: scaffold
+        repositories: ${{ secrets.RELEASE_REPOSITORY }}
 
-    - name: Dispatch scaffold static-site-release for noisemaker.app
+    - name: Dispatch the site release for noisemaker.app
       env:
         GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        RELEASE_REPOSITORY: ${{ secrets.RELEASE_REPOSITORY }}
+        STATIC_SITE_RELEASE_WORKFLOW: ${{ secrets.STATIC_SITE_RELEASE_WORKFLOW }}
       run: |
-        gh workflow run static-site-release.yml \
-          --repo noisefactorllc/scaffold \
+        gh workflow run "$STATIC_SITE_RELEASE_WORKFLOW" \
+          --repo "$GITHUB_REPOSITORY_OWNER/$RELEASE_REPOSITORY" \
           --ref main \
           -f site=noisemaker-site \
           -f sha=${{ github.sha }}
-        echo "Dispatched scaffold static-site-release for noisemaker-site @ ${{ github.sha }}"
+        echo "Dispatched the site release for noisemaker-site @ ${{ github.sha }}"
 
   deploy-shaders:
-    name: Dispatch scaffold library-release
+    name: Dispatch the library release
     runs-on: ubuntu-latest
     needs: bundle
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions: {}
 
-    # Under the tag-on-commit scheme, scaffold is the sole authority
+    # Under the tag-on-commit scheme, the library release is the sole authority
     # for shader library releases: it builds, computes next patch,
     # deploys to the CDN origin, updates the rolling MAJOR.MINOR
     # symlink, creates the git tag, and purges the CDN. This job just
     # fires the workflow_dispatch.
 
     steps:
-    - name: Mint scaffold GitHub App token
+    - name: Check the release dispatch configuration
+      env:
+        RELEASE_REPOSITORY: ${{ secrets.RELEASE_REPOSITORY }}
+        LIBRARY_RELEASE_WORKFLOW: ${{ secrets.LIBRARY_RELEASE_WORKFLOW }}
+      run: |
+        missing=""
+        [ -n "$RELEASE_REPOSITORY" ] || missing="$missing RELEASE_REPOSITORY"
+        [ -n "$LIBRARY_RELEASE_WORKFLOW" ] || missing="$missing LIBRARY_RELEASE_WORKFLOW"
+        if [ -n "$missing" ]; then
+          echo "::error::The release dispatch is not configured. Empty or unset secret(s):$missing"
+          exit 1
+        fi
+
+    - name: Mint release GitHub App token
       id: app-token
       uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
       with:
         client-id: Iv23liy6T6BW0BXuZRzx
         private-key: ${{ secrets.EHSRE_APP_PRIVATE_KEY }}
         owner: noisefactorllc
-        repositories: scaffold
+        repositories: ${{ secrets.RELEASE_REPOSITORY }}
 
-    - name: Dispatch scaffold library-release for noisemaker
+    - name: Dispatch the library release for noisemaker
       env:
         GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        RELEASE_REPOSITORY: ${{ secrets.RELEASE_REPOSITORY }}
+        LIBRARY_RELEASE_WORKFLOW: ${{ secrets.LIBRARY_RELEASE_WORKFLOW }}
       run: |
-        gh workflow run library-release.yml \
-          --repo noisefactorllc/scaffold \
+        gh workflow run "$LIBRARY_RELEASE_WORKFLOW" \
+          --repo "$GITHUB_REPOSITORY_OWNER/$RELEASE_REPOSITORY" \
           --ref main \
           -f library=noisemaker \
           -f sha=${{ github.sha }}
-        echo "Dispatched scaffold library-release for noisemaker @ ${{ github.sha }}"
+        echo "Dispatched the library release for noisemaker @ ${{ github.sha }}"
