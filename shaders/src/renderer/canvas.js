@@ -1065,12 +1065,27 @@ export class CanvasRenderer {
         return pending
     }
 
-    /** @private Compile after earlier requests for this canvas have settled. */
+    /**
+     * @private Compile after earlier requests for this canvas have settled.
+     * A rejected compile keeps the previous pipeline, so `currentDsl` returns
+     * to the source of that pipeline. A context restore then rebuilds the
+     * program that was rendering, not the rejected one.
+     */
     async _compile(dsl, options = {}) {
+        const previousDsl = this._currentDsl
+        this._currentDsl = dsl
+        try {
+            return await this._compileSource(dsl, options)
+        } catch (err) {
+            if (this._currentDsl === dsl) this._currentDsl = previousDsl
+            throw err
+        }
+    }
+
+    /** @private Build the pipeline for `dsl`, or recompile the active one. */
+    async _compileSource(dsl, options = {}) {
         const shaderOverrides = options.shaderOverrides
         const lifecycleGeneration = this._lifecycleGeneration ?? 0
-
-        this._currentDsl = dsl
 
         if (!this._pipeline) {
             let initialPipeline

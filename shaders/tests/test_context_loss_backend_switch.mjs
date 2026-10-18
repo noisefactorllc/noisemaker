@@ -15,6 +15,12 @@
  * the discarded canvas), and compile() restarts the loop when the stop came
  * from a context loss.
  *
+ * The documented-options checks build a CanvasRenderer with only the options
+ * that docs/shaders/integration.rst lists:
+ *
+ * - A rejected compile() keeps the previous program, so a context loss and
+ *   restore after it must rebuild that program, without an onError call.
+ *
  * Usage: node shaders/tests/test_context_loss_backend_switch.mjs
  */
 
@@ -90,6 +96,147 @@ async function singleShotRender(page) {
     })
 }
 
+const PROGRAM = 'search synth\nnoise().write(o0)\nrender(o0)'
+const REJECTED_PROGRAM = 'search synth\nnoise(notAParam: 1).write(o0)\nrender(o0)'
+
+/**
+ * Open a page with a renderer built from the documented options only:
+ * canvas, width, height, basePath, preferWebGPU and callbacks. The canvas sits
+ * in a plain wrapper element, and the renderer gets no canvasContainer.
+ */
+async function openDocumentedRenderer(browser, baseUrl, { preferWebGPU }) {
+    const page = await browser.newPage({ viewport: { width: 512, height: 512 } })
+    page.setDefaultTimeout(20000)
+    const pageErrors = []
+    page.on('pageerror', err => pageErrors.push(`pageerror: ${err.message}`))
+    await page.setContent('<!doctype html><meta charset="utf-8"><div id="wrap"><canvas id="c"></canvas></div>')
+    await page.evaluate(async ({ baseUrl, preferWebGPU }) => {
+        const { CanvasRenderer } = await import(`${baseUrl}/shaders/src/index.js`)
+        const errors = []
+        let onRestored = null
+        const renderer = new CanvasRenderer({
+            canvas: document.getElementById('c'),
+            width: 256,
+            height: 256,
+            basePath: `${baseUrl}/shaders`,
+            preferWebGPU,
+            onError: (err) => errors.push(err?.code || err?.message || String(err)),
+            onContextRestored: () => onRestored?.()
+        })
+        await renderer.loadManifest()
+        await renderer.loadEffect('synth/noise')
+        window.__doc = {
+            renderer,
+            errors,
+            nextRestore: () => new Promise((resolve) => { onRestored = resolve })
+        }
+    }, { baseUrl, preferWebGPU })
+    return { page, pageErrors }
+}
+
+/** Render one frame at a fixed time and read back the presented canvas. */
+async function documentedFrame(page) {
+    return page.evaluate(async () => {
+        const r = window.__doc.renderer
+        const wasRunning = r.isRunning
+        r.stop()
+        r.render(0.25)
+        await new Promise(resolve => requestAnimationFrame(resolve))
+        const queue = r.pipeline?.backend?.device?.queue
+        if (queue?.onSubmittedWorkDone) await queue.onSubmittedWorkDone()
+        const canvas = r.canvas
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))
+        let max = 0
+        if (blob) {
+            const bitmap = await createImageBitmap(blob)
+            const copy = document.createElement('canvas')
+            copy.width = bitmap.width
+            copy.height = bitmap.height
+            const ctx = copy.getContext('2d', { willReadFrequently: true })
+            ctx.drawImage(bitmap, 0, 0)
+            bitmap.close()
+            const data = ctx.getImageData(0, 0, copy.width, copy.height).data
+            for (let i = 0; i < data.length; i += 4 * 7) {
+                max = Math.max(max, data[i], data[i + 1], data[i + 2])
+            }
+        }
+        if (wasRunning) r.start()
+        return {
+            max,
+            backendName: r.pipeline?.backend?.getName?.() || null,
+            backendGetter: r.backend,
+            hasPipeline: !!r.pipeline,
+            isRunning: r.isRunning,
+            canvasInDocument: canvas.isConnected,
+            webgpuContextIsNull: r.pipeline?.backend?.getName?.() === 'WebGPU'
+                ? r.pipeline.backend.context == null
+                : null
+        }
+    })
+}
+
+async function rejectedCompileRestoreChecks(browser, baseUrl, check) {
+    const { page, pageErrors } = await openDocumentedRenderer(browser, baseUrl, { preferWebGPU: false })
+    try {
+        const accepted = await page.evaluate(async (program) => {
+            const r = window.__doc.renderer
+            await r.compile(program)
+            r.start()
+            return r.pipeline.backend.getName()
+        }, PROGRAM)
+        check(accepted === 'WebGL2', `documented renderer starts on WebGL2 (backend=${accepted})`)
+
+        const rejected = await page.evaluate(async ({ program, rejectedProgram }) => {
+            const r = window.__doc.renderer
+            let code = null
+            try {
+                await r.compile(rejectedProgram)
+            } catch (err) {
+                code = err?.code || err?.message || String(err)
+            }
+            return { code, currentDslIsAccepted: r.currentDsl === program }
+        }, { program: PROGRAM, rejectedProgram: REJECTED_PROGRAM })
+        check(rejected.code === 'ERR_COMPILATION_FAILED', `the unknown argument rejects the compile (code=${rejected.code})`)
+        check(rejected.currentDslIsAccepted, 'currentDsl keeps the accepted program after the rejected compile')
+
+        const beforeLoss = await documentedFrame(page)
+        check(beforeLoss.max > 16, `the accepted program still renders before the loss (max=${beforeLoss.max})`)
+
+        const restore = await page.evaluate(async () => {
+            const doc = window.__doc
+            const r = doc.renderer
+            const errorsBefore = doc.errors.length
+            const ext = r.pipeline.backend.gl.getExtension('WEBGL_lose_context')
+            const restored = doc.nextRestore()
+            ext.loseContext()
+            await new Promise(resolve => setTimeout(resolve, 300))
+            const lost = r.isContextLost
+            ext.restoreContext()
+            await restored
+            const framesBefore = r.frameCount
+            await new Promise(resolve => setTimeout(resolve, 500))
+            return {
+                lost,
+                restoreErrors: doc.errors.slice(errorsBefore),
+                framesAdvanced: r.frameCount - framesBefore
+            }
+        })
+        check(restore.lost === true, 'WEBGL_lose_context loses the context (precondition)')
+        check(restore.restoreErrors.length === 0, `the restore calls onError zero times (${JSON.stringify(restore.restoreErrors)})`)
+        check(restore.framesAdvanced > 0, `the render loop runs after the restore (frames=${restore.framesAdvanced})`)
+
+        const afterRestore = await documentedFrame(page)
+        check(afterRestore.hasPipeline && afterRestore.backendName === 'WebGL2',
+            `the pipeline is rebuilt on WebGL2 after the restore (backend=${afterRestore.backendName})`)
+        check(afterRestore.max > 16, `the restored canvas is not black (max=${afterRestore.max})`)
+        const currentDslIsAccepted = await page.evaluate((program) => window.__doc.renderer.currentDsl === program, PROGRAM)
+        check(currentDslIsAccepted, 'currentDsl is the accepted program after the restore')
+        check(pageErrors.length === 0, `no page errors (${pageErrors.join('; ')})`)
+    } finally {
+        await page.close()
+    }
+}
+
 async function main() {
     const baseUrl = await acquireServer(undefined, PROJECT_ROOT, EFFECTS_DIR)
     const args = [
@@ -114,6 +261,10 @@ async function main() {
     }
 
     try {
+        console.log('-- documented options: rejected compile, then context loss and restore')
+        await rejectedCompileRestoreChecks(browser, baseUrl, check)
+
+        console.log('-- demo: context loss across backend switches')
         await page.goto(`${baseUrl}/demo/shaders/?effect=synth/noise`, { waitUntil: 'domcontentloaded' })
         await page.waitForFunction(() => window.__noisemakerRenderingPipeline != null, { polling: 50 })
         await page.waitForTimeout(RENDER_SETTLE_MS)
@@ -122,10 +273,8 @@ async function main() {
             if (!navigator.gpu) return false
             return !!(await navigator.gpu.requestAdapter().catch(() => null))
         })
-        if (!gpu) {
-            console.log('SKIP: no WebGPU adapter available in this browser build')
-            return
-        }
+        check(gpu, 'a WebGPU adapter is available; the backend-switch checks need one')
+        if (!gpu) return
 
         const baseline = await sampleCanvas(page)
         check(baseline.max > 16, `baseline glsl render is non-black (max=${baseline.max})`)

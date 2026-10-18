@@ -593,6 +593,124 @@ test('a failed compile does not block the next queued compile', async () => {
     assert.equal(renderer.pipeline, pipeline)
 })
 
+const ACCEPTED_DSL = 'search synth\nrender(o0)'
+const REJECTED_DSL = 'search synth\nnoise(notAParam: 1).write(o0)\nrender(o0)'
+
+function rejectedCompileError() {
+    return {
+        code: 'ERR_COMPILATION_FAILED',
+        diagnostics: [{ code: 'S001', severity: 'error', message: "Unknown argument 'notAParam' for noise()" }]
+    }
+}
+
+function retainedStubPipeline(events, name) {
+    return {
+        backend: {},
+        width: 16,
+        height: 16,
+        graph: { id: name },
+        isCompiling: false,
+        setMidiState() {},
+        setAudioState() {},
+        // Forces recompile() to return null, so _compile() takes the full
+        // recreation path, as it does when compileGraph() rejects the source.
+        createSurfaces() { throw new Error('force full recreation') },
+        dispose(options) { events.push([`${name} dispose`, options]) }
+    }
+}
+
+async function withSilencedConsole(fn) {
+    const saved = { error: console.error, warn: console.warn, log: console.log }
+    console.error = () => {}
+    console.warn = () => {}
+    console.log = () => {}
+    try {
+        return await fn()
+    } finally {
+        Object.assign(console, saved)
+    }
+}
+
+test('a rejected recompile keeps currentDsl on the source of the retained pipeline', async () => {
+    const events = []
+    const accepted = retainedStubPipeline(events, 'accepted')
+    const renderer = bareRenderer()
+    renderer._currentDsl = ''
+    const created = []
+    renderer._createRuntime = async (dsl) => {
+        created.push(dsl)
+        if (dsl === REJECTED_DSL) throw rejectedCompileError()
+        return accepted
+    }
+
+    assert.equal(await renderer.compile(ACCEPTED_DSL), accepted)
+    assert.equal(renderer.currentDsl, ACCEPTED_DSL)
+
+    await withSilencedConsole(() => assert.rejects(
+        renderer.compile(REJECTED_DSL),
+        (err) => err.code === 'ERR_COMPILATION_FAILED'
+    ))
+
+    assert.deepEqual(created, [ACCEPTED_DSL, REJECTED_DSL])
+    assert.equal(renderer.pipeline, accepted, 'the rejected compile keeps the previous pipeline')
+    assert.equal(renderer.currentDsl, ACCEPTED_DSL, 'currentDsl names the source of the retained pipeline')
+    assert.deepEqual(events, [], 'the retained pipeline is not disposed')
+})
+
+test('a rejected first compile keeps the previous currentDsl', async () => {
+    const renderer = bareRenderer()
+    renderer._currentDsl = ACCEPTED_DSL
+    renderer._createRuntime = async () => { throw rejectedCompileError() }
+
+    await assert.rejects(renderer.compile(REJECTED_DSL), (err) => err.code === 'ERR_COMPILATION_FAILED')
+
+    assert.equal(renderer.pipeline, null)
+    assert.equal(renderer.currentDsl, ACCEPTED_DSL)
+})
+
+test('context restore after a rejected compile rebuilds the last accepted source', async () => {
+    const events = []
+    const accepted = retainedStubPipeline(events, 'accepted')
+    const restored = retainedStubPipeline(events, 'restored')
+    const listeners = new Map()
+    const renderer = bareRenderer()
+    renderer._canvas = {
+        addEventListener(name, listener) { listeners.set(name, listener) },
+        removeEventListener() {}
+    }
+    renderer._currentDsl = ''
+    renderer._onContextLost = null
+    renderer._onContextRestored = () => { events.push(['restored callback']) }
+    renderer._onError = (error) => { events.push(['error', error.code]) }
+    renderer.stop = () => { renderer._isRunning = false }
+    renderer.start = () => { renderer._isRunning = true }
+    renderer._setupContextLossHandlers()
+
+    const created = []
+    renderer._createRuntime = async (dsl) => {
+        created.push(dsl)
+        if (dsl === REJECTED_DSL) throw rejectedCompileError()
+        return created.length === 1 ? accepted : restored
+    }
+
+    await renderer.compile(ACCEPTED_DSL)
+    renderer.start()
+    await withSilencedConsole(async () => {
+        await assert.rejects(renderer.compile(REJECTED_DSL), (err) => err.code === 'ERR_COMPILATION_FAILED')
+        listeners.get('webglcontextlost')({ preventDefault() {} })
+        await listeners.get('webglcontextrestored')()
+    })
+
+    assert.deepEqual(created, [ACCEPTED_DSL, REJECTED_DSL, ACCEPTED_DSL])
+    assert.equal(renderer.pipeline, restored)
+    assert.equal(renderer.currentDsl, ACCEPTED_DSL)
+    assert.equal(renderer._isRunning, true, 'the render loop resumes after the restore')
+    assert.deepEqual(events, [
+        ['accepted dispose', { backendLost: true }],
+        ['restored callback']
+    ], 'the restore reports no error')
+})
+
 test('disposal invalidates queued compiles before they can configure a canvas', async () => {
     const renderer = bareRenderer()
     const creation = deferred()
