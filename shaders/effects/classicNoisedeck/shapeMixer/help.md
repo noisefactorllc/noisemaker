@@ -6,6 +6,7 @@ Shape-based mixing
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
+| tex | surface | none | - | Source b |
 | blendMode | int | max | add/divide/max/min/mix/mod/multiply/reflect/refract/subtract | Mode |
 | loopOffset | int | circle | none/Shapes:/circle/triangle/diamond/square/pentagon/hexagon/heptagon/octagon/Directional:/horizontalScan/verticalScan/Noise:/noiseConstant/noiseLinear/noiseHermite/noiseBSpline3x3/noiseSimplex/noiseSine/Misc:/rings/sine | Shape |
 | loopScale | float | 80 | 1-100 | Shape scale |

@@ -28,4 +28,8 @@ Noise pattern generator
 | cyclePalette | int | forward | off/forward/backward | Cycle palette |
 | rotatePalette | float | 0 | 0-100 | Rotate palette |
 | repeatPalette | int | 1 | 1-10 | Repeat palette |
+| paletteOffset | vec3 | 0.5,0.5,0.5 | - | Palette offset |
+| paletteAmp | vec3 | 0.5,0.5,0.5 | - | Palette amplitude |
+| paletteFreq | vec3 | 1,1,1 | - | Palette frequency |
+| palettePhase | vec3 | 0.3,0.2,0.2 | - | Palette phase |
 

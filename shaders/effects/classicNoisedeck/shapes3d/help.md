@@ -21,6 +21,8 @@
 | cameraDist | float | 8 | 5-20 | Cam distance |
 | bgColor | color | 1,1,1 | - | Bkg color |
 | bgAlpha | float | 0 | 0-100 | Bkg opacity |
+| tex | surface | none | - | Texture |
+| weight | float | 0 | 0-100 | Input weight |
 | colorMode | int | palette | depth/diffuse/palette | Color mode |
 | palette | palette | silvermane | none/seventiesShirt/fiveG/afterimage/barstow/bloob/blueSkies/brushedMetal/burningSky/california/columbia/cottonCandy/darkSatin/dealerHat/dreamy/eventHorizon/ghostly/grayscale/hazySunset/heatmap/hypercolor/jester/justBlue/justCyan/justGreen/justPurple/justRed/justYellow/mars/modesto/moss/neptune/netOfGems/organic/papaya/radioactive/royal/santaCruz/sherbet/sherbetDouble/silvermane/skykissed/solaris/spooky/springtime/sproingtime/sulphur/summoning/superhero/toxic/tropicalia/tungsten/vaporwave/vibrant/vintage/vintagePhoto | Palette |
 | cyclePalette | int | forward | off/forward/backward | Cycle palette |
