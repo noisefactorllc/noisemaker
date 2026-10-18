@@ -176,12 +176,14 @@ Using Bundles
 
    import { CanvasRenderer, UIController } from './noisemaker-shaders-core.esm.js';
 
+   // This page sits next to the core module in dist/shaders/.
    const renderer = new CanvasRenderer({
        canvas,
        width: 512,
        height: 512,
+       basePath: '.',              // fetch(): ./effects/manifest.json, relative to the page
        useBundles: true,
-       bundlePath: './effects'
+       bundlePath: '../effects'    // import(): dist/effects/, relative to the engine module
    });
 
    await renderer.loadManifest();

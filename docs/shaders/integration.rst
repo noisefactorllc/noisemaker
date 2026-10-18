@@ -123,12 +123,35 @@ For offline or self-hosted deployments. Each release (see :doc:`../releases`) pu
     tar -xzf noisemaker-shaders.tar.gz -C vendor/noisemaker
     rm noisemaker-shaders.tar.gz
 
-Then import from the local path instead of the CDN:
+The archive holds the engine and the manifest under ``shaders/``, and the
+effect bundles under ``effects/``:
+
+.. code-block:: none
+
+    vendor/noisemaker/shaders/noisemaker-shaders-core.esm.js
+    vendor/noisemaker/shaders/noisemaker-shaders-core.esm.min.js
+    vendor/noisemaker/shaders/noisemaker-shaders-core.min.js
+    vendor/noisemaker/shaders/effects/manifest.json      (and strings.<locale>.json)
+    vendor/noisemaker/shaders/share/meshes/<mesh>.obj
+    vendor/noisemaker/effects/<namespace>/<name>.js
+
+Then import from the local path instead of the CDN, and set both paths for
+this layout:
 
 .. code-block:: javascript
 
     const { CanvasRenderer } =
         await import('./vendor/noisemaker/shaders/noisemaker-shaders-core.esm.min.js')
+
+    const renderer = new CanvasRenderer({
+        canvas,
+        basePath: './vendor/noisemaker/shaders',  // fetch(): relative to the page
+        useBundles: true,
+        bundlePath: '../effects'                  // import(): relative to the engine module
+    })
+
+``basePath`` and ``bundlePath`` resolve against different bases. See
+**Path configuration** under ``CanvasRenderer`` below.
 
 The IIFE build (``noisemaker-shaders-core.min.js``) exposes everything on ``window.NoisemakerShadersCore``.
 
@@ -143,7 +166,7 @@ For development within the noisemaker repo, or when noisemaker is a git submodul
     import { compile, unparse } from '../../shaders/src/lang/index.js'
     import { ProgramState } from '../../demo/shaders/lib/program-state.js'
 
-In source mode, the renderer loads effects at runtime from ``shaders/effects/``. Set ``basePath`` to point at the ``shaders/`` directory.
+In source mode, the renderer loads effects at runtime from ``shaders/effects/``. Set ``basePath`` to an absolute URL of the ``shaders/`` directory, for example ``new URL('../../shaders', import.meta.url).href``. The renderer fetches the manifest and shader files with ``fetch()``, relative to the page, and it loads each ``definition.js`` with ``import()``, relative to ``canvas.js``. A relative ``basePath`` therefore points at two different directories.
 
 Quick Start
 -----------
@@ -262,13 +285,26 @@ element's size wins; a diagnostic warns when it differs from the options.
 
     - A CDN URL from `Pinning levels`_, such as ``https://shaders.noisedeck.app/1``
       for rolling latest within major 1
-    - A local vendor path
-    - A relative path to ``shaders/`` for source mode
+    - A local vendor path, such as ``./vendor/noisemaker/shaders`` for the
+      layout in `Vendored Bundles`_
+    - An absolute URL of ``shaders/`` for source mode (see `Source Imports`_)
 
     The CDN provides ``/1.0`` for minor pinning and ``/1.0.1`` for an exact immutable pin.
 
+    The renderer reads ``${basePath}/effects/manifest.json`` with ``fetch()``.
+    A relative ``basePath`` therefore resolves against the page URL. In source
+    mode (``useBundles: false``) the engine module also imports each
+    ``definition.js`` from ``basePath`` with ``import()``, which resolves a
+    relative path against the engine module URL.
+
 ``bundlePath``
-    Directory containing per-effect bundles and ``manifest.json``. Typically ``${basePath}/effects``.
+    Directory containing the per-effect bundles, ``<namespace>/<name>.js``.
+    For the CDN, use ``${SHADER_CDN}/effects``. For the vendored archive, use
+    ``'../effects'``.
+
+    The engine module loads each bundle with a dynamic ``import()``. A
+    relative ``bundlePath`` therefore resolves against the URL of the engine
+    module, not the page.
 
 ``useBundles``
     When ``true``, loads effects from pre-built JS bundles. When ``false``, loads from source directories.
