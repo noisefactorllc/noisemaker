@@ -20,6 +20,9 @@
  *
  * - A rejected compile() keeps the previous program, so a context loss and
  *   restore after it must rebuild that program, without an onError call.
+ * - switchBackend() in both directions, then compile(), must render on the
+ *   new backend. A canvas keeps the context type it got first, so the
+ *   renderer must present on a fresh canvas in the old canvas's place.
  *
  * Usage: node shaders/tests/test_context_loss_backend_switch.mjs
  */
@@ -109,6 +112,9 @@ async function openDocumentedRenderer(browser, baseUrl, { preferWebGPU }) {
     page.setDefaultTimeout(20000)
     const pageErrors = []
     page.on('pageerror', err => pageErrors.push(`pageerror: ${err.message}`))
+    // WebGPU needs a secure context, so the page takes the server's origin
+    // before its content is replaced.
+    await page.goto(`${baseUrl}/shaders/effects/manifest.json`)
     await page.setContent('<!doctype html><meta charset="utf-8"><div id="wrap"><canvas id="c"></canvas></div>')
     await page.evaluate(async ({ baseUrl, preferWebGPU }) => {
         const { CanvasRenderer } = await import(`${baseUrl}/shaders/src/index.js`)
@@ -237,6 +243,61 @@ async function rejectedCompileRestoreChecks(browser, baseUrl, check) {
     }
 }
 
+const BACKEND_NAMES = { glsl: 'WebGL2', wgsl: 'WebGPU' }
+
+async function documentedBackendSwitchChecks(browser, baseUrl, check, { from, to }) {
+    const label = `${BACKEND_NAMES[from]} to ${BACKEND_NAMES[to]}`
+    const { page, pageErrors } = await openDocumentedRenderer(browser, baseUrl, { preferWebGPU: from === 'wgsl' })
+    try {
+        await page.evaluate(async (program) => {
+            const r = window.__doc.renderer
+            await r.compile(program)
+            window.__doc.firstCanvas = r.canvas
+        }, PROGRAM)
+        const before = await documentedFrame(page)
+        check(before.backendName === BACKEND_NAMES[from] && before.max > 16,
+            `${label}: the first backend renders (backend=${before.backendName}, max=${before.max})`)
+
+        const switched = await page.evaluate(async ({ program, to }) => {
+            const doc = window.__doc
+            const r = doc.renderer
+            const errorsBefore = doc.errors.length
+            let error = null
+            try {
+                await r.switchBackend(to)
+                await r.compile(program)
+            } catch (err) {
+                error = err?.message || err?.code || String(err)
+            }
+            return {
+                error,
+                errors: doc.errors.slice(errorsBefore),
+                canvasReplaced: r.canvas !== doc.firstCanvas,
+                oldCanvasDetached: !doc.firstCanvas.isConnected,
+                newCanvasParent: r.canvas.parentElement?.id || null,
+                newCanvasId: r.canvas.id
+            }
+        }, { program: PROGRAM, to })
+        check(switched.error === null, `${label}: switchBackend() and compile() resolve (error=${switched.error})`)
+        check(switched.errors.length === 0, `${label}: onError is not called (${JSON.stringify(switched.errors)})`)
+        check(switched.canvasReplaced && switched.oldCanvasDetached &&
+            switched.newCanvasParent === 'wrap' && switched.newCanvasId === 'c',
+            `${label}: a fresh canvas takes the old canvas's place (${JSON.stringify(switched)})`)
+
+        const after = await documentedFrame(page)
+        check(after.backendGetter === to && after.backendName === BACKEND_NAMES[to],
+            `${label}: the pipeline backend is ${BACKEND_NAMES[to]} (getter=${after.backendGetter}, backend=${after.backendName})`)
+        if (to === 'wgsl') {
+            check(after.webgpuContextIsNull === false, `${label}: the WebGPU backend has a canvas context`)
+        }
+        check(after.canvasInDocument, `${label}: the presented canvas is in the document`)
+        check(after.max > 16, `${label}: the presented canvas is not black (max=${after.max})`)
+        check(pageErrors.length === 0, `${label}: no page errors (${pageErrors.join('; ')})`)
+    } finally {
+        await page.close()
+    }
+}
+
 async function main() {
     const baseUrl = await acquireServer(undefined, PROJECT_ROOT, EFFECTS_DIR)
     const args = [
@@ -309,6 +370,10 @@ async function main() {
         await singleShotRender(page)
         const glslSample = await sampleCanvas(page)
         check(glslSample.max > 16, `single-shot glsl render is non-black after round-trip (max=${glslSample.max})`)
+
+        console.log('-- documented options: switchBackend() without canvasContainer')
+        await documentedBackendSwitchChecks(browser, baseUrl, check, { from: 'glsl', to: 'wgsl' })
+        await documentedBackendSwitchChecks(browser, baseUrl, check, { from: 'wgsl', to: 'glsl' })
     } finally {
         await browser.close()
     }

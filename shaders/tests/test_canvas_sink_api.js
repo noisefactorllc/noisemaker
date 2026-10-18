@@ -264,6 +264,95 @@ test('backend switching closes the old pipeline sink once and resets the canvas'
     assert.equal(renderer.pipeline, null)
 })
 
+/** Parent node with the DOM's replaceChild() contract. */
+class FakeParentNode {
+    constructor() { this.children = [] }
+
+    appendChild(child) {
+        child.parentNode = this
+        this.children.push(child)
+        return child
+    }
+
+    replaceChild(next, old) {
+        const index = this.children.indexOf(old)
+        if (index === -1) throw new Error('NotFoundError: the old child is not a child of this node')
+        this.children[index] = next
+        next.parentNode = this
+        old.parentNode = null
+        return old
+    }
+}
+
+/** Canvas element that cloneNode(false) copies with its id and attributes. */
+class ReplaceableCanvasElement extends FakeCanvasElement {
+    constructor() {
+        super()
+        this.id = ''
+        this.parentNode = null
+    }
+
+    cloneNode() {
+        const copy = new ReplaceableCanvasElement()
+        copy.id = this.id
+        for (const [name, value] of this._attributes) copy.setAttribute(name, value)
+        return copy
+    }
+}
+
+function rendererOnCanvas({ withContainer }) {
+    const parent = new FakeParentNode()
+    const canvas = parent.appendChild(new ReplaceableCanvasElement())
+    canvas.id = 'c'
+    canvas.width = 64
+    canvas.height = 32
+    const renderer = bareRenderer(closeCountingPipeline().pipeline)
+    renderer._canvas = canvas
+    renderer._canvasContainer = withContainer ? parent : null
+    renderer._setupContextLossHandlers()
+    return { renderer, parent, canvas }
+}
+
+for (const withContainer of [false, true]) {
+    const setup = withContainer ? 'with canvasContainer' : 'with only the documented options'
+    test(`switchBackend ${setup} presents the new backend on a fresh canvas in the same place`, async () => {
+        const { renderer, parent, canvas } = rendererOnCanvas({ withContainer })
+
+        await renderer.switchBackend('wgsl')
+
+        const fresh = renderer.canvas
+        assert.notEqual(fresh, canvas, 'the old canvas keeps its WebGL2 context type, so it is replaced')
+        assert.deepEqual(parent.children, [fresh], 'the fresh canvas is the only child, in the old place')
+        assert.equal(canvas.parentNode, null)
+        assert.equal(fresh.id, 'c')
+        assert.equal(fresh.width, 64)
+        assert.equal(fresh.height, 32)
+        assert.equal(canvas._listeners.get('webglcontextlost')?.size ?? 0, 0, 'listeners leave the old canvas')
+        assert.equal(fresh._listeners.get('webglcontextlost').size, 1, 'listeners move to the fresh canvas')
+        assert.equal(renderer.backend, 'wgsl')
+        assert.equal(renderer.pipeline, null, 'the host compiles again on the new backend')
+
+        await renderer.switchBackend('glsl')
+        assert.notEqual(renderer.canvas, fresh, 'the switch back replaces the WebGPU canvas too')
+        assert.deepEqual(parent.children, [renderer.canvas])
+
+        const beforeNoop = renderer.canvas
+        await renderer.switchBackend('glsl')
+        assert.equal(renderer.canvas, beforeNoop, 'a switch to the active backend keeps the canvas')
+    })
+}
+
+test('dispose with resetCanvas and no canvasContainer keeps the host canvas', async () => {
+    // Hosts without a canvasContainer reuse their canvas element for the next
+    // renderer, so dispose() must not detach it.
+    const { renderer, parent, canvas } = rendererOnCanvas({ withContainer: false })
+
+    await renderer.dispose({ loseContext: true, resetCanvas: true })
+
+    assert.equal(renderer.canvas, canvas)
+    assert.deepEqual(parent.children, [canvas])
+})
+
 test('successful fallback recreation installs a fresh pipeline then disposes the terminal old pipeline', async () => {
     const events = []
     const previousPipeline = {

@@ -982,7 +982,17 @@ export class CanvasRenderer {
      * Reset the canvas element (for backend switching)
      */
     resetCanvas() {
-        if (!this._canvasContainer || !this._canvas) {
+        this._replaceCanvas(this._canvasContainer)
+    }
+
+    /**
+     * @private Put a fresh copy of the canvas in its place inside `parent`.
+     * A canvas keeps the context type that it got first, so a new backend
+     * needs a new canvas element.
+     * @param {Node|null} parent - The canvas's parent node
+     */
+    _replaceCanvas(parent) {
+        if (!parent || !this._canvas) {
             return
         }
 
@@ -994,7 +1004,7 @@ export class CanvasRenderer {
         newCanvas.width = this._canvas.width
         newCanvas.height = this._canvas.height
 
-        this._canvasContainer.replaceChild(newCanvas, this._canvas)
+        parent.replaceChild(newCanvas, this._canvas)
         this._canvas = newCanvas
 
         // A lost context belonged to the canvas we just discarded, and its
@@ -1216,7 +1226,9 @@ export class CanvasRenderer {
     }
 
     /**
-     * Switch rendering backend
+     * Switch rendering backend. Call compile() again to render on the new
+     * backend. The new backend presents on a fresh canvas element in the old
+     * canvas's place, so read `renderer.canvas` after the switch.
      * @param {string} backend - 'glsl' or 'wgsl'
      */
     async switchBackend(backend) {
@@ -1232,6 +1244,12 @@ export class CanvasRenderer {
             loseContext: previousBackend === 'glsl',
             resetCanvas: true
         })
+
+        // dispose() replaces the canvas only inside a canvasContainer. The old
+        // canvas cannot take the new context type, so replace it in its parent.
+        if (!this._canvasContainer) {
+            this._replaceCanvas(this._canvas?.parentNode)
+        }
     }
 
     // =========================================================================
