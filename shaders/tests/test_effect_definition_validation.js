@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readdirSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { validateEffectDefinition } from '../src/runtime/effect-validator.js'
 import { Effect } from '../src/runtime/effect.js'
 
@@ -458,7 +458,7 @@ test('dynamic definition corpus: every tracked effect validates with explicit de
         const id = path.relative(effectsRoot, file)
         let def = null
         try {
-            const imported = await import(file)
+            const imported = await import(pathToFileURL(file))
             def = imported.default
         } catch (error) {
             // Import errors are failures, not skips.
