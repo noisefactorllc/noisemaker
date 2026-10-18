@@ -322,6 +322,12 @@ function formatValue(value, spec, options = {}, sourceForm) {
         return value._ast.name
     }
 
+    // Arrow-function arguments compile to {fn} objects that keep their
+    // parser Func node, which carries the let name when one was used.
+    if (value?._ast?.type === 'Func') {
+        return formatLetExpr(value._ast, options)
+    }
+
     if (typeof value === 'boolean') {
         return value ? 'true' : 'false'
     }
@@ -922,7 +928,8 @@ function formatLetExpr(expr, options = {}) {
         case 'Chain':
             return unparseChain(expr.chain, options)
         case 'Func':
-            return `() => ${formatLetExpr(expr.body, options)}`
+            // The parser keeps the arrow-function body as source text.
+            return `() => ${expr.src}`
         default:
             return formatValue(expr, null, options)
     }

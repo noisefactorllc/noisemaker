@@ -1166,7 +1166,8 @@ export function validate(ast) {
                         } else if (node && node.type === 'Func') {
                             try {
                                 const fn = new Function('state', `with(state){ return ${node.src}; }`)
-                                value = {fn: (state) => !!fn(state)}
+                                // _ast keeps the source text for the unparser.
+                                value = {fn: (state) => !!fn(state), _ast: node}
                             } catch {
                                 pushDiag('S001', node, `Invalid function for '${def.name}': '${node.src?.slice(0, 50) || 'unknown'}'`)
                                 value = def.default !== undefined ? !!def.default : false
@@ -1355,7 +1356,8 @@ export function validate(ast) {
                         } else if (node && node.type === 'Func') {
                             try {
                                 const fn = new Function('state', `with(state){ return ${node.src}; }`)
-                                value = {fn, min:def.min, max:def.max}
+                                // _ast keeps the source text for the unparser.
+                                value = {fn, min:def.min, max:def.max, _ast: node}
                             } catch {
                                 pushDiag('S001', node, `Invalid function for '${def.name}': '${node.src?.slice(0, 50) || 'unknown'}'`)
                                 value = def.default

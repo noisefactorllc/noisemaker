@@ -686,6 +686,34 @@ test('ProgramState text values with quotes and backslashes keep the same DSL acr
     }
 });
 
+// The parser keeps an arrow function's body as source text. The compiled
+// {fn} value keeps that node, so unparse can write the function back.
+test('Arrow-function arguments and let values unparse to DSL with the same functions', () => {
+    const programs = [
+        ['noise(scaleX: () => 0.5).write(o0)', compiled => [compiled.plans[0].chain[0].args.scaleX], [0.5]],
+        ['let f = () => 0.5\nnoise(scaleX: f).write(o0)', compiled => [compiled.plans[0].chain[0].args.scaleX], [0.5]],
+        ['noise(wrap: () => true).write(o0)', compiled => [compiled.plans[0].chain[0].args.wrap], [true]]
+    ];
+    for (const [body, read, results] of programs) {
+        const source = `search synth\n${body}\nrender(o0)`;
+        const first = compile(source);
+        for (const options of [{}, inlineOptions]) {
+            const output = unparse(first, {}, options);
+            assertNotIncludes(output, '[object Object]', 'Arrow function must not be written as an object');
+            const second = compile(output);
+            assert.deepEqual(second.diagnostics, first.diagnostics, output);
+            assert.deepEqual(second.vars?.map(v => v.expr.src), first.vars?.map(v => v.expr.src), `let text of ${output}`);
+            const before = read(first);
+            const after = read(second);
+            assert.deepEqual(after.map(value => value._ast.src), before.map(value => value._ast.src), `argument text of ${output}`);
+            assert.deepEqual(after.map(value => value.fn({})), results, `argument result of ${output}`);
+        }
+    }
+    const letOutput = unparse(compile('search synth\nlet f = () => 0.5\nnoise(scaleX: f).write(o0)\nrender(o0)'), {}, inlineOptions);
+    assertIncludes(letOutput, 'let f = () => 0.5', 'let keeps the arrow-function text');
+    assertIncludes(letOutput, 'scaleX: f', 'The argument keeps the let name');
+});
+
 // Summary
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
