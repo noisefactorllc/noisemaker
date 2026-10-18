@@ -69,19 +69,19 @@ function formatOscillator(osc) {
 
     // Only include non-default values
     if (osc.min !== 0) {
-        parts.push(`min: ${osc.min}`)
+        parts.push(`min: ${formatNumberText(osc.min)}`)
     }
     if (osc.max !== 1) {
-        parts.push(`max: ${osc.max}`)
+        parts.push(`max: ${formatNumberText(osc.max)}`)
     }
     if (osc.speed !== 1) {
-        parts.push(`speed: ${osc.speed}`)
+        parts.push(`speed: ${formatNumberText(osc.speed)}`)
     }
     if (osc.offset !== 0) {
-        parts.push(`offset: ${osc.offset}`)
+        parts.push(`offset: ${formatNumberText(osc.offset)}`)
     }
     if (osc.seed !== 1 && (osc.oscType === 5 || osc.oscType === 6)) {  // Only the noise kinds read the seed
-        parts.push(`seed: ${osc.seed}`)
+        parts.push(`seed: ${formatNumberText(osc.seed)}`)
     }
 
     return `osc(${parts.join(', ')})`
@@ -111,13 +111,13 @@ function formatMidi(midi) {
     if (midi.cc !== undefined) parts.push(`cc: ${midi.cc}`)
     if (midi.nrpn !== undefined) parts.push(`nrpn: ${midi.nrpn}`)
     if (midi.min !== 0) {
-        parts.push(`min: ${midi.min}`)
+        parts.push(`min: ${formatNumberText(midi.min)}`)
     }
     if (midi.max !== 1) {
-        parts.push(`max: ${midi.max}`)
+        parts.push(`max: ${formatNumberText(midi.max)}`)
     }
     if (midi.sensitivity !== 1) {
-        parts.push(`sensitivity: ${midi.sensitivity}`)
+        parts.push(`sensitivity: ${formatNumberText(midi.sensitivity)}`)
     }
     if (typeof midi.name === 'string' && midi.name.length > 0) {
         parts.push(`name: ${JSON.stringify(midi.name)}`)
@@ -144,10 +144,10 @@ function formatAudio(audio) {
 
     // Only include non-default values
     if (audio.min !== 0) {
-        parts.push(`min: ${audio.min}`)
+        parts.push(`min: ${formatNumberText(audio.min)}`)
     }
     if (audio.max !== 1) {
-        parts.push(`max: ${audio.max}`)
+        parts.push(`max: ${formatNumberText(audio.max)}`)
     }
     if (Number.isInteger(audio.channel) && audio.channel >= 1) {
         parts.push(`channel: ${audio.channel}`)
@@ -175,10 +175,15 @@ function formatEnumName(name) {
 }
 
 /**
- * Format a finite number without rounding and without exponent notation,
- * which is not part of the DSL's numeric literal grammar.
+ * Format a number without rounding and without exponent notation, which is
+ * not part of the DSL's numeric literal grammar. A value that is not finite
+ * has no literal, so it is written as the division that the parser folds
+ * back to the same value.
  */
 function formatLosslessNumber(value) {
+    if (Number.isNaN(value)) return '0 / 0'
+    if (value === Infinity) return '1 / 0'
+    if (value === -Infinity) return '-1 / 0'
     const text = String(value)
     if (!/[eE]/.test(text)) return text
 
@@ -198,6 +203,14 @@ function formatLosslessNumber(value) {
         return `${sign}${digits}${'0'.repeat(decimalIndex - digits.length)}`
     }
     return `${sign}${digits.slice(0, decimalIndex)}.${digits.slice(decimalIndex)}`
+}
+
+/**
+ * Format a numeric field of an automation descriptor (osc, midi, audio).
+ * Numbers use the lossless form; other values keep their String() text.
+ */
+function formatNumberText(value) {
+    return typeof value === 'number' ? formatLosslessNumber(value) : String(value)
 }
 
 /**
@@ -558,19 +571,19 @@ function formatValue(value, spec, options = {}, sourceForm) {
             }
             const parts = [`type: oscKind.${typeName}`]
             if (value.min && value.min.type === 'Number' && value.min.value !== 0) {
-                parts.push(`min: ${value.min.value}`)
+                parts.push(`min: ${formatLosslessNumber(value.min.value)}`)
             }
             if (value.max && value.max.type === 'Number' && value.max.value !== 1) {
-                parts.push(`max: ${value.max.value}`)
+                parts.push(`max: ${formatLosslessNumber(value.max.value)}`)
             }
             if (value.speed && value.speed.type === 'Number' && value.speed.value !== 1) {
-                parts.push(`speed: ${value.speed.value}`)
+                parts.push(`speed: ${formatLosslessNumber(value.speed.value)}`)
             }
             if (value.offset && value.offset.type === 'Number' && value.offset.value !== 0) {
-                parts.push(`offset: ${value.offset.value}`)
+                parts.push(`offset: ${formatLosslessNumber(value.offset.value)}`)
             }
             if (value.seed && value.seed.type === 'Number' && value.seed.value !== 1) {
-                parts.push(`seed: ${value.seed.value}`)
+                parts.push(`seed: ${formatLosslessNumber(value.seed.value)}`)
             }
             return `osc(${parts.join(', ')})`
         }
@@ -595,13 +608,13 @@ function formatValue(value, spec, options = {}, sourceForm) {
                 if (value[field] !== undefined) parts.push(`${field}: ${formatLetExpr(value[field], options)}`)
             }
             if (value.min && value.min.type === 'Number' && value.min.value !== 0) {
-                parts.push(`min: ${value.min.value}`)
+                parts.push(`min: ${formatLosslessNumber(value.min.value)}`)
             }
             if (value.max && value.max.type === 'Number' && value.max.value !== 1) {
-                parts.push(`max: ${value.max.value}`)
+                parts.push(`max: ${formatLosslessNumber(value.max.value)}`)
             }
             if (value.sensitivity && value.sensitivity.type === 'Number' && value.sensitivity.value !== 1) {
-                parts.push(`sensitivity: ${value.sensitivity.value}`)
+                parts.push(`sensitivity: ${formatLosslessNumber(value.sensitivity.value)}`)
             }
             return `midi(${parts.join(', ')})`
         }
@@ -618,10 +631,10 @@ function formatValue(value, spec, options = {}, sourceForm) {
             }
             const parts = [`band: ${bandStr}`]
             if (value.min && value.min.type === 'Number' && value.min.value !== 0) {
-                parts.push(`min: ${value.min.value}`)
+                parts.push(`min: ${formatLosslessNumber(value.min.value)}`)
             }
             if (value.max && value.max.type === 'Number' && value.max.value !== 1) {
-                parts.push(`max: ${value.max.value}`)
+                parts.push(`max: ${formatLosslessNumber(value.max.value)}`)
             }
             if (value.channel?.type === 'Number') parts.push(`channel: ${value.channel.value}`)
             if (value.name?.type === 'String') {
@@ -802,7 +815,7 @@ function formatLetExpr(expr, options = {}) {
 
     switch (expr.type) {
         case 'Number':
-            return String(expr.value)
+            return formatLosslessNumber(expr.value)
         case 'String':
             return formatStringLiteral(expr.value)
         case 'Boolean':

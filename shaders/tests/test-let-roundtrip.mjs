@@ -3,7 +3,7 @@
  * Run with: node shaders/tests/test-let-roundtrip.mjs
  */
 
-import { compile, unparse } from '../src/lang/index.js';
+import { compile, unparse, formatValue } from '../src/lang/index.js';
 import { registerOp } from '../src/lang/ops.js';
 import { registerStarterOps } from '../src/lang/validator.js';
 
@@ -253,6 +253,88 @@ render(o0)`;
     const compiled2 = compile(unparsed1);
     const unparsed2 = unparse(compiled2);
     assertEqual(unparsed1, unparsed2, 'Double round-trip should be stable');
+});
+
+// String(1e-7) is "1e-7" and String(1e23) is "1e+23". The lexer reads
+// neither as one number, so unparse must write every number in plain digits.
+function assertNoErrors(compiled, message) {
+    const errors = compiled.diagnostics.filter(d => d.severity === 'error').map(d => d.code);
+    assertEqual(errors.join(','), '', message);
+}
+
+function assertSameNumber(actual, expected, message) {
+    if (!Object.is(actual, expected)) {
+        throw new Error(`${message}\n  Expected: ${String(expected)}\n  Actual:   ${String(actual)}`);
+    }
+}
+
+function assertNumbersSurvive(body, read) {
+    const src = `search synth\n\n${body}\n  .write(o0)\n\nrender(o0)`;
+    const first = compile(src);
+    assertNoErrors(first, `${body} must compile`);
+    const output = unparse(first);
+    const second = compile(output);
+    assertNoErrors(second, `unparse output must compile:\n${output}`);
+    const expected = read(first);
+    const actual = read(second);
+    for (const [field, value] of Object.entries(expected)) {
+        if (value === undefined) throw new Error(`${field} of ${body} must compile to a value`);
+        assertSameNumber(actual[field], value, `${field} changed after unparse:\n${output}`);
+    }
+    return expected;
+}
+
+test('let, osc(), midi() and audio() numbers survive compile → unparse → compile', () => {
+    for (const text of ['0.0000001', '100000000000000000000000', '0.5']) {
+        const values = assertNumbersSurvive(`let t = ${text}\nnoise(scale: t)`, c => ({
+            let: c.vars[0].expr.value, scale: c.plans[0].chain[0].args.scale.value
+        }));
+        assertSameNumber(values.let, Number(text), `let t = ${text}`);
+        assertSameNumber(values.scale, Number(text), `noise(scale: t) with t = ${text}`);
+        assertNumbersSurvive(
+            `noise(scale: osc(type: oscKind.noise1d, min: ${text}, max: ${text}, speed: ${text}, offset: ${text}, seed: ${text}))`,
+            c => {
+                const { min, max, speed, offset, seed } = c.plans[0].chain[0].args.scale;
+                return { min, max, speed, offset, seed };
+            });
+        assertNumbersSurvive(
+            `noise(scale: midi(channel: 1, min: ${text}, max: ${text}, sensitivity: ${text}))`,
+            c => {
+                const { min, max, sensitivity } = c.plans[0].chain[0].args.scale;
+                return { min, max, sensitivity };
+            });
+        assertNumbersSurvive(
+            `noise(scale: audio(band: audioBand.low, min: ${text}, max: ${text}))`,
+            c => {
+                const { min, max } = c.plans[0].chain[0].args.scale;
+                return { min, max };
+            });
+    }
+});
+
+test('Automation descriptors without source text write numbers that compile', () => {
+    for (const [value, expected] of [
+        [{ type: 'Oscillator', oscType: 5, min: 1e-7, max: 0.5, speed: 1e23, offset: 1e-7, seed: 1e23 },
+            ['min', 'max', 'speed', 'offset', 'seed']],
+        [{ type: 'Midi', channel: 1, mode: 4, min: 1e-7, max: 0.5, sensitivity: 1e23 }, ['min', 'max', 'sensitivity']],
+        [{ type: 'Audio', band: 0, min: 1e-7, max: 0.5 }, ['min', 'max']]
+    ]) {
+        const text = formatValue(value);
+        const compiled = compile(`search synth\nnoise(scale: ${text}).write(o0)\nrender(o0)`);
+        assertNoErrors(compiled, `${text} must compile`);
+        for (const field of expected) {
+            assertSameNumber(compiled.plans[0].chain[0].args.scale[field], value[field], `${field} of ${text}`);
+        }
+    }
+});
+
+test('let and literal values that are not finite unparse to DSL that compiles to the same value', () => {
+    for (const expr of ['1 / 0', '-1 / 0', '0 / 0']) {
+        assertNumbersSurvive(`let z = ${expr}\nnoise(scale: z)`, c => ({
+            let: c.vars[0].expr.value, scale: c.plans[0].chain[0].args.scale.value
+        }));
+        assertNumbersSurvive(`noise(scale: ${expr})`, c => ({ scale: c.plans[0].chain[0].args.scale }));
+    }
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);
