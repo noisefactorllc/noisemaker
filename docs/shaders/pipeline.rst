@@ -71,8 +71,12 @@ The Pipeline executes every frame.
 
 #. **Update Globals:** Refresh these runtime uniforms from the implementation:
 
-   - ``time``: seconds since start
-   - ``deltaTime``: frame-to-frame delta
+   - ``time``: the value passed to ``Pipeline.render(time)``. ``CanvasRenderer``
+     passes a normalized loop phase from 0 to 1,
+     ``(elapsedSeconds % loopDuration) / loopDuration``. The loop is 10 seconds
+     by default, and ``setLoopDuration()`` changes it.
+   - ``deltaTime``: frame-to-frame change of ``time``, in the same units. When
+     ``time`` wraps to a smaller value, ``deltaTime`` is ``1 / 600``.
    - ``frame``: integer tick
    - ``resolution``: ``vec2`` pixels
    - ``aspect``: width ÷ height

@@ -37,7 +37,7 @@ Primary source roots:
 
 ## Freshness and maintenance
 
-This file is hand-maintained; no generator produces it. Three repository
+This file is hand-maintained; no generator produces it. Four repository
 contract tests, run by `scripts/run-js-tests.js`, check parts of it against
 source: `shaders/tests/test_contract_graph_shape.mjs` (the `CompiledGraph`
 type block against `compileGraph()` output),

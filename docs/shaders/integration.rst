@@ -240,9 +240,9 @@ Creates and manages the GPU rendering pipeline.
         useBundles: true,                  // Load effects from pre-built bundles
         bundlePath: `${SHADER_CDN}/effects`, // Path to effect bundles
         preferWebGPU: false,               // Use WebGPU backend if available
-        onFPS: (fps) => {},                // Called each frame with current FPS
+        onFPS: (fps) => {},                // Called about once per second with the rounded FPS
         onError: (err) => {},              // Called on pipeline errors
-        onFrame: (time) => {},             // Called each frame with normalized time
+        onFrame: (frameCount) => {},       // Called after each rendered frame with the frame count
         onLoadingStart: () => {},          // Called when effect loading begins
         onLoadingEnd: () => {}             // Called when effect loading finishes
     })
@@ -412,11 +412,16 @@ Query effect definitions to build parameter UIs. Load effects with ``loadManifes
         console.log({ name, type: spec.type, default: spec.default, min: spec.min, max: spec.max })
     }
 
-    // Check if this is a generator (vs a filter)
-    isStarterEffect(noiseDef)  // true for generators
+    // Check if this is a generator (vs a filter). isStarterEffect() takes
+    // an effect record, so wrap the definition in { instance }.
+    isStarterEffect({ instance: noiseDef })  // true for generators
 
-    // Iterate all loaded effects
+    // Iterate all loaded effects. getAllEffects() returns the registry Map,
+    // which holds each effect under up to four names: func, namespace.func,
+    // namespace/name and namespace.name. The namespace/name keys give one
+    // entry per effect.
     for (const [id, def] of getAllEffects()) {
+        if (!id.includes('/')) continue
         console.log(`${id}: ${def.description}`)
     }
 
@@ -460,20 +465,38 @@ Each effect's ``globals`` defines its parameters. Use these types to build UI co
    * - ``int``
      - ``number``
      - Slider (integer step)
+   * - ``boolean``
+     - ``boolean``
+     - Toggle/checkbox
    * - ``color``
      - ``[r, g, b]`` (0-1) or ``"#rrggbb"``
      - Color picker
-   * - ``bool``
-     - ``boolean``
-     - Toggle/checkbox
-   * - ``choice``
-     - ``string`` or ``number``
+   * - ``vec2``, ``vec3``, ``vec4``
+     - Array of 2, 3 or 4 numbers
+     - Vector input or sliders
+   * - ``mat3``
+     - Array of 9 numbers
+     - None (``ui.control: false``)
+   * - ``palette``
+     - ``number`` (palette index)
      - Dropdown/select
+   * - ``member``
+     - ``string`` enum path (``"channel.r"``)
+     - Dropdown/select
+   * - ``string``
+     - ``string``
+     - Text field
    * - ``surface``
-     - ``string`` (``"o0"``, ``"o1"``, ...)
+     - ``string`` (``"none"``, ``"o0"``, ``"o1"``, ...)
      - Surface picker
+   * - ``volume``
+     - ``string`` (``"vol0"``, ...)
+     - Volume picker
+   * - ``geometry``
+     - ``string`` (``"geo0"``, ...)
+     - Geometry picker
 
-Each parameter spec may include ``min``, ``max``, ``step``, ``default``, and ``choices`` (for choice types).
+Each parameter spec may include ``min``, ``max``, ``step``, ``default``, and ``choices``. ``choices`` maps labels to values, and such a parameter usually sets ``ui.control: 'dropdown'``. In the current effects, ``int``, ``float``, ``palette`` and ``string`` parameters use ``choices``.
 
 Media Inputs
 ------------
@@ -801,7 +824,7 @@ The core bundle (``noisemaker-shaders-core.esm.js``) exports:
 
 .. note::
 
-   UI components (``UIController``, ``EffectSelect``, ``ToggleSwitch``) belong to the demo app in ``demo/shaders/lib/``. The core bundle excludes them. Import them directly from source if needed.
+   The core bundle also exports the demo app's UI components ``UIController``, ``EffectSelect`` and ``ToggleSwitch``. ``scripts/bundle-shaders.js`` adds them from ``demo/shaders/lib/``.
 
 Example: Vanilla JS
 --------------------
