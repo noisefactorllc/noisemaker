@@ -49,6 +49,7 @@ function test(name, fn) {
     } catch (e) {
         console.error(`FAIL: ${name}`)
         console.error(e.message)
+        process.exitCode = 1
     }
 }
 
