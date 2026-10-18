@@ -17,6 +17,10 @@ import landscape from '../effects/render/renderLandscape3d/definition.js';
 import Text from '../effects/filter/text/definition.js';
 import { registerEffect } from '../src/runtime/registry.js';
 import { ProgramState } from '../../demo/shaders/lib/program-state.js';
+import media from '../effects/synth/media/definition.js';
+import remap from '../effects/synth/remap/definition.js';
+import grade from '../effects/filter/grade/definition.js';
+import { CanvasRenderer } from '../src/renderer/canvas.js';
 
 let passed = 0;
 let failed = 0;
@@ -712,6 +716,66 @@ test('Arrow-function arguments and let values unparse to DSL with the same funct
     const letOutput = unparse(compile('search synth\nlet f = () => 0.5\nnoise(scaleX: f).write(o0)\nrender(o0)'), {}, inlineOptions);
     assertIncludes(letOutput, 'let f = () => 0.5', 'let keeps the arrow-function text');
     assertIncludes(letOutput, 'scaleX: f', 'The argument keeps the let name');
+});
+
+// vec2() on a vec2 parameter and vec4() on a vec4 parameter set the given
+// components, as vec3() and array literals do. CanvasRenderer registers vec4
+// parameters as `color`, so these effects use the loader's registration.
+const vectorRenderer = new CanvasRenderer();
+const vectorDefinitions = new Map();
+for (const [namespace, name, definition] of [['synth', 'media', media], ['synth', 'remap', remap], ['filter', 'grade', grade]]) {
+    const instance = typeof definition === 'function' ? new definition() : definition;
+    vectorRenderer.registerEffectWithRuntime({ namespace, name, instance });
+    vectorRenderer.registerStarterOpForEffect({ namespace, name, instance });
+    vectorDefinitions.set(`${namespace}.${name}`, instance);
+}
+const vectorOptions = { getEffectDef: name => vectorDefinitions.get(name) ?? null };
+const vectorArg = (source, op, key) => {
+    const compiled = compile(`search synth, filter\n${source}.write(o0)\nrender(o0)`);
+    const step = compiled.plans[0].chain.find(entry => entry.op === op);
+    return { value: step.args[key], codes: compiled.diagnostics.map(d => d.code), compiled };
+};
+
+test('vec2() and vec4() arguments set their components on vec2 and vec4 parameters', () => {
+    for (const [source, op, key, expected] of [
+        ['media(imageSize: vec2(512, 256))', 'synth.media', 'imageSize', [512, 256]],
+        ['remap(zone0_bounds: vec4(0.1, 0.2, 0.8, 0.9))', 'synth.remap', 'zone0_bounds', [0.1, 0.2, 0.8, 0.9]]
+    ]) {
+        const { value, codes, compiled } = vectorArg(source, op, key);
+        assert.deepEqual(codes, [], source);
+        assert.deepEqual(value, expected, source);
+        // unparse writes the value back in a form that compiles to it again.
+        const output = unparse(compiled, {}, vectorOptions);
+        const again = compile(output);
+        assert.deepEqual(again.diagnostics, [], output);
+        assert.deepEqual(again.plans[0].chain.find(entry => entry.op === op).args[key], expected, output);
+    }
+});
+
+test('vec3(), array literal and hex vector arguments keep their results', () => {
+    for (const [source, op, key, expected] of [
+        ['noise().grade(shadowTint: vec3(0.1, 0.2, 0.3))', 'filter.grade', 'shadowTint', [0.1, 0.2, 0.3]],
+        ['media(imageSize: [512, 256])', 'synth.media', 'imageSize', [512, 256]],
+        ['remap(zone0_bounds: [0.1, 0.2, 0.8, 0.9])', 'synth.remap', 'zone0_bounds', [0.1, 0.2, 0.8, 0.9]],
+        ['remap(zone0_bounds: #19334dcc)', 'synth.remap', 'zone0_bounds', [25 / 255, 51 / 255, 77 / 255, 204 / 255]]
+    ]) {
+        const { value, codes } = vectorArg(source, op, key);
+        assert.deepEqual(codes, [], source);
+        assert.deepEqual(value, expected, source);
+    }
+});
+
+test('vec2() and vec4() with the wrong number of components give a diagnostic', () => {
+    for (const [source, op, key, fallback] of [
+        ['media(imageSize: vec2(512))', 'synth.media', 'imageSize', [1024, 1024]],
+        ['media(imageSize: vec2(512, 256, 1))', 'synth.media', 'imageSize', [1024, 1024]],
+        ['remap(zone0_bounds: vec4(0.1, 0.2, 0.8))', 'synth.remap', 'zone0_bounds', [0, 0, 1, 1]],
+        ['remap(zone0_bounds: vec4(0.1, 0.2, 0.8, 0.9, 1))', 'synth.remap', 'zone0_bounds', [0, 0, 1, 1]]
+    ]) {
+        const { value, codes } = vectorArg(source, op, key);
+        assert.deepEqual(codes, ['S002'], source);
+        assert.deepEqual(value, fallback, source);
+    }
 });
 
 // Summary

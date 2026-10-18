@@ -1082,6 +1082,19 @@ export function validate(ast) {
                             }
                         }
                         args[argKey] = surf
+                    } else if (node && node.type === 'Call' && node.args?.length === (node.name === 'vec2' ? 2 : 4) && (
+                        (def.type === 'vec2' && node.name === 'vec2') ||
+                        (def.type === 'color' && node.name === 'vec4' && Array.isArray(def.default) && def.default.length === 4))) {
+                        // vec2(x, y) on a vec2 parameter, and vec4(x, y, z, w) on a
+                        // vec4 parameter. The loader registers vec4 parameters as
+                        // `color`; their default keeps its four components. Any
+                        // other form, including a wrong component count, takes
+                        // the branches below.
+                        args[argKey] = node.args.map(arg => {
+                            if (arg.type === 'Number') return arg.value
+                            pushDiag('S002', arg, `Argument out of range for '${def.name}' in ${call.name}()`)
+                            return 0
+                        })
                     } else if (def.type === 'color') {
                         if (node && node.type === 'String') {
                             pushDiag('S001', node, `String literal not allowed for color parameter '${def.name}'`)
