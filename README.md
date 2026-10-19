@@ -22,7 +22,7 @@ Full documentation, including the complete API reference and preset guide, is av
 
 ## Getting Started
 
-The documentation index covers installation, CLI usage, API walkthroughs, and advanced workflows. It also includes quick-start guides for Python, browser modules, and Docker. The dedicated READMEs below provide platform-specific guides.
+The [documentation index](https://docs.noisemaker.app/) starts with a quick start for the browser shader engine. For the Python package, see the [CLI guide](https://docs.noisemaker.app/cli/) and the [API reference](https://docs.noisemaker.app/api/). For the browser modules, see the [JavaScript API](https://docs.noisemaker.app/javascript/). For containers, see the [Docker README](README-DOCKER.md). The `noisemaker animate` and `noisemaker magic-mashup` commands run `ffmpeg` to write their MP4 and GIF output, so `ffmpeg` must be on your `PATH`. The Docker image includes it. The dedicated READMEs below provide platform-specific guides.
 
 ## Bring your coding agent
 
