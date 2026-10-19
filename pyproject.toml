@@ -7,7 +7,7 @@ name = "noisemaker"
 version = "1.0"
 description = "Generates procedural noise with Python 3 and TensorFlow"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11,<3.14"
 license = "MIT"
 authors = [
     {name = "Noise Factor LLC", email = "team@noisefactor.io"}
@@ -17,9 +17,9 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Multimedia :: Graphics",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]

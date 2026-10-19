@@ -21,7 +21,7 @@ Installation
 
 The ``noisemaker`` command is part of the Noisemaker Python package. Install the package from a clone of the repository.
 
-Use Python 3.10, 3.11 or 3.12. CI tests these three versions. ``pyproject.toml`` sets ``requires-python = ">=3.10"``. CI does not test Python versions later than 3.12.
+Use Python 3.11, 3.12 or 3.13. CI tests these three versions, and ``pyproject.toml`` sets ``requires-python = ">=3.11,<3.14"``. The Docker image uses Python 3.13.
 
 To install the package, run these commands:
 
@@ -33,7 +33,7 @@ To install the package, run these commands:
     source venv/bin/activate
     pip install .
 
-These commands use Python 3.12. For Python 3.10 or 3.11, change ``python3.12`` to ``python3.10`` or ``python3.11``.
+These commands use Python 3.12. For Python 3.11 or 3.13, change ``python3.12`` to ``python3.11`` or ``python3.13``.
 
 The ``pip install .`` command installs TensorFlow and the other dependencies. It also installs the ``noisemaker`` and ``mood`` commands. To make sure that the installation is correct, run ``noisemaker --help``.
 

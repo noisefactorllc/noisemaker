@@ -24,7 +24,7 @@ Python (``python.yml``)
 
 Runs on push/PR to ``main`` when ``noisemaker/``, ``pyproject.toml``, or related files change.
 
-- **Verify only** -- tests (pytest across Python 3.10-3.12 on Linux/macOS/Windows), lint (black, ruff), and type-check (mypy).
+- **Verify only** -- tests (pytest across Python 3.11-3.13 on Linux/macOS/Windows), lint (black, ruff), and type-check (mypy).
 - No publishing step. Python releases are repo-only for now.
 
 JavaScript (``js.yml``)
