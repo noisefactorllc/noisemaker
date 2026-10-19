@@ -4,7 +4,7 @@
  */
 
 struct Uniforms {
-    data : array<vec4<f32>, 5>,
+    data : array<vec4<f32>, 6>,
 };
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 @group(0) @binding(1) var samp : sampler;
@@ -22,6 +22,8 @@ var<private> flip : i32;
 var<private> bgColor : vec3<f32>;
 var<private> bgAlpha : f32;
 var<private> imageSize : vec2<f32>;
+var<private> tileOffset : vec2<f32>;
+var<private> fullResolution : vec2<f32>;
 
 const PI : f32 = 3.14159265359;
 const TAU : f32 = 6.28318530718;
@@ -73,41 +75,49 @@ fn sampleMedia(uv: vec2<f32>) -> vec4<f32> {
 }
 
 fn getImage(pos: vec2<f32>) -> vec4<f32> {
-    var st = pos / imageSize;
+    // Under tiled print export the fragment position is tile-local. Add the
+    // tile's global offset so every tile and the untiled reference sample
+    // the same absolute image pixel (tileOffset is 0 when not tiling).
+    var st = (pos + tileOffset) / imageSize;
     st.y = 1.0 - st.y;
+
+    // Anchoring is relative to the full export canvas, not the tile.
+    // fullResolution defaults to resolution when not tiling, so normal-size
+    // rendering keeps the exact same values.
+    let fullRes = select(resolution, fullResolution, fullResolution.x > 0.0);
 
     var scale = 100.0 / scaleAmt;
     if (scale == 0.0) { scale = 1.0; }
     st = st * scale;
 
     if (posIndex == 0) {
-        st.y = st.y + (resolution.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
+        st.y = st.y + (fullRes.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
     } else if (posIndex == 1) {
-        st.x = st.x - (resolution.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
-        st.y = st.y + (resolution.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
+        st.x = st.x - (fullRes.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
+        st.y = st.y + (fullRes.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
     } else if (posIndex == 2) {
-        st.x = st.x - (resolution.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
-        st.y = st.y + (resolution.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
+        st.x = st.x - (fullRes.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
+        st.y = st.y + (fullRes.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
     } else if (posIndex == 3) {
-        st.y = st.y + (resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
+        st.y = st.y + (fullRes.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
     } else if (posIndex == 4) {
-        st.x = st.x - (resolution.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
-        st.y = st.y + (resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
+        st.x = st.x - (fullRes.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
+        st.y = st.y + (fullRes.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
     } else if (posIndex == 5) {
-        st.x = st.x - (resolution.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
-        st.y = st.y + (resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
+        st.x = st.x - (fullRes.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
+        st.y = st.y + (fullRes.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
     } else if (posIndex == 6) {
         st.y = st.y + 1.0 - (scale - (1.0 / imageSize.y * scale));
     } else if (posIndex == 7) {
-        st.x = st.x - (resolution.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
+        st.x = st.x - (fullRes.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
         st.y = st.y + 1.0 - (scale - (1.0 / imageSize.y * scale));
     } else if (posIndex == 8) {
-        st.x = st.x - (resolution.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
+        st.x = st.x - (fullRes.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
         st.y = st.y + 1.0 - (scale - (1.0 / imageSize.y * scale));
     }
 
-    st.x = st.x - map(offsetX, -100.0, 100.0, -resolution.x / imageSize.x * scale, resolution.x / imageSize.x * scale) * 1.5;
-    st.y = st.y - map(offsetY, -100.0, 100.0, -resolution.y / imageSize.y * scale, resolution.y / imageSize.y * scale) * 1.5;
+    st.x = st.x - map(offsetX, -100.0, 100.0, -fullRes.x / imageSize.x * scale, fullRes.x / imageSize.x * scale) * 1.5;
+    st.y = st.y - map(offsetY, -100.0, 100.0, -fullRes.y / imageSize.y * scale, fullRes.y / imageSize.y * scale) * 1.5;
 
     st.x = st.x * (imageSize.x / imageSize.y);
     // Preserve exact texture coordinates for the identity transform.
@@ -173,6 +183,9 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     bgColor = uniforms.data[3].xyz;
 
     imageSize = uniforms.data[4].xy;
+
+    tileOffset = uniforms.data[5].xy;
+    fullResolution = uniforms.data[5].zw;
 
     // Internal rows match GLSL texture rows; presentation applies the final
     // Y conversion. Keep anchor, offset and rotation in that same space.
