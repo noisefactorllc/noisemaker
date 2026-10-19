@@ -2,7 +2,7 @@ name: Docker
 
 # Builds the Docker image and runs the README-DOCKER.md example in it.
 # The build installs TensorFlow, so this workflow runs only when an image
-# input changes, once each week, and on manual dispatch.
+# input changes and on manual dispatch.
 
 on:
   push:
@@ -14,8 +14,6 @@ on:
       - 'share/**'
       - 'noisemaker/scripts/**'
       - '.github/workflows/docker.yml'
-  schedule:
-    - cron: '41 7 * * 1'
   workflow_dispatch:
 
 permissions:
