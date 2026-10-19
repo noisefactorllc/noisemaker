@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "effect": "filter/text",
-  "sourceHash": "13c14d18549e72219c31f06a4966cbab55d7fe7691cdb48b9b187af2a09d5368",
-  "caseHash": "4c75fe99c9296e6dafa87326594ba8d8091919006b986dd208f823edeaafdff7",
+  "sourceHash": "be97ec8e29c90ab371b180409e13f0901f43bf070c484e8b92c64d5501b22e70",
+  "caseHash": "67678b1bb532e3102bb4e169957a83dc577c140404edf16f8815a269041cd158",
   "resolution": [
     64,
     64
@@ -13,14 +13,14 @@
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 3488
+      "uniqueColors": 3487
     },
     "webgpu": {
       "width": 64,
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 3488
+      "uniqueColors": 3487
     }
   },
   "execution": {

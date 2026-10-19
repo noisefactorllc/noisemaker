@@ -104,7 +104,7 @@ export default class Text extends Effect {
         },
         matteColor: {
             type: "color",
-            default: "#000000",
+            default: [0.0, 0.0, 0.0],
             uniform: "matteColor",
             ui: {
                 label: "matte color",
