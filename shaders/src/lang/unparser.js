@@ -936,7 +936,8 @@ function formatLetExpr(expr, options = {}) {
 }
 
 /**
- * Unparse a compiled control-flow plan (Branch, Break, Continue or Return).
+ * Unparse a compiled control-flow plan (Branch, Break, Continue or Return),
+ * or a `let` (VarAssign) inside a block body.
  * Conditions and return values come from the parser statement that the
  * validator keeps as `plan.source`. Block bodies are unparsed as programs.
  * Their lines are not indented, so string literals in them keep their content.
@@ -971,6 +972,9 @@ function unparseControlFlow(plan, searchNamespaces, options) {
     } else if (plan.type === 'Return') {
         const value = source ? source.value : plan.value
         text = value ? `return ${formatLetExpr(value, options)}` : 'return'
+    } else if (plan.type === 'VarAssign') {
+        // A `let` inside a block body
+        text = `let ${plan.name} = ${formatLetExpr(plan.expr, options)}`
     } else {
         return null
     }

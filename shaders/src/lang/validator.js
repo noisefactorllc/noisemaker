@@ -374,36 +374,38 @@ export function validate(ast) {
         return node
     }
 
-    if (Array.isArray(ast.vars)) {
-        for (const v of ast.vars) {
-            const expr = substitute(clone(v.expr), [v.name])
-            if (expr && isStarterChain(expr)) {
-                const head = firstChainCall(expr)
-                if (head) pushDiag('S006', head)
-            }
-            if (expr == null || (expr.type === 'Ident' && (expr.name === 'null' || expr.name === 'undefined'))) {
-                pushDiag('S004', v)
-                continue
-            }
-            if (expr.type === 'Ident' && !symbols.has(expr.name) && !stateValues.has(expr.name) && !ops[expr.name] && !canResolveOpName(expr.name)) {
-                pushDiag('S003', expr)
-                continue
-            }
-            if (expr.type === 'Chain' && expr.chain.length === 1) {
-                symbols.set(v.name, expr.chain[0])
-            } else if (expr.type === 'Member') {
-                const resolved = resolveEnum(expr.path)
-                if (typeof resolved === 'number') {
-                    symbols.set(v.name, {type:'Number', value: resolved})
-                } else if (resolved !== undefined) {
-                    symbols.set(v.name, resolved)
-                } else {
-                    symbols.set(v.name, expr)
-                }
+    function declareVar(v) {
+        const expr = substitute(clone(v.expr), [v.name])
+        if (expr && isStarterChain(expr)) {
+            const head = firstChainCall(expr)
+            if (head) pushDiag('S006', head)
+        }
+        if (expr == null || (expr.type === 'Ident' && (expr.name === 'null' || expr.name === 'undefined'))) {
+            pushDiag('S004', v)
+            return
+        }
+        if (expr.type === 'Ident' && !symbols.has(expr.name) && !stateValues.has(expr.name) && !ops[expr.name] && !canResolveOpName(expr.name)) {
+            pushDiag('S003', expr)
+            return
+        }
+        if (expr.type === 'Chain' && expr.chain.length === 1) {
+            symbols.set(v.name, expr.chain[0])
+        } else if (expr.type === 'Member') {
+            const resolved = resolveEnum(expr.path)
+            if (typeof resolved === 'number') {
+                symbols.set(v.name, {type:'Number', value: resolved})
+            } else if (resolved !== undefined) {
+                symbols.set(v.name, resolved)
             } else {
                 symbols.set(v.name, expr)
             }
+        } else {
+            symbols.set(v.name, expr)
         }
+    }
+
+    if (Array.isArray(ast.vars)) {
+        for (const v of ast.vars) declareVar(v)
     }
 
     function evalExpr(node) {
@@ -1527,9 +1529,25 @@ export function validate(ast) {
 
     function compileBlock(body) {
         const result = []
+        // A `let` inside a block applies to the rest of that block only, so a
+        // block cannot change how statements outside it compile.
+        const shadowed = new Map()
         for (const s of body || []) {
+            if (s.type === 'VarAssign') {
+                if (!shadowed.has(s.name)) {
+                    shadowed.set(s.name, symbols.has(s.name) ? { value: symbols.get(s.name) } : null)
+                }
+                declareVar(s)
+                // Kept as the parser node, like the top-level `vars` entries
+                result.push(s)
+                continue
+            }
             const compiled = compileStmt(s)
             if (compiled) result.push(compiled)
+        }
+        for (const [name, previous] of shadowed) {
+            if (previous) symbols.set(name, previous.value)
+            else symbols.delete(name)
         }
         return result
     }

@@ -791,10 +791,14 @@ const controlFlowPrograms = [
     ['search synth\nnoise().write(o0)\nreturn 5\nrender(o0)', ['return']],
     ['search synth\nnoise().write(o0)\nbreak\nrender(o0)', ['break']],
     ['search synth\nnoise().write(o0)\ncontinue\nrender(o0)', ['continue']],
-    ['search synth\nlet k = 1\n// before the branch\nif (k) {\n  noise().write(o0)\n} elif (() => time > 2) {\n  solid().write(o0)\n  break\n} elif (0) {\n  if (false) {\n    return\n  }\n}\nnoise(seed: 3).write(o1)\nreturn noise()\nrender(o0)', ['if', 'return']]
+    ['search synth\nlet k = 1\n// before the branch\nif (k) {\n  noise().write(o0)\n} elif (() => time > 2) {\n  solid().write(o0)\n  break\n} elif (0) {\n  if (false) {\n    return\n  }\n}\nnoise(seed: 3).write(o1)\nreturn noise()\nrender(o0)', ['if', 'return']],
+    ['search synth\nif (true) {\n  let x = 1\n  noise(seed: x).write(o0)\n}\nrender(o0)', ['if']],
+    ['search synth\nlet x = 2\nif (true) {\n  let x = 5\n  noise(seed: x).write(o0)\n} else {\n  let y = x\n  solid().write(o0)\n}\nnoise(seed: x).write(o1)\nrender(o0)', ['if']]
 ];
 const controlFlowShape = plans => plans.map(plan => plan.chain ? plan.chain.map(step => step.op) : {
     type: plan.type,
+    name: plan.name,
+    expr: JSON.stringify(plan.expr),
     cond: JSON.stringify(plan.cond),
     condition: JSON.stringify(plan.source?.condition),
     value: JSON.stringify(plan.source?.value),
@@ -829,6 +833,16 @@ test('unparse keeps every statement of a control-flow program', () => {
             assert.equal(unparse(second, {}, options), output, 'A second unparse gives the same text');
         }
     }
+});
+
+test('A let inside a block applies to the rest of that block only', () => {
+    const compiled = compile(controlFlowPrograms[controlFlowPrograms.length - 1][0]);
+    const [branch, after] = compiled.plans;
+    assert.equal(branch.then[0].type, 'VarAssign');
+    assert.equal(branch.then[1].chain[0].args.seed.value, 5, 'The block let shadows the top-level x in its block');
+    assert.equal(after.chain[0].args.seed.value, 2, 'After the block, x is the top-level value again');
+    const leaked = compile('search synth\nif (true) {\n  let z = 3\n}\nnoise(seed: z).write(o0)\nrender(o0)');
+    assert.deepEqual(leaked.diagnostics.map(d => d.code), ['S003'], 'A block let is not visible after the block');
 });
 
 // Summary
