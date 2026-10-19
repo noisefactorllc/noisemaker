@@ -86,19 +86,19 @@ Generate a .png or .jpg image from a preset.
 .. code-block:: bash
 
     # Generate a basic image with custom dimensions
-    noisemaker generate multires --width 2048 --height 2048 --filenamenoise.png
+    noisemaker generate multires --width 2048 --height 2048 --filename noise.png
 
     # Generate with a specific seed for reproducibility
-    noisemaker generate acid --seed 12345 --filenameacid.png
+    noisemaker generate acid --seed 12345 --filename acid.png
 
     # Generate with anti-aliasing
-    noisemaker generate voronoi --with-fxaa --filenamesmooth.png
+    noisemaker generate voronoi --with-fxaa --filename smooth.png
 
     # Generate and apply AI upscaling
-    noisemaker generate fractal-smoke --with-upscale --filenamehires.png
+    noisemaker generate fractal-smoke --with-upscale --filename hires.png
 
     # Use a custom presets file
-    noisemaker generate my-preset --presets ~/my-presets.dsl --filenamecustom.png
+    noisemaker generate my-preset --presets ~/my-presets.dsl --filename custom.png
 
 animate
 ~~~~~~~
@@ -141,16 +141,16 @@ Generate an animation (MP4 or GIF) from a preset.
 .. code-block:: bash
 
     # Create a basic animation
-    noisemaker animate acid --frame-count 100 --filenameacid-loop.mp4
+    noisemaker animate acid --frame-count 100 --filename acid-loop.mp4
 
     # Create animation with effect applied
-    noisemaker animate voronoi --effect-preset glitchin-out --filenameglitchy.mp4
+    noisemaker animate voronoi --effect-preset glitchin-out --filename glitchy.mp4
 
     # Save individual frames
-    noisemaker animate multires --save-frames ./frames/ --filenameanim.mp4
+    noisemaker animate multires --save-frames ./frames/ --filename anim.mp4
 
     # Create animation with specific duration
-    noisemaker animate timeworms --target-duration 5.0 --filenametimed.mp4
+    noisemaker animate timeworms --target-duration 5.0 --filename timed.mp4
 
 Strobe safety verdict
 ^^^^^^^^^^^^^^^^^^^^^
@@ -204,19 +204,19 @@ Apply an effect preset to an existing .png or .jpg image.
 .. code-block:: bash
 
     # Apply a glitch effect
-    noisemaker apply glitchin-out photo.jpg --filenameglitched.jpg
+    noisemaker apply glitchin-out photo.jpg --filename glitched.jpg
 
     # Apply effect without resizing
-    noisemaker apply vignette-dark image.png --no-resize --filenameoutput.png
+    noisemaker apply vignette-dark image.png --no-resize --filename output.png
 
     # Apply with anti-aliasing
-    noisemaker apply bloom input.jpg --with-fxaa --filenamebloomed.jpg
+    noisemaker apply bloom input.jpg --with-fxaa --filename bloomed.jpg
 
     # Apply time-based effect
-    noisemaker apply worms photo.png --time 0.5 --filenamewarped.png
+    noisemaker apply worms photo.png --time 0.5 --filename warped.png
 
     # Use a custom presets file
-    noisemaker apply my-effect photo.jpg --presets ~/my-presets.dsl --filenamecustom.png
+    noisemaker apply my-effect photo.jpg --presets ~/my-presets.dsl --filename custom.png
 
 mashup
 ~~~~~~
@@ -244,10 +244,10 @@ Blend multiple images from a directory into a single composite.
 .. code-block:: bash
 
     # Blend all images in a directory
-    noisemaker mashup --input-dir ./images/ --filenamecombined.png
+    noisemaker mashup --input-dir ./images/ --filename combined.png
 
     # Blend with control image
-    noisemaker mashup --input-dir ./photos/ --control-filename mask.png --filenameblend.png
+    noisemaker mashup --input-dir ./photos/ --control-filename mask.png --filename blend.png
 
 magic-mashup
 ~~~~~~~~~~~~
@@ -292,10 +292,10 @@ threshold described above.
 .. code-block:: bash
 
     # Create collage animation
-    noisemaker magic-mashup --input-dir ./sequences/ --filenamecollage.mp4
+    noisemaker magic-mashup --input-dir ./sequences/ --filename collage.mp4
 
     # Create collage with effect
-    noisemaker magic-mashup --input-dir ./frames/ --effect-preset vortex --filenamemagic.mp4
+    noisemaker magic-mashup --input-dir ./frames/ --effect-preset vortex --filename magic.mp4
 
 Working with Presets
 --------------------
@@ -332,8 +332,8 @@ Use ``--seed`` to generate reproducible results:
 
 .. code-block:: bash
 
-    noisemaker generate acid --seed 42 --filenameoutput1.png
-    noisemaker generate acid --seed 42 --filenameoutput2.png
+    noisemaker generate acid --seed 42 --filename output1.png
+    noisemaker generate acid --seed 42 --filename output2.png
     # output1.png and output2.png will be identical
 
 **Performance:**
@@ -354,7 +354,7 @@ Use ``--debug-print`` to see what settings a preset uses:
 
 .. code-block:: bash
 
-    noisemaker generate acid --debug-print --filenametest.png
+    noisemaker generate acid --debug-print --filename test.png
 
 API Keys
 --------
