@@ -594,6 +594,12 @@ def magic_mashup(ctx, input_dir, width, height, seed, effect_preset, filename, s
                     continue
                 src = os.path.join(src_dir, files[i])
                 img = tf.image.convert_image_dtype(util.load(src, channels=3), dtype=tf.float32)
+
+                # convolve() and blend_layers() index into the output shape, so a
+                # frame smaller than the output must grow to it.
+                if img.shape[0] < height or img.shape[1] < width:
+                    img = value.resample(img, [height, width, 3])
+
                 collage_images.append(img)
 
             value.set_seed(seed)
@@ -605,7 +611,12 @@ def magic_mashup(ctx, input_dir, width, height, seed, effect_preset, filename, s
             control = value.value_map(control_img, shape, keepdims=True)
             control = value.convolve(kernel=effects.ValueMask.conv2d_blur, tensor=control, shape=[shape[0], shape[1], 1])
 
-            tensor = effects.blend_layers(control, shape, random.random() * 0.5, *collage_images)
+            # blend_layers() reads only the top-left output-sized region of each
+            # layer. Crop larger layers to that region so they stack with frames
+            # that grew to the output size.
+            layers = [img[:height, :width] for img in collage_images]
+
+            tensor = effects.blend_layers(control, shape, random.random() * 0.5, *layers)
             tensor = value.blend(tensor, base, 0.125 + random.random() * 0.125)
             tensor = effects.bloom(tensor, shape, alpha=0.25 + random.random() * 0.125)
             tensor = effects.shadow(tensor, shape, alpha=0.25 + random.random() * 0.125, reference=control)
