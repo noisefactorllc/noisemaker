@@ -9,6 +9,9 @@ on:
       - 'pyproject.toml'
       - 'requirements.txt'
       - 'tox.ini'
+      - 'test/**.py'
+      - 'py_noisemaker.ipynb'
+      - 'Dockerfile'
       - '.github/workflows/python.yml'
   pull_request:
     branches: [ main ]
@@ -18,6 +21,9 @@ on:
       - 'pyproject.toml'
       - 'requirements.txt'
       - 'tox.ini'
+      - 'test/**.py'
+      - 'py_noisemaker.ipynb'
+      - 'Dockerfile'
       - '.github/workflows/python.yml'
 
 permissions:
