@@ -147,6 +147,7 @@ Generate an animation (MP4 or GIF) from a preset.
     noisemaker animate voronoi --effect-preset glitchin-out --filename glitchy.mp4
 
     # Save individual frames
+    mkdir -p frames
     noisemaker animate multires --save-frames ./frames/ --filename anim.mp4
 
     # Create animation with specific duration
