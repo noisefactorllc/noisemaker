@@ -466,6 +466,13 @@ def voronoi(
     if diagram_type == VoronoiDiagramType.range:
         range_out = range_slice
 
+    if diagram_type == VoronoiDiagramType.color_flow:
+        # Input color under each point. The points are in the diagram's (possibly downsampled) space,
+        # so scale them to the size of the input tensor.
+        color_y = tf.math.floormod(tf.cast(y_tensor * (original_shape[0] / height), tf.int32), original_shape[0])
+        color_x = tf.math.floormod(tf.cast(x_tensor * (original_shape[1] / width), tf.int32), original_shape[1])
+        point_colors = tf.gather_nd(tensor, tf.stack([color_y, color_x], 1))
+
     if diagram_type in VoronoiDiagramType.flow_members():
         dist = tf.math.log(dist)
 
@@ -476,8 +483,7 @@ def voronoi(
         dist = tf.expand_dims(dist, -1)
 
         if diagram_type == VoronoiDiagramType.color_flow:
-            colors = tf.gather_nd(tensor, tf.cast(tf.stack([y * 2, x * 2], 1), tf.int32))
-            colors = tf.reshape(colors, [1, 1, point_count, shape[2]])
+            colors = tf.reshape(point_colors, [1, 1, point_count, shape[2]])
             if ridges_hint:
                 colors = tf.abs(colors * 2 - 1)
 
