@@ -147,6 +147,15 @@
     if (text !== null) statusEl.textContent = text;
   }
 
+  // compile() rejects with a plain object, such as { code, diagnostics }, not
+  // an Error. Its own messages name the failure.
+  function errorText(e) {
+    if (!e || typeof e !== 'object' || e instanceof Error) return String((e && e.stack) || e);
+    const items = Array.isArray(e.diagnostics) ? e.diagnostics : (Array.isArray(e.errors) ? e.errors : []);
+    const messages = items.map((item) => (item && item.message) || String(item));
+    return messages.length > 0 ? messages.join('; ') : String(e.detail || e.message || e.code || e);
+  }
+
   function showError(e) {
     setStatus('failed', 'is-failed');
     errEl.hidden = false;
@@ -154,7 +163,7 @@
     const title = document.createElement('strong');
     title.textContent = 'This program could not start.';
     errEl.appendChild(title);
-    errEl.appendChild(document.createTextNode(String((e && e.stack) || e)));
+    errEl.appendChild(document.createTextNode(errorText(e)));
     console.error('Noisedeck export failed:', e);
   }
 
