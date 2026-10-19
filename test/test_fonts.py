@@ -1,6 +1,7 @@
 """Fonts come from one directory, and a missing font stops with one error that names it."""
 
 import os
+import re
 
 import pytest
 import tensorflow as tf
@@ -22,7 +23,7 @@ def empty_noisemaker_dir(tmp_path, monkeypatch):
 def test_glyph_map_names_the_font_dir_when_it_has_no_font(empty_noisemaker_dir):
     shape = [16, 16, 3]
 
-    with pytest.raises(ValueError, match=f"glyph_map found no .ttf font in {empty_noisemaker_dir / 'fonts'}"):
+    with pytest.raises(ValueError, match=re.escape(f"glyph_map found no .ttf font in {empty_noisemaker_dir / 'fonts'}")):
         glyph_map(tf.ones(shape), shape)
 
 
