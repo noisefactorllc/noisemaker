@@ -20,7 +20,7 @@ import {
   convolution,
   fxaa,
 } from "./value.js"
-import { cos32, pow32, sin32 } from "./float32.js"
+import { cos32, packetEnd, pow32, sin32 } from "./float32.js"
 import { PALETTES } from "../../shaders/src/palettes.js"
 import {
   simplex,
@@ -1471,38 +1471,46 @@ export async function voronoi(
       : InterpolationType.bicubic
   outTensor = await resample(outTensor, originalShape, splineOrder)
   if (withRefract) {
-    // Python's voronoi effect calls value.refract() directly with the range
-    // slice as the X reference.  When ``refract_y_from_offset`` is False it
-    // derives the Y reference from sin/cos transformations of that slice; when
-    // True it simply offsets the slice by half the image dimensions.  Mirror
-    // that behaviour here instead of routing through the higher level
-    // ``refractEffect`` helper.
+    // Python's voronoi effect calls value.refract() directly with the
+    // resampled diagram as the X reference.  When ``refract_y_from_offset`` is
+    // False it derives both references from cos/sin of every channel of the
+    // diagram, and the value map of each reference is its Oklab lightness.
+    // When True the Y reference is the diagram offset by half the image, and
+    // the reference also moves its sample coordinates by half the image, so
+    // the source is offset by the same amount.  Mirror that behaviour here
+    // instead of routing through the higher level ``refractEffect`` helper.
 
     let rx = outTensor
     let ry
+    let source = tensor
     const [outH, outW] = outTensor.shape
     if (refractYFromOffset) {
-      ry = await offsetTensor(outTensor, Math.floor(outW * 0.5), Math.floor(outH * 0.5))
+      const xHalf = Math.floor(outW * 0.5)
+      const yHalf = Math.floor(outH * 0.5)
+      ry = await offsetTensor(outTensor, xHalf, yHalf)
+      source = await offsetTensor(tensor, xHalf, yHalf)
     } else {
       const data = await outTensor.read()
-      const size = outH * outW
+      const size = data.length
+      const tail = packetEnd(size)
+      const tauF = f32(TAU)
       const cosData = new Float32Array(size)
       const sinData = new Float32Array(size)
       for (let i = 0; i < size; i++) {
-        const angle = f32(f32(data[i] ?? 0) * TAU)
-        const cosVal = f32(Math.cos(angle))
-        const sinVal = f32(Math.sin(angle))
-        const cx = f32(cosVal * 0.5 + 0.5)
-        const cy = f32(sinVal * 0.5 + 0.5)
-        cosData[i] = f32(Math.min(Math.max(cx, 0), 1))
-        sinData[i] = f32(Math.min(Math.max(cy, 0), 1))
+        const angle = f32(f32(data[i]) * tauF)
+        const cosVal = i < tail ? cos32(angle) : f32(Math.cos(angle))
+        const sinVal = i < tail ? sin32(angle) : f32(Math.sin(angle))
+        const cx = f32(f32(cosVal * 0.5) + 0.5)
+        const cy = f32(f32(sinVal * 0.5) + 0.5)
+        cosData[i] = Math.min(Math.max(cx, 0), 1)
+        sinData[i] = Math.min(Math.max(cy, 0), 1)
       }
       const ctx = outTensor.ctx || (tensor ? tensor.ctx : null)
-      rx = Tensor.fromArray(ctx, cosData, [outH, outW, 1])
-      ry = Tensor.fromArray(ctx, sinData, [outH, outW, 1])
+      rx = Tensor.fromArray(ctx, cosData, outTensor.shape)
+      ry = Tensor.fromArray(ctx, sinData, outTensor.shape)
     }
     outTensor = await refractOp(
-      tensor,
+      source,
       rx,
       ry,
       withRefract,

@@ -11,6 +11,165 @@ function isCircular(distrib) {
   return distrib >= PointDistribution.circular
 }
 
+// The reference's % operator: the result takes the sign of the divisor.
+function pyMod(value, divisor) {
+  const mod = value % divisor
+  if (mod === 0) return divisor < 0 ? -0 : 0
+  return (mod < 0) !== (divisor < 0) ? mod + divisor : mod
+}
+
+// The reference keeps the points that still have generations to spawn in a
+// Python set and takes them with set.pop(). The pop order is the order of
+// CPython's hash table, and it decides which center each batch of random
+// draws uses. PendingPoints stores (x, y, generation) tuples as CPython does:
+// the numeric and tuple hashes, linear probing, reuse of deleted slots,
+// resizing, and the search finger of set.pop().
+const HASH_MODULUS = (1n << 61n) - 1n
+const HASH_MASK64 = (1n << 64n) - 1n
+const XXPRIME_1 = 11400714785074694791n
+const XXPRIME_2 = 14029467366897019727n
+const XXPRIME_5 = 2870177450012600261n
+const PERTURB_SHIFT = 5n
+const LINEAR_PROBES = 9
+const SET_MIN_SIZE = 8
+const DELETED = { deleted: true }
+const hashView = new DataView(new ArrayBuffer(8))
+
+// hash() of a finite float or int: |value| modulo 2**61 - 1, with its sign.
+function pyHashNumber(value) {
+  if (value === 0) return 0n
+  hashView.setFloat64(0, Math.abs(value))
+  const bits = hashView.getBigUint64(0)
+  const biasedExponent = Number((bits >> 52n) & 0x7ffn)
+  let mantissa = bits & ((1n << 52n) - 1n)
+  let exponent = -1074
+  if (biasedExponent !== 0) {
+    mantissa |= 1n << 52n
+    exponent = biasedExponent - 1075
+  }
+  // 2**61 is 1 modulo 2**61 - 1, so 2**exponent reduces to 2**(exponent mod 61).
+  const shift = BigInt(((exponent % 61) + 61) % 61)
+  let hash = ((mantissa % HASH_MODULUS) << shift) % HASH_MODULUS
+  if (value < 0) hash = -hash
+  return hash === -1n ? -2n : hash
+}
+
+// hash() of a tuple of numbers, as an unsigned 64-bit value.
+function pyHashTuple(items) {
+  let acc = XXPRIME_5
+  for (const item of items) {
+    const lane = BigInt.asUintN(64, pyHashNumber(item))
+    acc = (acc + lane * XXPRIME_2) & HASH_MASK64
+    acc = ((acc << 31n) | (acc >> 33n)) & HASH_MASK64
+    acc = (acc * XXPRIME_1) & HASH_MASK64
+  }
+  acc = (acc + (BigInt(items.length) ^ (XXPRIME_5 ^ 3527539n))) & HASH_MASK64
+  return acc === HASH_MASK64 ? 1546275796n : acc
+}
+
+class PendingPoints {
+  constructor() {
+    this.mask = SET_MIN_SIZE - 1
+    this.table = new Array(SET_MIN_SIZE).fill(null)
+    this.fill = 0
+    this.used = 0
+    this.finger = 0
+  }
+
+  get size() {
+    return this.used
+  }
+
+  add(x, y, gen) {
+    const key = [x, y, gen]
+    const hash = pyHashTuple(key)
+    const mask = this.mask
+    let i = Number(hash & BigInt(mask))
+    let perturb = hash
+    let freeSlot = -1
+    for (;;) {
+      let probes = i + LINEAR_PROBES <= mask ? LINEAR_PROBES : 0
+      let j = i
+      do {
+        const entry = this.table[j]
+        if (entry === null) {
+          if (freeSlot >= 0) {
+            this.table[freeSlot] = { key, hash }
+            this.used++
+            return
+          }
+          this.table[j] = { key, hash }
+          this.fill++
+          this.used++
+          if (this.fill * 5 >= mask * 3) {
+            this.resize(this.used > 50000 ? this.used * 2 : this.used * 4)
+          }
+          return
+        }
+        if (entry === DELETED) {
+          freeSlot = j
+        } else if (
+          entry.hash === hash &&
+          entry.key[0] === x &&
+          entry.key[1] === y &&
+          entry.key[2] === gen
+        ) {
+          return
+        }
+        j++
+      } while (probes--)
+      perturb >>= PERTURB_SHIFT
+      i = Number((BigInt(i) * 5n + 1n + perturb) & BigInt(mask))
+    }
+  }
+
+  resize(minUsed) {
+    let size = SET_MIN_SIZE
+    while (size <= minUsed) size *= 2
+    const old = this.table
+    this.mask = size - 1
+    this.table = new Array(size).fill(null)
+    this.fill = this.used
+    for (const entry of old) {
+      if (entry !== null && entry !== DELETED) this.insertClean(entry)
+    }
+  }
+
+  insertClean(entry) {
+    const mask = this.mask
+    let i = Number(entry.hash & BigInt(mask))
+    let perturb = entry.hash
+    for (;;) {
+      if (this.table[i] === null) {
+        this.table[i] = entry
+        return
+      }
+      if (i + LINEAR_PROBES <= mask) {
+        for (let j = i + 1; j <= i + LINEAR_PROBES; j++) {
+          if (this.table[j] === null) {
+            this.table[j] = entry
+            return
+          }
+        }
+      }
+      perturb >>= PERTURB_SHIFT
+      i = Number((BigInt(i) * 5n + 1n + perturb) & BigInt(mask))
+    }
+  }
+
+  pop() {
+    let i = this.finger & this.mask
+    while (this.table[i] === null || this.table[i] === DELETED) {
+      i = i === this.mask ? 0 : i + 1
+    }
+    const [x, y, gen] = this.table[i].key
+    this.table[i] = DELETED
+    this.used--
+    this.finger = i + 1
+    return { x, y, gen }
+  }
+}
+
 export function pointCloud(
   freq,
   {
@@ -85,27 +244,27 @@ export function pointCloud(
 
   let pointFunc = rand
   const seen = new Set()
-  const active = []
+  const active = new PendingPoints()
+  let startX = rangeY
+  let startY = rangeX
 
   if (isGrid(distrib)) {
     pointFunc = squareGrid
-    active.push({ x: 0, y: 0, gen: 1 })
+    startX = 0
+    startY = 0
   } else if (distrib === PointDistribution.spiral) {
     pointFunc = spiral
-    active.push({ x: rangeY, y: rangeX, gen: 1 })
   } else if (isCircular(distrib)) {
     pointFunc = circular
-    active.push({ x: rangeY, y: rangeX, gen: 1 })
-  } else {
-    active.push({ x: rangeY, y: rangeX, gen: 1 })
   }
+  active.add(startX, startY, 1)
 
   // Match Python's point_cloud behavior: the seen set holds the (x, y) of
   // the initial active point, so a generated point at those coordinates is
   // skipped, before any drift values are drawn.
-  seen.add(`${active[0].x},${active[0].y}`)
+  seen.add(`${startX},${startY}`)
 
-  while (active.length) {
+  while (active.size) {
     const { x: cx, y: cy, gen } = active.pop()
     if (gen <= generations) {
       const multiplier = Math.max(2 * (gen - 1), 1)
@@ -130,7 +289,7 @@ export function pointCloud(
         const key = `${xPoint},${yPoint}`
         if (seen.has(key)) continue
         seen.add(key)
-        active.push({ x: xPoint, y: yPoint, gen: gen + 1 })
+        active.add(xPoint, yPoint, gen + 1)
 
         let xDrift = 0
         let yDrift = 0
@@ -140,11 +299,11 @@ export function pointCloud(
         }
 
         if (!shape) {
-          xPoint = (xPoint + xDrift / freq) % 1
-          yPoint = (yPoint + yDrift / freq) % 1
+          xPoint = pyMod(xPoint + xDrift / freq, 1)
+          yPoint = pyMod(yPoint + yDrift / freq, 1)
         } else {
-          xPoint = Math.trunc(xPoint + (xDrift / freq * width)) % width
-          yPoint = Math.trunc(yPoint + (yDrift / freq * height)) % height
+          xPoint = pyMod(Math.trunc(xPoint + (xDrift / freq * width)), width)
+          yPoint = pyMod(Math.trunc(yPoint + (yDrift / freq * height)), height)
         }
 
         x.push(xPoint)
@@ -175,8 +334,8 @@ export function rand({
   const x = []
   const y = []
   for (let i = 0; i < freq * freq; i++) {
-    const _x = (centerX + (seededRandom() * (rangeX * 2) - rangeX)) % width // RNG[x]
-    const _y = (centerY + (seededRandom() * (rangeY * 2) - rangeY)) % height // RNG[y]
+    const _x = pyMod(centerX + (seededRandom() * (rangeX * 2) - rangeX), width) // RNG[x]
+    const _y = pyMod(centerY + (seededRandom() * (rangeY * 2) - rangeY), height) // RNG[y]
     x.push(_x)
     y.push(_y)
   }
@@ -218,8 +377,8 @@ export function squareGrid({
         yDrift = a % 2 === 1 ? 0 : driftAmount
       }
 
-      const _x = (centerX + (((a / freq) + drift + xDrift) * rangeX * 2)) % width
-      const _y = (centerY + (((b / freq) + drift + yDrift) * rangeY * 2)) % height
+      const _x = pyMod(centerX + (((a / freq) + drift + xDrift) * rangeX * 2), width)
+      const _y = pyMod(centerY + (((b / freq) + drift + yDrift) * rangeY * 2), height)
       x.push(_x)
       y.push(_y)
     }
@@ -245,8 +404,8 @@ export function spiral({
   for (let i = 0; i < count; i++) {
     const fract = i / count
     const degrees = fract * 360 * (Math.PI / 180) * kink
-    x.push((centerX + Math.sin(degrees) * fract * rangeX) % width)
-    y.push((centerY + Math.cos(degrees) * fract * rangeY) % height)
+    x.push(pyMod(centerX + Math.sin(degrees) * fract * rangeX, width))
+    y.push(pyMod(centerY + Math.cos(degrees) * fract * rangeY, height))
   }
   return [x, y]
 }
@@ -283,8 +442,8 @@ export function circular({
       }
       const xPoint = centerX + Math.sin(rads) * distFract * rangeX
       const yPoint = centerY + Math.cos(rads) * distFract * rangeY
-      x.push(xPoint % width)
-      y.push(yPoint % height)
+      x.push(pyMod(xPoint, width))
+      y.push(pyMod(yPoint, height))
     }
   }
   return [x, y]
