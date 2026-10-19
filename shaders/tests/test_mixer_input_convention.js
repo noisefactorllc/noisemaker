@@ -1,19 +1,29 @@
 /**
- * Test to verify mixer effects in nd namespace use tex0 and tex1
+ * Test to verify two-input mixer effects take the chain input as inputTex and
+ * their second surface as tex.
+ *
+ * The nd mixers this test first covered were renamed into classicNoisedeck or
+ * removed (73ec67c5, a4eeaa88, 9a0fe987). It now covers every current mixer
+ * that declares a `tex` surface parameter, in mixer/ and classicNoisedeck/.
  */
 
-import Coalesce from '../effects/nd/coalesce/definition.js'
-import Composite from '../effects/nd/composite/definition.js'
-import DepthOfField from '../effects/nd/depth-of-field/definition.js'
-import DisplaceMixer from '../effects/nd/displace-mixer/definition.js'
-import FeedbackMixer from '../effects/nd/feedback-mixer/definition.js'
-// NOTE: live-code mixers have pre-existing syntax errors in embedded shader code
-// import LiveCodeGlslMixer from '../effects/nd/live-code-glsl-mixer/definition.js';
-// import LiveCodeWgslMixer from '../effects/nd/live-code-wgsl-mixer/definition.js';
-import MediaMixer from '../effects/nd/media-mixer/definition.js'
-// NOTE: shape-mixer has pre-existing issue with undefined None
-// import ShapeMixer from '../effects/nd/shape-mixer/definition.js';
-import WgslMixerDemo from '../effects/nd/wgsl-mixer-demo/definition.js'
+import { existsSync, readdirSync } from 'node:fs'
+
+const effectsRoot = new URL('../effects/', import.meta.url)
+const candidates = [
+    ...readdirSync(new URL('mixer/', effectsRoot)).map((name) => `mixer/${name}`),
+    'classicNoisedeck/coalesce',
+    'classicNoisedeck/composite',
+]
+
+const mixerEffects = []
+for (const id of candidates) {
+    const definitionUrl = new URL(`${id}/definition.js`, effectsRoot)
+    if (!existsSync(definitionUrl)) continue
+    const definition = (await import(definitionUrl.href)).default
+    const effect = typeof definition === 'function' ? new definition() : definition
+    if (effect.globals?.tex?.type === 'surface') mixerEffects.push({ name: id, effect })
+}
 
 function test(name, fn) {
     try {
@@ -31,45 +41,35 @@ function test(name, fn) {
 let passed = 0
 let failed = 0
 
-const mixerEffects = [
-    { name: 'Coalesce', Effect: Coalesce },
-    { name: 'Composite', Effect: Composite },
-    { name: 'DepthOfField', Effect: DepthOfField },
-    { name: 'DisplaceMixer', Effect: DisplaceMixer },
-    { name: 'FeedbackMixer', Effect: FeedbackMixer },
-    // NOTE: LiveCode mixers have pre-existing syntax errors and are skipped
-    // { name: 'LiveCodeGlslMixer', Effect: LiveCodeGlslMixer },
-    // { name: 'LiveCodeWgslMixer', Effect: LiveCodeWgslMixer },
-    { name: 'MediaMixer', Effect: MediaMixer },
-    // NOTE: shape-mixer has pre-existing issue with undefined None
-    // { name: 'ShapeMixer', Effect: ShapeMixer },
-    { name: 'WgslMixerDemo', Effect: WgslMixerDemo }
-]
 
 // Test each mixer effect
-for (const { name, Effect } of mixerEffects) {
-    if (test(`${name} - uses tex0 and tex1 with correct values`, () => {
-        const effect = new Effect()
+if (mixerEffects.length < 2) {
+    console.error(`✗ FAIL: expected the current two-input mixers, found ${mixerEffects.length}`)
+    failed++
+}
+
+for (const { name, effect } of mixerEffects) {
+    if (test(`${name} - uses inputTex and tex with correct values`, () => {
         const firstPass = effect.passes[0]
 
         if (!firstPass.inputs) {
             throw new Error(`${name} doesn't have inputs`)
         }
 
-        if (!firstPass.inputs.tex0) {
-            throw new Error(`${name} doesn't have tex0 in inputs`)
+        if (!firstPass.inputs.inputTex) {
+            throw new Error(`${name} doesn't have inputTex in inputs`)
         }
 
-        if (!firstPass.inputs.tex1) {
-            throw new Error(`${name} doesn't have tex1 in inputs`)
+        if (!firstPass.inputs.tex) {
+            throw new Error(`${name} doesn't have tex in inputs`)
         }
 
-        if (firstPass.inputs.tex0 !== "inputTex") {
-            throw new Error(`${name} tex0 maps to ${firstPass.inputs.tex0}, expected "inputTex"`)
+        if (firstPass.inputs.inputTex !== "inputTex") {
+            throw new Error(`${name} inputTex maps to ${firstPass.inputs.inputTex}, expected "inputTex"`)
         }
 
-        if (firstPass.inputs.tex1 !== "tex") {
-            throw new Error(`${name} tex1 maps to ${firstPass.inputs.tex1}, expected "tex"`)
+        if (firstPass.inputs.tex !== "tex") {
+            throw new Error(`${name} tex maps to ${firstPass.inputs.tex}, expected "tex"`)
         }
     })) {
         passed++

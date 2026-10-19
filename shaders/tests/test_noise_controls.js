@@ -1,8 +1,7 @@
-import Noise from '../effects/synth/noise/definition.js'
+import noiseDefinition from '../effects/synth/noise/definition.js'
 import { expand } from '../src/runtime/expander.js'
 import { registerEffect } from '../src/runtime/registry.js'
 
-const noiseDefinition = new Noise()
 registerEffect('noise', noiseDefinition)
 
 function runNoise(args = {}) {
@@ -15,7 +14,7 @@ function runNoise(args = {}) {
         temp: 0
       }
     ],
-    out: 'o0'
+    write: 'o0'
   }
 
   const { passes, errors } = expand({ plans: [plan], diagnostics: [] })
@@ -28,10 +27,19 @@ function runNoise(args = {}) {
     throw new Error('Noise pass not found in expanded graph')
   }
 
-  return noisePass.uniforms
+  return noisePass
 }
 
 function chooseVariantValue(name, spec) {
+  if (spec.choices) {
+    // Choice lists can hold null entries that label groups, not values.
+    const value = Object.values(spec.choices).find((choice) => typeof choice === typeof spec.default && choice !== spec.default)
+    if (value === undefined) {
+      throw new Error(`No valid variant for choice control ${name}`)
+    }
+    return value
+  }
+
   if (spec.type === 'boolean') {
     return !spec.default
   }
@@ -79,11 +87,23 @@ function test(name, fn) {
 }
 
 test('Noise controls alter bound uniforms', () => {
-  const baseArgs = { colorMode: 'color.hsv' }
-  const baseUniforms = runNoise(baseArgs)
+  // colorMode choices are mono (0) and rgb (1, the default).
+  const baseArgs = { colorMode: noiseDefinition.globals.colorMode.choices.mono }
+  const basePass = runNoise(baseArgs)
+  const baseUniforms = basePass.uniforms
 
   for (const [name, spec] of Object.entries(noiseDefinition.globals)) {
     if (name === 'colorMode') {
+      continue
+    }
+
+    // A define control compiles its value into the pass program variant.
+    if (spec.define) {
+      const variantValue = chooseVariantValue(name, spec)
+      const variantPass = runNoise({ ...baseArgs, [name]: variantValue })
+      if (!variantPass.program.includes(`${spec.define}_${variantValue}`) || variantPass.program === basePass.program) {
+        throw new Error(`Control ${name} did not compile define ${spec.define}=${variantValue} (program ${variantPass.program})`)
+      }
       continue
     }
 
@@ -97,16 +117,16 @@ test('Noise controls alter bound uniforms', () => {
     }
 
     const variantValue = chooseVariantValue(name, spec)
-    const variantUniforms = runNoise({ ...baseArgs, [name]: variantValue })
+    const variantUniforms = runNoise({ ...baseArgs, [name]: variantValue }).uniforms
 
     if (variantUniforms[uniformName] === baseUniforms[uniformName]) {
       throw new Error(`Control ${name} did not modify uniform ${uniformName}`)
     }
   }
 
-  const defaultUniforms = runNoise()
-  const hsvUniforms = runNoise({ colorMode: 'color.hsv' })
-  if (defaultUniforms.colorMode === hsvUniforms.colorMode) {
+  const defaultUniforms = runNoise().uniforms
+  const monoUniforms = runNoise({ colorMode: noiseDefinition.globals.colorMode.choices.mono }).uniforms
+  if (defaultUniforms.colorMode === monoUniforms.colorMode) {
     throw new Error('colorMode control did not alter the colorMode uniform')
   }
 })
