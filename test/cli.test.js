@@ -57,8 +57,29 @@ if (result.status !== 0) {
 assert.ok(fs.existsSync(outputPath), 'Output file was not created')
 const stats = fs.statSync(outputPath)
 assert.ok(stats.size > 0, 'Output file is empty')
+const plainImage = fs.readFileSync(outputPath)
 
 fs.unlinkSync(outputPath)
+
+// --debug-print and --debug-out report the preset and still write the image
+// that the same command writes without them.
+const debugOutPath = path.resolve(__dirname, 'tmp-cli-debug.txt')
+for (const debugArgs of [['--debug-print'], ['--debug-out', debugOutPath]]) {
+  const debugResult = spawnSync('node', [cliPath, 'generate', 'basic', '--filename', outputPath, '--width', '32', '--height', '32', '--seed', '1', ...debugArgs], {
+    encoding: 'utf8',
+  })
+  if (debugResult.status !== 0) {
+    throw new Error(`CLI ${debugArgs[0]} exited with status ${debugResult.status}\n${debugResult.stderr}${debugResult.stdout}`)
+  }
+  const debugText = debugArgs[0] === '--debug-print' ? debugResult.stdout : fs.readFileSync(debugOutPath, 'utf8')
+  assert.ok(debugText.includes('Lineage (by newest):'), `${debugArgs[0]} wrote no preset lineage`)
+  const debugImage = PNG.sync.read(fs.readFileSync(outputPath))
+  assert.strictEqual(debugImage.width, 32, `${debugArgs[0]} image width`)
+  assert.strictEqual(debugImage.height, 32, `${debugArgs[0]} image height`)
+  assert.ok(fs.readFileSync(outputPath).equals(plainImage), `${debugArgs[0]} changed the image`)
+  fs.unlinkSync(outputPath)
+}
+fs.unlinkSync(debugOutPath)
 
 const png = new PNG({ width: 8, height: 8 })
 for (let y = 0; y < png.height; y += 1) {

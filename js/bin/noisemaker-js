@@ -757,9 +757,10 @@ async function handleGenerate(args) {
     throw new Error(`Unknown preset: ${resolvedName}`);
   }
 
-  const debugMode = Boolean(options.debugPrint || options.debugOut);
-  const preset = instantiatePreset(resolvedName, presets, seed, { debug: debugMode });
-  const ctx = new Context(null, debugMode);
+  // The debug options print the preset and still render it, as the Python CLI
+  // does. The render's own debug mode returns call counts, not an image.
+  const preset = instantiatePreset(resolvedName, presets, seed);
+  const ctx = new Context(null);
 
   await maybeWriteDebug(options, preset, seed);
 
@@ -772,7 +773,6 @@ async function handleGenerate(args) {
     withAlpha: options.withAlpha,
     withSupersample: options.withSupersample,
     withFxaa: options.withFxaa,
-    debug: debugMode,
   });
 
   await writeImage(tensor, options.filename);

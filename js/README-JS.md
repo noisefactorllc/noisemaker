@@ -25,9 +25,10 @@ rendering presets without opening the browser. After installing dependencies
 noisemaker-js generate basic --filename output.png --width 512 --height 512 --seed 123
 ```
 
-Additional options include `--time`, `--speed`, `--with-alpha`, and `--debug`
-to mirror the browser controls. The CLI writes a PNG file to the requested
-location and creates parent directories as needed.
+Additional options include `--time`, `--speed`, `--with-alpha`, `--debug-print`
+and `--debug-out FILE`. The debug options print or save the preset's layers
+and settings. The CLI writes a PNG file to the requested location and creates
+parent directories as needed.
 
 ### Custom Presets
 

@@ -83,7 +83,7 @@ The JavaScript build includes a Node-powered CLI for rendering without a browser
 
     npx noisemaker-js generate basic --filename output.png --width 512 --height 512 --seed 123
 
-Additional options: ``--time``, ``--speed``, ``--with-alpha``, ``--debug``
+Additional options: ``--time``, ``--speed``, ``--with-alpha``, ``--debug-print``, ``--debug-out FILE``
 
 Core Modules
 ------------
