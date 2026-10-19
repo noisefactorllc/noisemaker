@@ -504,7 +504,9 @@ def voronoi(
         range_out = blend(tensor * range_slice, range_slice, range_slice)
 
     if diagram_type == VoronoiDiagramType.regions:
-        regions_out = resample(tf.cast(regions_slice, tf.float32), original_shape, spline_order=InterpolationType.constant)
+        regions_out = resample(
+            tf.expand_dims(tf.cast(regions_slice, tf.float32), -1), [original_shape[0], original_shape[1], 1], spline_order=InterpolationType.constant
+        )
 
     if diagram_type in (VoronoiDiagramType.color_regions, VoronoiDiagramType.range_regions):
         colors = point_colors
@@ -530,7 +532,7 @@ def voronoi(
         raise Exception(f"Not sure what to do with diagram type {diagram_type}")
 
     if diagram_type == VoronoiDiagramType.regions:
-        out = tf.expand_dims(out, -1) / point_count
+        out = out / point_count
 
     if with_refract != 0.0:
         out = refract(tensor, original_shape, displacement=with_refract, reference_x=out, y_from_offset=refract_y_from_offset)

@@ -1725,6 +1725,7 @@ def shadow(tensor: tf.Tensor, shape: list[int], alpha: float = 1.0, reference: t
         if channels == 4:
             a = tensor[:, :, 0]
             tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2]], 2)
+            shade = shade[:, :, 0:3]
 
         # Limit effect to just the brightness channel
         tensor = tf.image.rgb_to_hsv([tensor])[0]
