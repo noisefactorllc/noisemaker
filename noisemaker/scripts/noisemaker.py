@@ -25,7 +25,7 @@ MASHUP_MIN_INPUTS = 4
 MASHUP_MAX_INPUTS = 6
 
 # Version string - keep in sync with pyproject.toml
-__version__ = "0.8.0"
+__version__ = "1.0"
 
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
