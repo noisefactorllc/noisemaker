@@ -333,6 +333,7 @@ element's size wins; a diagnostic warns when it differs from the options.
     await renderer.switchBackend('wgsl')   // Switch to WebGPU
     await renderer.switchBackend('glsl')   // Switch to WebGL2
     renderer.preferredBackend              // 'wgsl' or 'glsl': the backend that preferWebGPU or switchBackend() asked for
+    renderer.backend                       // 'wgsl' or 'glsl': the backend that renders (WebGL2 when WebGPU is unavailable)
 
     // Output (after compile)
     const removeSink = renderer.addSink(sink)

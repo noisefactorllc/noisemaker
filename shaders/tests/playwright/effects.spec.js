@@ -259,13 +259,13 @@ test('demo renders all available effects without console errors', async ({ page 
     return !!select && !!select.options && select.options.length > 0
   }, { timeout: STATUS_TIMEOUT })
 
-  // Verify the backend was set correctly
+  // Verify the backend that renders. backend names the backend of the compiled
+  // pipeline, and a WebGPU request runs WebGL2 only when the browser has no
+  // WebGPU adapter.
   if (useWGSL) {
-    const backendSet = await page.evaluate(() => {
-      return typeof window.__noisemakerCurrentBackend === 'function'
-        && window.__noisemakerCurrentBackend() === 'wgsl'
-    })
-    expect(backendSet, 'WGSL backend should be active').toBe(true)
+    await page.waitForFunction(() => !!window.__noisemakerRenderingPipeline, null, { timeout: STATUS_TIMEOUT })
+    const backend = await page.evaluate(() => window.__noisemakerCurrentBackend?.())
+    expect(backend, 'no WebGPU adapter: the renderer runs WebGL2').toBe('wgsl')
   }
 
   let effectValues = await page.$eval('#effect-select', select => select.options.map(option => option.value))

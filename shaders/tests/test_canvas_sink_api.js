@@ -307,6 +307,16 @@ test('preferredBackend reports the requested backend while WebGL2 renders in its
     assert.equal(renderer.preferredBackend, 'glsl')
     renderer._preferWebGPU = true
     assert.equal(renderer.preferredBackend, 'wgsl', 'a WebGPU request that fell back to WebGL2 stays wgsl')
+    assert.equal(renderer.backend, 'glsl', 'backend names the backend that renders')
+})
+
+test('backend names the pipeline backend, and the request when there is no pipeline', () => {
+    const webgpu = bareRenderer({ backend: { getName: () => 'WebGPU' } })
+    assert.equal(webgpu.backend, 'wgsl')
+    const none = bareRenderer(null)
+    assert.equal(none.backend, 'glsl')
+    none._preferWebGPU = true
+    assert.equal(none.backend, 'wgsl', 'before a compile, backend is the request')
 })
 
 function rendererOnCanvas({ withContainer }) {

@@ -640,6 +640,7 @@
 
                 window.__noisemakerRenderingPipeline = renderer.pipeline;
                 window.__noisemakerPipelineGeneration = (window.__noisemakerPipelineGeneration || 0) + 1;
+                syncBackendTabs();
 
                 renderer.buildUniformBindings(currentEffect);
                 renderer.applyParameterValues(currentEffect, ui.parameterValues);
@@ -696,6 +697,7 @@
 
                 window.__noisemakerRenderingPipeline = renderer.pipeline;
                 window.__noisemakerPipelineGeneration = (window.__noisemakerPipelineGeneration || 0) + 1;
+                syncBackendTabs();
 
                 if (rebuildControls) {
                     // Try to sync values to existing controls first
@@ -722,6 +724,14 @@
         // Event Handlers
         // =====================================================================
 
+        // The tabs show the backend that renders: a WebGPU request runs WebGL2
+        // when this browser has no WebGPU adapter.
+        function syncBackendTabs() {
+            document.querySelectorAll('#backend-tabs .hf-tab').forEach(t => {
+                t.classList.toggle('active', t.dataset.backend === renderer.backend);
+            });
+        }
+
         // Backend selector (pill tabs)
         document.querySelectorAll('#backend-tabs .hf-tab').forEach(tab => {
             tab.addEventListener('click', async () => {
@@ -742,8 +752,6 @@
                 canvas = document.getElementById('canvas');
                 renderer._canvas = canvas;
 
-                ui.showStatus(`switched to ${renderer.backend}`, 'success');
-
                 const dsl = ui.getDsl();
                 if (dsl) {
                     await rebuildPipelineFromDsl({ rebuildControls: false });
@@ -753,6 +761,9 @@
 
                 // Re-upload media textures — old backend's GPU resources were destroyed
                 ui.reuploadAllMediaTextures();
+
+                // After the rebuild, backend names the backend that renders.
+                ui.showStatus(`switched to ${renderer.backend}`, 'success');
             });
         });
 

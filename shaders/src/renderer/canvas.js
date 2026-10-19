@@ -530,9 +530,18 @@ export class CanvasRenderer {
         return this._isContextLost
     }
 
-    /** @returns {string} Current backend ('glsl' or 'wgsl') */
+    /**
+     * The backend the active pipeline runs ('glsl' for WebGL2, 'wgsl' for
+     * WebGPU). A WebGPU request runs WebGL2 when WebGPU is unavailable. Before
+     * the first compile, and after switchBackend() or a context restore
+     * disposes the pipeline, it is preferredBackend.
+     * @returns {string}
+     */
     get backend() {
-        return this._preferWebGPU ? 'wgsl' : 'glsl'
+        const name = this._pipeline?.backend?.getName?.()
+        if (name === 'WebGPU') return 'wgsl'
+        if (name === 'WebGL2') return 'glsl'
+        return this.preferredBackend
     }
 
     /**
