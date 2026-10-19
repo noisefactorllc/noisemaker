@@ -103,7 +103,8 @@ The library is organised as ES modules inside `js/noisemaker/`.
 
 ### 3.8 `composer.js`
 * `Preset` class holds resolved settings and ordered effect lists.
-* `render(presetName, seed, {width,height,colorSpace,withAlpha,time,speed})` constructs the generator pipeline, applies octave‑level and post effects, and presents the result to the canvas.
+* `render(presetOrName, seed = 0, opts = {})` is an async function. It accepts a `Preset` instance or a preset name. For a preset name, `opts.presets` must contain the preset table. `opts.settings` holds optional setting overrides. The function calls `Preset.render(seed, opts)`.
+* `Preset.render(seed = 0, opts = {})` reads `ctx`, `width`, `height`, `time`, `speed`, `withAlpha`, `withSupersample` and `withFxaa` from `opts`. The default size is 256 by 256. The method constructs the generator pipeline and applies the octave, post and final effects. If `ctx` has a canvas, the method draws the result on that canvas. The promise resolves to the output `Tensor`. With `debug` or `collectDebug`, it resolves to `{effects, rngCalls}` instead. The preset's `color_space` setting selects the color space. `opts` has no color space option.
 * Supports inheritance between presets, unique layers, and inline overrides.
 * Provides convenience wrappers `Effect(name, params)` for programmatic composition.
 
