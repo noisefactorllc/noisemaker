@@ -535,6 +535,16 @@ export class CanvasRenderer {
         return this._preferWebGPU ? 'wgsl' : 'glsl'
     }
 
+    /**
+     * The backend that preferWebGPU or the last switchBackend() asked for
+     * ('glsl' or 'wgsl'). The pipeline runs WebGL2 when WebGPU is unavailable,
+     * so this can differ from the backend that renders.
+     * @returns {string}
+     */
+    get preferredBackend() {
+        return this._preferWebGPU ? 'wgsl' : 'glsl'
+    }
+
     /** @returns {object|null} Current pipeline object */
     get pipeline() {
         return this._pipeline

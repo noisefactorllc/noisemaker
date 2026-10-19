@@ -302,6 +302,13 @@ class ReplaceableCanvasElement extends FakeCanvasElement {
     }
 }
 
+test('preferredBackend reports the requested backend while WebGL2 renders in its place', () => {
+    const renderer = bareRenderer({ backend: { getName: () => 'WebGL2' } })
+    assert.equal(renderer.preferredBackend, 'glsl')
+    renderer._preferWebGPU = true
+    assert.equal(renderer.preferredBackend, 'wgsl', 'a WebGPU request that fell back to WebGL2 stays wgsl')
+})
+
 function rendererOnCanvas({ withContainer }) {
     const parent = new FakeParentNode()
     const canvas = parent.appendChild(new ReplaceableCanvasElement())
@@ -332,9 +339,11 @@ for (const withContainer of [false, true]) {
         assert.equal(canvas._listeners.get('webglcontextlost')?.size ?? 0, 0, 'listeners leave the old canvas')
         assert.equal(fresh._listeners.get('webglcontextlost').size, 1, 'listeners move to the fresh canvas')
         assert.equal(renderer.backend, 'wgsl')
+        assert.equal(renderer.preferredBackend, 'wgsl')
         assert.equal(renderer.pipeline, null, 'the host compiles again on the new backend')
 
         await renderer.switchBackend('glsl')
+        assert.equal(renderer.preferredBackend, 'glsl')
         assert.notEqual(renderer.canvas, fresh, 'the switch back replaces the WebGPU canvas too')
         assert.deepEqual(parent.children, [renderer.canvas])
 
