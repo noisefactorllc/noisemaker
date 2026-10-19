@@ -359,15 +359,18 @@ Use ``--debug-print`` to see what settings a preset uses:
 API Keys
 --------
 
-Some features require API keys set as environment variables:
+Some features require API keys. The CLI reads each key from a file in the Noisemaker directory:
 
-- **Stability AI** (for ``--with-upscale``): Set ``STABILITY_API_KEY``
-- **OpenAI** (for ``--with-alt-text``): Set ``OPENAI_API_KEY``
+- **Stability AI** (for ``--with-upscale``): ``$NOISEMAKER_DIR/.creds/.stability``
+- **OpenAI** (for ``--with-alt-text``): ``$NOISEMAKER_DIR/.creds/.openai``
+
+The Noisemaker directory is the value of the ``NOISEMAKER_DIR`` environment variable, or ``~/.noisemaker`` when that variable is not set. Each file contains only the key.
 
 .. code-block:: bash
 
-    export STABILITY_API_KEY="your-key-here"
-    export OPENAI_API_KEY="your-key-here"
+    mkdir -p ~/.noisemaker/.creds
+    echo "your-key-here" > ~/.noisemaker/.creds/.stability
+    echo "your-key-here" > ~/.noisemaker/.creds/.openai
 
 Complete Command Reference
 ---------------------------
