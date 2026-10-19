@@ -448,9 +448,13 @@ Query effect definitions to build parameter UIs. Load effects with ``loadManifes
         console.log({ name, type: spec.type, default: spec.default, min: spec.min, max: spec.max })
     }
 
-    // Check if this is a generator (vs a filter). isStarterEffect() takes
-    // an effect record, so wrap the definition in { instance }.
-    isStarterEffect({ instance: noiseDef })  // true for generators
+    // Check if this is a generator (vs a filter). isStarterEffect() reads
+    // effect.instance, so pass a { namespace, instance } record, like the
+    // { namespace, name, instance } records in renderer.loadedEffects.
+    // A definition has no instance field, so isStarterEffect(noiseDef)
+    // returns false even for a generator. is3dGenerator() and
+    // is3dProcessor() take the same record.
+    isStarterEffect({ namespace: 'synth', instance: noiseDef })  // true for generators
 
     // Iterate all loaded effects. getAllEffects() returns the registry Map,
     // which holds each effect under up to four names: func, namespace.func,
