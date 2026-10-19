@@ -19,7 +19,9 @@ const testEntries = [
   { file: 'test/simplex.test.js', parity: false },
   { file: 'test/value.test.js', parity: false },
   { file: 'test/value-parity.test.js', parity: true },
+  { file: 'test/value-fixture.test.js', parity: true },
   { file: 'test/points.test.js', parity: false },
+  { file: 'test/points-fixture.test.js', parity: true },
   { file: 'test/masks.test.js', parity: false },
   { file: 'test/masks-parity.test.js', parity: true },
   { file: 'test/palettes.test.js', parity: false },
@@ -30,10 +32,12 @@ const testEntries = [
   { file: 'test/effectsRegistry.test.js', parity: false },
   { file: 'test/effects-parity.test.js', parity: true },
   { file: 'test/effects.test.js', parity: true }, // Most tests use Python-generated fixtures
+  { file: 'test/effects-fixture.test.js', parity: true },
   { file: 'test/composer.test.js', parity: false },
   { file: 'test/presets-parity.test.js', parity: true },
   { file: 'test/presets-params-parity.test.js', parity: true },
   { file: 'test/presets.test.js', parity: false },
+  { file: 'test/mapEffect.test.js', parity: false },
   { file: 'test/presets-render.test.js', parity: false },
   { file: 'test/preset-cycle.test.js', parity: false },
   { file: 'test/colors.test.js', parity: false },
@@ -84,11 +88,6 @@ const testEntries = [
 const skipParity = process.argv.includes('--skip-parity')
 const skipDocs = process.argv.includes('--skip-docs')
 const forwardedArgs = process.argv.filter((arg) => arg !== '--skip-parity' && arg !== '--skip-docs')
-
-// Set environment variable to skip fixture tests when running non-parity suite
-if (skipParity) {
-  process.env.SKIP_FIXTURES = '1'
-}
 
 for (const entry of testEntries) {
   if ((skipParity && entry.parity) || (skipDocs && entry.docs)) {

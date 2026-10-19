@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import json, math, colorsys
 from pathlib import Path
-import numpy as np
 import tensorflow as tf
 import sys
 
@@ -25,19 +24,28 @@ from noisemaker.effects import (
     fibers,
     scratches,
     stray_hair,
-    worms_params,
+    palette,
+    vignette,
 )
-from noisemaker.palettes import PALETTES
 from noisemaker import value, points
 from noisemaker import rng
 import noisemaker.generators as generators
-from opensimplex import OpenSimplex
+from noisemaker import simplex
 
-# JS RNG equivalent
-def js_random(seed):
-    seed = seed & 0xFFFFFFFF
-    seed = (seed * 1664525 + 1013904223) & 0xFFFFFFFF
-    return seed / 0x100000000, seed
+def worms_params(shape, density=4.0, stride=1.0, stride_deviation=0.05):
+    """The worm starts, strides and obedient headings that effects.worms draws, in its RNG order."""
+    height, width = shape[0], shape[1]
+    count = int(max(width, height) * density)
+    worms_y = rng.uniform([count]) * (height - 1)
+    worms_x = rng.uniform([count]) * (width - 1)
+    worms_stride = rng.normal([count], mean=stride, stddev=stride_deviation) * (max(width, height) / 1024.0)
+    worms_rot = tf.ones([count], dtype=tf.float32) * rng.random() * math.tau
+    return {
+        'x': worms_x.numpy().tolist(),
+        'y': worms_y.numpy().tolist(),
+        'stride': worms_stride.numpy().tolist(),
+        'rot': worms_rot.numpy().tolist(),
+    }
 
 fixtures_dir = root / 'test' / 'fixtures'
 fixtures_dir.mkdir(parents=True, exist_ok=True)
@@ -83,35 +91,18 @@ with open(fixtures_dir / 'posterize.json', 'w') as f:
     json.dump(poster_out, f)
 
 # Palette fixture
-pal_vals = [0.0, 0.5, 1.0, 0.25]
-pal = PALETTES['grayscale']
-pal_out = []
-for t in pal_vals:
-    r = pal['offset'][0] + pal['amp'][0]*math.cos(math.tau*(pal['freq'][0]*t*0.875 + 0.0625 + pal['phase'][0]))
-    g = pal['offset'][1] + pal['amp'][1]*math.cos(math.tau*(pal['freq'][1]*t*0.875 + 0.0625 + pal['phase'][1]))
-    b = pal['offset'][2] + pal['amp'][2]*math.cos(math.tau*(pal['freq'][2]*t*0.875 + 0.0625 + pal['phase'][2]))
-    pal_out.extend([r, g, b])
+pal_vals = [0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 0.25, 0.25, 0.25]
+pal_tex = tf.constant(pal_vals, shape=[2,2,3], dtype=tf.float32)
+pal_out = palette(pal_tex, [2,2,3], name='grayscale').numpy().flatten().tolist()
 with open(fixtures_dir / 'palette.json', 'w') as f:
     json.dump(pal_out, f)
 
 # Vignette fixture
 vig_vals = [0.1, 0.5, 0.3, 0.8]
-arr = np.array(vig_vals).reshape(2,2,1)
-minv, maxv = arr.min(), arr.max()
-norm = (arr - minv) / (maxv - minv)
-cx, cy = (2 - 1)/2, (2 - 1)/2
-maxd = math.sqrt(cx*cx + cy*cy)
-mask = np.zeros((2,2,1))
-for y in range(2):
-    for x in range(2):
-        dx, dy = x - cx, y - cy
-        dist = math.sqrt(dx*dx + dy*dy) / maxd
-        mask[y,x,0] = dist ** 2
-edges = np.ones((2,2,1)) * 0.25
-vig = norm * (1 - mask) + edges * mask
-final = norm * (1 - 0.5) + vig * 0.5
+vig_tex = tf.constant(vig_vals, shape=[2,2,1], dtype=tf.float32)
+vig_out = vignette(vig_tex, [2,2,1], brightness=0.25, alpha=0.5).numpy().flatten().tolist()
 with open(fixtures_dir / 'vignette.json', 'w') as f:
-    json.dump(final.flatten().tolist(), f)
+    json.dump(vig_out, f)
 
 # Saturation fixture
 sat_vals = [0.2,0.4,0.6,0.8,0.1,0.3]
@@ -126,17 +117,12 @@ with open(fixtures_dir / 'saturation.json', 'w') as f:
     json.dump(sat_out, f)
 
 # Random hue fixture
+# random_hue shifts the hue by one RNG draw within +/- 0.05.
 rh_vals = [0.1,0.2,0.3,0.4,0.5,0.6]
-seed = 5
-rand, seed = js_random(seed)
-shift = rand * 0.1 - 0.05
-rh_out = []
-for i in range(0, len(rh_vals), 3):
-    r, g, b = rh_vals[i:i+3]
-    h, s, v = colorsys.rgb_to_hsv(r, g, b)
-    h = (h + shift) % 1
-    r2, g2, b2 = colorsys.hsv_to_rgb(h, s, v)
-    rh_out.extend([r2, g2, b2])
+rh_tex = tf.constant(rh_vals, shape=[2,1,3], dtype=tf.float32)
+rng.set_seed(5)
+shift = rng.random() * 0.1 - 0.05
+rh_out = adjust_hue(rh_tex, [2,1,3], amount=shift).numpy().flatten().tolist()
 with open(fixtures_dir / 'randomHue.json', 'w') as f:
     json.dump(rh_out, f)
 
@@ -236,11 +222,8 @@ shape = (2,2)
 time = 0.25
 seed = 12345
 speed = 1.0
-angle = math.tau * time
-z = math.cos(angle) * speed
-simp = OpenSimplex(seed)
-rows = [[(simp.noise3d(x, y, z) + 1) / 2 for x in range(shape[1])] for y in range(shape[0])]
-rand = (OpenSimplex(seed).noise2d(math.cos(angle)*speed, math.sin(angle)*speed) + 1) / 2
+rows = simplex.simplex(shape, time=time, seed=seed, speed=speed, as_np=True)[:, :, 0].tolist()
+rand = simplex.random(time, seed, speed)
 with open(fixtures_dir / 'simplex.json', 'w') as f:
     json.dump({'tensor': rows, 'random': rand}, f)
 
