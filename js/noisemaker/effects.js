@@ -6382,24 +6382,18 @@ export async function onScreenDisplay(tensor, shape, time, speed) {
     return tensor
   }
 
+  // Below 144 pixels (168 for bank_ocr) the display is narrower than one
+  // glyph, so the row is empty. The reference still draws the glyph noise
+  // seed and alpha at every width, so this path draws them too and blends the
+  // empty row.
   let baseWidth = Math.floor(w / 24)
   baseWidth = glyphWidth * Math.floor(baseWidth / glyphWidth)
-  if (baseWidth <= 0) {
-    return tensor
-  }
-  const tileCount = Math.max(1, Math.floor(baseWidth / glyphWidth))
-  if (tileCount <= 0) {
-    return tensor
-  }
+  const tileCount = Math.floor(baseWidth / glyphWidth)
   const rowHeight = glyphHeight * tileCount
   const totalWidth = baseWidth * glyphCount
-  if (rowHeight <= 0 || totalWidth <= 0) {
-    return tensor
-  }
 
   const offsetY = 25
   const offsetX = w - totalWidth - 25
-  const alpha = Math.fround(0.5 + random() * 0.25)
   const atlas = getAtlas(mask)
   const atlasGlyphCount = Array.isArray(atlas) ? atlas.length : 0
   if (!atlasGlyphCount) {
@@ -6409,7 +6403,10 @@ export async function onScreenDisplay(tensor, shape, time, speed) {
   const effTime = Number.isFinite(time) ? time : 0
   const effSpeed = Number.isFinite(speed) ? speed : 1
   const uvShape = [1, glyphCount]
+  // Same RNG order as the reference: the glyph noise seed (drawn in
+  // mask_values), then alpha.
   const noiseSeed = randomInt(1, 65536)
+  const alpha = Math.fround(0.5 + random() * 0.25)
   const uvTensor = simplex([...uvShape, 1], {
     time: effTime,
     seed: noiseSeed,
