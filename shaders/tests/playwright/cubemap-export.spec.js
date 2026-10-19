@@ -15,6 +15,9 @@ test('renderCube exports 6 distinct cube faces (readback works on this backend)'
   await page.waitForFunction(
     () => !!window.__noisemakerCanvasRenderer && !!window.__noisemakerCanvasRenderer.manifest,
     null, { timeout: 30000 })
+  // The demo compiles its startup effect after the manifest loads. Wait for
+  // that pipeline, so that it cannot replace the cube pipeline compiled below.
+  await page.waitForFunction(() => !!window.__noisemakerRenderingPipeline, null, { timeout: 30000 })
 
   // Cube export only works when the graph terminates in a cubemap renderer fed by a 3D volume.
   const DSL = [
