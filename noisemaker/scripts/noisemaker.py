@@ -142,7 +142,7 @@ def generate(
     debug_out,
     preset_name,
 ):
-    if not seed:
+    if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)
@@ -310,7 +310,7 @@ def _debug_print(seed, preset, with_alpha, with_supersample, with_fxaa, with_ups
 @click.argument("input_filename", type=click.Path(exists=True, dir_okay=False))
 @click.pass_context
 def apply(ctx, seed, filename, no_resize, with_fxaa, time, speed, preset_name, input_filename):
-    if not seed:
+    if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)

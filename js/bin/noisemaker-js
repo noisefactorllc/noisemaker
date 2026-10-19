@@ -734,7 +734,7 @@ async function handleGenerate(args) {
   }
 
   let seed = options.seed;
-  if (!Number.isFinite(seed) || seed === null || seed === 0) {
+  if (seed === null) {
     seed = Math.floor(Math.random() * MAX_SEED_VALUE) + 1;
   }
 
@@ -825,7 +825,7 @@ async function handleApply(args) {
   }
 
   let seed = options.seed;
-  if (!Number.isFinite(seed) || seed === null || seed === 0) {
+  if (seed === null) {
     seed = Math.floor(Math.random() * MAX_SEED_VALUE) + 1;
   }
 

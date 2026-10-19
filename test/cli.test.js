@@ -108,6 +108,24 @@ assert.ok(fs.existsSync(applyOutputPath), 'Apply output file was not created')
 const applyStats = fs.statSync(applyOutputPath)
 assert.ok(applyStats.size > 0, 'Apply output file is empty')
 
+// --seed 0 is a seed like any other, so two runs write the same image.
+for (const command of [
+  ['generate', 'basic', '--width', '32', '--height', '32'],
+  ['apply', 'posterize', applyInputPath, '--no-resize'],
+]) {
+  const images = []
+  for (let run = 0; run < 2; run += 1) {
+    const seedResult = spawnSync('node', [cliPath, ...command, '--seed', '0', '--filename', applyOutputPath], {
+      encoding: 'utf8',
+    })
+    if (seedResult.status !== 0) {
+      throw new Error(`CLI ${command[0]} --seed 0 exited with status ${seedResult.status}\n${seedResult.stderr}${seedResult.stdout}`)
+    }
+    images.push(fs.readFileSync(applyOutputPath))
+  }
+  assert.ok(images[0].equals(images[1]), `${command[0]} --seed 0 wrote different images`)
+}
+
 fs.unlinkSync(applyInputPath)
 fs.unlinkSync(applyOutputPath)
 
