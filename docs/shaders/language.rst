@@ -131,7 +131,7 @@ Strings use double or single quotes: ``"hello"`` or ``'hello'``. A backslash and
 Arrow functions currently support only zero-argument expression lambdas: ``() => expr``. Their primary use is deferred evaluation in control structures or future callbacks.
 
 **Comments and separators:**
-``//`` starts a line comment. ``/* ... */`` is a block comment, and block comments do not nest. Comments can go before ``search``, between statements, after ``render()``, and before or after the ``.`` in a chain. A comment inside an argument list or an ``if`` block is a parser error (``P001``). A ``;`` can come before ``search`` and after ``search``, a statement or ``render()``. It is optional.
+``//`` starts a line comment. ``/* ... */`` is a block comment, and block comments do not nest. Comments can go before ``search``, between statements, after ``render()``, and before or after the ``.`` in a chain. A comment inside an argument list is a parser error (``P001``). Comments inside an ``if``, ``elif`` or ``else`` block can appear before a statement or before the closing brace. The parser accepts them, and the unparser preserves them. A ``;`` can come before ``search`` and after ``search``, a statement or ``render()``. It is optional.
 
 Language Features
 -----------------
@@ -206,6 +206,10 @@ Programs may declare variables with ``let`` and reuse them. Variables can alias 
 
 **Semantics:**
 
+Each chain uses the value from the latest ``let`` statement before that
+chain. A later ``let`` statement does not change an earlier chain. Inside a
+block, a ``let`` statement applies to the rest of that block. It does not
+change values outside the block.
 
 * ``let x = noise``: ``x`` becomes an alias for the ``noise`` function.
 * ``let y = noise(10)``: ``y`` stores a **partial application** with ``type``

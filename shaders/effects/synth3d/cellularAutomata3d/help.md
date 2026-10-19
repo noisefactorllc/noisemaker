@@ -12,7 +12,7 @@
 | neighborMode | int | moore | moore/vonNeumann | Neighborhood |
 | speed | int | 1 | 0-10 | Sim speed |
 | density | float | 50 | 1-100 | Initial density % |
-| colorMode | int | mono | mono/age | Color mode |
+| colorMode | int | mono | mono/age | Mono uses grayscale. In age mode, live cells shift from red toward yellow as they age. |
 | resetState | boolean | false | - | State |
 | source | volume | vol0 | - | Source volume |
 | geoSource | geometry | geo0 | - | Source geometry |
