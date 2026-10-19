@@ -13,8 +13,8 @@ permissions:
 jobs:
   compare:
     name: Python-JavaScript comparison
-    # The Python reference's TensorFlow and NumPy kernels round differently
-    # on x86-64, and the comparison fixtures match the arm64 results.
+    # The Python reference's TensorFlow and NumPy results differ on x86-64,
+    # and the JavaScript port matches the arm64 results.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
 
