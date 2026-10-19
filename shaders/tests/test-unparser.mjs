@@ -21,6 +21,7 @@ import media from '../effects/synth/media/definition.js';
 import remap from '../effects/synth/remap/definition.js';
 import grade from '../effects/filter/grade/definition.js';
 import { CanvasRenderer } from '../src/renderer/canvas.js';
+import { compileGraph } from '../src/runtime/compiler.js';
 
 let passed = 0;
 let failed = 0;
@@ -775,6 +776,58 @@ test('vec2() and vec4() with the wrong number of components give a diagnostic', 
         const { value, codes } = vectorArg(source, op, key);
         assert.deepEqual(codes, ['S002'], source);
         assert.deepEqual(value, fallback, source);
+    }
+});
+
+// The parser and validator accept if/elif/else, break, continue and return,
+// but the runtime does not execute them. compileGraph() rejects them with the
+// documented ExpansionFailure shape, and unparse keeps every statement.
+for (const [name, definition] of [['noise', noise], ['solid', solid]]) {
+    vectorRenderer.registerEffectWithRuntime({ namespace: 'synth', name, instance: definition });
+    vectorRenderer.registerStarterOpForEffect({ namespace: 'synth', name, instance: definition });
+}
+const controlFlowPrograms = [
+    ['search synth\nif (true) {\n  noise().write(o0)\n} else {\n  solid().write(o0)\n}\nrender(o0)', ['if']],
+    ['search synth\nnoise().write(o0)\nreturn 5\nrender(o0)', ['return']],
+    ['search synth\nnoise().write(o0)\nbreak\nrender(o0)', ['break']],
+    ['search synth\nnoise().write(o0)\ncontinue\nrender(o0)', ['continue']],
+    ['search synth\nlet k = 1\n// before the branch\nif (k) {\n  noise().write(o0)\n} elif (() => time > 2) {\n  solid().write(o0)\n  break\n} elif (0) {\n  if (false) {\n    return\n  }\n}\nnoise(seed: 3).write(o1)\nreturn noise()\nrender(o0)', ['if', 'return']]
+];
+const controlFlowShape = plans => plans.map(plan => plan.chain ? plan.chain.map(step => step.op) : {
+    type: plan.type,
+    cond: JSON.stringify(plan.cond),
+    condition: JSON.stringify(plan.source?.condition),
+    value: JSON.stringify(plan.source?.value),
+    comments: plan.source?.leadingComments,
+    then: plan.then && controlFlowShape(plan.then),
+    elif: plan.elif?.map(entry => ({ cond: JSON.stringify(entry.cond), then: controlFlowShape(entry.then) })),
+    elifConditions: plan.source?.elif?.map(entry => JSON.stringify(entry.condition)),
+    else: plan.else && controlFlowShape(plan.else),
+    hasElse: plan.source ? plan.source.else !== null : undefined
+});
+
+test('compileGraph rejects control flow with the documented ExpansionFailure shape', () => {
+    for (const [source, keywords] of controlFlowPrograms) {
+        assert.deepEqual(compile(source).diagnostics, [], source);
+        let thrown = null;
+        try { compileGraph(source); } catch (err) { thrown = err; }
+        assert.ok(thrown, `${source} must not compile to a graph`);
+        assert.ok(!(thrown instanceof TypeError), `${source} threw ${thrown}`);
+        assert.equal(thrown.code, 'ERR_EXPANSION_FAILED', source);
+        assert.deepEqual(thrown.errors, keywords.map(keyword => ({ message: `The runtime does not yet execute control flow ('${keyword}')` })), source);
+    }
+});
+
+test('unparse keeps every statement of a control-flow program', () => {
+    for (const [source] of controlFlowPrograms) {
+        const first = compile(source);
+        for (const options of [{}, vectorOptions]) {
+            const output = unparse(first, {}, options);
+            const second = compile(output);
+            assert.deepEqual(second.diagnostics, first.diagnostics, output);
+            assert.deepEqual(controlFlowShape(second.plans), controlFlowShape(first.plans), output);
+            assert.equal(unparse(second, {}, options), output, 'A second unparse gives the same text');
+        }
     }
 });
 

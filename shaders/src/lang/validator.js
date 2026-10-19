@@ -1534,6 +1534,14 @@ export function validate(ast) {
         return result
     }
 
+    // Control-flow plans keep their parser statement as a non-enumerable
+    // `source`, so the unparser can write conditions and return values as
+    // written. The public compiled plan shape is unchanged.
+    function withSource(plan, stmt) {
+        Object.defineProperty(plan, 'source', { value: stmt, enumerable: false })
+        return plan
+    }
+
     function compileStmt(stmt) {
         if (stmt.type === 'IfStmt') {
             const cond = evalCondition(stmt.condition)
@@ -1543,18 +1551,18 @@ export function validate(ast) {
                 elif.push({cond: evalCondition(e.condition), then: compileBlock(e.then)})
             }
             const elseBranch = compileBlock(stmt.else)
-            return {type:'Branch', cond, then: thenBranch, elif, else: elseBranch}
+            return withSource({type:'Branch', cond, then: thenBranch, elif, else: elseBranch}, stmt)
         }
         if (stmt.type === 'Break') {
-            return {type:'Break'}
+            return withSource({type:'Break'}, stmt)
         }
         if (stmt.type === 'Continue') {
-            return {type:'Continue'}
+            return withSource({type:'Continue'}, stmt)
         }
         if (stmt.type === 'Return') {
             const node = {type:'Return'}
             if (stmt.value) node.value = evalExpr(stmt.value)
-            return node
+            return withSource(node, stmt)
         }
         return compileChainStatement(stmt)
     }

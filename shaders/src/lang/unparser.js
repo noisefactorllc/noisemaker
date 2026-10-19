@@ -936,6 +936,48 @@ function formatLetExpr(expr, options = {}) {
 }
 
 /**
+ * Unparse a compiled control-flow plan (Branch, Break, Continue or Return).
+ * Conditions and return values come from the parser statement that the
+ * validator keeps as `plan.source`. Block bodies are unparsed as programs.
+ * Their lines are not indented, so string literals in them keep their content.
+ * @param {object} plan - Compiled plan without a chain
+ * @param {string[]} searchNamespaces - Program search order
+ * @param {object} options - Unparse options
+ * @returns {string|null} DSL source, or null for an unknown plan type
+ */
+function unparseControlFlow(plan, searchNamespaces, options) {
+    const source = plan.source
+    const block = plans => {
+        const text = unparse({ searchNamespaces, plans }, {}, { ...options, omitSearchDirective: true })
+        return text ? `${text}\n` : ''
+    }
+    let text
+    if (plan.type === 'Branch') {
+        const condition = node => node ? formatLetExpr(node, options) : formatValue(plan.cond, null, options)
+        text = `if (${condition(source?.condition)}) {\n${block(plan.then || [])}}`
+        const elif = plan.elif || []
+        for (let index = 0; index < elif.length; index++) {
+            const elifSource = source?.elif?.[index]?.condition
+            const elifCondition = elifSource ? formatLetExpr(elifSource, options) : formatValue(elif[index].cond, null, options)
+            text += ` elif (${elifCondition}) {\n${block(elif[index].then || [])}}`
+        }
+        if (source ? source.else : plan.else?.length > 0) {
+            text += ` else {\n${block(plan.else || [])}}`
+        }
+    } else if (plan.type === 'Break') {
+        text = 'break'
+    } else if (plan.type === 'Continue') {
+        text = 'continue'
+    } else if (plan.type === 'Return') {
+        const value = source ? source.value : plan.value
+        text = value ? `return ${formatLetExpr(value, options)}` : 'return'
+    } else {
+        return null
+    }
+    return [...(source?.leadingComments || []), text].join('\n')
+}
+
+/**
  * Unparse an entire program
  * @param {object} compiled - Compiled result from compile()
  * @param {object} overrides - Map of stepIndex -> parameter overrides
@@ -978,7 +1020,15 @@ export function unparse(compiled, overrides = {}, options = {}) {
     const plans = compiled.plans || []
     for (let planIndex = 0; planIndex < plans.length; planIndex++) {
         const plan = plans[planIndex]
-        if (!plan.chain || plan.chain.length === 0) continue
+        if (!plan.chain) {
+            const statement = unparseControlFlow(plan, searchNamespaces, options)
+            if (statement !== null) {
+                lines.push(statement)
+                if (planIndex < plans.length - 1) lines.push('')
+            }
+            continue
+        }
+        if (plan.chain.length === 0) continue
 
         // The compiler flattens inline surface producers into the plan. Rebuild
         // those dependency chains as arguments, retaining each producer's edits.

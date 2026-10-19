@@ -4,6 +4,8 @@ import { expandPalette } from './palette-expansion.js'
 
 const SURFACE_REF_PATTERN = /^(?:o|vol|geo|xyz|vel|rgba)[0-7]$/
 const TEXTURE_ARG_KINDS = new Set(['temp', 'output', 'source', 'feedback', 'vol', 'geo', 'xyz', 'vel', 'rgba', 'pipeline'])
+// Compiled control-flow plan type -> DSL keyword
+const CONTROL_FLOW_KEYWORDS = { Branch: 'if', Break: 'break', Continue: 'continue', Return: 'return' }
 
 function isTextureArg(arg) {
     return arg !== null && typeof arg === 'object' && TEXTURE_ARG_KINDS.has(arg.kind)
@@ -141,6 +143,13 @@ export function expand(compilationResult, options = {}) {
 
     // 1. Expand each plan into passes
     for (const plan of compilationResult.plans) {
+        // Branch, Break, Continue and Return plans have no chain. The parser
+        // and validator accept them, but the runtime does not execute them.
+        if (!Array.isArray(plan.chain)) {
+            const keyword = CONTROL_FLOW_KEYWORDS[plan.type] ?? plan.type
+            errors.push({ message: `The runtime does not yet execute control flow ('${keyword}')` })
+            continue
+        }
         // Each plan is a chain of effects
         // We need to track the "current" output texture as we traverse the chain
         let currentInput = null      // 2D pipeline texture

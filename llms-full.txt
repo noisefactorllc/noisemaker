@@ -661,8 +661,10 @@ plus missing separators are reported with stable diagnostic codes `P008`,
 `P009`, and `P010` through the `compile()`/`validate()` diagnostics list.
 
 Expansion failures have shape `ExpansionFailure`. Current enumerated messages
-are `Effect '<name>' not found` with the failing step, and `No render surface
-specified and no write() found - add render(oN) or write(oN)` without a step.
+are `Effect '<name>' not found` with the failing step, `No render surface
+specified and no write() found - add render(oN) or write(oN)` without a step,
+and `The runtime does not yet execute control flow ('<keyword>')` without a
+step for each top-level `if`, `break`, `continue` or `return` plan.
 
 Sources: `shaders/src/lang/diagnostics.js` - default export;
 `shaders/src/lang/lexer.js` - thrown `SyntaxError` sites;
