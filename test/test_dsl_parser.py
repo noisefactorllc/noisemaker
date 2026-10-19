@@ -57,3 +57,19 @@ def test_unterminated_multiline_comment():
     with pytest.raises(Exception) as e:
         tokenize('/* unterminated comment')
     assert 'Unterminated multi-line comment' in str(e.value)
+
+
+@pytest.mark.parametrize('text,expected', [('.5', 0.5), ('.025', 0.025), ('.06', 0.06), ('0.5', 0.5), ('5', 5.0), ('1.', 1.0)])
+def test_number_with_leading_dot_keeps_dot(text, expected):
+    # A number that starts with "." keeps the dot: ".5" is 0.5, not 5
+    tokens = tokenize(text)
+    assert len(tokens) == 1
+    assert tokens[0]['type'] == 'number'
+    assert tokens[0]['value'] == expected
+    assert tokens[0]['column'] == 1
+
+
+def test_leading_dot_number_in_expression():
+    ast = parse(tokenize('.025 + random() * 0.1'))
+    assert ast['body']['type'] == 'BinaryExpr'
+    assert ast['body']['left']['value'] == 0.025

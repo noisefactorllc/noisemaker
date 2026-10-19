@@ -81,9 +81,9 @@ HexDigit       ::= Digit | 'A'…'F' | 'a'…'f'
   named arguments.  A repeated argument name is an error.
 * `\n`, `\r`, `\t`, `\\`, `\"` and `\'` in a string are decoded.  Any other
   escaped character stands for itself.
-* A number can start with `.`, but both tokenizers drop the `.`: `.5` reads as
-  `5` and `.025` reads as `25`.  Write `0.5`.  `1.` reads as `1`.  There is no
-  exponent form, so `1e3` is a parser error.
+* A number can start with `.`: `.5` reads as `0.5` and `.025` reads as
+  `0.025`.  `1.` reads as `1`.  There is no exponent form, so `1e3` is a parser
+  error.
 * Trailing commas in lists, dictionaries and argument lists are allowed.  A
   repeated dictionary key is an error.
 * `parse()` checks top-level dictionary keys by default and accepts only
