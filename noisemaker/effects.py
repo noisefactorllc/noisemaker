@@ -1786,6 +1786,9 @@ def glyph_map(
         glyph_shape = masks.mask_shape(ValueMask.truetype)
         glyphs = load_glyphs(glyph_shape)
 
+        if not glyphs:
+            raise ValueError(f"glyph_map found no .ttf font in {util.fonts_dir()}")
+
     else:
         glyph_shape = masks.mask_shape(mask)
 

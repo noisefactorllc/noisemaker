@@ -105,6 +105,13 @@ def _show_effect_presets(ctx: click.Context, param: click.Parameter, value: bool
     ctx.exit(0)
 
 
+def _check_watermark_font(watermark: str | None) -> None:
+    """Stop before rendering when --watermark is set and its font is missing."""
+
+    if watermark and not os.path.exists(os.path.join(util.fonts_dir(), f"{util.WATERMARK_FONT}.ttf")):
+        raise click.BadParameter(f"the font {util.WATERMARK_FONT}.ttf is not in {util.fonts_dir()}", param_hint="'--watermark'")
+
+
 @main.command(help="Generate a .png or .jpg from preset")
 @presets_path_option
 @cli.option(
@@ -396,6 +403,8 @@ def animate(
     preset_name,
     target_duration,
 ):
+    _check_watermark_font(watermark)
+
     if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -560,6 +569,8 @@ def animate(
 @cli.option("--target-duration", type=float, default=None, help="Stretch output to this duration (seconds) using motion-compensated interpolation")
 @click.pass_context
 def magic_mashup(ctx, input_dir, width, height, seed, effect_preset, filename, save_frames, frame_count, watermark, preview_filename, target_duration):
+    _check_watermark_font(watermark)
+
     if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 

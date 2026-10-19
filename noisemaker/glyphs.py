@@ -7,17 +7,17 @@ import os
 from PIL import Image, ImageDraw, ImageFont
 
 import noisemaker.rng as random
-from noisemaker.util import get_noisemaker_dir
+from noisemaker.util import fonts_dir as get_fonts_dir
 
 
 def load_fonts() -> list[str]:
-    """Find all TrueType fonts in the ~/.noisemaker/fonts directory.
+    """Find all TrueType fonts in the fonts directory, ``$NOISEMAKER_DIR/fonts`` or ``~/.noisemaker/fonts``.
 
     Returns:
         List of absolute paths to .ttf font files, or empty list if fonts directory doesn't exist.
     """
 
-    fonts_dir = os.path.join(get_noisemaker_dir(), "fonts")
+    fonts_dir = get_fonts_dir()
 
     if not os.path.exists(fonts_dir):
         return []

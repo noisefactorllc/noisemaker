@@ -153,7 +153,7 @@ Generate an animation (MP4 or GIF) from a preset.
 **Advanced Options:**
 
 - ``--save-frames PATH`` - Directory to save individual frames
-- ``--watermark TEXT`` - Add watermark text to frames
+- ``--watermark TEXT`` - Add watermark text to frames. It needs the font file ``Nunito-VariableFont_wght.ttf`` in ``$NOISEMAKER_DIR/fonts``, or in ``~/.noisemaker/fonts`` when ``NOISEMAKER_DIR`` is not set.
 - ``--preview-filename PATH`` - Save a preview image
 - ``--target-duration FLOAT`` - Stretch MP4 output to the specified duration (seconds) using motion-compensated interpolation
 
@@ -307,7 +307,7 @@ four usable subdirectories remain.
 **Advanced Options:**
 
 - ``--save-frames PATH`` - Directory to save individual frames
-- ``--watermark TEXT`` - Add watermark text
+- ``--watermark TEXT`` - Add watermark text. It needs the font file ``Nunito-VariableFont_wght.ttf`` in ``$NOISEMAKER_DIR/fonts``, or in ``~/.noisemaker/fonts`` when ``NOISEMAKER_DIR`` is not set.
 - ``--preview-filename PATH`` - Save a preview image
 - ``--target-duration FLOAT`` - Stretch MP4 output to the specified duration (seconds)
 

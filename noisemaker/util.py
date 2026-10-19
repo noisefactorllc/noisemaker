@@ -132,9 +132,7 @@ def watermark(text: str, filename: str) -> Any:
         Result of subprocess call
     """
 
-    return check_call(
-        ["mood", "--filename", filename, "--text", text, "--font", "Nunito-VariableFont_wght", "--font-size", "16", "--no-rect", "--bottom", "--right"]
-    )
+    return check_call(["mood", "--filename", filename, "--text", text, "--font", WATERMARK_FONT, "--font-size", "16", "--no-rect", "--bottom", "--right"])
 
 
 def check_call(command: list[str], quiet: bool = False) -> Any:
@@ -170,6 +168,19 @@ def get_noisemaker_dir() -> str:
         Path to ~/.noisemaker or NOISEMAKER_DIR environment variable.
     """
     return os.environ.get("NOISEMAKER_DIR", os.path.join(os.path.expanduser("~"), ".noisemaker"))
+
+
+# The font that watermark() draws with, a file in fonts_dir().
+WATERMARK_FONT = "Nunito-VariableFont_wght"
+
+
+def fonts_dir() -> str:
+    """Get the directory that Noisemaker reads TrueType fonts from.
+
+    Returns:
+        Path to the fonts directory of get_noisemaker_dir().
+    """
+    return os.path.join(get_noisemaker_dir(), "fonts")
 
 
 def dumps(kwargs: dict[str, Any]) -> str:
