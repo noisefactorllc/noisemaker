@@ -46,7 +46,7 @@ RUN useradd -m -u 1000 noisemaker && \
     chown -R noisemaker:noisemaker /output
 
 USER noisemaker
-WORKDIR /output
+WORKDIR /
 
 # Verify installation
 RUN noisemaker --help > /dev/null
