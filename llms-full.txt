@@ -940,7 +940,9 @@ Asset/load failures include:
 No default export in <effectId>/definition.js
 No default export in bundle <effectId>
 Invalid effect ID: <effectId>
-Could not load shader manifest - lazy loading requires manifest.json
+Could not load shader manifest <manifestUrl>: HTTP <status>
+Could not load shader manifest <manifestUrl>: <fetch error message>
+Could not read shader manifest <manifestUrl>: <JSON error message>
 ```
 
 Backend compilation then reports missing shader source, shader compilation,

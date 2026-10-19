@@ -342,6 +342,8 @@ element's size wins; a diagnostic warns when it differs from the options.
     await renderer.loadEffects(['synth/noise', 'filter/bloom'])
     renderer.getEffectsFromManifest('synth')  // List effects in a namespace
 
+``loadEffects()`` does not reject when an effect fails to load; the ``failed`` property of the array it returns lists ``{ effectId, error }`` for each effect that could not load.
+
 See :doc:`renderer-output` for sink lifecycle, asynchronous frame export, and
 the packed RGBA8 frame contract.
 

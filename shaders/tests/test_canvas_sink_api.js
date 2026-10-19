@@ -3,6 +3,8 @@
  */
 
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 import {
     CanvasRenderer,
@@ -901,6 +903,118 @@ test('constructor stays silent when the host-sized canvas matches the options', 
     assert.equal(canvas.width, 640)
     assert.equal(canvas.height, 360)
     assert.equal(warnings.length, 0)
+})
+
+const SHADERS_URL = new URL('../', import.meta.url).href.replace(/\/$/, '')
+
+/** Run fn with globalThis.fetch replaced, then put the original back. */
+async function withFetch(fetchImpl, fn) {
+    const previousFetch = globalThis.fetch
+    globalThis.fetch = fetchImpl
+    try {
+        return await fn()
+    } finally {
+        globalThis.fetch = previousFetch
+    }
+}
+
+/** fetch() that serves file: URLs from disk and answers 404 for a missing file. */
+async function fileFetch(url) {
+    const filePath = fileURLToPath(url)
+    if (!fs.existsSync(filePath)) return { ok: false, status: 404 }
+    const text = fs.readFileSync(filePath, 'utf8')
+    return { ok: true, status: 200, text: async () => text, json: async () => JSON.parse(text) }
+}
+
+test('loadManifest rejects with the manifest URL and the HTTP status when the response is not OK', async () => {
+    const requested = []
+    const renderer = new CanvasRenderer({ basePath: '/no-such-dir' })
+    await withFetch(async (url) => { requested.push(url); return { ok: false, status: 404 } }, async () => {
+        await assert.rejects(renderer.loadManifest(),
+            { message: 'Could not load shader manifest /no-such-dir/effects/manifest.json: HTTP 404' })
+    })
+    assert.deepEqual(requested, ['/no-such-dir/effects/manifest.json'])
+    assert.deepEqual(renderer.manifest, {}, 'a failed load keeps no manifest entries')
+})
+
+test('loadManifest rejects with the fetch error when the request itself fails', async () => {
+    const networkError = new TypeError('Failed to fetch')
+    const renderer = new CanvasRenderer({ basePath: 'https://cdn.invalid/shaders' })
+    await withFetch(async () => { throw networkError }, async () => {
+        await assert.rejects(renderer.loadManifest(), (err) => {
+            assert.equal(err.message, 'Could not load shader manifest https://cdn.invalid/shaders/effects/manifest.json: Failed to fetch')
+            assert.equal(err.cause, networkError)
+            return true
+        })
+    })
+})
+
+test('loadManifest rejects when the manifest is not JSON', async () => {
+    const renderer = new CanvasRenderer({ basePath: '/shaders' })
+    const response = { ok: true, status: 200, json: async () => JSON.parse('<!doctype html>') }
+    await withFetch(async () => response, async () => {
+        await assert.rejects(renderer.loadManifest(),
+            (err) => err.message.startsWith('Could not read shader manifest /shaders/effects/manifest.json: ') &&
+                err.cause instanceof SyntaxError)
+    })
+})
+
+test('loadEffects attempts every effect and lists each failed effect ID with its load error in failed', async () => {
+    const events = []
+    const renderer = new CanvasRenderer({
+        basePath: SHADERS_URL,
+        onLoadingStart: (ids) => events.push(['start', ids]),
+        onLoadingEnd: () => events.push(['end'])
+    })
+    const effects = await withFetch(fileFetch, async () => {
+        await renderer.loadManifest()
+        return withSilencedConsole(() =>
+            renderer.loadEffects(['synth/noise', 'synth/noSuchEffect', 'filter/noSuchFilter']))
+    })
+    assert.deepEqual(effects.map((effect) => `${effect.namespace}/${effect.name}`), ['synth/noise'])
+    assert.deepEqual(effects.failed.map((entry) => entry.effectId), ['synth/noSuchEffect', 'filter/noSuchFilter'])
+    for (const entry of effects.failed) {
+        assert.ok(entry.error instanceof Error, `${entry.effectId}: the load error is kept`)
+    }
+    assert.deepEqual(events, [['start', ['synth/noise', 'synth/noSuchEffect', 'filter/noSuchFilter']], ['end']],
+        'onLoadingEnd runs once after the failure')
+    assert.ok(renderer.loadedEffects.has('synth/noise'), 'the effect that loaded stays loaded')
+})
+
+test('loadEffects lists a single failed effect', async () => {
+    const renderer = new CanvasRenderer({ basePath: SHADERS_URL })
+    const effects = await withFetch(fileFetch, async () => {
+        await renderer.loadManifest()
+        return withSilencedConsole(() => renderer.loadEffects(['synth/noSuchEffect']))
+    })
+    assert.equal(effects.length, 0)
+    assert.equal(effects.failed.length, 1)
+    assert.equal(effects.failed[0].effectId, 'synth/noSuchEffect')
+    assert.ok(effects.failed[0].error instanceof Error)
+})
+
+test('loadEffects never rejects for a failed effect', async () => {
+    const renderer = new CanvasRenderer({ basePath: '/no-such-dir' })
+    renderer._manifest = { 'synth/noise': {}, 'filter/bloom': {} }
+    await withSilencedConsole(() => assert.doesNotReject(async () => {
+        const effects = await renderer.loadEffects(['synth/noise', 'filter/bloom', 'not-an-id'])
+        assert.equal(effects.length, 0)
+        assert.deepEqual(effects.failed.map((entry) => entry.effectId), ['synth/noise', 'filter/bloom', 'not-an-id'])
+    }))
+})
+
+test('loadEffects resolves with the loaded effects, an empty failed list, and one onLoadingEnd when every load succeeds', async () => {
+    let ends = 0
+    const renderer = new CanvasRenderer({ basePath: SHADERS_URL, onLoadingEnd: () => { ends++ } })
+    const effects = await withFetch(fileFetch, async () => {
+        await renderer.loadManifest()
+        return renderer.loadEffects(['synth/noise', 'filter/bloom'])
+    })
+    assert.deepEqual(effects.map((effect) => `${effect.namespace}/${effect.name}`), ['synth/noise', 'filter/bloom'])
+    assert.deepEqual(effects.failed, [])
+    assert.equal(ends, 1)
+    assert.deepEqual((await renderer.loadEffects(['synth/noise'])).failed, [], 'a cached load lists no failures')
+    assert.deepEqual((await renderer.loadEffects([])).failed, [], 'an empty request lists no failures')
 })
 
 for (const { name, fn } of tests) {

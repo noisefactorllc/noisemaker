@@ -1258,17 +1258,25 @@ export class CanvasRenderer {
 
     /**
      * Load the shader manifest
-     * @returns {Promise<object>} The loaded manifest
+     * @returns {Promise<object>} The loaded manifest. Rejects when the
+     *   manifest cannot be fetched (the message names its URL and the HTTP
+     *   status) or read as JSON.
      */
     async loadManifest() {
+        const manifestUrl = `${this._basePath}/effects/manifest.json`
+        let manifestRes
         try {
-            const manifestRes = await fetch(`${this._basePath}/effects/manifest.json`)
-            if (manifestRes.ok) {
-                this._manifest = await manifestRes.json()
-            }
-        } catch (e) {
-            console.warn('Failed to load shader manifest')
-            throw new Error('Could not load shader manifest - lazy loading requires manifest.json')
+            manifestRes = await fetch(manifestUrl)
+        } catch (err) {
+            throw new Error(`Could not load shader manifest ${manifestUrl}: ${err.message}`, { cause: err })
+        }
+        if (!manifestRes.ok) {
+            throw new Error(`Could not load shader manifest ${manifestUrl}: HTTP ${manifestRes.status}`)
+        }
+        try {
+            this._manifest = await manifestRes.json()
+        } catch (err) {
+            throw new Error(`Could not read shader manifest ${manifestUrl}: ${err.message}`, { cause: err })
         }
 
         // Register starter ops from manifest
@@ -1772,16 +1780,18 @@ export class CanvasRenderer {
      * @param {string[]} effectIds - Array of effect IDs
      * @param {object} [options] - Loading options
      * @param {function} [options.onProgress] - Progress callback
-     * @returns {Promise<object[]>} Loaded effects
+     * @returns {Promise<object[]>} Loaded effects. A failed effect does not
+     *   reject the promise: the array's `failed` property lists
+     *   `{ effectId, error }` for each effect that could not load.
      */
     async loadEffects(effectIds, options = {}) {
-        if (effectIds.length === 0) return []
+        if (effectIds.length === 0) return Object.assign([], { failed: [] })
 
         // Filter out already loaded effects
         const needsLoading = effectIds.filter(id => !this._loadedEffects.has(id))
 
         if (needsLoading.length === 0) {
-            return effectIds.map(id => this._loadedEffects.get(id))
+            return Object.assign(effectIds.map(id => this._loadedEffects.get(id)), { failed: [] })
         }
 
         if (this._onLoadingStart) {
@@ -1791,19 +1801,19 @@ export class CanvasRenderer {
         try {
             const loadPromises = needsLoading.map(effectId =>
                 this.loadEffect(effectId, options)
-                    .catch(err => {
-                        console.error(`Failed to load ${effectId}:`, err)
-                        return null
+                    .then(() => null, error => {
+                        console.error(`Failed to load ${effectId}:`, error)
+                        return { effectId, error }
                     })
             )
 
-            await Promise.all(loadPromises)
+            const failed = (await Promise.all(loadPromises)).filter(Boolean)
 
             if (this._onLoadingEnd) {
                 this._onLoadingEnd()
             }
 
-            return effectIds.map(id => this._loadedEffects.get(id)).filter(Boolean)
+            return Object.assign(effectIds.map(id => this._loadedEffects.get(id)).filter(Boolean), { failed })
         } catch (err) {
             if (this._onLoadingEnd) {
                 this._onLoadingEnd()
