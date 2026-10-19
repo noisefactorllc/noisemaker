@@ -1807,7 +1807,7 @@ def glyph_map(
     height, width, channels = in_shape
 
     # Figure out how many glyphs it will take approximately to cover the image
-    uv_shape = [int(in_shape[0] / glyph_shape[0]) or 1, int(in_shape[1] / glyph_shape[1] or 1), 1]
+    uv_shape = [int(in_shape[0] / glyph_shape[0]) or 1, int(in_shape[1] / glyph_shape[1]) or 1, 1]
 
     # Generate a value map, multiply by len(glyphs) to create glyph index offsets
     value_shape = value.value_shape(shape)
@@ -2559,7 +2559,9 @@ def scanline_error(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed
     error_freq = [int(value_shape[0] * 0.5) or 1, int(value_shape[1] * 0.5) or 1]
 
     error_line = tf.maximum(value.values(freq=error_freq, shape=value_shape, time=time, speed=speed * 10, distrib=ValueDistribution.exp) - 0.5, 0)
-    error_swerve = tf.maximum(value.values(freq=[int(height * 0.01), 1], shape=value_shape, time=time, speed=speed, distrib=ValueDistribution.exp) - 0.5, 0)
+    error_swerve = tf.maximum(
+        value.values(freq=[int(height * 0.01) or 1, 1], shape=value_shape, time=time, speed=speed, distrib=ValueDistribution.exp) - 0.5, 0
+    )
 
     error_line *= error_swerve
 

@@ -147,3 +147,7 @@ All parity tests must run in CI for both languages.
 
 * Floating‑point differences may still occur on different hardware. Investigate fixed‑point alternatives if required.
 * Document any intentional deviations (e.g., performance shortcuts) in the spec and ensure tests reflect the intended behaviour.
+
+### Known deviations
+
+* `scanline_error` swerve noise: Python uses frequency `[max(1, floor(height * 0.01)), 1]` with `ValueDistribution.exp`. JavaScript uses `[max(3, floor(height * 0.01)), 1]` with the default simplex distribution, to animate without the ping-pong of `periodic_value`. The two outputs differ at each height, so `test_effect_parity[...-scanline_error-...]` fails until one implementation adopts the other's rule.

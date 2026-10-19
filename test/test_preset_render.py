@@ -36,6 +36,36 @@ SHAPE_PRESETS = [
 ]
 
 
+# Presets with scanline-error in their layers
+SCANLINE_ERROR_PRESETS = [
+    "bit-by-bit",
+    "crt",
+    "cubert",
+    "deadbeef",
+    "death-star-plans",
+    "eat-static",
+    "fargate",
+    "graph-paper",
+    "hearts",
+    "later",
+    "procedural-mask",
+    "rasteroids",
+    "regional",
+    "remember-logo",
+    "scanline-error",
+    "sideways",
+    "teh-matrex-haz-u",
+    "the-arecibo-response",
+    "time-crystal",
+    "time-doughnuts",
+    "trench-run",
+    "trominos",
+    "truchet-maze",
+    "vectoroids",
+    "zeldo",
+]
+
+
 def render(name, size, seed, tmp_path):
     value.set_seed(seed)
     preset = Preset(name)
@@ -56,3 +86,13 @@ def test_glyph_mask_preset_renders(name, tmp_path):
 @pytest.mark.parametrize("name", SHAPE_PRESETS)
 def test_shape_preset_renders(name, tmp_path):
     assert tuple(render(name, 128, 1, tmp_path).shape[:2]) == (128, 128)
+
+
+@pytest.mark.parametrize("name", SCANLINE_ERROR_PRESETS)
+def test_scanline_error_preset_renders_below_100_pixels(name, tmp_path):
+    assert tuple(render(name, 96, 1, tmp_path).shape[:2]) == (96, 96)
+
+
+def test_galalaga_renders(tmp_path):
+    # glyph_map zooms past one glyph width at this size
+    assert tuple(render("galalaga", 128, 1, tmp_path).shape[:2]) == (128, 128)
