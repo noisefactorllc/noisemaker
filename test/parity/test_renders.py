@@ -30,6 +30,10 @@ SEEDS = [1, 2]
 WIDTH = 128
 HEIGHT = 128
 
+# The speed of the Python CLI (noisemaker generate --speed default). Both
+# languages get it, as the CLI passes it to every render.
+SPEED = 0.25
+
 TOLERANCE = 1 / 255
 
 
@@ -41,11 +45,11 @@ def test_render(name, seed, tmp_path):
     PRESETS()
     preset = Preset(name)
     py = np.asarray(
-        preset.render(seed, shape=[HEIGHT, WIDTH, None], filename=str(tmp_path / "py.png")),
+        preset.render(seed, shape=[HEIGHT, WIDTH, None], speed=SPEED, filename=str(tmp_path / "py.png")),
         dtype=np.float32,
     )
 
-    js = js_render(name, seed, WIDTH, HEIGHT)
+    js = js_render(name, seed, WIDTH, HEIGHT, SPEED)
 
     assert py.shape == js.shape, f"{name} seed={seed}: Python shape {py.shape}, JavaScript shape {js.shape}"
 

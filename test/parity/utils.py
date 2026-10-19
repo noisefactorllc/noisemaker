@@ -110,8 +110,9 @@ def js_voronoi(params: dict) -> np.ndarray:
     return np.frombuffer(data, dtype="<f4").reshape(128, 128, 3)
 
 
-def js_render(name: str, seed: int, width: int, height: int) -> np.ndarray:
-    """Render a whole preset with the JavaScript port and return its pixels.
+def js_render(name: str, seed: int, width: int, height: int, speed: float) -> np.ndarray:
+    """Render a whole preset with the JavaScript port at the given speed and
+    return its pixels.
 
     The returned array has the shape of the JavaScript tensor and dtype
     float32.
@@ -119,7 +120,7 @@ def js_render(name: str, seed: int, width: int, height: int) -> np.ndarray:
 
     script = Path(__file__).with_name("run_renders.js")
     result = subprocess.run(
-        ["node", str(script), name, str(seed), str(width), str(height)],
+        ["node", str(script), name, str(seed), str(width), str(height), str(speed)],
         check=True,
         capture_output=True,
         text=True,
