@@ -1,5 +1,6 @@
 import { Tensor } from './tensor.js'
 import { srgbToLin, linToSRGB, withTensorData } from './util.js'
+import { pow32 } from './float32.js'
 
 export function rgbToOklab(tensor) {
   if (tensor && typeof tensor.then === 'function') {
@@ -9,19 +10,24 @@ export function rgbToOklab(tensor) {
   if (c !== 3) throw new Error('rgbToOklab expects 3-channel tensor')
   return withTensorData(tensor, (src) => {
     const out = new Float32Array(h * w * 3)
+    // Float32 operations in the reference's order.
+    const f32 = Math.fround
+    const dot = (c0, x0, c1, x1, c2, x2) =>
+      f32(f32(f32(f32(c0) * x0) + f32(f32(c1) * x1)) + f32(f32(c2) * x2))
+    const third = 1 / 3
     for (let i = 0; i < h * w; i++) {
       const r = srgbToLin(src[i * 3])
       const g = srgbToLin(src[i * 3 + 1])
       const b = srgbToLin(src[i * 3 + 2])
-      const l = 0.4121656120 * r + 0.5362752080 * g + 0.0514575653 * b
-      const m = 0.2118591070 * r + 0.6807189584 * g + 0.1074065790 * b
-      const s = 0.0883097947 * r + 0.2818474174 * g + 0.6302613616 * b
-      const l_ = Math.cbrt(l)
-      const m_ = Math.cbrt(m)
-      const s_ = Math.cbrt(s)
-      out[i * 3] = 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_
-      out[i * 3 + 1] = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_
-      out[i * 3 + 2] = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_
+      const l = dot(0.4121656120, r, 0.5362752080, g, 0.0514575653, b)
+      const m = dot(0.2118591070, r, 0.6807189584, g, 0.1074065790, b)
+      const s = dot(0.0883097947, r, 0.2818474174, g, 0.6302613616, b)
+      const l_ = pow32(l, third)
+      const m_ = pow32(m, third)
+      const s_ = pow32(s, third)
+      out[i * 3] = dot(0.2104542553, l_, 0.7936177850, m_, -0.0040720468, s_)
+      out[i * 3 + 1] = dot(1.9779984951, l_, -2.4285922050, m_, 0.4505937099, s_)
+      out[i * 3 + 2] = dot(0.0259040371, l_, 0.7827717662, m_, -0.8086757660, s_)
     }
     return Tensor.fromArray(tensor.ctx, out, [h, w, 3])
   })

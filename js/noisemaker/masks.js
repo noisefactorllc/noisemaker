@@ -5,8 +5,12 @@ import { loadGlyphs } from './glyphs.js'
 import { simplex } from './simplex.js'
 import { random, randomInt } from './util.js'
 
+// Float32 sum and floored modulo, as the Python reference computes it with a
+// float32 noise value. Noise values can be slightly negative.
 function uvRandom(uvNoise, uvX, uvY) {
-  return (uvNoise[uvY][uvX] + random()) % 1
+  const sum = Math.fround(Math.fround(uvNoise[uvY][uvX]) + Math.fround(random()))
+  const mod = sum % 1
+  return mod < 0 ? Math.fround(mod + 1) : mod
 }
 
 function _invaders({ x, y, row, shape, uvNoise, uvX, uvY }) {

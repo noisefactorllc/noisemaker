@@ -364,8 +364,9 @@ export async function basic(freq, shape, opts = {}) {
       const aVal = data[base + 1]
       const bVal = data[base + 2]
       converted[base] = data[base]
-      converted[base + 1] = Math.fround(aVal * scale + offsetA)
-      converted[base + 2] = Math.fround(bVal * scale + offsetB)
+      // Float32 multiply, then float32 add, as in the reference.
+      converted[base + 1] = Math.fround(Math.fround(aVal * scale) + offsetA)
+      converted[base + 2] = Math.fround(Math.fround(bVal * scale) + offsetB)
     }
     tensor = Tensor.fromArray(ctx, converted, [h, w, 3])
     tensor = await oklabToRgb(tensor)
@@ -435,7 +436,7 @@ export async function basic(freq, shape, opts = {}) {
         hVal = f32(hueNoise[i])
       } else {
         const scaled = f32(hueSource * hueRangeF)
-        hVal = f32((scaled + hueRotF) % 1.0)
+        hVal = f32(f32(scaled + hueRotF) % 1.0)
         if (hVal < 0) {
           hVal = f32(hVal + 1)
         }

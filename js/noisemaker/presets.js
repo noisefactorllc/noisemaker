@@ -163,6 +163,14 @@ export function mapEffect(e, settings) {
   if (e && typeof e === 'object' && e.__effectName) {
     const params = {}
     if (e.__paramNames) {
+      // The reference resolves an effect call's named arguments twice, once
+      // through the call's "args" entry and once through its "__params" entry,
+      // and keeps the second result. Resolve dynamic values twice as well, so
+      // that both the random sequence and the kept values match.
+      for (const k of e.__paramNames) {
+        const v = e.__params[k]
+        if (typeof v === 'function') v(settings)
+      }
       for (const k of e.__paramNames) {
         const v = e.__params[k]
         params[k] = typeof v === 'function' ? v(settings) : v

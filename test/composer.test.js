@@ -82,7 +82,8 @@ const CS_PRESETS = {
 const csPreset = new Preset('cs', CS_PRESETS)
 const seed = 42
 const shape = [1, 1, 3]
-const expectedTensor = await multires(1, shape, { seed, color_space: ColorSpace.hsv })
+// A preset that sets no frequency renders with the reference default of 3.
+const expectedTensor = await multires(3, shape, { seed, color_space: ColorSpace.hsv })
 const expected = Array.from(await expectedTensor.read())
 await csPreset.render(seed, { width: 1, height: 1 })
 assert.deepStrictEqual(

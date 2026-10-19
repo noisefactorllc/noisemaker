@@ -14,13 +14,13 @@ import {
   ridge,
   resample,
   proportionalDownsample,
-  downsample,
   upsample,
   refract as refractOp,
   toValueMap,
   convolution,
   fxaa,
 } from "./value.js"
+import { cos32, pow32, sin32 } from "./float32.js"
 import { PALETTES } from "../../shaders/src/palettes.js"
 import {
   simplex,
@@ -52,6 +52,7 @@ import {
   PointDistribution,
   VoronoiDiagramType,
   WormBehavior,
+  gridMembers,
 } from "./constants.js"
 
 const rippleReferenceCacheByContext = new WeakMap()
@@ -683,9 +684,31 @@ export async function bloom(tensor, shape, time, speed, alpha = 0.5) {
   blurred = await resample(blurred, fullShape)
   blurred = await offsetTensor(blurred, xOffset, yOffset)
   blurred = await adjustBrightness(blurred, fullShape, time, speed, 0.25)
-  blurred = await adjustContrast(blurred, fullShape, time, speed, 1.5)
 
+  // Contrast stretch about the per-channel mean, as the Python reference
+  // computes it here with tf.reduce_mean rather than tf.image.adjust_contrast.
   const blurredFull = await blurred.read()
+  const pixelCount = h * w
+  const mean = new Float32Array(channelCount)
+  for (let i = 0; i < pixelCount; i++) {
+    for (let ch = 0; ch < channelCount; ch++) {
+      mean[ch] = Math.fround(mean[ch] + blurredFull[i * channelCount + ch])
+    }
+  }
+  for (let ch = 0; ch < channelCount; ch++) {
+    mean[ch] = Math.fround(mean[ch] / pixelCount)
+  }
+  for (let i = 0; i < pixelCount; i++) {
+    for (let ch = 0; ch < channelCount; ch++) {
+      const idx = i * channelCount + ch
+      const m = mean[ch]
+      // Separate float32 subtract, multiply and add, as the reference's ops.
+      const v = Math.fround(
+        Math.fround(Math.fround(blurredFull[idx] - m) * 1.5) + m,
+      )
+      blurredFull[idx] = v < 0 ? 0 : v > 1 ? 1 : v
+    }
+  }
   const mixData = new Float32Array(src.length)
   for (let i = 0; i < src.length; i++) {
     mixData[i] = (src[i] + blurredFull[i]) * 0.5
@@ -1222,7 +1245,14 @@ export async function voronoi(
   }
   const halfW = Math.floor(w / 2)
   const halfH = Math.floor(h / 2)
-  let n = needFlow ? 0 : nth >= 0 ? nth : count + nth
+  // The reference reads index -min(nth + 1, count - 1) of the distances
+  // sorted in descending order; n is that position in ascending order.
+  const sortedIndex = Math.min(nth + 1, count - 1)
+  let n = needFlow
+    ? 0
+    : sortedIndex > 0
+      ? sortedIndex - 1
+      : count - 1 + sortedIndex
   if (n < 0) n = 0
   if (n >= count) n = count - 1
   const bestDists = new Float32Array(n + 1)
@@ -1241,14 +1271,17 @@ export async function voronoi(
       const ySign = inverse ? -1 : 1
       for (let i = 0; i < count; i++) {
         let dx, dy
+        // Float32 operations in the reference's order.
+        const xd = Math.fround(x - xPts[i])
+        const yd = Math.fround(y - yPts[i])
         if (isTriangular) {
-          dx = Math.fround((x - xPts[i]) / w)
-          dy = Math.fround(((y - yPts[i]) * ySign) / h)
+          dx = Math.fround(xd / w)
+          dy = Math.fround(Math.fround(yd * ySign) / h)
         } else {
-          const x0 = Math.fround(x - xPts[i] - halfW)
-          const x1 = Math.fround(x - xPts[i] + halfW)
-          const y0 = Math.fround(y - yPts[i] - halfH)
-          const y1 = Math.fround(y - yPts[i] + halfH)
+          const x0 = Math.fround(xd - halfW)
+          const x1 = Math.fround(xd + halfW)
+          const y0 = Math.fround(yd - halfH)
+          const y1 = Math.fround(yd + halfH)
           dx = Math.fround(Math.min(Math.abs(x0), Math.abs(x1)) / w)
           dy = Math.fround(Math.min(Math.abs(y0), Math.abs(y1)) / h)
         }
@@ -1270,12 +1303,12 @@ export async function voronoi(
             }
           }
         }
-        if (
-          d < bestDists[n] - 1e-6 ||
-          (Math.abs(d - bestDists[n]) <= 1e-6 && i < bestIdx[n])
-        ) {
+        // The reference ranks distances with a stable descending top_k and
+        // reads from the end, so among equal distances the higher point
+        // index ranks as nearer. Points arrive in index order.
+        if (d <= bestDists[n]) {
           let j = n
-          while (j > 0 && d < bestDists[j - 1]) {
+          while (j > 0 && d <= bestDists[j - 1]) {
             bestDists[j] = bestDists[j - 1]
             bestIdx[j] = bestIdx[j - 1]
             j--
@@ -1314,7 +1347,7 @@ export async function voronoi(
   let rangeData = null
   if (!needFlow) {
     rangeData = new Float32Array(h * w)
-    const delta = maxDist - minDist
+    const delta = Math.fround(maxDist - minDist)
     const hasRange = Number.isFinite(delta) && delta > 0
     for (let i = 0; i < h * w; i++) {
       let v = distMap[i]
@@ -1322,17 +1355,13 @@ export async function voronoi(
         v = 0
       }
       if (hasRange) {
-        v = (v - minDist) / delta
+        // Float32 arithmetic, as normalize() in the reference.
+        v = Math.fround(Math.fround(v - minDist) / delta)
       }
       if (!Number.isFinite(v) || v < 0) {
         v = 0
       }
       rangeData[i] = Math.sqrt(v)
-    }
-    if (inverse) {
-      for (let i = 0; i < h * w; i++) {
-        rangeData[i] = 1 - rangeData[i]
-      }
     }
     rangeTensor = Tensor.fromArray(tensor ? tensor.ctx : null, rangeData, [h, w, 1])
     indexTensor = Tensor.fromArray(
@@ -1348,6 +1377,15 @@ export async function voronoi(
     rangeTensor = await offsetTensor(await rangeTensor, xOff, yOff)
     if (downsample) {
       rangeTensor = await resample(rangeTensor, [originalShape[0], originalShape[1], 1])
+    }
+    // The reference inverts the range after resampling it.
+    if (inverse) {
+      const rangeOut = await rangeTensor.read()
+      const inverted = new Float32Array(rangeOut.length)
+      for (let i = 0; i < rangeOut.length; i++) {
+        inverted[i] = Math.fround(1 - rangeOut[i])
+      }
+      rangeTensor = Tensor.fromArray(rangeTensor.ctx, inverted, rangeTensor.shape)
     }
   }
   if (indexTensor) indexTensor = await offsetTensor(await indexTensor, xOff, yOff)
@@ -1394,7 +1432,10 @@ export async function voronoi(
     outTensor = colorRegionsTensor
   } else if (diagramType === VoronoiDiagramType.range_regions && tensor) {
     const rangeSq = new Float32Array(h * w)
-    for (let i = 0; i < h * w; i++) rangeSq[i] = rangeData[i] * rangeData[i]
+    for (let i = 0; i < h * w; i++) {
+      const r = inverse ? 1 - rangeData[i] : rangeData[i]
+      rangeSq[i] = r * r
+    }
     const rangeSqTensor = Tensor.fromArray(tensor.ctx, rangeSq, [h, w, 1])
     outTensor = blend(colorRegionsTensor, rangeTensor, rangeSqTensor)
   } else if (diagramType === VoronoiDiagramType.flow) {
@@ -1776,7 +1817,8 @@ export async function densityMap(tensor, shape, time, speed) {
   const binIndices = new Int32Array(total)
   const counts = new Int32Array(bins)
   for (let i = 0; i < total; i++) {
-    let bin = Math.floor(vals[i] * (bins - 1))
+    // Float32 product, truncated toward zero, as in the reference.
+    let bin = Math.trunc(Math.fround(vals[i] * (bins - 1)))
     if (bin < 0) bin = 0
     if (bin >= bins) bin = bins - 1
     binIndices[i] = bin
@@ -1791,6 +1833,358 @@ export async function densityMap(tensor, shape, time, speed) {
 }
 register("density_map", densityMap, {})
 
+// JPEG round trip, as tf.image.encode_jpeg and tf.image.decode_jpeg perform
+// it with libjpeg-turbo: baseline encoding with the standard quantization
+// tables scaled by quality, 4:2:0 chroma subsampling for color, and the
+// accurate integer forward DCT; decoding with the fast integer inverse DCT
+// and fancy chroma upsampling, which are TensorFlow's decoding defaults.
+// Entropy coding is lossless, so it is not performed.
+const JPEG_LUMA_QUANT = [
+  16, 11, 10, 16, 24, 40, 51, 61, 12, 12, 14, 19, 26, 58, 60, 55, 14, 13, 16,
+  24, 40, 57, 69, 56, 14, 17, 22, 29, 51, 87, 80, 62, 18, 22, 37, 56, 68, 109,
+  103, 77, 24, 35, 55, 64, 81, 104, 113, 92, 49, 64, 78, 87, 103, 121, 120,
+  101, 72, 92, 95, 98, 112, 100, 103, 99,
+]
+const JPEG_CHROMA_QUANT = [
+  17, 18, 24, 47, 99, 99, 99, 99, 18, 21, 26, 66, 99, 99, 99, 99, 24, 26, 56,
+  99, 99, 99, 99, 99, 47, 66, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99,
+  99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99,
+  99, 99, 99, 99, 99, 99, 99,
+]
+// AA&N scale factors for the fast inverse DCT, scaled up by 14 bits.
+const JPEG_AAN_SCALES = [
+  16384, 22725, 21407, 19266, 16384, 12873, 8867, 4520, 22725, 31521, 29692,
+  26722, 22725, 17855, 12299, 6270, 21407, 29692, 27969, 25172, 21407, 16819,
+  11585, 5906, 19266, 26722, 25172, 22654, 19266, 15137, 10426, 5315, 16384,
+  22725, 21407, 19266, 16384, 12873, 8867, 4520, 12873, 17855, 16819, 15137,
+  12873, 10114, 6967, 3552, 8867, 12299, 11585, 10426, 8867, 6967, 4799, 2446,
+  4520, 6270, 5906, 5315, 4520, 3552, 2446, 1247,
+]
+
+// Rounding right shift of a signed integer.
+function jpegDescale(x, n) {
+  return Math.floor((x + 2 ** (n - 1)) / 2 ** n)
+}
+
+function jpegQuantTable(basic, quality) {
+  const q = Math.min(Math.max(quality, 1), 100)
+  const scale = q < 50 ? Math.floor(5000 / q) : 200 - q * 2
+  return basic.map((v) =>
+    Math.min(Math.max(Math.floor((v * scale + 50) / 100), 1), 255),
+  )
+}
+
+// Accurate integer forward DCT (jfdctint), in place. The output is scaled up
+// by 8.
+function jpegForwardDct(data) {
+  const C = 13
+  const P = 2
+  for (let pass = 0; pass < 2; pass++) {
+    const step = pass === 0 ? 1 : 8
+    const stride = pass === 0 ? 8 : 1
+    for (let ctr = 0; ctr < 8; ctr++) {
+      const o = ctr * stride
+      const d = (k) => data[o + k * step]
+      const tmp0 = d(0) + d(7)
+      let tmp7 = d(0) - d(7)
+      const tmp1 = d(1) + d(6)
+      let tmp6 = d(1) - d(6)
+      const tmp2 = d(2) + d(5)
+      let tmp5 = d(2) - d(5)
+      const tmp3 = d(3) + d(4)
+      let tmp4 = d(3) - d(4)
+      const tmp10 = tmp0 + tmp3
+      const tmp13 = tmp0 - tmp3
+      const tmp11 = tmp1 + tmp2
+      const tmp12 = tmp1 - tmp2
+      const shift = pass === 0 ? C - P : C + P
+      if (pass === 0) {
+        data[o] = (tmp10 + tmp11) * 4
+        data[o + 4 * step] = (tmp10 - tmp11) * 4
+      } else {
+        data[o] = jpegDescale(tmp10 + tmp11, P)
+        data[o + 4 * step] = jpegDescale(tmp10 - tmp11, P)
+      }
+      let z1 = (tmp12 + tmp13) * 4433
+      data[o + 2 * step] = jpegDescale(z1 + tmp13 * 6270, shift)
+      data[o + 6 * step] = jpegDescale(z1 + tmp12 * -15137, shift)
+      z1 = tmp4 + tmp7
+      let z2 = tmp5 + tmp6
+      let z3 = tmp4 + tmp6
+      let z4 = tmp5 + tmp7
+      const z5 = (z3 + z4) * 9633
+      tmp4 *= 2446
+      tmp5 *= 16819
+      tmp6 *= 25172
+      tmp7 *= 12299
+      z1 *= -7373
+      z2 *= -20995
+      z3 = z3 * -16069 + z5
+      z4 = z4 * -3196 + z5
+      data[o + 7 * step] = jpegDescale(tmp4 + z1 + z3, shift)
+      data[o + 5 * step] = jpegDescale(tmp5 + z2 + z4, shift)
+      data[o + 3 * step] = jpegDescale(tmp6 + z2 + z3, shift)
+      data[o + step] = jpegDescale(tmp7 + z1 + z4, shift)
+    }
+  }
+}
+
+// Fast integer inverse DCT (jidctfst) of dequantized coefficients, with the
+// decoder's range limiting.
+function jpegInverseDctFast(coefs, out, outOffset, outStride) {
+  const mul = (v, k) => (v * k) >> 8
+  const ws = new Int32Array(64)
+  const rangeLimit = (v) => {
+    const i = v & 1023
+    if (i < 128) return i + 128
+    if (i < 512) return 255
+    if (i < 896) return 0
+    return i - 896
+  }
+  for (let pass = 0; pass < 2; pass++) {
+    const src = pass === 0 ? coefs : ws
+    const step = pass === 0 ? 8 : 1
+    const stride = pass === 0 ? 1 : 8
+    for (let ctr = 0; ctr < 8; ctr++) {
+      const o = ctr * stride
+      const d = (k) => src[o + k * step]
+      let allZero = true
+      for (let k = 1; k < 8; k++) {
+        if (d(k) !== 0) {
+          allZero = false
+          break
+        }
+      }
+      if (allZero) {
+        if (pass === 0) {
+          for (let k = 0; k < 8; k++) ws[o + k * step] = d(0)
+        } else {
+          const dc = rangeLimit(d(0) >> 5)
+          for (let k = 0; k < 8; k++) out[outOffset + ctr * outStride + k] = dc
+        }
+        continue
+      }
+      let tmp10 = d(0) + d(4)
+      let tmp11 = d(0) - d(4)
+      const tmp13 = d(2) + d(6)
+      let tmp12 = mul(d(2) - d(6), 362) - tmp13
+      const tmp0 = tmp10 + tmp13
+      const tmp3 = tmp10 - tmp13
+      const tmp1 = tmp11 + tmp12
+      const tmp2 = tmp11 - tmp12
+      const z13 = d(5) + d(3)
+      const z10 = d(5) - d(3)
+      const z11 = d(1) + d(7)
+      const z12 = d(1) - d(7)
+      const tmp7 = z11 + z13
+      tmp11 = mul(z11 - z13, 362)
+      const z5 = mul(z10 + z12, 473)
+      tmp10 = mul(z12, 277) - z5
+      tmp12 = mul(z10, -669) + z5
+      const tmp6 = tmp12 - tmp7
+      const tmp5 = tmp11 - tmp6
+      const tmp4 = tmp10 + tmp5
+      const results = [
+        tmp0 + tmp7,
+        tmp1 + tmp6,
+        tmp2 + tmp5,
+        tmp3 - tmp4,
+        tmp3 + tmp4,
+        tmp2 - tmp5,
+        tmp1 - tmp6,
+        tmp0 - tmp7,
+      ]
+      if (pass === 0) {
+        for (let k = 0; k < 8; k++) ws[o + k * step] = results[k]
+      } else {
+        for (let k = 0; k < 8; k++) {
+          out[outOffset + ctr * outStride + k] = rangeLimit(results[k] >> 5)
+        }
+      }
+    }
+  }
+}
+
+// Encode and decode one component plane. The plane's width and height are
+// multiples of 8, padded as the encoder pads them.
+function jpegCodePlane(plane, pw, ph, quant) {
+  const divisors = quant.map((q) => q * 8)
+  const multipliers = quant.map((q, i) =>
+    jpegDescale(q * JPEG_AAN_SCALES[i], 12),
+  )
+  const out = new Uint8Array(pw * ph)
+  const block = new Float64Array(64)
+  const coefs = new Int32Array(64)
+  for (let by = 0; by < ph; by += 8) {
+    for (let bx = 0; bx < pw; bx += 8) {
+      for (let y = 0; y < 8; y++) {
+        for (let x = 0; x < 8; x++) {
+          block[y * 8 + x] = plane[(by + y) * pw + bx + x] - 128
+        }
+      }
+      jpegForwardDct(block)
+      for (let i = 0; i < 64; i++) {
+        const t = block[i]
+        const d = divisors[i]
+        const q = Math.floor((Math.abs(t) + d / 2) / d)
+        coefs[i] = (t < 0 ? -q : q) * multipliers[i]
+      }
+      jpegInverseDctFast(coefs, out, by * pw + bx, pw)
+    }
+  }
+  return out
+}
+
+// Copy a plane into a larger one, replicating the last column and row.
+function jpegPadPlane(src, w, h, pw, ph) {
+  const out = new Uint8Array(pw * ph)
+  for (let y = 0; y < ph; y++) {
+    const sy = Math.min(y, h - 1)
+    for (let x = 0; x < pw; x++) {
+      out[y * pw + x] = src[sy * w + Math.min(x, w - 1)]
+    }
+  }
+  return out
+}
+
+function jpegRoundTripGray(bytes, h, w, quality) {
+  const pw = Math.ceil(w / 8) * 8
+  const ph = Math.ceil(h / 8) * 8
+  const decoded = jpegCodePlane(
+    jpegPadPlane(bytes, w, h, pw, ph),
+    pw,
+    ph,
+    jpegQuantTable(JPEG_LUMA_QUANT, quality),
+  )
+  const out = new Uint8Array(h * w)
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) out[y * w + x] = decoded[y * pw + x]
+  }
+  return out
+}
+
+function jpegRoundTripRgb(rgb, h, w, quality) {
+  const fix = (v) => Math.floor(v * 65536 + 0.5)
+  const yPlane = new Uint8Array(h * w)
+  const cbPlane = new Uint8Array(h * w)
+  const crPlane = new Uint8Array(h * w)
+  const half = 32768
+  const cbcrOffset = 128 * 65536
+  for (let i = 0; i < h * w; i++) {
+    const r = rgb[i * 3]
+    const g = rgb[i * 3 + 1]
+    const b = rgb[i * 3 + 2]
+    yPlane[i] = Math.floor(
+      (fix(0.299) * r + fix(0.587) * g + fix(0.114) * b + half) / 65536,
+    )
+    cbPlane[i] = Math.floor(
+      (-fix(0.16874) * r - fix(0.33126) * g + fix(0.5) * b + cbcrOffset +
+        half - 1) / 65536,
+    )
+    crPlane[i] = Math.floor(
+      (fix(0.5) * r - fix(0.41869) * g - fix(0.08131) * b + cbcrOffset +
+        half - 1) / 65536,
+    )
+  }
+
+  // Luma: full resolution.
+  const ypw = Math.ceil(w / 8) * 8
+  const yph = Math.ceil(h / 8) * 8
+  const yDecoded = jpegCodePlane(
+    jpegPadPlane(yPlane, w, h, ypw, yph),
+    ypw,
+    yph,
+    jpegQuantTable(JPEG_LUMA_QUANT, quality),
+  )
+
+  // Chroma: 2x2 downsampling with alternating rounding bias.
+  const cpw = Math.ceil(w / 16) * 8
+  const cph = Math.ceil(h / 16) * 8
+  const cw = Math.ceil(w / 2)
+  const ch = Math.ceil(h / 2)
+  const chromaQuant = jpegQuantTable(JPEG_CHROMA_QUANT, quality)
+  const codeChroma = (plane) => {
+    const expanded = jpegPadPlane(plane, w, h, cpw * 2, ch * 2)
+    const down = new Uint8Array(cpw * ch)
+    for (let y = 0; y < ch; y++) {
+      let bias = 1
+      const r0 = 2 * y * cpw * 2
+      const r1 = r0 + cpw * 2
+      for (let x = 0; x < cpw; x++) {
+        down[y * cpw + x] =
+          (expanded[r0 + 2 * x] +
+            expanded[r0 + 2 * x + 1] +
+            expanded[r1 + 2 * x] +
+            expanded[r1 + 2 * x + 1] +
+            bias) >>
+          2
+        bias ^= 3
+      }
+    }
+    const decoded = jpegCodePlane(
+      jpegPadPlane(down, cpw, ch, cpw, cph),
+      cpw,
+      cph,
+      chromaQuant,
+    )
+    // Upsample the real chroma samples, replicating edge rows for context.
+    const up = new Uint8Array(cw * 2 * ch * 2)
+    const upW = cw * 2
+    for (let y = 0; y < ch; y++) {
+      for (let v = 0; v < 2; v++) {
+        const near = decoded.subarray(y * cpw)
+        const farY = v === 0 ? Math.max(y - 1, 0) : Math.min(y + 1, ch - 1)
+        const far = decoded.subarray(farY * cpw)
+        const row = (2 * y + v) * upW
+        if (cw > 2) {
+          let thisSum = near[0] * 3 + far[0]
+          let nextSum = near[1] * 3 + far[1]
+          up[row] = (thisSum * 4 + 8) >> 4
+          up[row + 1] = (thisSum * 3 + nextSum + 7) >> 4
+          let lastSum = thisSum
+          thisSum = nextSum
+          for (let x = 1; x < cw - 1; x++) {
+            nextSum = near[x + 1] * 3 + far[x + 1]
+            up[row + 2 * x] = (thisSum * 3 + lastSum + 8) >> 4
+            up[row + 2 * x + 1] = (thisSum * 3 + nextSum + 7) >> 4
+            lastSum = thisSum
+            thisSum = nextSum
+          }
+          up[row + 2 * cw - 2] = (thisSum * 3 + lastSum + 8) >> 4
+          up[row + 2 * cw - 1] = (thisSum * 4 + 7) >> 4
+        } else {
+          for (let x = 0; x < cw; x++) {
+            up[row + 2 * x] = near[x]
+            up[row + 2 * x + 1] = near[x]
+          }
+        }
+      }
+    }
+    return up
+  }
+  const cbUp = codeChroma(cbPlane)
+  const crUp = codeChroma(crPlane)
+
+  const clamp = (v) => (v < 0 ? 0 : v > 255 ? 255 : v)
+  const upW = cw * 2
+  const out = new Uint8Array(h * w * 3)
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const lum = yDecoded[y * ypw + x]
+      const cb = cbUp[y * upW + x] - 128
+      const cr = crUp[y * upW + x] - 128
+      const crR = Math.floor((fix(1.402) * cr + half) / 65536)
+      const cbB = Math.floor((fix(1.772) * cb + half) / 65536)
+      const g = Math.floor((-fix(0.34414) * cb + half - fix(0.71414) * cr) / 65536)
+      const o = (y * w + x) * 3
+      out[o] = clamp(lum + crR)
+      out[o + 1] = clamp(lum + g)
+      out[o + 2] = clamp(lum + cbB)
+    }
+  }
+  return out
+}
+
 export async function jpegDecimate(
   tensor,
   shape,
@@ -1799,45 +2193,47 @@ export async function jpegDecimate(
   iterations = 25,
 ) {
   const [h, w, c] = shape
-  if (iterations <= 0 || Math.min(h, w) < 2) {
+  if (iterations <= 0) {
     return tensor
   }
-  let current = tensor
+  const scale = Math.fround(1 / 255)
+  let data = await tensor.read()
   for (let i = 0; i < iterations; i++) {
-    // Use current tensor's shape in case it changed
-    const currentShape = current.shape || shape
-    const dataMaybe = current.read()
-    const data =
-      dataMaybe && typeof dataMaybe.then === "function"
-        ? await dataMaybe
-        : dataMaybe
-    const length = data.length
     const quality = randomInt(5, 50)
-    const step = Math.max(1, Math.round((60 - quality) / 5))
-    const quantized = new Float32Array(length)
-    for (let idx = 0; idx < length; idx++) {
-      let value = data[idx]
-      if (!Number.isFinite(value)) value = 0
-      if (value < 0) value = 0
-      else if (value > 1) value = 1
-      let byte = Math.round(value * 255)
-      byte = Math.round(byte / step) * step
-      if (byte < 0) byte = 0
-      else if (byte > 255) byte = 255
-      quantized[idx] = byte / 255
+    // The pixel density settings change no pixels, but use the RNG.
+    randomInt(50, 500)
+    randomInt(50, 500)
+    // tf.image.convert_image_dtype(float32 -> uint8): scale by 255.5, then
+    // truncate.
+    const bytes = new Uint8Array(data.length)
+    for (let j = 0; j < data.length; j++) {
+      const v = Math.fround(data[j] * 255.5)
+      bytes[j] = v > 0 ? Math.min(Math.trunc(v), 255) : 0
     }
-    let degraded = Tensor.fromArray(tensor.ctx, quantized, currentShape)
-    const maxFactor = Math.max(2, Math.min(h, w))
-    const factor = Math.min(randomInt(2, 8), maxFactor)
-    if (factor > 1) {
-      const down = await downsample(degraded, factor)
-      const upsampled = await upsample(down, factor, InterpolationType.linear)
-      // Resample to exact original shape in case of rounding differences
-      degraded = await resample(upsampled, currentShape, InterpolationType.linear)
+    // Color channels go through the JPEG round trip. An alpha channel, which
+    // JPEG cannot store, stays as it is.
+    const colorChannels = c >= 3 ? 3 : 1
+    const color = new Uint8Array(h * w * colorChannels)
+    for (let p = 0; p < h * w; p++) {
+      for (let k = 0; k < colorChannels; k++) {
+        color[p * colorChannels + k] = bytes[p * c + k]
+      }
     }
-    current = degraded
+    const decoded =
+      colorChannels === 3
+        ? jpegRoundTripRgb(color, h, w, quality)
+        : jpegRoundTripGray(color, h, w, quality)
+    const next = new Float32Array(data.length)
+    for (let p = 0; p < h * w; p++) {
+      for (let k = 0; k < c; k++) {
+        const byte =
+          k < colorChannels ? decoded[p * colorChannels + k] : bytes[p * c + k]
+        next[p * c + k] = Math.fround(byte * scale)
+      }
+    }
+    data = next
   }
-  return current
+  return Tensor.fromArray(tensor.ctx, data, shape)
 }
 register("jpeg_decimate", jpegDecimate, { iterations: 25 })
 
@@ -1847,10 +2243,23 @@ async function getKernel(mask) {
   if (kernelCache.has(mask)) return kernelCache.get(mask)
   const [tensor] = maskValues(mask)
   const size = tensor.shape[0]
+  // Scale the kernel by its largest absolute value in float32, as the
+  // reference convolve does.
   const buildKernel = (data) => {
+    let maxVal = -Infinity
+    let minVal = Infinity
+    for (let i = 0; i < size * size; i++) {
+      if (data[i] > maxVal) maxVal = data[i]
+      if (data[i] < minVal) minVal = data[i]
+    }
+    const denom = Math.fround(Math.max(maxVal, -minVal))
     const kernel = []
     for (let y = 0; y < size; y++) {
-      kernel.push(Array.from(data.slice(y * size, y * size + size)))
+      const row = []
+      for (let x = 0; x < size; x++) {
+        row.push(denom ? Math.fround(data[y * size + x] / denom) : 0)
+      }
+      kernel.push(row)
     }
     return kernel
   }
@@ -1893,10 +2302,11 @@ export async function convFeedback(
   const ctx = convolved.ctx
   const data = await convolved.read()
   const combined = new Float32Array(data.length)
+  // Float32 arithmetic in the reference's order.
   for (let i = 0; i < data.length; i++) {
-    const up = Math.max((data[i] - 0.5) * 2, 0)
-    const down = Math.min(data[i] * 2, 1)
-    combined[i] = up + (1 - down)
+    const up = Math.max(Math.fround(Math.fround(data[i] - 0.5) * 2), 0)
+    const down = Math.min(Math.fround(data[i] * 2), 1)
+    combined[i] = Math.fround(up + Math.fround(1 - down))
   }
   const combinedTensor = Tensor.fromArray(ctx, combined, convolved.shape)
   const resampled = await resample(combinedTensor, shape)
@@ -1916,17 +2326,24 @@ export function blendLayers(control, shape, feather = 1, ...layers) {
   const layerData = layers.map((l) => l.read())
   layerData.push(layerData[layerData.length - 1])
   layerCount += 1
+  // Float32 operations, as in the Python reference.
+  const featherF = Math.fround(feather)
+  const edge = Math.fround(1 - feather)
   const out = new Float32Array(h * w * c)
   for (let i = 0; i < h * w; i++) {
     const f0 = floors[i] % layerCount
     const f1 = (floors[i] + 1) % layerCount
     const base = i * c
-    let t = scaled[i] - floors[i]
-    t = Math.min(Math.max(t - (1 - feather), 0) / feather, 1)
+    const fract = Math.fround(scaled[i] - Math.floor(scaled[i]))
+    const ramp = Math.max(Math.fround(fract - edge), 0)
+    const t = Math.min(Math.fround(ramp / featherF), 1)
+    const inv = Math.fround(1 - t)
     const l0 = layerData[f0]
     const l1 = layerData[f1]
     for (let k = 0; k < c; k++) {
-      out[base + k] = l0[base + k] * (1 - t) + l1[base + k] * t
+      out[base + k] = Math.fround(
+        Math.fround(l0[base + k] * inv) + Math.fround(l1[base + k] * t),
+      )
     }
   }
   return Tensor.fromArray(control.ctx, out, shape)
@@ -2312,20 +2729,21 @@ export async function palette(tensor, shape, time, speed, name = null, alpha = 1
       ? labRaw
       : Float32Array.from(labRaw ?? [])
   const out = new Float32Array(h * w * 3)
+  // Float32 operations in the reference's order.
+  const f32 = Math.fround
+  const tauF = f32(TAU)
+  const offset = [0, 1, 2].map((k) => f32(p.offset[k] ?? 0))
+  const amp = [0, 1, 2].map((k) => f32(p.amp[k] ?? 0))
+  const freq = [0, 1, 2].map((k) => f32(p.freq[k] ?? 0))
+  const phase = [0, 1, 2].map((k) => f32(f32(p.phase[k] ?? 0) + f32(time)))
   for (let i = 0; i < h * w; i++) {
     const t = lab[i * 3] ?? 0
-    const phase0 = (p.phase[0] ?? 0) + time
-    const phase1 = (p.phase[1] ?? 0) + time
-    const phase2 = (p.phase[2] ?? 0) + time
-    const arg0 = p.freq[0] * t * 0.875 + 0.0625 + phase0
-    const arg1 = p.freq[1] * t * 0.875 + 0.0625 + phase1
-    const arg2 = p.freq[2] * t * 0.875 + 0.0625 + phase2
-    const cos0 = Math.cos(TAU * arg0)
-    const cos1 = Math.cos(TAU * arg1)
-    const cos2 = Math.cos(TAU * arg2)
-    out[i * 3] = Math.fround(p.offset[0] + p.amp[0] * cos0)
-    out[i * 3 + 1] = Math.fround(p.offset[1] + p.amp[1] * cos1)
-    out[i * 3 + 2] = Math.fround(p.offset[2] + p.amp[2] * cos2)
+    for (let k = 0; k < 3; k++) {
+      const scaled = f32(f32(f32(freq[k] * t) * 0.875) + 0.0625)
+      const arg = f32(scaled + phase[k])
+      const cos = cos32(f32(tauF * arg))
+      out[i * 3 + k] = f32(offset[k] + f32(amp[k] * cos))
+    }
   }
   const colored = Tensor.fromArray(tensor.ctx, out, [h, w, 3])
 
@@ -2464,7 +2882,7 @@ export async function aberration(
   const maskTensor = await singularity(null, [h, w, 1], time, speed)
   const maskData = await maskTensor.read()
   for (let i = 0; i < maskData.length; i++) {
-    maskData[i] = Math.pow(maskData[i], 3)
+    maskData[i] = pow32(maskData[i], 3)
   }
 
   const tinted = await adjustHue(tensor, hueShift)
@@ -2482,16 +2900,20 @@ export async function aberration(
   }
 
   const src = await tintedTex.read()
-  const blendLinear = (a, b, t) => a * (1 - t) + b * t
+  // Float32 arithmetic in the order of the Python reference. The offsets are
+  // truncated to integers, so a rounding difference changes the pixel read.
+  const f32 = Math.fround
+  const blendLinear = (a, b, t) =>
+    f32(f32(a * f32(1 - t)) + f32(b * t))
+  const pi = f32(Math.PI)
   const blendCosine = (a, b, g) => {
-    const clamped = Math.max(0, Math.min(1, g))
-    const weight = (1 - Math.cos(clamped * Math.PI)) / 2
-    return a * (1 - weight) + b * weight
+    const weight = f32(f32(1 - cos32(f32(g * pi))) / 2)
+    return blendLinear(a, b, weight)
   }
   const clampIndex = (value) => {
     if (value <= 0) return 0
     if (value >= w - 1) return w - 1
-    return Math.floor(value)
+    return Math.trunc(value)
   }
 
   const out = new Float32Array(h * w * 3)
@@ -2541,25 +2963,25 @@ export async function vhs(tensor, shape, time, speed) {
   const scanArr = await scanNoise.read()
   const gradArr = await gradNoise.read()
   const src = await tensor.read()
+  // Float32 arithmetic in the order of the Python reference: the offsets are
+  // truncated to integers, so a rounding difference changes the pixel read.
+  const f32 = Math.fround
+  const gradAt = (i) => Math.min(f32(Math.max(f32(gradArr[i] - 0.5), 0) * 2), 1)
   const blended = new Float32Array(h * w * c)
   for (let i = 0; i < h * w; i++) {
-    let g = gradArr[i] - 0.5
-    if (g < 0) g = 0
-    g = Math.min(g * 2, 1)
+    const g = gradAt(i)
     const noise = scanArr[i]
     for (let k = 0; k < c; k++) {
-      blended[i * c + k] = src[i * c + k] * (1 - g) + noise * g
+      blended[i * c + k] = f32(f32(src[i * c + k] * f32(1 - g)) + f32(noise * g))
     }
   }
   const out = new Float32Array(h * w * c)
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = y * w + x
-      let g = gradArr[idx] - 0.5
-      if (g < 0) g = 0
-      g = Math.min(g * 2, 1)
-      const xOff = Math.floor(scanArr[idx] * w * g * g)
-      const srcX = (x - xOff + w) % w
+      const g = gradAt(idx)
+      const xOff = Math.trunc(f32(f32(scanArr[idx] * w) * f32(g * g)))
+      const srcX = (((x - xOff) % w) + w) % w
       for (let k = 0; k < c; k++) {
         out[idx * c + k] = blended[(y * w + srcX) * c + k]
       }
@@ -2575,7 +2997,7 @@ export async function lensWarp(tensor, shape, time, speed, displacement = 0.0625
   const ctx = tensor?.ctx ?? null
   const maskTensor = await singularity(null, valueShape, 0, 0)
   const mask = await maskTensor.read()
-  for (let i = 0; i < mask.length; i++) mask[i] = mask[i] ** 5
+  for (let i = 0; i < mask.length; i++) mask[i] = pow32(mask[i], 5)
   const noiseTensor = await values(2, valueShape, {
     ctx,
     time,
@@ -2585,11 +3007,14 @@ export async function lensWarp(tensor, shape, time, speed, displacement = 0.0625
   const noise = await noiseTensor.read()
   const cosData = new Float32Array(noise.length)
   const sinData = new Float32Array(noise.length)
+  // Float32 arithmetic and trigonometry, as in the Python reference.
+  const f32 = Math.fround
+  const tau = f32(Math.PI * 2)
   for (let i = 0; i < noise.length; i++) {
-    const base = (noise[i] * 2 - 1) * mask[i]
-    const angle = base * Math.PI * 2
-    let cx = Math.cos(angle) * 0.5 + 0.5
-    let sy = Math.sin(angle) * 0.5 + 0.5
+    const base = f32(f32(f32(noise[i] * 2) - 1) * mask[i])
+    const angle = f32(base * tau)
+    let cx = f32(f32(cos32(angle) * 0.5) + 0.5)
+    let sy = f32(f32(sin32(angle) * 0.5) + 0.5)
     if (cx < 0) cx = 0
     else if (cx > 1) cx = 1
     if (sy < 0) sy = 0
@@ -2608,27 +3033,47 @@ export async function lensDistortion(tensor, shape, time, speed, displacement = 
   const [h, w, c] = shape
   const src = await tensor.read()
   const out = new Float32Array(h * w * c)
-  const maxDist = Math.sqrt(0.5 * 0.5 + 0.5 * 0.5) || 1
-  const zoom = displacement < 0 ? displacement * -0.25 : 0
+  // Float32 arithmetic in the order of the Python reference: the offsets are
+  // truncated to integers, so a rounding difference changes the pixel read.
+  const f32 = Math.fround
+  const zoom = f32(displacement < 0 ? displacement * -0.25 : 0)
+  const disp = f32(displacement)
+  const dist = new Float32Array(h * w)
+  let minDist = Infinity
+  let maxDist = -Infinity
+  for (let y = 0; y < h; y++) {
+    const yDist = f32(f32(y / h) - 0.5)
+    for (let x = 0; x < w; x++) {
+      const xDist = f32(f32(x / w) - 0.5)
+      const d = f32(Math.sqrt(f32(f32(xDist * xDist) + f32(yDist * yDist))))
+      dist[y * w + x] = d
+      if (d < minDist) minDist = d
+      if (d > maxDist) maxDist = d
+    }
+  }
+  const range = f32(maxDist - minDist)
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      const xIndex = x / w
-      const yIndex = y / h
-      const xDist = xIndex - 0.5
-      const yDist = yIndex - 0.5
-      let centerDist = 1 - distance(xDist, yDist) / maxDist
-      if (centerDist < 0) centerDist = 0
-      else if (centerDist > 1) centerDist = 1
-      const xOff =
-        (xIndex -
-          xDist * zoom -
-          xDist * centerDist * centerDist * displacement) *
-        w
-      const yOff =
-        (yIndex -
-          yDist * zoom -
-          yDist * centerDist * centerDist * displacement) *
-        h
+      const xIndex = f32(x / w)
+      const yIndex = f32(y / h)
+      const xDist = f32(xIndex - 0.5)
+      const yDist = f32(yIndex - 0.5)
+      const d = dist[y * w + x]
+      const normalized =
+        range === 0 ? d : f32(f32(d - minDist) / range)
+      const centerDist = f32(1 - normalized)
+      const xOff = f32(
+        f32(
+          f32(xIndex - f32(xDist * zoom)) -
+            f32(f32(f32(xDist * centerDist) * centerDist) * disp),
+        ) * w,
+      )
+      const yOff = f32(
+        f32(
+          f32(yIndex - f32(yDist * zoom)) -
+            f32(f32(f32(yDist * centerDist) * centerDist) * disp),
+        ) * h,
+      )
       const xi = ((Math.trunc(xOff) % w) + w) % w
       const yi = ((Math.trunc(yOff) % h) + h) % h
       const srcIdx = (yi * w + xi) * c
@@ -2687,16 +3132,14 @@ export async function scanlineError(tensor, shape, time, speed) {
     distrib: ValueDistribution.exp,
   })
 
-  // Generate horizontal bar noise matching VHS approach:
-  // Use low frequency [swerveHeight, 1] at full resolution [h, w, 1]
-  // Use simplex (not exp) to get smooth animation like the shader
-  // Ensure minimum frequency of 3 to avoid ping-pong issues with periodic_value
-  const swerveHeight = Math.max(Math.floor(h * 0.01) || 1, 3)
+  // Horizontal swerve bands: the reference uses a frequency of 1% of the
+  // height. Below a height of 100 that frequency is 0, so use 1.
+  const swerveHeight = Math.max(Math.floor(h * 0.01), 1)
   let errorSwerve = await values([swerveHeight, 1], valueShape, {
     ctx,
     time,
     speed,
-    // Don't use ValueDistribution.exp here - use default simplex for smooth animation
+    distrib: ValueDistribution.exp,
   })
 
   let whiteNoise = await values(errorFreq, valueShape, {
@@ -2711,15 +3154,14 @@ export async function scanlineError(tensor, shape, time, speed) {
     whiteNoise.read(),
   ])
 
+  // Float32 arithmetic in the order of the Python reference: the offsets are
+  // truncated to integers, so a rounding difference changes the pixel read.
+  const f32 = Math.fround
   for (let i = 0; i < lineData.length; i++) {
-    let el = lineData[i] - 0.5
-    if (el < 0) el = 0
-    let es = swerveData[i] - 0.5
-    if (es < 0) es = 0
-    el *= es
-    es *= 2
-    lineData[i] = el
-    whiteData[i] = whiteData[i] * es
+    const el = Math.max(f32(lineData[i] - 0.5), 0)
+    const es = Math.max(f32(swerveData[i] - 0.5), 0)
+    lineData[i] = f32(el * es)
+    whiteData[i] = f32(whiteData[i] * f32(es * 2))
   }
 
   errorLine = Tensor.fromArray(ctx, lineData, valueShape)
@@ -2727,7 +3169,7 @@ export async function scanlineError(tensor, shape, time, speed) {
 
   const errorSum = new Float32Array(lineData.length)
   for (let i = 0; i < lineData.length; i++) {
-    errorSum[i] = lineData[i] + whiteData[i]
+    errorSum[i] = f32(lineData[i] + whiteData[i])
   }
   let errorTensor = Tensor.fromArray(ctx, errorSum, valueShape)
   errorTensor = await normalize(errorTensor)
@@ -2735,18 +3177,19 @@ export async function scanlineError(tensor, shape, time, speed) {
 
   const src = await tensor.read()
   const out = new Float32Array(h * w * c)
+  const shiftScale = f32(0.025)
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = y * w + x
-      const shift = Math.floor(errorData[idx] * w * 0.025)
+      const shift = Math.trunc(f32(f32(errorData[idx] * w) * shiftScale))
       let srcX = x - shift
       srcX = ((srcX % w) + w) % w
       const srcIdx = (y * w + srcX) * c
+      const extra = f32(f32(lineData[idx] * whiteData[idx]) * 4)
       for (let k = 0; k < c; k++) {
         const base = idx * c + k
         const val = src[srcIdx + k]
-        const extra = lineData[idx] * whiteData[idx] * 4
-        out[base] = Math.min(val + extra, 1)
+        out[base] = Math.min(f32(val + extra), 1)
       }
     }
   }
@@ -2774,12 +3217,16 @@ export async function crt(tensor, shape, time, speed) {
 
   const scan = await scanNoise.read()
   const src = await tensor.read()
+  const f32 = Math.fround
+  const keep = f32(1 - 0.05)
+  const mix = f32(0.05)
   const blended = new Float32Array(h * w * c)
   for (let i = 0; i < h * w; i++) {
     const s = scan[i]
     for (let k = 0; k < c; k++) {
       const t = src[i * c + k]
-      blended[i * c + k] = t * 0.95 + (t + s) * s * 0.05
+      const scanned = f32(f32(t + s) * s)
+      blended[i * c + k] = f32(f32(t * keep) + f32(scanned * mix))
     }
   }
   let outTensor = await clamp01(Tensor.fromArray(tensor.ctx, blended, shape))
@@ -2799,11 +3246,11 @@ export async function crt(tensor, shape, time, speed) {
   outTensor = await vignette(outTensor, shape, time, speed, 0, random() * 0.175)
 
   const data = await outTensor.read()
-  let mean = 0
-  for (let i = 0; i < data.length; i++) mean += data[i]
-  mean /= data.length
+  let sum = 0
+  for (let i = 0; i < data.length; i++) sum += data[i]
+  const mean = f32(sum / data.length)
   for (let i = 0; i < data.length; i++) {
-    data[i] = (data[i] - mean) * 1.25 + mean
+    data[i] = f32(f32(f32(data[i] - mean) * 1.25) + mean)
   }
 
   return Tensor.fromArray(outTensor.ctx, data, shape)
@@ -2833,13 +3280,20 @@ export async function reindex(tensor, shape, time, speed, displacement = 0.5) {
   valueTensor = await normalize(valueTensor)
   const ref = await valueTensor.read()
   const mod = Math.min(h, w)
+  const disp = Math.fround(displacement)
   const out = new Float32Array(h * w * c)
+  // Float32 arithmetic and floor modulo, truncated toward zero as the
+  // reference casts the offsets to int32.
+  const floorMod = (v, m) => {
+    const r = v % m
+    return r !== 0 && r < 0 ? Math.fround(r + m) : r
+  }
   for (let i = 0; i < h * w; i++) {
-    const offset = ref[i] * displacement * mod + ref[i]
-    let xi = Math.floor(offset % w)
-    let yi = Math.floor(offset % h)
-    if (xi < 0) xi += w
-    if (yi < 0) yi += h
+    const offset = Math.fround(
+      Math.fround(Math.fround(ref[i] * disp) * mod) + ref[i],
+    )
+    const xi = Math.trunc(floorMod(offset, w))
+    const yi = Math.trunc(floorMod(offset, h))
     const srcIdx = (yi * w + xi) * c
     const dstIdx = i * c
     for (let k = 0; k < c; k++) {
@@ -2969,12 +3423,14 @@ export async function colorMap(
 
   const out = new Float32Array(h * w * cc)
   const mod = (n, m) => ((n % m) + m) % m
+  // Float32 products truncated toward zero, as the reference casts them to int32.
+  const disp = Math.fround(displacement)
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = y * w + x
-      const ref = refData[idx] * displacement
-      const xOffset = Math.floor(ref * (w - 1))
-      const yOffset = Math.floor(ref * (h - 1))
+      const ref = Math.fround(refData[idx] * disp)
+      const xOffset = Math.trunc(Math.fround(ref * (w - 1)))
+      const yOffset = Math.trunc(Math.fround(ref * (h - 1)))
       const xi = mod(x + xOffset, w)
       const yi = horizontal ? y : mod(y + yOffset, h)
       const srcIdx = (yi * w + xi) * cc
@@ -3124,31 +3580,10 @@ export async function refractEffect(
   let rx = referenceX
   let ry = referenceY
   if (fromDerivative) {
-    const kx = [
-      [-1, 0, 1],
-      [-2, 0, 2],
-      [-1, 0, 1],
-    ]
-    const ky = [
-      [-1, -2, -1],
-      [0, 0, 0],
-      [1, 2, 1],
-    ]
-    let gray = tensor
-    if (c > 1) {
-      const src = await tensor.read()
-      const out = new Float32Array(h * w)
-      for (let i = 0; i < h * w; i++) {
-        const base = i * c
-        const r = src[base]
-        const g = src[base + 1] || 0
-        const b = src[base + 2] || 0
-        out[i] = r * 0.299 + g * 0.587 + b * 0.114
-      }
-      gray = Tensor.fromArray(tensor.ctx, out, valueShape)
-    }
-    rx = await convolution(gray, kx, { normalize: false })
-    ry = await convolution(gray, ky, { normalize: false })
+    // As in the reference: the derivative kernels convolve every channel
+    // without normalizing, and the value map below reduces the result.
+    rx = await convolve(tensor, shape, time, speed, ValueMask.conv2d_deriv_x, false)
+    ry = await convolve(tensor, shape, time, speed, ValueMask.conv2d_deriv_y, false)
   } else if (warpFreq !== null && warpFreq !== undefined) {
     rx = await values(warpFreq, valueShape, {
       ctx: tensor.ctx,
@@ -3237,25 +3672,36 @@ export function fxaaEffect(tensor, shape, time, speed) {
 register("fxaa_effect", fxaaEffect, {})
 register("fxaa", fxaaEffect, {})
 
+// Float32 arithmetic, as the Python reference computes these values with
+// float32 tensors.
 function periodicValue(t, v) {
-  return (Math.sin((t - v) * TAU) + 1) * 0.5
+  const delta = Math.fround(Math.fround(t) - Math.fround(v))
+  const angle = Math.fround(delta * Math.fround(TAU))
+  return Math.fround((sin32(angle) + 1) * 0.5)
 }
 
 function makeRots(beh, n, time = 0, speed = 1) {
   const rot = new Float32Array(n)
-  const base = random() * TAU
-  if (beh === 1) {
-    rot.fill(base)
-  } else if (beh === 2) {
+  // Only the obedient, crosshatch and unruly behaviors draw a base rotation.
+  const baseRotation = () =>
+    Math.fround(Math.fround(random()) * Math.fround(TAU))
+  if (beh === 2) {
+    const base = baseRotation()
+    const quarterTurn = Math.fround(Math.PI / 2)
     for (let i = 0; i < n; i++) {
-      rot[i] = base + (Math.floor(random() * 100) % 4) * (Math.PI / 2)
+      const u = Math.fround(random())
+      const turns = Math.floor(Math.fround(u * 100)) % 4
+      rot[i] = Math.fround(base + Math.fround(turns * quarterTurn))
     }
   } else if (beh === 3) {
+    const base = baseRotation()
     for (let i = 0; i < n; i++) {
-      rot[i] = base + random() * 0.25 - 0.125
+      const u = Math.fround(random())
+      rot[i] = Math.fround(Math.fround(base + Math.fround(u * 0.25)) - 0.125)
     }
   } else if (beh === 4) {
-    for (let i = 0; i < n; i++) rot[i] = random() * TAU
+    const tau = Math.fround(TAU)
+    for (let i = 0; i < n; i++) rot[i] = Math.fround(Math.fround(random()) * tau)
   } else if (beh === 5) {
     const q = Math.floor(n * 0.25)
     rot.set(makeRots(1, q, time, speed), 0)
@@ -3265,7 +3711,7 @@ function makeRots(beh, n, time = 0, speed = 1) {
   } else if (beh === 10) {
     for (let i = 0; i < n; i++) rot[i] = periodicValue(time * speed, random())
   } else {
-    rot.fill(base)
+    rot.fill(baseRotation())
   }
   return rot
 }
@@ -3315,6 +3761,12 @@ function offsetIndexInternal(yArr, height, xArr, width, yOffset, xOffset) {
     ox[i] = ((xArr[i] + xOff) % width + width) % width
   }
   return { y: oy, x: ox }
+}
+
+// Round half to even, as tf.math.round does.
+function roundHalfEven(value) {
+  const r = Math.round(value)
+  return r - value === 0.5 && r % 2 !== 0 ? r - 1 : r
 }
 
 function wrapFloat(value, size) {
@@ -3442,11 +3894,16 @@ export async function erosionWorms(
       ? await blurFlatMaybe
       : blurFlatMaybe
   const [kh, kw] = maskShape(ValueMask.conv2d_blur)
+  // The reference scales the kernel by its largest absolute value.
+  let kernelScale = 0
+  for (let i = 0; i < kh * kw; i++) {
+    kernelScale = Math.max(kernelScale, Math.abs(blurFlat[i]))
+  }
   const blurKernel = []
   for (let j = 0; j < kh; j++) {
     const row = []
     for (let i = 0; i < kw; i++) {
-      row.push(blurFlat[j * kw + i])
+      row.push(Math.fround(blurFlat[j * kw + i] / kernelScale))
     }
     blurKernel.push(row)
   }
@@ -3468,14 +3925,19 @@ export async function erosionWorms(
       ? valuesRaw
       : new Float32Array(valuesRaw ?? [])
 
+  // Float32 arithmetic in the reference's operation order, so that worm
+  // positions truncate to the same pixels.
+  const f32 = Math.fround
   const widthScale = w - 1
   const heightScale = h - 1
   for (let i = 0; i < count; i++) {
-    x[i] = Math.fround(x[i] * widthScale)
-    y[i] = Math.fround(y[i] * heightScale)
-    const len = Math.hypot(xDir[i], yDir[i])
-    xDir[i] = Math.fround(xDir[i] / len)
-    yDir[i] = Math.fround(yDir[i] / len)
+    x[i] = f32(x[i] * widthScale)
+    y[i] = f32(y[i] * heightScale)
+    const len = f32(
+      Math.sqrt(f32(f32(xDir[i] * xDir[i]) + f32(yDir[i] * yDir[i]))),
+    )
+    xDir[i] = f32(xDir[i] / len)
+    yDir[i] = f32(yDir[i] / len)
   }
 
   const startColors = new Float32Array(count * c)
@@ -3490,25 +3952,27 @@ export async function erosionWorms(
 
   const wrap = (value, max) => {
     const mod = value % max
-    return mod < 0 ? mod + max : mod
+    return mod < 0 ? f32(mod + max) : mod
   }
   const blendScalar = (a, b, t) =>
-    Math.fround(a * (1 - t) + b * t)
+    f32(f32(a * f32(1 - t)) + f32(b * t))
+  const contractionF = f32(contraction)
 
   const out = new Float32Array(h * w * c)
+  // Each iteration scatters into a zeroed buffer and then adds it to the
+  // output, as the reference's scatter_nd does.
+  const scattered = new Float32Array(h * w * c)
   for (let iter = 0; iter < iterations; iter++) {
-    const exposure = Math.fround(
-      1 - Math.abs(1 - (iter / (iterations - 1)) * 2),
-    )
+    const exposure = f32(1 - Math.abs(1 - (iter / (iterations - 1)) * 2))
+    scattered.fill(0)
     for (let j = 0; j < count; j++) {
-      const baseXi = wrap(Math.floor(x[j]), w)
-      const baseYi = wrap(Math.floor(y[j]), h)
+      const baseXi = Math.trunc(x[j]) % w
+      const baseYi = Math.trunc(y[j]) % h
       const idx = baseYi * w + baseXi
       const base = idx * c
       for (let k = 0; k < c; k++) {
-        const accum = out[base + k] || 0
-        out[base + k] = Math.fround(
-          accum + startColors[j * c + k] * exposure,
+        scattered[base + k] = f32(
+          scattered[base + k] + f32(startColors[j * c + k] * exposure),
         )
       }
 
@@ -3519,32 +3983,25 @@ export async function erosionWorms(
       const x1 = (baseXi + 1) % w
       const y1 = (baseYi + 1) % h
       const sv = valuesData[idx]
-      const x1v = valuesData[baseYi * w + x1]
+      // The reference reads its "x1" neighbor at (y1, x1).
+      const x1v = valuesData[y1 * w + x1]
       const y1v = valuesData[y1 * w + baseXi]
       const x1y1v = valuesData[y1 * w + x1]
-      const floorX = Math.floor(x[j])
-      const floorY = Math.floor(y[j])
-      const u = Math.fround(x[j] - floorX)
-      const v = Math.fround(y[j] - floorY)
-      const gX = Math.fround(
-        blendScalar(y1v - sv, x1y1v - x1v, u),
-      )
-      const gY = Math.fround(
-        blendScalar(x1v - sv, x1y1v - y1v, v),
-      )
+      const u = f32(x[j] - Math.floor(x[j]))
+      const v = f32(y[j] - Math.floor(y[j]))
+      const gX = blendScalar(f32(y1v - sv), f32(x1y1v - x1v), u)
+      const gY = blendScalar(f32(x1v - sv), f32(x1y1v - y1v), v)
       const gx = quantize ? Math.floor(gX) : gX
       const gy = quantize ? Math.floor(gY) : gY
-      const lenRaw = Math.fround(
-        distance(gx, gy, DistanceMetric.euclidean) * contraction,
-      )
-      const len = lenRaw
+      const len = f32(distance(gx, gy, DistanceMetric.euclidean) * contractionF)
       const inertiaVal = inertia[j]
-      const targetX = Math.fround(gx / len)
-      const targetY = Math.fround(gy / len)
-      xDir[j] = blendScalar(xDir[j], targetX, inertiaVal)
-      yDir[j] = blendScalar(yDir[j], targetY, inertiaVal)
-      x[j] = wrap(Math.fround(x[j] + xDir[j]), w)
-      y[j] = wrap(Math.fround(y[j] + yDir[j]), h)
+      xDir[j] = blendScalar(xDir[j], f32(gx / len), inertiaVal)
+      yDir[j] = blendScalar(yDir[j], f32(gy / len), inertiaVal)
+      x[j] = wrap(f32(x[j] + xDir[j]), w)
+      y[j] = wrap(f32(y[j] + yDir[j]), h)
+    }
+    for (let i = 0; i < out.length; i++) {
+      out[i] = f32(out[i] + scattered[i])
     }
   }
 
@@ -3628,7 +4085,7 @@ export async function worms(
   }
   const wormsRot = makeRots(behavior, count, time, speed)
 
-  const valueTensor = await toValueMap(tensor)
+  const valueTensor = await normalize(await toValueMap(tensor))
   const valueDataMaybe = valueTensor.read()
   const valueData =
     valueDataMaybe && typeof valueDataMaybe.then === "function"
@@ -3636,8 +4093,10 @@ export async function worms(
       : valueDataMaybe
   const valueChannels = valueTensor.shape[2] || 1
   const indexArr = new Float32Array(h * w)
+  const tauF = Math.fround(TAU)
+  const kinkF = Math.fround(kink)
   for (let i = 0; i < h * w; i++) {
-    indexArr[i] = Math.fround(valueData[i * valueChannels] * TAU * kink)
+    indexArr[i] = Math.fround(Math.fround(valueData[i * valueChannels] * tauF) * kinkF)
   }
   const iterations = Math.floor(Math.sqrt(Math.min(w, h)) * duration)
   const out = new Float32Array(h * w * c)
@@ -3646,9 +4105,13 @@ export async function worms(
       const start = Math.floor(
         Math.min(h, w) * time * speed + iter * speed * 10,
       )
+      const drunk = Math.fround(drunkenness)
+      const pi = Math.fround(Math.PI)
       for (let i = 0; i < count; i++) {
-        wormsRot[i] +=
-          (periodicValue(start, random()) * 2 - 1) * drunkenness * Math.PI
+        const swing = Math.fround(periodicValue(start, random()) * 2 - 1)
+        wormsRot[i] = Math.fround(
+          wormsRot[i] + Math.fround(Math.fround(swing * drunk) * pi),
+        )
       }
     }
     const exposure =
@@ -3661,14 +4124,14 @@ export async function worms(
       for (let k = 0; k < c; k++) {
         out[base + k] += wormColors[i * c + k] * exposure
       }
-      let next = indexArr[idx] + wormsRot[i]
-      if (quantize) next = Math.round(next)
+      let next = Math.fround(indexArr[idx] + wormsRot[i])
+      if (quantize) next = roundHalfEven(next)
       wormsY[i] = wrapFloat(
-        wormsY[i] + Math.cos(next) * wormsStride[i],
+        Math.fround(wormsY[i] + Math.fround(cos32(next) * wormsStride[i])),
         h,
       )
       wormsX[i] = wrapFloat(
-        wormsX[i] + Math.sin(next) * wormsStride[i],
+        Math.fround(wormsX[i] + Math.fround(sin32(next) * wormsStride[i])),
         w,
       )
     }
@@ -3732,16 +4195,21 @@ export async function wormhole(
     srcMaybe && typeof srcMaybe.then === "function"
       ? await srcMaybe
       : srcMaybe
+  // Float32 arithmetic in the reference's operation order, so that the
+  // truncated offsets land on the same pixels.
+  const tauF = Math.fround(TAU)
+  const kinkF = Math.fround(kink)
+  const strideF = Math.fround(stride)
   const xArr = new Int32Array(h * w)
   const yArr = new Int32Array(h * w)
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = y * w + x
-      const deg = valuesArr[idx] * TAU * kink
-      const xo = (Math.cos(deg) + 1) * stride
-      const yo = (Math.sin(deg) + 1) * stride
-      xArr[idx] = Math.floor(x + xo) % w
-      yArr[idx] = Math.floor(y + yo) % h
+      const deg = Math.fround(Math.fround(valuesArr[idx] * tauF) * kinkF)
+      const xo = Math.fround(Math.fround(cos32(deg) + 1) * strideF)
+      const yo = Math.fround(Math.fround(sin32(deg) + 1) * strideF)
+      xArr[idx] = Math.trunc(Math.fround(x + xo)) % w
+      yArr[idx] = Math.trunc(Math.fround(y + yo)) % h
     }
   }
   const offs = offsetIndexInternal(yArr, h, xArr, w)
@@ -3749,10 +4217,10 @@ export async function wormhole(
   for (let i = 0; i < h * w; i++) {
     const dest = (offs.y[i] * w + offs.x[i]) * c
     const lum = valuesArr[i]
-    const l2 = lum * lum
+    const l2 = Math.fround(lum * lum)
     const base = i * c
     for (let k = 0; k < c; k++) {
-      out[dest + k] += src[base + k] * l2
+      out[dest + k] += Math.fround(src[base + k] * l2)
     }
   }
   let min = Infinity
@@ -3762,9 +4230,9 @@ export async function wormhole(
     if (out[i] > max) max = out[i]
   }
   if (max > min) {
-    const range = max - min
+    const range = Math.fround(max - min)
     for (let i = 0; i < out.length; i++) {
-      out[i] = (out[i] - min) / range
+      out[i] = Math.fround(out[i] - min) / range
     }
   }
   for (let i = 0; i < out.length; i++) {
@@ -3808,16 +4276,10 @@ export async function vaseline(tensor, shape, time, speed, alpha = 1.0) {
 register("vaseline", vaseline, { alpha: 1.0 })
 
 export async function lightLeak(tensor, shape, time, speed, alpha = 0.25) {
-  const gridMembers = [
-    PointDistribution.square,
-    PointDistribution.waffle,
-    PointDistribution.chess,
-    PointDistribution.h_hex,
-    PointDistribution.v_hex,
-  ]
   // randomInt() returns values inclusive of both endpoints. Clamp to
   // length - 1 so the selected index matches Python's rng.random_int
-  // behavior and never exceeds the array bounds.
+  // behavior and never exceeds the array bounds. gridMembers keeps the
+  // reference's enum order.
   const distrib = gridMembers[randomInt(0, gridMembers.length - 1)]
   const [xPts, yPts] = pointCloud(6, {
     distrib,
@@ -3958,30 +4420,79 @@ export async function snow(tensor, shape, time, speed, alpha = 0.25) {
 }
 register("snow", snow, { alpha: 0.25 })
 
+// Emulates the float32 kernel behind tf.image.adjust_saturation, which clamps
+// the scaled saturation to [0, 1].
 export function saturation(tensor, shape, time, speed, amount = 0.75) {
   if (shape[2] < 3) return tensor
-  const cpuSat = (t) => {
-    const hsvMaybe = rgbToHsv(t)
-    const process = (hsv) => {
-      const dataMaybe = hsv.read()
-      const adjust = (data) => {
-        for (let i = 0; i < shape[0] * shape[1]; i++) {
-          data[i * 3 + 1] = data[i * 3 + 1] * amount
-        }
-        return hsvToRgb(Tensor.fromArray(t.ctx, data, hsv.shape))
+  const [h, w, c] = tensor.shape
+  const f32 = Math.fround
+  const scale = f32(amount)
+  return withTensorData(tensor, (src) => {
+    const out = new Float32Array(h * w * 3)
+    for (let i = 0; i < h * w; i++) {
+      const r = src[i * c]
+      const g = src[i * c + 1]
+      const b = src[i * c + 2]
+      const v = Math.max(r, Math.max(g, b))
+      const range = f32(v - Math.min(r, Math.min(g, b)))
+      let s = v > 0 ? f32(range / v) : 0
+      const norm = f32(1 / f32(6 * range))
+      let hue
+      if (r === v) {
+        hue = f32(norm * f32(g - b))
+      } else if (g === v) {
+        hue = f32(f32(norm * f32(b - r)) + 2.0 / 6.0)
+      } else {
+        hue = f32(f32(norm * f32(r - g)) + 4.0 / 6.0)
       }
-      if (dataMaybe && typeof dataMaybe.then === "function") {
-        return dataMaybe.then(adjust)
+      if (range <= 0) hue = 0
+      if (hue < 0) hue = f32(hue + 1)
+      s = Math.min(1, Math.max(0, f32(s * scale)))
+      const chroma = f32(s * v)
+      const m = f32(v - chroma)
+      const dh = f32(hue * 6)
+      const category = Math.trunc(dh)
+      let fmodu = dh
+      while (fmodu <= 0) fmodu = f32(fmodu + 2)
+      while (fmodu >= 2) fmodu = f32(fmodu - 2)
+      const x = f32(chroma * f32(1 - Math.abs(f32(fmodu - 1))))
+      let rr = 0
+      let gg = 0
+      let bb = 0
+      switch (category) {
+        case 0:
+          rr = chroma
+          gg = x
+          break
+        case 1:
+          rr = x
+          gg = chroma
+          break
+        case 2:
+          gg = chroma
+          bb = x
+          break
+        case 3:
+          gg = x
+          bb = chroma
+          break
+        case 4:
+          rr = x
+          bb = chroma
+          break
+        case 5:
+          rr = chroma
+          bb = x
+          break
+        default:
+          break
       }
-      return adjust(dataMaybe)
+      out[i * 3] = f32(rr + m)
+      out[i * 3 + 1] = f32(gg + m)
+      out[i * 3 + 2] = f32(bb + m)
     }
-    if (hsvMaybe && typeof hsvMaybe.then === "function") {
-      return hsvMaybe.then(process)
-    }
-    return process(hsvMaybe)
-  }
-
-  return cpuSat(tensor)
+    return Tensor.fromArray(tensor.ctx, out, [h, w, 3])
+  })
 }
 register("saturation", saturation, { amount: 0.75 })
 register("adjust_saturation", saturation, { amount: 0.75 })
@@ -3994,6 +4505,33 @@ export function randomHue(tensor, shape, time, speed, range = 0.05) {
   return adjustHue(tensor, shift)
 }
 register("random_hue", randomHue, { range: 0.05 })
+
+// The hue shift that tf.image.random_hue(image, maxDelta, seed=seed) applies
+// when no global seed is set. TensorFlow draws it from a Philox4x32-10
+// generator keyed by its default graph seed (87654321), with the operation
+// seed (truncated to 31 bits) as the high counter word.
+function seededHueDelta(seed, maxDelta) {
+  const M = 0xffffffffn
+  const opSeed = BigInt(seed % 0x7fffffff)
+  let c = [0n, 0n, opSeed & M, (opSeed >> 32n) & M]
+  let k = [87654321n, 0n]
+  for (let round = 0; round < 10; round++) {
+    const p0 = 0xd2511f53n * c[0]
+    const p1 = 0xcd9e8d57n * c[2]
+    c = [
+      ((p1 >> 32n) ^ c[1] ^ k[0]) & M,
+      p1 & M,
+      ((p0 >> 32n) ^ c[3] ^ k[1]) & M,
+      p0 & M,
+    ]
+    k = [(k[0] + 0x9e3779b9n) & M, (k[1] + 0xbb67ae85n) & M]
+  }
+  const bits = new Uint32Array([(127 << 23) | (Number(c[0]) & 0x7fffff)])
+  const unit = Math.fround(new Float32Array(bits.buffer)[0] - 1)
+  const lo = Math.fround(-maxDelta)
+  const span = Math.fround(Math.fround(maxDelta) - lo)
+  return Math.fround(Math.fround(unit * span) + lo)
+}
 
 export function normalizeEffect(tensor, shape, time, speed) {
   return normalize(tensor)
@@ -4014,26 +4552,44 @@ register("adjust_brightness", adjustBrightness, { amount: 0.125 })
 
 export const adjust_brightness = adjustBrightness
 
-export async function adjustContrast(tensor, shape, time, speed, amount = 1.25) {
-  const [h, w, c] = shape
-  const src = await tensor.read()
-  const mean = new Float32Array(c)
-  const pixelCount = h * w
-  for (let i = 0; i < pixelCount; i++) {
-    for (let ch = 0; ch < c; ch++) {
-      mean[ch] = Math.fround(mean[ch] + src[i * c + ch])
+// tf.image.adjust_contrast, without clamping. TensorFlow sums each channel
+// by folding the image in half repeatedly (float32), then scales the sum by
+// 1 / pixelCount.
+function imageAdjustContrast(src, pixelCount, c, amount) {
+  const sums = Float32Array.from(src.subarray(0, pixelCount * c))
+  let remaining = pixelCount
+  while (remaining > 1) {
+    const right = Math.floor(remaining / 2)
+    const left = remaining - right
+    for (let i = 0; i < right * c; i++) {
+      sums[i] = Math.fround(sums[i] + sums[left * c + i])
     }
+    remaining = left
   }
+  const scaling = Math.fround(1 / pixelCount)
+  const mean = new Float32Array(c)
   for (let ch = 0; ch < c; ch++) {
-    mean[ch] = Math.fround(mean[ch] / pixelCount)
+    mean[ch] = Math.fround(sums[ch] * scaling)
   }
-  const out = new Float32Array(src.length)
+  const factor = Math.fround(amount)
+  const out = new Float32Array(pixelCount * c)
   for (let i = 0; i < pixelCount; i++) {
     for (let ch = 0; ch < c; ch++) {
       const idx = i * c + ch
-      const v = Math.fround((src[idx] - mean[ch]) * amount + mean[ch])
-      out[idx] = v < 0 ? 0 : v > 1 ? 1 : v
+      const m = mean[ch]
+      out[idx] = Math.fround(m + Math.fround(factor * Math.fround(src[idx] - m)))
     }
+  }
+  return out
+}
+
+export async function adjustContrast(tensor, shape, time, speed, amount = 1.25) {
+  const [h, w, c] = shape
+  const src = await tensor.read()
+  const out = imageAdjustContrast(src, h * w, c, amount)
+  for (let i = 0; i < out.length; i++) {
+    const v = out[i]
+    out[i] = v < 0 ? 0 : v > 1 ? 1 : v
   }
   return Tensor.fromArray(tensor.ctx, out, shape)
 }
@@ -4989,8 +5545,19 @@ export async function frame(tensor, shape, time, speed) {
 
   let faded = await proportionalDownsample(tensor, shape, [halfH, halfW])
   faded = faded && typeof faded.then === "function" ? await faded : faded
-  faded = await adjustBrightness(faded, halfShape, time, speed, 0.1)
-  faded = await adjustContrast(faded, halfShape, time, speed, 0.75)
+  // tf.image.adjust_brightness and tf.image.adjust_contrast, which do not
+  // clamp.
+  const fadedData = await faded.read()
+  const brightness = Math.fround(0.1)
+  const brightened = new Float32Array(fadedData.length)
+  for (let i = 0; i < fadedData.length; i++) {
+    brightened[i] = Math.fround(fadedData[i] + brightness)
+  }
+  faded = Tensor.fromArray(
+    ctx,
+    imageAdjustContrast(brightened, halfH * halfW, c, 0.75),
+    halfShape,
+  )
   if (halfH > 1 && halfW > 1) {
     faded = await lightLeak(faded, halfShape, time, speed, 0.125)
     faded = await vignette(faded, halfShape, time, speed, 0.05, 0.75)
@@ -5003,8 +5570,12 @@ export async function frame(tensor, shape, time, speed) {
       ? await shadeDataMaybe
       : shadeDataMaybe
   const edgeData = new Float32Array(halfH * halfW * c)
+  const edgeBase = Math.fround(0.9)
+  const edgeScale = Math.fround(0.1)
   for (let i = 0; i < halfH * halfW; i++) {
-    const shade = 0.9 + shadeData[i] * 0.1
+    const shade = Math.fround(
+      edgeBase + Math.fround(shadeData[i] * edgeScale),
+    )
     const base = i * c
     for (let k = 0; k < c; k++) {
       edgeData[base + k] = shade
@@ -5017,7 +5588,9 @@ export async function frame(tensor, shape, time, speed) {
   out = await grime(out, halfShape, time, speed)
   if (c >= 3) {
     out = await saturation(out, halfShape, time, speed, 0.5)
-    out = await randomHue(out, halfShape, time, speed, 0.05)
+    // tf.image.random_hue with a seed from the noisemaker RNG.
+    const seed = randomInt(0, 0xffffffff)
+    out = await adjustHue(out, seededHueDelta(seed, 0.05))
   }
 
   out = await resample(out, shape)
@@ -5379,14 +5952,9 @@ export async function spatter(tensor, shape, time, speed, color = true) {
         baseData[i * 3 + 1] = 0.125
         baseData[i * 3 + 2] = 0.125
       }
-      let base = Tensor.fromArray(ctx, baseData, shape)
-      let hsv = await rgbToHsv(base)
-      const hsvData = await hsv.read()
-      const delta = random() - 0.5
-      for (let i = 0; i < h * w; i++) {
-        hsvData[i * 3] = (hsvData[i * 3] + delta + 1) % 1
-      }
-      splash = await hsvToRgb(Tensor.fromArray(ctx, hsvData, hsv.shape))
+      const base = Tensor.fromArray(ctx, baseData, shape)
+      const delta = seededHueDelta(randomInt(0, 0xffffffff), 0.5)
+      splash = await adjustHue(base, delta)
     }
   } else {
     const zero = new Float32Array(h * w * c)
@@ -5561,11 +6129,13 @@ async function buildScratches(tensor, shape, time, speed) {
     mask = Tensor.fromArray(ctx, maskData, valueShape)
     const outData = await out.read()
     maskData = await mask.read()
+    // As in the Python reference, the result is capped at 1, including input
+    // values above 1.
     for (let j = 0; j < h * w; j++) {
-      const m = Math.min(maskData[j] * 8.0, 1.0)
+      const m = maskData[j] * 8.0
       for (let k = 0; k < c; k++) {
         const idx = j * c + k
-        outData[idx] = Math.max(outData[idx], m)
+        outData[idx] = Math.min(Math.max(outData[idx], m), 1.0)
       }
     }
     out = Tensor.fromArray(ctx, outData, shape)

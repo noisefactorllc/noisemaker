@@ -405,7 +405,11 @@ export class Preset {
     )
 
     const merged = { ...this.settings, ...g }
-    const freq = merged.freq ?? 1
+    // Same default frequency as the reference generators.multires().
+    const freq = merged.freq ?? 3
+    // A speed passed by the caller wins over a preset's "speed" setting, as in
+    // the reference render(); the setting applies only when no speed is given.
+    const renderSpeed = opts.speed !== undefined ? speed : (merged.speed ?? speed)
     debugLog(debug, 'render merged settings', merged)
     debugLog(debug, 'render shape', shape)
 
@@ -426,12 +430,12 @@ export class Preset {
         ctx,
         seed,
         time,
-        speed,
         octaveEffects: this.octave_effects,
         postEffects: this.post_effects,
         finalEffects: this.final_effects,
         progressCallback,
         ...merged,
+        speed: renderSpeed,
       })
     }
     if (gatherDebug) {
