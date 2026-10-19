@@ -2,8 +2,9 @@ import { setSeed } from '../../js/noisemaker/rng.js'
 import { setSeed as setValueSeed, values as valueValues } from '../../js/noisemaker/value.js'
 import { basic } from '../../js/noisemaker/generators.js'
 import * as effects from '../../js/noisemaker/effects.js'
+import { Effect } from '../../js/noisemaker/composer.js'
 
-const [,, name, seedStr] = process.argv
+const [,, name, seedStr, encodedOptions] = process.argv
 const seed = parseInt(seedStr, 10)
 
 setSeed(seed)
@@ -90,7 +91,12 @@ const fn = EFFECTS[name]
 if (!fn) {
   throw new Error(`Unknown effect ${name}`)
 }
-const tensor = await fn(base, [128, 128, 3], 0, 1)
+// Options take the Python parameter names. The composer maps them to the
+// parameters of the registered effect, as it does for presets.
+const run = encodedOptions
+  ? Effect(name, JSON.parse(Buffer.from(encodedOptions, 'base64').toString('utf8')))
+  : fn
+const tensor = await run(base, [128, 128, 3], 0, 1)
 const arr = await tensor.read()
 const buf = Buffer.from(new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength))
 console.log(buf.toString('base64'))

@@ -125,3 +125,24 @@ def test_effect_parity(effect_name, fn, seed):
     report = f"{effect_name} seed={seed}: mean error {diff.mean():.3g}, max error {diff.max():.3g}, tolerance {atol:.3g}"
     print(report)
     assert np.allclose(tensor.numpy(), js, atol=atol), report
+
+
+# With y_from_offset, value.refract takes the Y reference from the X reference
+# offset by half the image, and also moves its sample coordinates by half the
+# image. Compare both modes through the registered JavaScript effect.
+@pytest.mark.parametrize("y_from_offset", [True, False])
+@pytest.mark.parametrize("seed", SEEDS)
+def test_refract_y_from_offset_parity(seed, y_from_offset):
+    rng.set_seed(seed)
+    value.set_seed(seed)
+    shape = [128, 128, 3]
+    tensor = generators.basic(2, shape, hue_rotation=0)
+    tensor = value.refract(tensor, shape, y_from_offset=y_from_offset)
+    assert tensor.shape == (128, 128, 3)
+    js = js_effect("refract", seed, y_from_offset=y_from_offset)
+    atol = ATOL["default"]
+    assert atol <= SPEC_BOUND
+    diff = np.abs(tensor.numpy().astype(np.float64) - js.astype(np.float64))
+    report = f"refract y_from_offset={y_from_offset} seed={seed}: mean error {diff.mean():.3g}, max error {diff.max():.3g}, tolerance {atol:.3g}"
+    print(report)
+    assert np.allclose(tensor.numpy(), js, atol=atol), report

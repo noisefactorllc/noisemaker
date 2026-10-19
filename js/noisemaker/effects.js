@@ -3587,6 +3587,7 @@ export async function refractEffect(
   const valueShape = [h, w, 1]
   let rx = referenceX
   let ry = referenceY
+  let source = tensor
   if (fromDerivative) {
     // As in the reference: the derivative kernels convolve every channel
     // without normalizing, and the value map below reduces the result.
@@ -3611,9 +3612,13 @@ export async function refractEffect(
       if (!rx) rx = tensor
     if (!ry) {
       if (yFromOffset) {
+        // As in the reference, the Y reference is the X reference offset by
+        // half the image, and the sample coordinates move by half the image
+        // too, so the source is offset by the same amount.
         const xHalf = Math.floor(w * 0.5)
         const yHalf = Math.floor(h * 0.5)
         ry = await offsetTensor(rx, xHalf, yHalf)
+        source = await offsetTensor(tensor, xHalf, yHalf)
       } else {
         rx = await rx
         const rData = await rx.read()
@@ -3645,7 +3650,7 @@ export async function refractEffect(
     ry = await upsample(ry, h / ry.shape[0])
   }
   return await refractOp(
-    tensor,
+    source,
     rx,
     ry,
     displacement,

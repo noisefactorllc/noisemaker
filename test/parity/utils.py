@@ -67,17 +67,22 @@ def js_generator(name: str, seed: int, **options) -> tuple[np.ndarray, int]:
     return tensor, payload.get("callCount", 0)
 
 
-def js_effect(name: str, seed: int) -> np.ndarray:
+def js_effect(name: str, seed: int, **options) -> np.ndarray:
     """Invoke the JavaScript implementation for an effect and return its tensor.
 
     The effect is applied to a basic generator output with hueRotation=0 to
-    mirror the Python parity tests. The returned array has shape
-    (128, 128, 3) and dtype float32.
+    mirror the Python parity tests. Keyword options take the Python parameter
+    names and go to the registered JavaScript effect of the same name. The
+    returned array has shape (128, 128, 3) and dtype float32.
     """
 
     script = Path(__file__).with_name("run_effects.js")
+    cmd = ["node", str(script), name, str(seed)]
+    if options:
+        encoded = base64.b64encode(json.dumps(options).encode()).decode()
+        cmd.append(encoded)
     result = subprocess.run(
-        ["node", str(script), name, str(seed)],
+        cmd,
         check=True,
         capture_output=True,
         text=True,
