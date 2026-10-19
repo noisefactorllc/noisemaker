@@ -90,15 +90,15 @@ function script({ x, y, row, shape, uvNoise, uvX, uvY }) {
   return uvRandom(uvNoise, uvX, uvY) > 0.5 ? 1 : 0
 }
 
-function tromino({ x, y, shape, uvNoise, uvX, uvY, atlas }) {
+function tromino({ x, y, shape, uvNoise, uvX, uvY, uvShape, atlas }) {
   if (!atlas || atlas.length === 0) return 0
   let texX = x % shape[1]
   let texY = y % shape[0]
   const uvValue = uvNoise[uvY][uvX] * (atlas.length - 1)
   const uvFloor = Math.floor(uvValue)
   const uvFract = uvValue - uvFloor
-  const uvHeight = uvNoise.length
-  const uvWidth = uvNoise[0].length
+  // The reference wraps these offsets by uv_shape, not by the noise array.
+  const [uvHeight, uvWidth] = uvShape
   const float2 = uvNoise[(uvY + Math.floor(shape[0] * 0.5)) % uvHeight][uvX]
   const float3 = uvNoise[uvY][(uvX + Math.floor(shape[1] * 0.5)) % uvWidth]
   if (uvFract < 0.5) {
@@ -112,57 +112,10 @@ function tromino({ x, y, shape, uvNoise, uvX, uvY, atlas }) {
   if (float3 < 0.5) {
     texY = shape[0] - texY - 1
   }
-  // Ensure indices are within bounds of the atlas tile
+  // The reference reads the tile as atlas[uv_floor][tex_x][tex_y].
   const tile = atlas[uvFloor]
   if (!tile) return 0
-  const tileHeight = tile.length
-  const tileWidth = tile[0] ? tile[0].length : 0
-  texY = Math.min(texY, tileHeight - 1)
-  texX = Math.min(texX, tileWidth - 1)
-  return tile[texY][texX]
-}
-
-function _randomAtlasTile({ x, y, shape, uvNoise, uvX, uvY, atlas }) {
-  if (!atlas || atlas.length === 0) return 0
-  const uvHeight = uvNoise.length
-
-  let texX = x % shape[1]
-  let texY = y % shape[0]
-
-  const wrap01 = (value) => ((value % 1) + 1) % 1
-  const uvValueRaw = uvNoise[uvY][uvX]
-  const uvValue = wrap01(uvValueRaw) * atlas.length
-  const index = Math.min(Math.floor(uvValue), atlas.length - 1)
-  const frac = uvValue - Math.floor(uvValue)
-
-  const rot = Math.floor(frac * 4)
-  if (rot === 1) {
-    const t = texX
-    texX = texY
-    texY = shape[0] - t - 1
-  } else if (rot === 2) {
-    texX = shape[1] - texX - 1
-    texY = shape[0] - texY - 1
-  } else if (rot === 3) {
-    const t = texX
-    texX = shape[1] - texY - 1
-    texY = t
-  }
-
-  const flip = wrap01(uvNoise[(uvY + 1) % uvHeight][uvX])
-  if (flip < 0.5) {
-    texX = shape[1] - texX - 1
-  }
-
-  return atlas[index % atlas.length][texY][texX]
-}
-
-function truchetCurves(opts) {
-  return _randomAtlasTile(opts)
-}
-
-function truchetTile(opts) {
-  return _randomAtlasTile(opts)
+  return tile[texX][texY]
 }
 
 function barCode({ uvNoise, uvX }) {
@@ -183,33 +136,38 @@ function barCodeShort({ uvNoise, uvX }) {
   return uvNoise[0][uvX] < 0.5 ? 1 : 0
 }
 
-function fakeQr({ x, y, glyphShape, uvNoise }) {
-  const modules = 33
-  const h = glyphShape[0]
-  const w = glyphShape[1]
-  const moduleX = Math.floor((x / w) * modules)
-  const moduleY = Math.floor((y / h) * modules)
-
-  const finderAt = (ox, oy) =>
-    moduleX >= ox && moduleX < ox + 7 && moduleY >= oy && moduleY < oy + 7
-
+function fakeQr({ x, y, shape, uvNoise, uvX, uvY }) {
+  // Port of the Python reference, which wraps both coordinates by the width.
+  x = x % shape[1]
+  y = y % shape[1]
+  const [h, w] = shape
+  const inRange = (v, lo, hi) => v >= lo && v < hi
   if (
-    finderAt(0, 0) ||
-    finderAt(modules - 7, 0) ||
-    finderAt(0, modules - 7)
+    x === 0 || y === 0 || x === w - 1 || y === h - 1 ||
+    ((y === 8 || y === h - 9) && x < 9) ||
+    (y === 8 && x > w - 10) ||
+    ((x === 8 || x === w - 9) && y < 9) ||
+    (x === 8 && y > h - 10) ||
+    ((y === 2 || y === 6) && (inRange(x, 2, 7) || inRange(x, w - 7, w - 2))) ||
+    ((y === w - 3 || y === w - 7) && inRange(x, 2, 7)) ||
+    ((x === 2 || x === 6) && (inRange(y, 2, 7) || inRange(y, h - 7, h - 2))) ||
+    ((x === h - 3 || x === h - 7) && inRange(y, 2, 7)) ||
+    ((x === h - 7 || x === h - 9) && inRange(y, h - 9, h - 6)) ||
+    ((y === w - 7 || y === w - 9) && inRange(x, w - 9, w - 6))
   ) {
-    const ox = finderAt(modules - 7, 0) ? modules - 7 : 0
-    const oy = finderAt(0, modules - 7) ? modules - 7 : 0
-    const lx = moduleX - ox
-    const ly = moduleY - oy
-    if (lx === 0 || ly === 0 || lx === 6 || ly === 6) return 1
-    if (lx >= 2 && lx <= 4 && ly >= 2 && ly <= 4) return 1
+    return 1
+  }
+  if (
+    (x === w - 8 && y === h - 8) ||
+    ((x === h - 6 || x === h - 10) && inRange(y, h - 10, h - 5)) ||
+    ((y === w - 6 || y === w - 10) && inRange(x, w - 10, w - 5))
+  ) {
     return 0
   }
-
-  const noiseY = Math.floor((moduleY / modules) * uvNoise.length) % uvNoise.length
-  const noiseX = Math.floor((moduleX / modules) * uvNoise[0].length) % uvNoise[0].length
-  return uvRandom(uvNoise, noiseX, noiseY) > 0.5 ? 1 : 0
+  if ((x > 8 && x < w - 8) || (y > 8 && y < h - 8) || (x >= w - 8 && y >= h - 8)) {
+    return uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0
+  }
+  return 0
 }
 
 function dropout({ uvNoise, uvX, uvY }) {
@@ -367,20 +325,9 @@ export const Masks = {
   [ValueMask.script]: script,
   [ValueMask.tromino]: tromino,
 
-  [ValueMask.truchet_lines]: ({ x, y, shape }) => {
-    const tile = 2
-    const ox = Math.floor(x / tile)
-    const oy = Math.floor(y / tile)
-    const orient = (ox + oy) % 2
-    const lx = x % tile
-    const ly = y % tile
-    if (orient === 0) {
-      return lx === ly ? 1 : 0
-    }
-    return lx + ly === tile - 1 ? 1 : 0
-  },
-  [ValueMask.truchet_curves]: truchetCurves,
-  [ValueMask.truchet_tile]: truchetTile,
+  [ValueMask.truchet_lines]: _glyphFromAtlasRange,
+  [ValueMask.truchet_curves]: _glyphFromAtlasRange,
+  [ValueMask.truchet_tile]: _glyphFromAtlasRange,
   [ValueMask.bar_code]: barCode,
   [ValueMask.bar_code_short]: barCodeShort,
   [ValueMask.fake_qr]: fakeQr,
@@ -426,7 +373,7 @@ const ProceduralShapes = {
   },
   [ValueMask.script]: () => [randomInt(7, 9), randomInt(12, 24), 1],
   [ValueMask.tromino]: [4, 4, 1],
-  [ValueMask.truchet_lines]: [2, 2, 1],
+  [ValueMask.truchet_lines]: [6, 6, 1],
   [ValueMask.truchet_curves]: [6, 6, 1],
   [ValueMask.truchet_tile]: [6, 6, 1],
   [ValueMask.bar_code]: [24, 1, 1],
@@ -561,6 +508,7 @@ export function maskValues(mask, glyphShape = null, opts = {}) {
           uvNoise,
           uvX,
           uvY,
+          uvShape,
           atlas: atlasData,
           glyphShape,
         })

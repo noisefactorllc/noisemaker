@@ -152,8 +152,11 @@ def test_refract_y_from_offset_parity(seed, y_from_offset):
 
 # glyph_map draws its default truetype glyphs from .ttf files in the fonts
 # directory, and JavaScript draws them on a browser canvas; with neither, both
-# stop with an error. Bitmap masks render the same glyphs in both ports.
-@pytest.mark.parametrize("mask", [ValueMask.waffle, ValueMask.v_bar])
+# stop with an error. Every other mask renders the same glyphs in both ports.
+GLYPH_MAP_MASKS = [mask for mask in ValueMask if mask != ValueMask.truetype]
+
+
+@pytest.mark.parametrize("mask", GLYPH_MAP_MASKS, ids=[mask.name for mask in GLYPH_MAP_MASKS])
 @pytest.mark.parametrize("seed", SEEDS)
 def test_glyph_map_mask_parity(seed, mask):
     rng.set_seed(seed)

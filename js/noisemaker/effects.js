@@ -5066,6 +5066,13 @@ export async function pixelSort(
 register("pixel_sort", pixelSort, { angled: false, darkest: false })
 register("pixel_sort", pixelSort, { angled: false, darkest: false })
 
+function compareGlyphPixels(a, b) {
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1
+  }
+  return 0
+}
+
 export async function glyphMap(
   tensor,
   shape,
@@ -5102,18 +5109,17 @@ export async function glyphMap(
     glyphShape = maskShape(mask)
     if (!glyphShape) return tensor
     const atlas = getAtlas(mask)
-    const baseShape = maskShape(mask)
     const levels = 100
-    const uvShapeY = Math.max(1, Math.floor(glyphShape[0] / baseShape[0]))
-    const uvShapeX = Math.max(1, Math.floor(glyphShape[1] / baseShape[1]))
     for (let i = 0; i < levels; i++) {
+      // Python passes uv noise shaped like the glyph, so every uv cell a
+      // mask reads holds i / levels, and it calls mask_shape only once
+      // before this loop (mask_values calls it again for each level).
       const uvVal = i / levels
       const uvNoise = []
-      for (let uy = 0; uy < uvShapeY; uy++) {
-        const row = new Array(uvShapeX).fill(uvVal)
-        uvNoise.push(row)
+      for (let uy = 0; uy < glyphShape[0]; uy++) {
+        uvNoise.push(new Array(glyphShape[1]).fill(uvVal))
       }
-      const [glyphTensor] = maskValues(mask, [...glyphShape], {
+      const [glyphTensor] = maskValues(mask, glyphShape, {
         atlas,
         time,
         speed,
@@ -5138,7 +5144,9 @@ export async function glyphMap(
     if (mask === ValueMask.truetype) throw new Error('glyph_map found no font to draw glyphs with')
     return tensor
   }
-  glyphEntries.sort((a, b) => a.sum - b.sum)
+  // Python sorts (brightness, glyph) pairs, so glyphs of equal brightness keep
+  // the order of their pixel values, compared from the first pixel on.
+  glyphEntries.sort((a, b) => a.sum - b.sum || compareGlyphPixels(a.data, b.data))
   const glyphDataList = glyphEntries.map((entry) => entry.data)
   const [h, w, c] = shape
   const gh = glyphShape[0]
@@ -5170,7 +5178,8 @@ export async function glyphMap(
       ? await uvDataMaybe
       : uvDataMaybe
 
-  const approxData = new Float32Array(approxH * approxW)
+  // Gather every channel of the glyph pixel, as Python's gather_nd does.
+  const approxData = new Float32Array(approxH * approxW * glyphChannels)
   for (let y = 0; y < approxH; y++) {
     for (let x = 0; x < approxW; x++) {
       const idx = y * approxW + x
@@ -5182,13 +5191,20 @@ export async function glyphMap(
       if (!glyph) continue
       const gy = y % gh
       const gx = x % gw
-      approxData[idx] = glyph[(gy * gw + gx) * glyphChannels]
+      for (let k = 0; k < glyphChannels; k++) {
+        approxData[idx * glyphChannels + k] = glyph[(gy * gw + gx) * glyphChannels + k]
+      }
     }
   }
 
   const finalSplineOrder =
     mask === ValueMask.truetype ? InterpolationType.cosine : splineOrder
-  let maskTensor = Tensor.fromArray(ctx, approxData, [approxH, approxW, 1])
+  let maskTensor = Tensor.fromArray(ctx, approxData, [approxH, approxW, glyphChannels])
+  if (glyphChannels === 3) {
+    // Python resamples the RGB glyphs to one channel, and its resample converts
+    // RGB to one channel with value_map: normalized Oklab lightness.
+    maskTensor = await normalize(await toValueMap(maskTensor))
+  }
   maskTensor = await resample(maskTensor, [h, w, 1], finalSplineOrder)
 
   if (!colorize) {

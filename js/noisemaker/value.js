@@ -679,6 +679,10 @@ export function proportionalDownsample(tensor, shape, newShape) {
   const [nh, nw] = newShape
   const kH = Math.max(1, Math.floor(h / nh))
   const kW = Math.max(1, Math.floor(w / nw))
+  // The reference box filter is a TensorFlow depthwise convolution strided by
+  // the kernel, which supports only equal row and column strides. With
+  // unequal strides the reference resamples the tensor without the filter.
+  if (kH !== kW) return resample(tensor, [nh, nw, c])
   const outH = Math.floor((h - kH) / kH + 1)
   const outW = Math.floor((w - kW) / kW + 1)
   const ctx = tensor.ctx
