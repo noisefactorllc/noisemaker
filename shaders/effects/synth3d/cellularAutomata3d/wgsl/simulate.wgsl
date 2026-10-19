@@ -14,6 +14,7 @@
 @group(0) @binding(7) var<uniform> resetState: i32;
 @group(0) @binding(8) var stateTex: texture_2d<f32>;
 @group(0) @binding(9) var seedTex: texture_2d<f32>;  // 3D input volume atlas (inputTex3d)
+@group(0) @binding(10) var<uniform> colorMode: i32;
 
 // Hash for initialization
 fn hash3(p: vec3<f32>, s: f32) -> f32 {
@@ -42,6 +43,17 @@ fn sampleState(voxel: vec3<i32>, volSize: i32) -> vec4<f32> {
 // Sample seed texture at voxel coordinate (for inputTex3d seeding)
 fn sampleSeed(voxel: vec3<i32>, volSize: i32) -> vec4<f32> {
     return textureLoad(seedTex, atlasTexel(voxel, volSize), 0);
+}
+
+// The state keeps alive in red and age in green. render3d reads density from
+// red and shades with the RGB color unless it is gray, so mono writes alive to
+// every channel, and age keeps the age in green and shades young cells red and
+// older cells toward yellow.
+fn packState(alive: f32, age: f32) -> vec4<f32> {
+    if (colorMode == 1) {
+        return vec4<f32>(alive, age, 0.0, 1.0);
+    }
+    return vec4<f32>(alive, alive, alive, 1.0);
 }
 
 // Count alive neighbors using Moore neighborhood (26 neighbors)
@@ -170,7 +182,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             }
         }
         
-        return vec4<f32>(alive, alive, alive, 1.0);
+        return packState(alive, age);
     }
     
     // Count neighbors based on neighborhood mode
@@ -217,5 +229,5 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         finalAlive = mix(finalAlive, seedLum, weight * 0.01);
     }
     
-    return vec4<f32>(finalAlive, finalAlive, finalAlive, 1.0);
+    return packState(finalAlive, finalAge);
 }
