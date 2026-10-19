@@ -607,12 +607,15 @@ the image from ``imageSize``:
 Undo/Redo
 ---------
 
-Use ``serialize()``/``deserialize()`` for undo/redo:
+Use ``serialize()``/``deserialize()`` for undo/redo. A snapshot can hold another program than the compiled one, for example after a step was added or removed. Then ``deserialize()`` makes the snapshot's program the renderer's ``currentDsl`` and emits ``recompileNeeded``, and the host compiles ``state.toDsl()``:
 
 .. code-block:: javascript
 
     const undoStack = []
     const redoStack = []
+
+    // Also emitted when a compile-time define parameter changes
+    state.on('recompileNeeded', () => renderer.compile(state.toDsl()))
 
     function pushUndo() {
         undoStack.push(state.serialize())
