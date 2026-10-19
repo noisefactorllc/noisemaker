@@ -350,6 +350,33 @@ test('replaceEffect - cross-namespace filter replacement', () => {
     assertTrue(result.program.searchNamespaces.includes('synth3d'), 'New namespace should be added to searchNamespaces')
 })
 
+test('replaceEffect - round-trip preserves let bindings in unaffected chains', () => {
+    const source = 'search synth\nlet amount = 13\nnoise(scale: amount).write(o0)\n' +
+        'let amount = 97\nnoise(scale: amount).write(o1)\nrender(o1)'
+    const compiled = compile(source)
+    const originalDsl = unparse(compiled)
+    const result = replaceEffect(compiled, compiled.plans[1].chain[0].temp, 'synth.voronoi', { scale: 31 })
+    assertTrue(result.success, 'Replacement should succeed')
+    const restored = compile(unparse(result.program))
+    assertEqual(restored.diagnostics.length, 0, 'Round-trip should keep valid DSL')
+    assertEqual(restored.plans[0].chain[0].args.scale.value, 13, 'Unchanged chain keeps its earlier let binding')
+    assertEqual(restored.plans[1].chain[0].args.scale, 31, 'Replacement keeps its explicit argument')
+    assertEqual(unparse(compiled), originalDsl, 'Replacement does not mutate the input program')
+})
+
+test('replaceEffect - let bindings survive removal of an earlier plan', () => {
+    const source = 'search synth\nlet amount = 13\nnoise(scale: amount).write(o0)\n' +
+        'let amount = 97\nnoise(scale: amount).write(o1)\nrender(o1)'
+    const compiled = compile(source)
+    const result = replaceEffect(compiled, compiled.plans[0].chain[0].temp, 'synth.voronoi')
+    assertTrue(result.success, 'Replacement should succeed')
+    result.program.plans.shift()
+    const restored = compile(unparse(result.program))
+    assertEqual(restored.diagnostics.length, 0, 'Remaining chain should still compile')
+    assertEqual(restored.plans[0].chain[0].args.scale.value, 97, 'Remaining chain keeps its latest preceding let')
+    assertEqual(compiled.plans.length, 2, 'Removing a cloned plan does not change the input program')
+})
+
 test('replaceEffect - cross-namespace unparse produces valid DSL', () => {
     const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
     const steps = listSteps(compiled)

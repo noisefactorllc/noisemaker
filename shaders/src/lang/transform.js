@@ -15,16 +15,18 @@ import { getParamAliases } from './paramAliases.js'
  * @param {object} obj - Object to clone
  * @returns {object} Cloned object
  */
-function deepClone(obj) {
+function deepClone(obj, clones = new WeakMap()) {
     if (obj === null || typeof obj !== 'object') {
         return obj
     }
-    if (Array.isArray(obj)) {
-        return obj.map(deepClone)
-    }
-    const cloned = {}
-    for (const key of Object.keys(obj)) {
-        cloned[key] = deepClone(obj[key])
+    if (clones.has(obj)) return clones.get(obj)
+    const cloned = Array.isArray(obj) ? [] : {}
+    clones.set(obj, cloned)
+    // Keep private statement-order fields and their shared plan references.
+    for (const key of Reflect.ownKeys(obj)) {
+        const descriptor = Object.getOwnPropertyDescriptor(obj, key)
+        if ('value' in descriptor) descriptor.value = deepClone(descriptor.value, clones)
+        Object.defineProperty(cloned, key, descriptor)
     }
     return cloned
 }
