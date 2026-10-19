@@ -1598,10 +1598,9 @@ export class WebGL2Backend extends Backend {
     bindTextures(pass, program, state) {
         const gl = this.gl
         let unit = 0
+        const inputs = pass.inputs || {}
 
-        if (!pass.inputs) return
-
-        for (const [samplerName, texId] of Object.entries(pass.inputs)) {
+        for (const [samplerName, texId] of Object.entries(inputs)) {
             if (unit >= this.maxTextureUnits) {
                 throw {
                     code: 'ERR_TOO_MANY_TEXTURES',
@@ -1658,6 +1657,20 @@ export class WebGL2Backend extends Backend {
                 gl.uniform1i(uniform.location, unit)
             }
 
+            unit++
+        }
+
+        // A declared sampler that the pass lists no input for gets the default
+        // texture (transparent black), as WebGPU binds its dummy texture. Left
+        // alone it would keep unit 0 and sample the first input instead.
+        for (const name in program.uniforms) {
+            if (name in inputs || name.endsWith(']')) continue
+            const uniform = program.uniforms[name]
+            if (uniform.type !== gl.SAMPLER_2D || uniform.size !== 1) continue
+            if (unit >= this.maxTextureUnits) break
+            gl.activeTexture(gl.TEXTURE0 + unit)
+            gl.bindTexture(gl.TEXTURE_2D, this.defaultTexture)
+            gl.uniform1i(uniform.location, unit)
             unit++
         }
     }
