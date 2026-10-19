@@ -501,6 +501,9 @@ export function parse(tokens, options = {}) {
         const appendStatement = (stmt) => {
             if (!stmt || typeof stmt !== 'object') { return }
             if (stmt.type === 'VarAssign') {
+                // Statement order: the number of plans written before this
+                // let. Non-enumerable, so the AST shape is unchanged.
+                Object.defineProperty(stmt, 'planIndex', { value: plans.length, enumerable: false })
                 vars.push(stmt)
             } else {
                 plans.push(stmt)
@@ -1265,7 +1268,16 @@ export function parse(tokens, options = {}) {
                 if (path.length > 1) {
                     return {type: 'Member', path}
                 }
-                return {type: 'Ident', name: path[0]}
+                const ident = {type: 'Ident', name: path[0]}
+                // Private source position for structured diagnostics; the
+                // public AST shape is unchanged.
+                if (token.position) {
+                    Object.defineProperty(ident, 'position', {
+                        value: { line: token.position.line, column: token.position.column, start: token.position.start, end: token.position.end },
+                        enumerable: false
+                    })
+                }
+                return ident
             }
             case 'OUTPUT_REF':
                 advance()

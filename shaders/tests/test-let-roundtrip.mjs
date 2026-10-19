@@ -6,6 +6,11 @@
 import { compile, unparse, formatValue } from '../src/lang/index.js';
 import { registerOp } from '../src/lang/ops.js';
 import { registerStarterOps } from '../src/lang/validator.js';
+import { CanvasRenderer } from '../src/renderer/canvas.js';
+import { mergeIntoEnums } from '../src/lang/enums.js';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // Register a minimal synth.noise op so the validator can resolve it
 registerOp('synth.noise', {
@@ -335,6 +340,83 @@ test('let and literal values that are not finite unparse to DSL that compiles to
         }));
         assertNumbersSurvive(`noise(scale: ${expr})`, c => ({ scale: c.plans[0].chain[0].args.scale }));
     }
+});
+
+// Statement order. A chain sees only the lets written before it, and the
+// latest assignment of a name wins. Lets may refer to later lets. The
+// effects below are registered as CanvasRenderer.loadEffect() does.
+const effectsDir = fileURLToPath(new URL('../effects/', import.meta.url));
+const renderer = new CanvasRenderer();
+for (const namespace of readdirSync(effectsDir)) {
+    if (!statSync(path.join(effectsDir, namespace)).isDirectory()) continue;
+    for (const name of readdirSync(path.join(effectsDir, namespace))) {
+        const file = path.join(effectsDir, namespace, name, 'definition.js');
+        if (!existsSync(file)) continue;
+        const definition = (await import(pathToFileURL(file).href)).default;
+        const effect = { namespace, name, instance: typeof definition === 'function' ? new definition() : definition };
+        const choices = renderer.registerEffectWithRuntime(effect);
+        if (choices && Object.keys(choices).length > 0) await mergeIntoEnums(choices);
+        renderer.registerStarterOpForEffect(effect);
+    }
+}
+const scaleXPerChain = compiled => compiled.plans.map(plan => {
+    const value = plan.chain[0].args.scaleX;
+    return typeof value === 'object' ? value.value : value;
+});
+const valuesPerChain = compiled => JSON.stringify(compiled.plans.map(plan => plan.chain?.map(step => [step.op, step.args])),
+    (key, value) => typeof value === 'function' ? '<fn>' : value);
+
+test('A chain that reads a variable before its let gets S003 with a location', () => {
+    const compiled = compile('search synth\nnoise(scaleX: x).write(o0)\nlet x = 20\nrender(o0)');
+    assertEqual(JSON.stringify(compiled.diagnostics.map(({ code, severity, message, location }) => ({ code, severity, message, location }))),
+        JSON.stringify([{ code: 'S003', severity: 'error', message: "Variable used before assignment: 'x'", location: { line: 2, column: 15 } }]),
+        'One S003 at the identifier');
+});
+
+test('Each chain uses the latest let before it', () => {
+    const src = 'search synth\nlet x = 10\nnoise(scaleX: x).write(o0)\nlet x = 90\nnoise(scaleX: x).write(o1)\nrender(o1)';
+    const compiled = compile(src);
+    assertEqual(compiled.diagnostics.length, 0, 'No diagnostics');
+    assertEqual(JSON.stringify(scaleXPerChain(compiled)), '[10,90]', 'scaleX per chain');
+    const output = unparse(compiled);
+    assertEqual(output, 'search synth\n\nlet x = 10\n\nnoise(scaleX: x)\n  .write(o0)\n\nlet x = 90\n\nnoise(scaleX: x)\n  .write(o1)\n\nrender(o1)',
+        'unparse keeps statement order');
+    const again = compile(output);
+    assertEqual(again.diagnostics.length, 0, 'The unparse output compiles with no diagnostics');
+    assertEqual(valuesPerChain(again), valuesPerChain(compiled), 'The unparse output gives the same values per chain');
+});
+
+test('unparse keeps statement order after a host removes a plan', () => {
+    const compiled = compile('search synth\nnoise(scaleX: 5).write(o0)\nnoise(scaleX: 6).write(o1)\nlet y = 7\nnoise(scaleX: y).write(o2)\nrender(o2)');
+    compiled.plans.splice(1, 1);
+    const output = unparse(compiled);
+    assertIncludes(output, 'let y = 7\n\nnoise(scaleX: y)', 'The let stays before the chain that follows it');
+    assertEqual(compile(output).diagnostics.length, 0, 'The output compiles with no diagnostics');
+});
+
+test('Lets that refer to later lets compile in seven shipped example programs', () => {
+    const programs = JSON.parse(readFileSync(new URL('./fixtures/let-order-programs.json', import.meta.url), 'utf8'));
+    assertEqual(programs.length, 7, 'Seven programs');
+    let forwardReads = 0;
+    for (const { id, dsl } of programs) {
+        const compiled = compile(dsl);
+        assertEqual(JSON.stringify(compiled.diagnostics), '[]', `${id} compiles with no diagnostics`);
+        // An osc() let reads an audio() let that comes after it as its speed.
+        // Each chain that uses that oscillator gets the audio descriptor.
+        const visit = value => {
+            if (!value || typeof value !== 'object') return;
+            if (value.type === 'Oscillator' && value._ast?.speed?._varRef) {
+                forwardReads++;
+                assertEqual(value.speed?.type, 'Audio', `${id} ${value._varRef} speed reads ${value._ast.speed._varRef}`);
+            }
+            for (const [key, child] of Object.entries(value)) if (key !== '_ast') visit(child);
+        };
+        visit(compiled.plans);
+        const output = unparse(compiled);
+        assertEqual(unparse(compile(output)), output, `${id} unparse is stable`);
+        assertEqual(valuesPerChain(compile(output)), valuesPerChain(compiled), `${id} unparse gives the same values per chain`);
+    }
+    if (forwardReads === 0) throw new Error('No chain reads an oscillator whose speed comes from a later let');
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -1006,9 +1006,31 @@ export function unparse(compiled, overrides = {}, options = {}) {
         lines.push('') // First blank line after search
     }
 
-    // Emit let declarations
-    if (compiled.vars && compiled.vars.length > 0) {
-        for (const v of compiled.vars) {
+    // Keep statement order: each let is written before the first remaining
+    // plan that followed it in the source. A let's `planIndex` points into
+    // `compiled.planOrder`, the plans in source order. Without them, every
+    // let comes before the plans.
+    const plans = compiled.plans || []
+    const planOrder = compiled.planOrder || plans
+    const remaining = new Set(plans)
+    const varsBefore = new Map()
+    for (const v of compiled.vars || []) {
+        let at = plans.length
+        for (let k = v.planIndex ?? 0; k < planOrder.length; k++) {
+            if (remaining.has(planOrder[k])) {
+                at = plans.indexOf(planOrder[k])
+                break
+            }
+        }
+        if (plans.length === 0) at = 0
+        if (!varsBefore.has(at)) varsBefore.set(at, [])
+        varsBefore.get(at).push(v)
+    }
+    const emitVars = (at) => {
+        const group = varsBefore.get(at)
+        if (!group) return
+        if (lines.length > 0 && lines[lines.length - 1] !== '') lines.push('')
+        for (const v of group) {
             if (v.leadingComments && v.leadingComments.length > 0) {
                 for (const c of v.leadingComments) {
                     lines.push(c)
@@ -1017,16 +1039,20 @@ export function unparse(compiled, overrides = {}, options = {}) {
             const exprStr = formatLetExpr(v.expr, options)
             lines.push(`let ${v.name} = ${exprStr}`)
         }
-        lines.push('') // blank line separator after let block
+        // Blank line separator after a let block that comes before a plan
+        if (at < plans.length || plans.length === 0) lines.push('')
     }
+
+    // Emit the let declarations written before the first plan
+    emitVars(0)
 
     // Track global step index across all plans
     let globalStepIndex = 0
 
     // Process each plan
-    const plans = compiled.plans || []
     for (let planIndex = 0; planIndex < plans.length; planIndex++) {
         const plan = plans[planIndex]
+        if (planIndex > 0) emitVars(planIndex)
         if (!plan.chain) {
             const statement = unparseControlFlow(plan, searchNamespaces, options)
             if (statement !== null) {
@@ -1400,6 +1426,9 @@ export function unparse(compiled, overrides = {}, options = {}) {
             lines.push('')
         }
     }
+
+    // Emit the let declarations written after the last plan
+    if (plans.length > 0) emitVars(plans.length)
 
     // Add render directive if present (surface name: o0-o7)
     if (compiled.render) {

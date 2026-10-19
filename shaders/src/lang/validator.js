@@ -140,7 +140,10 @@ function callToSurface(node) {
  */
 export function validate(ast) {
     const diagnosticsList = []
+    // Identifier nodes that already have their S003 for a read before the let
+    const readsBeforeLet = new WeakSet()
     function pushDiag(code, node, message = diagnostics[code].message) {
+        if (node && typeof node === 'object' && readsBeforeLet.has(node)) return
         // Enrich message with identifier/location context when available
         let enrichedMessage = message
         const identName = extractIdentifierName(node)
@@ -404,8 +407,39 @@ export function validate(ast) {
         }
     }
 
-    if (Array.isArray(ast.vars)) {
-        for (const v of ast.vars) declareVar(v)
+    // Top-level lets are declared in statement order (see the plan loop).
+    // `pendingLets` holds the names of the lets that come after the current
+    // statement.
+    const topLevelVars = Array.isArray(ast.vars) ? ast.vars : []
+    let nextVar = 0
+    let pendingLets = new Set()
+    function declareVarsBefore(planIndex) {
+        while (nextVar < topLevelVars.length && (topLevelVars[nextVar].planIndex ?? 0) <= planIndex) {
+            declareVar(topLevelVars[nextVar++])
+        }
+        pendingLets = new Set(topLevelVars.slice(nextVar).map(v => v.name))
+    }
+
+    // A statement that reads a variable before any let assigns it gets
+    // S003 "Variable used before assignment" at the identifier. Other
+    // diagnostics for that identifier node are not added.
+    function reportReadsBeforeLet(node) {
+        if (pendingLets.size === 0 || !node || typeof node !== 'object') return
+        if (Array.isArray(node)) {
+            for (const item of node) reportReadsBeforeLet(item)
+            return
+        }
+        if (node.type === 'Ident' && pendingLets.has(node.name) && !symbols.has(node.name)) {
+            if (!readsBeforeLet.has(node)) {
+                const position = node.position
+                pushDiag('S003', position
+                    ? { type: 'Ident', name: node.name, loc: { line: position.line, column: position.column } }
+                    : { type: 'Ident', name: node.name })
+                readsBeforeLet.add(node)
+            }
+            return
+        }
+        for (const value of Object.values(node)) reportReadsBeforeLet(value)
     }
 
     function evalExpr(node) {
@@ -705,6 +739,7 @@ export function validate(ast) {
 
     function compileChainStatement(stmt) {
         const chain = []
+        reportReadsBeforeLet(stmt.chain)
 
         // Check for S006: Starter chain missing write() or write3d()
         const chainNode = { type: 'Chain', chain: stmt.chain }
@@ -1562,10 +1597,12 @@ export function validate(ast) {
 
     function compileStmt(stmt) {
         if (stmt.type === 'IfStmt') {
+            reportReadsBeforeLet(stmt.condition)
             const cond = evalCondition(stmt.condition)
             const thenBranch = compileBlock(stmt.then)
             const elif = []
             for (const e of stmt.elif || []) {
+                reportReadsBeforeLet(e.condition)
                 elif.push({cond: evalCondition(e.condition), then: compileBlock(e.then)})
             }
             const elseBranch = compileBlock(stmt.else)
@@ -1579,16 +1616,25 @@ export function validate(ast) {
         }
         if (stmt.type === 'Return') {
             const node = {type:'Return'}
-            if (stmt.value) node.value = evalExpr(stmt.value)
+            if (stmt.value) {
+                reportReadsBeforeLet(stmt.value)
+                node.value = evalExpr(stmt.value)
+            }
             return withSource(node, stmt)
         }
         return compileChainStatement(stmt)
     }
 
-    for (const stmt of ast.plans || []) {
-        const compiled = compileStmt(stmt)
+    // Statements compile in order. Each one sees the lets written before it,
+    // and the latest assignment of a name wins. Lets that come after the
+    // last statement are still declared, so their own checks run.
+    const statements = ast.plans || []
+    for (let index = 0; index < statements.length; index++) {
+        declareVarsBefore(index)
+        const compiled = compileStmt(statements[index])
         if (compiled) plans.push(compiled)
     }
+    declareVarsBefore(Infinity)
 
     // Include original variable declarations for unparsing
     const vars = ast.vars || []
@@ -1599,5 +1645,8 @@ export function validate(ast) {
     // Preserve trailing comments from program
     const result = {plans, diagnostics: diagnosticsList, render, vars, searchNamespaces}
     if (ast.trailingComments) { result.trailingComments = ast.trailingComments }
+    // The plans in source order. A let's `planIndex` points into this list,
+    // so the unparser can keep statement order after hosts remove plans.
+    Object.defineProperty(result, 'planOrder', { value: plans.slice(), enumerable: false })
     return result
 }
