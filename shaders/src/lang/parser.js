@@ -638,8 +638,21 @@ export function parse(tokens, options = {}) {
     function parseBlock() {
         expect('LBRACE', "Expect '{'")
         const body = []
-        while (peek().type !== 'RBRACE') {
+        while (true) {
+            // Comments attach to the next statement, as at top level
+            const leadingComments = collectComments()
+            if (peek().type === 'RBRACE') {
+                // Comments before '}' have no statement. Keep them on the
+                // block (non-enumerable, so the AST shape is unchanged).
+                if (leadingComments.length > 0) {
+                    Object.defineProperty(body, 'trailingComments', { value: leadingComments, enumerable: false })
+                }
+                break
+            }
             const stmt = parseStatement()
+            if (leadingComments.length > 0) {
+                stmt.leadingComments = leadingComments
+            }
             body.push(stmt)
             while (peek().type === 'SEMICOLON') advance()
         }

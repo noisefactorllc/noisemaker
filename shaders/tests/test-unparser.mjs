@@ -793,20 +793,29 @@ const controlFlowPrograms = [
     ['search synth\nnoise().write(o0)\ncontinue\nrender(o0)', ['continue']],
     ['search synth\nlet k = 1\n// before the branch\nif (k) {\n  noise().write(o0)\n} elif (() => time > 2) {\n  solid().write(o0)\n  break\n} elif (0) {\n  if (false) {\n    return\n  }\n}\nnoise(seed: 3).write(o1)\nreturn noise()\nrender(o0)', ['if', 'return']],
     ['search synth\nif (true) {\n  let x = 1\n  noise(seed: x).write(o0)\n}\nrender(o0)', ['if']],
-    ['search synth\nlet x = 2\nif (true) {\n  let x = 5\n  noise(seed: x).write(o0)\n} else {\n  let y = x\n  solid().write(o0)\n}\nnoise(seed: x).write(o1)\nrender(o0)', ['if']]
+    ['search synth\nlet x = 2\nif (true) {\n  let x = 5\n  noise(seed: x).write(o0)\n} else {\n  let y = x\n  solid().write(o0)\n}\nnoise(seed: x).write(o1)\nrender(o0)', ['if']],
+    ['search synth\nif (true) {\n  // inside\n  noise().write(o0)\n  // before the close\n}\nrender(o0)', ['if']],
+    ['search synth\nif (true) {\n  noise().write(o0)\n} elif (false) {\n  // elif comment\n  break\n} else {\n  // only a comment\n}\nrender(o0)', ['if']],
+    ['search synth\nif (true) {\n  // the let\n  let x = 1\n  // nested\n  if (x) {\n    noise(seed: x).write(o0)\n  }\n}\nrender(o0)', ['if']]
 ];
-const controlFlowShape = plans => plans.map(plan => plan.chain ? plan.chain.map(step => step.op) : {
+const controlFlowShape = plans => plans.map(plan => plan.chain ? { ops: plan.chain.map(step => step.op), comments: plan.leadingComments } : {
     type: plan.type,
     name: plan.name,
     expr: JSON.stringify(plan.expr),
     cond: JSON.stringify(plan.cond),
     condition: JSON.stringify(plan.source?.condition),
     value: JSON.stringify(plan.source?.value),
-    comments: plan.source?.leadingComments,
+    comments: (plan.source || plan).leadingComments,
     then: plan.then && controlFlowShape(plan.then),
-    elif: plan.elif?.map(entry => ({ cond: JSON.stringify(entry.cond), then: controlFlowShape(entry.then) })),
+    thenEnd: plan.source?.then?.trailingComments,
+    elif: plan.elif?.map((entry, index) => ({
+        cond: JSON.stringify(entry.cond),
+        then: controlFlowShape(entry.then),
+        end: plan.source?.elif?.[index]?.then?.trailingComments
+    })),
     elifConditions: plan.source?.elif?.map(entry => JSON.stringify(entry.condition)),
     else: plan.else && controlFlowShape(plan.else),
+    elseEnd: plan.source?.else?.trailingComments,
     hasElse: plan.source ? plan.source.else !== null : undefined
 });
 
@@ -831,12 +840,15 @@ test('unparse keeps every statement of a control-flow program', () => {
             assert.deepEqual(second.diagnostics, first.diagnostics, output);
             assert.deepEqual(controlFlowShape(second.plans), controlFlowShape(first.plans), output);
             assert.equal(unparse(second, {}, options), output, 'A second unparse gives the same text');
+            for (const comment of source.match(/\/\/[^\n]*/g) || []) {
+                assertIncludes(output, comment, 'unparse keeps each comment');
+            }
         }
     }
 });
 
 test('A let inside a block applies to the rest of that block only', () => {
-    const compiled = compile(controlFlowPrograms[controlFlowPrograms.length - 1][0]);
+    const compiled = compile('search synth\nlet x = 2\nif (true) {\n  let x = 5\n  noise(seed: x).write(o0)\n} else {\n  let y = x\n  solid().write(o0)\n}\nnoise(seed: x).write(o1)\nrender(o0)');
     const [branch, after] = compiled.plans;
     assert.equal(branch.then[0].type, 'VarAssign');
     assert.equal(branch.then[1].chain[0].args.seed.value, 5, 'The block let shadows the top-level x in its block');

@@ -948,22 +948,24 @@ function formatLetExpr(expr, options = {}) {
  */
 function unparseControlFlow(plan, searchNamespaces, options) {
     const source = plan.source
-    const block = plans => {
-        const text = unparse({ searchNamespaces, plans }, {}, { ...options, omitSearchDirective: true })
+    // `body` is the parser block, which keeps the comments before its '}'
+    const block = (plans, body) => {
+        const text = unparse({ searchNamespaces, plans, trailingComments: body?.trailingComments }, {},
+            { ...options, omitSearchDirective: true })
         return text ? `${text}\n` : ''
     }
     let text
     if (plan.type === 'Branch') {
         const condition = node => node ? formatLetExpr(node, options) : formatValue(plan.cond, null, options)
-        text = `if (${condition(source?.condition)}) {\n${block(plan.then || [])}}`
+        text = `if (${condition(source?.condition)}) {\n${block(plan.then || [], source?.then)}}`
         const elif = plan.elif || []
         for (let index = 0; index < elif.length; index++) {
-            const elifSource = source?.elif?.[index]?.condition
-            const elifCondition = elifSource ? formatLetExpr(elifSource, options) : formatValue(elif[index].cond, null, options)
-            text += ` elif (${elifCondition}) {\n${block(elif[index].then || [])}}`
+            const elifSource = source?.elif?.[index]
+            const elifCondition = elifSource ? formatLetExpr(elifSource.condition, options) : formatValue(elif[index].cond, null, options)
+            text += ` elif (${elifCondition}) {\n${block(elif[index].then || [], elifSource?.then)}}`
         }
         if (source ? source.else : plan.else?.length > 0) {
-            text += ` else {\n${block(plan.else || [])}}`
+            text += ` else {\n${block(plan.else || [], source?.else)}}`
         }
     } else if (plan.type === 'Break') {
         text = 'break'
@@ -978,7 +980,8 @@ function unparseControlFlow(plan, searchNamespaces, options) {
     } else {
         return null
     }
-    return [...(source?.leadingComments || []), text].join('\n')
+    // A block-level VarAssign is the parser node itself
+    return [...((source || plan).leadingComments || []), text].join('\n')
 }
 
 /**
