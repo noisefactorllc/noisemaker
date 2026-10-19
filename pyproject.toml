@@ -59,7 +59,6 @@ Repository = "https://github.com/noisefactorllc/noisemaker"
 Issues = "https://github.com/noisefactorllc/noisemaker/issues"
 
 [project.scripts]
-magic-mashup = "noisemaker.scripts.magic_mashup:main"
 mood = "noisemaker.scripts.mood:main"
 noisemaker = "noisemaker.scripts.noisemaker:main"
 

@@ -37,7 +37,6 @@ RUN apt-get update && \
 # Copy Python packages from builder
 COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
 COPY --from=builder /usr/local/bin/noisemaker /usr/local/bin/noisemaker
-COPY --from=builder /usr/local/bin/magic-mashup /usr/local/bin/magic-mashup
 COPY --from=builder /usr/local/bin/mood /usr/local/bin/mood
 
 # Create non-root user

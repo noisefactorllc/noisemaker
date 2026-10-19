@@ -35,7 +35,7 @@ To install the package, run these commands:
 
 These commands use Python 3.12. For Python 3.10 or 3.11, change ``python3.12`` to ``python3.10`` or ``python3.11``.
 
-The ``pip install .`` command installs TensorFlow and the other dependencies. It also installs the ``noisemaker``, ``magic-mashup`` and ``mood`` commands. To make sure that the installation is correct, run ``noisemaker --help``.
+The ``pip install .`` command installs TensorFlow and the other dependencies. It also installs the ``noisemaker`` and ``mood`` commands. To make sure that the installation is correct, run ``noisemaker --help``.
 
 The ``animate`` and ``magic-mashup`` commands use ``ffmpeg`` to write MP4 and GIF files. ``pip`` does not install ``ffmpeg``. Install ``ffmpeg`` with the package manager of your operating system. Make sure that the ``ffmpeg`` command is on your ``PATH``. If ``ffmpeg`` is not on your ``PATH``, these commands render all frames and then stop with an error.
 
