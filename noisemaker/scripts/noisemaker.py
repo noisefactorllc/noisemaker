@@ -307,7 +307,7 @@ def _debug_print(seed, preset, with_alpha, with_supersample, with_fxaa, with_ups
 @cli.time_option()
 @click.option("--speed", help="Animation speed", type=float, default=0.25)
 @click.argument("preset_name")
-@click.argument("input_filename")
+@click.argument("input_filename", type=click.Path(exists=True, dir_okay=False))
 @click.pass_context
 def apply(ctx, seed, filename, no_resize, with_fxaa, time, speed, preset_name, input_filename):
     if not seed:
@@ -330,7 +330,10 @@ def apply(ctx, seed, filename, no_resize, with_fxaa, time, speed, preset_name, i
             param_hint="PRESET_NAME",
         )
 
-    input_shape = util.shape_from_file(input_filename)
+    try:
+        input_shape = util.shape_from_file(input_filename)
+    except OSError:
+        raise click.BadParameter(f"{input_filename} is not a .png or .jpg image", param_hint="INPUT_FILENAME") from None
 
     input_shape[2] = min(input_shape[2], 3)
 
@@ -762,6 +765,9 @@ def mashup(ctx, input_dir, filename, control_filename, time, speed, seed):
         for f in files:
             if f.endswith((".png", ".jpg")):
                 filenames_list.append(os.path.join(root, f))
+
+    if not filenames_list:
+        raise click.BadParameter(f"{input_dir} holds no .png or .jpg image", param_hint="'--input-dir'")
 
     collage_count = min(random.randint(4, 6), len(filenames_list))
     collage_images = []
