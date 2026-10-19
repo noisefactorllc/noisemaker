@@ -3014,7 +3014,7 @@ def spooky_ticker(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed:
         if time != 0.0:  # Make the ticker tick!
             row_mask = value.offset(row_mask, row_shape, int(time * width), 0)
 
-        row_mask = value.resample(row_mask, [mask_shape[0] * multiplier, shape[1]], spline_order=1)
+        row_mask = value.resample(row_mask, [mask_shape[0] * multiplier, shape[1], 1], spline_order=1)
 
         rendered_mask += tf.pad(row_mask, tf.stack([[shape[0] - mask_shape[0] * multiplier - bottom_padding, bottom_padding], [0, 0], [0, 0]]))
 
