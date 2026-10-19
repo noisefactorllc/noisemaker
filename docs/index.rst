@@ -108,6 +108,11 @@ Quick Start
 
 See :doc:`shaders/integration` for full API documentation.
 
+Python CLI and Docker
+---------------------
+
+The Python package has a command-line interface (CLI). For the installation steps, see :ref:`cli-install`. For the CLI commands, see :doc:`cli`. To use the CLI in a container, see the `Docker guide <https://github.com/noisefactorllc/noisemaker/blob/main/README-DOCKER.md>`_.
+
 ----
 
 Noisemaker is the open source engine behind `Noisedeck <https://noisedeck.app/>`_,

@@ -14,6 +14,33 @@ The CLI includes five main commands:
 - ``mashup`` - Blend multiple images together
 - ``magic-mashup`` - Create animated collages from directories of frames
 
+.. _cli-install:
+
+Installation
+------------
+
+The ``noisemaker`` command is part of the Noisemaker Python package. Install the package from a clone of the repository.
+
+Use Python 3.10, 3.11 or 3.12. CI tests these three versions. ``pyproject.toml`` sets ``requires-python = ">=3.10"``. CI does not test Python versions later than 3.12.
+
+To install the package, run these commands:
+
+.. code-block:: bash
+
+    git clone https://github.com/noisefactorllc/noisemaker.git
+    cd noisemaker
+    python3.12 -m venv venv
+    source venv/bin/activate
+    pip install .
+
+These commands use Python 3.12. For Python 3.10 or 3.11, change ``python3.12`` to ``python3.10`` or ``python3.11``.
+
+The ``pip install .`` command installs TensorFlow and the other dependencies. It also installs the ``noisemaker``, ``magic-mashup`` and ``mood`` commands. To make sure that the installation is correct, run ``noisemaker --help``.
+
+The ``animate`` and ``magic-mashup`` commands use ``ffmpeg`` to write MP4 and GIF files. ``pip`` does not install ``ffmpeg``. Install ``ffmpeg`` with the package manager of your operating system. Make sure that the ``ffmpeg`` command is on your ``PATH``. If ``ffmpeg`` is not on your ``PATH``, these commands render all frames and then stop with an error.
+
+The Docker image includes ``ffmpeg``. To use the CLI in a container, see the `Docker guide <https://github.com/noisefactorllc/noisemaker/blob/main/README-DOCKER.md>`_.
+
 Quick Start
 -----------
 
