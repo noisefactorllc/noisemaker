@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'child_process'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 import { dirname, resolve } from 'path'
 import fs from 'fs'
 
@@ -44,7 +44,7 @@ print(json.dumps(result))
 }
 
 async function getJsEnums() {
-  const mod = await import(resolve(repoRoot, 'js/noisemaker/constants.js'))
+  const mod = await import(pathToFileURL(resolve(repoRoot, 'js/noisemaker/constants.js')))
   const enums = {}
   for (const [key, value] of Object.entries(mod)) {
     if (
@@ -60,8 +60,8 @@ async function getJsEnums() {
 }
 
 async function getJsMasks() {
-  const constMod = await import(resolve(repoRoot, 'js/noisemaker/constants.js'))
-  const { Masks } = await import(resolve(repoRoot, 'js/noisemaker/masks.js'))
+  const constMod = await import(pathToFileURL(resolve(repoRoot, 'js/noisemaker/constants.js')))
+  const { Masks } = await import(pathToFileURL(resolve(repoRoot, 'js/noisemaker/masks.js')))
   const masks = {}
   for (const [name, value] of Object.entries(constMod.ValueMask || {})) {
     const entry = Masks[value]
