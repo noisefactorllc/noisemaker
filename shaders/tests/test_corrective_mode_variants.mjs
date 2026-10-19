@@ -527,9 +527,12 @@ render(o0)`
     }
     const paperHashes = Object.fromEntries(['WebGL2', 'WebGPU'].map(backend => [backend,
         crypto.createHash('sha256').update(rendered[backend].paper.data).digest('hex')]))
+    // The WebGPU pin moved with the WGSL texture fixes 059c1dff and 0b0f4560, which
+    // stopped WebGPU from sampling the frame upside down. It now matches WebGL2 within
+    // 1 LSB on 4 pixels; the earlier pin c22a69b7... was the flipped output.
     assert.deepEqual(paperHashes, {
         WebGL2: '26624775e320302ac79ff2151bcb66a24308fc8580c4a73a3966a72fc67328e9',
-        WebGPU: 'c22a69b73345b2f9f28a22cd82cb50fc35f0f08048aecd959b72945d92cc7729',
+        WebGPU: '1286b203e2811383a996f475762cb266b6e7f771345474f0613eaaaf38bfa858',
     }, 'original Paper Texture pixels must retain their backend-specific contracts')
     const softStats = softTextureStats(rendered.WebGL2.soft)
     assert.ok(softStats.unique > 100, `Soft Texture needs continuous tonal variation: ${JSON.stringify(softStats)}`)
