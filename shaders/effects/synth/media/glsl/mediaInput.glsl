@@ -83,8 +83,14 @@ vec4 getImage(vec2 st) {
     vec2 size = imageSize;
     // Under tiled print export gl_FragCoord is tile-local. Add the tile's
     // global offset so every tile and the untiled reference sample the same
-    // absolute image pixel (tileOffset is 0 when not tiling).
-    st = (gl_FragCoord.xy + tileOffset) / size;
+    // absolute image pixel. Branch on the runtime offset so the untiled
+    // path keeps the original expression bit-for-bit across compilers with
+    // relaxed math (tileOffset is 0 when not tiling).
+    if (tileOffset.x == 0.0 && tileOffset.y == 0.0) {
+        st = gl_FragCoord.xy / size;
+    } else {
+        st = (gl_FragCoord.xy + tileOffset) / size;
+    }
     st.y = 1.0 - st.y;
 
     // Anchoring is relative to the full export canvas, not the tile.
