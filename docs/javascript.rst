@@ -298,12 +298,14 @@ The JavaScript test suite runs against the Python reference implementation. Run 
 
     npm test
 
-Each test:
+Each parity test:
 
 1. Generates output in JavaScript with a specific seed
 2. Invokes Python subprocess with identical parameters
 3. Compares outputs pixel-by-pixel
-4. **Any difference is a test failure** - no fixtures or approximations
+4. **Any difference is a test failure** - no approximations
+
+Some unit tests compare with JSON fixtures under ``test/fixtures/`` instead of a Python subprocess.
 
 This ensures the JavaScript port produces **identical** output to Python.
 

@@ -9,11 +9,11 @@ This document covers the JS port of Noisemaker. See additional
 
 ## [Cross-language parity tests](https://docs.noisemaker.app/javascript/#cross-language-parity)
 
-`npm test` runs the JavaScript suite, which invokes the Python reference
-implementation in a subprocess and compares outputs directly. No fixture files
-or canned images are used. Any difference between languages is treated as a
-test failure—do not modify the Python reference implementation, and do not skip
-or weaken tests to hide problems.
+`npm test` runs the JavaScript suite. Its parity tests invoke the Python
+reference implementation in a subprocess and compare outputs directly. Some unit
+tests compare with JSON fixtures under `test/fixtures/` instead. Any difference
+between languages is treated as a test failure—do not modify the Python
+reference implementation, and do not skip or weaken tests to hide problems.
 
 ## [Command-line rendering](https://docs.noisemaker.app/javascript/#command-line-rendering-experimental)
 

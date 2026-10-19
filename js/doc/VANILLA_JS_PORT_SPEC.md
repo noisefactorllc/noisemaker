@@ -31,7 +31,6 @@ The library is organised as ES modules inside `js/noisemaker/`.
 | `effectsRegistry.js` | Decorator‑like helper that stores effect metadata and callbacks. |
 | `effects.js` | Library of post‑processing effects built on top of `value.js` utilities. |
 | `composer.js` | Preset interpreter and pipeline orchestrator. |
-| `palettes.js` | Cosine palette definitions. |
 | `presets.js` | Declarative preset graph describing layered effect pipelines. |
 | `util.js` | Miscellaneous utilities: tensor helpers, canvas export, logging. |
 | `oklab.js` | RGB⇄OKLab colour‑space conversion routines. |
@@ -40,7 +39,7 @@ The library is organised as ES modules inside `js/noisemaker/`.
 ### 2.2 Data Representation
 
 * **Tensor** – wrapper around a TypedArray representing a 3‑D float array `[height, width, channels]`.
-* `Tensor.fromArray(Float32Array, shape)` creates a tensor from the provided data.
+* `Tensor.fromArray(ctx, array, shape)` creates a tensor from the provided data. `ctx` is a `Context` or `null`.
 * `Tensor.read()` returns the underlying typed array for tests or export.
 * All operations are performed on the CPU using TypedArrays.
 
@@ -48,7 +47,7 @@ The library is organised as ES modules inside `js/noisemaker/`.
 
 1. Operations accept and return `Tensor` instances wrapping Float32Arrays.
 2. Each operation performs calculations directly on typed arrays.
-3. Final output can be written to a canvas using the `save()` utility or converted to image data.
+3. `Preset.render()` writes the final output to the canvas of the `Context` passed as `ctx`. The `savePNG()` utility downloads a tensor as a PNG file.
 
 ## 3. Module Specifications
 
@@ -109,6 +108,7 @@ The library is organised as ES modules inside `js/noisemaker/`.
 * Provides convenience wrappers `Effect(name, params)` for programmatic composition.
 
 ### 3.9 `palettes.js`
+* The module is `shaders/src/palettes.js`, outside `js/noisemaker/`. `js/noisemaker/index.js` re-exports it.
 * Export `PALETTES` object describing cosine palettes (`amp`, `freq`, `offset`, `phase`).
 * Utility `samplePalette(name, t)` returns RGB triplets.
 

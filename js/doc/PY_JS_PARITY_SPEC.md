@@ -6,7 +6,7 @@ Python remains the authoritative reference; the JavaScript port must match its b
 
 All parity tests under `test/parity/` **must** execute the Python and
 JavaScript implementations side by side and compare their results directly.
-No precomputed or hand-edited fixtures are permitted.  The tests invoke the
+No precomputed or hand-edited fixtures are permitted in these tests.  The tests invoke the
 JavaScript reference at runtime and assert a literal 1:1 match against the
 Python output (see `test/parity/test_generators.py` and
 `test/parity/test_effects.py` for examples).  The Python reference
@@ -26,8 +26,9 @@ All 2D tests are to be based on an image shape of 128x128x3.
 * **Determinism** – every source of randomness must be reproducible and yield identical sequences across languages.
 * **Unit‑level cohesion** – low level building blocks (RNG, simplex gradients, value noise, etc.) must return the same values.
 * **Pixel parity** – canonical presets rendered in both languages should compare bit‑for‑bit (or within a single‑byte tolerance when unavoidable).
-* **Automation** – parity tests spawn the JavaScript implementation at runtime
-  and compare against live output; no stored fixtures or manual editing.
+* **Automation** – the parity tests under `test/parity/` spawn the JavaScript
+  implementation at runtime and compare against live output; they use no stored
+  fixtures or manual editing.
 
 ---
 
@@ -44,8 +45,10 @@ All 2D tests are to be based on an image shape of 128x128x3.
 4. **Parity tests**
    * Python tests spawn the JavaScript RNG and stream its output for shared
      seeds, asserting equality to within `1e‑9`.
-   * No fixture files are written or consumed; comparisons are performed in
-     real time to avoid drift.
+   * These Python tests write and read no fixture files; comparisons are
+     performed in real time to avoid drift. The JavaScript test
+     `test/rng.test.js` compares with the stored sequences in
+     `test/fixtures/rng/`.
 
 ---
 
@@ -102,7 +105,12 @@ Modules that consume randomness (value noise, points, masks, effects, composer, 
 
 ## 7. Runtime Comparison Workflow
 
-* No fixture files are versioned in the repository.
+* The parity tests under `test/parity/` read no fixture files. The repository
+  tracks fixture files for other tests: JavaScript unit tests such as
+  `test/effects.test.js`, `test/composer.test.js` and `test/rng.test.js`
+  compare with JSON fixtures under `test/fixtures/`, and
+  `scripts/image_regression.py` uses the baseline images under
+  `test/image-fixtures/`.
 * Python tests invoke the JavaScript reference implementation during each run.
 * `npm test` and `pytest` must fail if the outputs diverge.
 * When behaviour intentionally changes, update both implementations so that parity tests pass without disabling or weakening them.
