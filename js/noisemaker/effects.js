@@ -5161,14 +5161,12 @@ export async function glyphMap(
   const approxH = gh * uvH
   const approxW = gw * uvW
 
-  let valueTensor = await toValueMap(tensor)
-  if (valueTensor.shape[0] !== inH || valueTensor.shape[1] !== inW) {
-    valueTensor = await resample(valueTensor, [inH, inW, 1])
-  }
-  valueTensor = await normalize(valueTensor)
+  // As in the reference, the zoom sets only the uv shape. The value map is
+  // normalized at the full input size and downsampled from the full shape.
+  const valueTensor = await normalize(await toValueMap(tensor))
   let uvNoise = await proportionalDownsample(
     valueTensor,
-    [inH, inW, 1],
+    [h, w, 1],
     [uvH, uvW],
   )
   uvNoise = await resample(uvNoise, [approxH, approxW, 1], splineOrder)

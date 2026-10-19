@@ -171,6 +171,27 @@ def test_glyph_map_mask_parity(seed, mask):
     assert np.allclose(tensor.numpy(), js, atol=ATOL["default"]), report
 
 
+# A zoom above 1 makes fewer, larger glyph cells. invaders_large has 18 by 18
+# glyphs, so at 128 by 128 zoom 2 gives 3 by 3 cells and zooms 4 and 8 give one.
+GLYPH_MAP_ZOOM_MASKS = [ValueMask.invaders_large, ValueMask.fat_lcd_binary]
+
+
+@pytest.mark.parametrize("zoom", [2, 4, 8])
+@pytest.mark.parametrize("mask", GLYPH_MAP_ZOOM_MASKS, ids=[mask.name for mask in GLYPH_MAP_ZOOM_MASKS])
+@pytest.mark.parametrize("seed", SEEDS)
+def test_glyph_map_zoom_parity(seed, mask, zoom):
+    rng.set_seed(seed)
+    value.set_seed(seed)
+    shape = [128, 128, 3]
+    tensor = generators.basic(2, shape, hue_rotation=0)
+    tensor = effects.glyph_map(tensor, shape, mask=mask, zoom=zoom)
+    js = js_effect("glyph_map", seed, mask=mask.value, zoom=zoom)
+    diff = np.abs(tensor.numpy().astype(np.float64) - js.astype(np.float64))
+    report = f"glyph_map mask={mask.name} zoom={zoom} seed={seed}: mean error {diff.mean():.3g}, max error {diff.max():.3g}"
+    print(report)
+    assert np.allclose(tensor.numpy(), js, atol=ATOL["default"]), report
+
+
 def test_glyph_map_without_a_font_stops_in_both_ports(tmp_path, monkeypatch):
     monkeypatch.setenv("NOISEMAKER_DIR", str(tmp_path))
     shape = [128, 128, 3]
