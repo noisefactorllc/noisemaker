@@ -7,9 +7,12 @@ we are always testing parity with the current JS code base without relying on
 cached fixtures.
 """
 
+import subprocess
+
 import numpy as np
 import pytest
 from noisemaker import effects, generators, rng, value
+from noisemaker.constants import ValueMask
 
 from .seeds import PARITY_SEEDS
 from .utils import js_effect
@@ -67,7 +70,6 @@ EFFECTS = [
     ("erosion_worms", effects.erosion_worms),
     ("fibers", effects.fibers),
     ("frame", effects.frame),
-    ("glyph_map", effects.glyph_map),
     ("grime", effects.grime),
     ("jpeg_decimate", effects.jpeg_decimate),
     ("kaleido", effects.kaleido),
@@ -146,3 +148,34 @@ def test_refract_y_from_offset_parity(seed, y_from_offset):
     report = f"refract y_from_offset={y_from_offset} seed={seed}: mean error {diff.mean():.3g}, max error {diff.max():.3g}, tolerance {atol:.3g}"
     print(report)
     assert np.allclose(tensor.numpy(), js, atol=atol), report
+
+
+# glyph_map draws its default truetype glyphs from .ttf files in the fonts
+# directory, and JavaScript draws them on a browser canvas; with neither, both
+# stop with an error. Bitmap masks render the same glyphs in both ports.
+@pytest.mark.parametrize("mask", [ValueMask.waffle, ValueMask.v_bar])
+@pytest.mark.parametrize("seed", SEEDS)
+def test_glyph_map_mask_parity(seed, mask):
+    rng.set_seed(seed)
+    value.set_seed(seed)
+    shape = [128, 128, 3]
+    tensor = generators.basic(2, shape, hue_rotation=0)
+    tensor = effects.glyph_map(tensor, shape, mask=mask)
+    js = js_effect("glyph_map", seed, mask=mask.value)
+    diff = np.abs(tensor.numpy().astype(np.float64) - js.astype(np.float64))
+    report = f"glyph_map mask={mask.name} seed={seed}: mean error {diff.mean():.3g}, max error {diff.max():.3g}"
+    print(report)
+    assert np.allclose(tensor.numpy(), js, atol=ATOL["default"]), report
+
+
+def test_glyph_map_without_a_font_stops_in_both_ports(tmp_path, monkeypatch):
+    monkeypatch.setenv("NOISEMAKER_DIR", str(tmp_path))
+    shape = [128, 128, 3]
+    tensor = generators.basic(2, shape, hue_rotation=0)
+
+    with pytest.raises(ValueError, match="^glyph_map found no .ttf font in "):
+        effects.glyph_map(tensor, shape)
+
+    with pytest.raises(subprocess.CalledProcessError) as js_error:
+        js_effect("glyph_map", SEEDS[0])
+    assert "glyph_map found no font to draw glyphs with" in js_error.value.stderr

@@ -5132,7 +5132,12 @@ export async function glyphMap(
       glyphEntries.push({ data: flat, sum })
     }
   }
-  if (!glyphEntries.length) return tensor
+  if (!glyphEntries.length) {
+    // As the Python reference does when its fonts directory holds no .ttf
+    // file. Without a document (in Node) no font draws glyphs.
+    if (mask === ValueMask.truetype) throw new Error('glyph_map found no font to draw glyphs with')
+    return tensor
+  }
   glyphEntries.sort((a, b) => a.sum - b.sum)
   const glyphDataList = glyphEntries.map((entry) => entry.data)
   const [h, w, c] = shape
