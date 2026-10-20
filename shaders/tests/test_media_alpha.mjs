@@ -42,6 +42,7 @@ window.captureScaled = async (extra) => {
     await renderer.compile('search synth\nmedia(bgAlpha:0, scaleAmt:400'+extra+').write(o0)\nrender(o0)');
     renderer.stop();
     const source=document.createElement('canvas');source.width=64;source.height=64;
+    window.mediaSource=source;
     const context=source.getContext('2d');
     context.fillStyle='rgba(255,0,0,.8)';context.fillRect(6,10,10,18);
     context.fillStyle='rgba(0,255,0,.6)';context.fillRect(26,32,12,12);
@@ -50,6 +51,18 @@ window.captureScaled = async (extra) => {
     renderer.updateTextureFromSource('imageTex_step_'+pass.stepIndex,source,{flipY:false});
     renderer.applyStepParameterValues({['step_'+pass.stepIndex]:{imageSize:[64,64]}});
     renderer.render(0);
+    await renderer.pipeline.backend.device?.queue?.onSubmittedWorkDone();
+};
+window.captureScaledTile = async (offset, extra) => {
+    renderer.canvas.width=128;renderer.canvas.height=128;
+    renderer.resize(128,128);
+    await renderer.compile('search synth\nmedia(bgAlpha:0, scaleAmt:400'+extra+').write(o0)\nrender(o0)');
+    renderer.stop();
+    const pass=renderer.pipeline.graph.passes.find(p=>p.effectFunc==='media');
+    renderer.updateTextureFromSource('imageTex_step_'+pass.stepIndex,window.mediaSource,{flipY:false});
+    renderer.applyStepParameterValues({['step_'+pass.stepIndex]:{imageSize:[64,64]}});
+    renderer.setTileRegion({offset,fullResolution:[256,256]});
+    renderer.render(0);renderer.render(0);
     await renderer.pipeline.backend.device?.queue?.onSubmittedWorkDone();
 };
 </script>`)
@@ -79,11 +92,24 @@ window.captureScaled = async (extra) => {
             }
             results.push(png.data)
         }
+        for (const [offset, extra, fullIndex] of [
+            [[0, 0], '', 3],
+            [[64, 64], '', 3],
+            [[64, 64], ', position: 0, offsetY: 13', 4]
+        ]) {
+            await page.evaluate(({ offset, extra }) => window.captureScaledTile(offset, extra), { offset, extra })
+            const tile = PNG.sync.read(await page.locator('canvas').screenshot({ omitBackground: true }))
+            const full = new PNG({ width: 256, height: 256 })
+            full.data = results[fullIndex]
+            const expected = new PNG({ width: 128, height: 128 })
+            PNG.bitblt(full, expected, offset[0], 256 - offset[1] - 128, 128, 128, 0, 0)
+            assert.ok(tile.data.equals(expected.data), `${gpu ? 'WebGPU' : 'WebGL2'} media tile differs at ${offset}`)
+        }
         captures.push(results)
         await page.close()
     }
     captures[0].forEach((bytes, i) => assert.ok(bytes.equals(captures[1][i]), `GLSL/WGSL pixels differ in media case ${i}`))
-    console.log('Media alpha, transparent-edge filtering and asymmetric transformed sprites: 7 cases on both backends; exact pixel parity')
+    console.log('Media alpha and transformed sprites: 7 exact backend parity cases and 3 exact tile crops per backend')
 } finally {
     await browser.close()
     await releaseServer()

@@ -93,11 +93,6 @@ vec4 getImage(vec2 st) {
     }
     st.y = 1.0 - st.y;
 
-    // Anchoring is relative to the full export canvas, not the tile.
-    // fullResolution defaults to resolution when not tiling, so normal-size
-    // rendering keeps the exact same values.
-    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
-
     float scale = 100.0 / scaleAmt;
 
     if (scale == 0.0) {
@@ -105,44 +100,86 @@ vec4 getImage(vec2 st) {
     }
     st *= scale;
 
-    // Position adjustments based on anchor point
-    if (position == 0) {
-        // top left
-        st.y += (fullRes.y / size.y * scale) - (scale - (1.0 / size.y * scale));
-    } else if (position == 1) {
-        // top center
-        st.x -= (fullRes.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
-        st.y += (fullRes.y / size.y * scale) - (scale - (1.0 / size.y * scale));
-    } else if (position == 2) {
-        // top right
-        st.x -= (fullRes.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
-        st.y += (fullRes.y / size.y * scale) - (scale - (1.0 / size.y * scale));
-    } else if (position == 3) {
-        // mid left
-        st.y += (fullRes.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
-    } else if (position == 4) {
-        // mid center
-        st.x -= (fullRes.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
-        st.y += (fullRes.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
-    } else if (position == 5) {
-        // mid right
-        st.x -= (fullRes.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
-        st.y += (fullRes.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
-    } else if (position == 6) {
-        // bottom left
-        st.y += 1.0 - (scale - (1.0 / size.y * scale));
-    } else if (position == 7) {
-        // bottom center
-        st.x -= (fullRes.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
-        st.y += 1.0 - (scale - (1.0 / size.y * scale));
-    } else if (position == 8) {
-        // bottom right
-        st.x -= (fullRes.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
-        st.y += 1.0 - (scale - (1.0 / size.y * scale));
-    }
+    // Keep the original untiled math exact on both backends.
+    if (fullResolution.x > 0.0 && (fullResolution.x != resolution.x || fullResolution.y != resolution.y)) {
+        // Position adjustments based on anchor point
+        if (position == 0) {
+            // top left
+            st.y += (fullResolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
+        } else if (position == 1) {
+            // top center
+            st.x -= (fullResolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
+            st.y += (fullResolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
+        } else if (position == 2) {
+            // top right
+            st.x -= (fullResolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
+            st.y += (fullResolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
+        } else if (position == 3) {
+            // mid left
+            st.y += (fullResolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
+        } else if (position == 4) {
+            // mid center
+            st.x -= (fullResolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
+            st.y += (fullResolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
+        } else if (position == 5) {
+            // mid right
+            st.x -= (fullResolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
+            st.y += (fullResolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
+        } else if (position == 6) {
+            // bottom left
+            st.y += 1.0 - (scale - (1.0 / size.y * scale));
+        } else if (position == 7) {
+            // bottom center
+            st.x -= (fullResolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
+            st.y += 1.0 - (scale - (1.0 / size.y * scale));
+        } else if (position == 8) {
+            // bottom right
+            st.x -= (fullResolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
+            st.y += 1.0 - (scale - (1.0 / size.y * scale));
+        }
 
-    st.x -= map(offsetX, -100.0, 100.0, -fullRes.x / size.x * scale, fullRes.x / size.x * scale) * 1.5;
-    st.y -= map(offsetY, -100.0, 100.0, -fullRes.y / size.y * scale, fullRes.y / size.y * scale) * 1.5;
+        st.x -= map(offsetX, -100.0, 100.0, -fullResolution.x / size.x * scale, fullResolution.x / size.x * scale) * 1.5;
+        st.y -= map(offsetY, -100.0, 100.0, -fullResolution.y / size.y * scale, fullResolution.y / size.y * scale) * 1.5;
+    } else {
+        // Position adjustments based on anchor point
+        if (position == 0) {
+            // top left
+            st.y += (resolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
+        } else if (position == 1) {
+            // top center
+            st.x -= (resolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
+            st.y += (resolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
+        } else if (position == 2) {
+            // top right
+            st.x -= (resolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
+            st.y += (resolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
+        } else if (position == 3) {
+            // mid left
+            st.y += (resolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
+        } else if (position == 4) {
+            // mid center
+            st.x -= (resolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
+            st.y += (resolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
+        } else if (position == 5) {
+            // mid right
+            st.x -= (resolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
+            st.y += (resolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
+        } else if (position == 6) {
+            // bottom left
+            st.y += 1.0 - (scale - (1.0 / size.y * scale));
+        } else if (position == 7) {
+            // bottom center
+            st.x -= (resolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
+            st.y += 1.0 - (scale - (1.0 / size.y * scale));
+        } else if (position == 8) {
+            // bottom right
+            st.x -= (resolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
+            st.y += 1.0 - (scale - (1.0 / size.y * scale));
+        }
+
+        st.x -= map(offsetX, -100.0, 100.0, -resolution.x / size.x * scale, resolution.x / size.x * scale) * 1.5;
+        st.y -= map(offsetY, -100.0, 100.0, -resolution.y / size.y * scale, resolution.y / size.y * scale) * 1.5;
+    }
 
     // Correct for aspect ratio before rotation
     st.x *= size.x / size.y;
