@@ -673,6 +673,142 @@ Sources: `shaders/src/lang/diagnostics.js` - default export;
 `shaders/src/runtime/expander.js` - `expand()`.
 
 <!-- SURFACE:EFFECT -->
+## Portable effect authoring
+
+### Introspect
+
+Use this workflow for the browser shader engine, paired GLSL/WGSL programs,
+and portable effect workspaces. It is independent of any chat service or
+editor. The Python image API has a separate contract.
+
+Read the target application's pinned engine version and the actual effect
+before editing. Inspect its complete definition, every referenced shader,
+its starter DSL and its assets. Discover the installed tool or app command
+schemas instead of assuming that a tool name, argument, binding or type from
+another version exists. Preserve the application's runtime and file format.
+
+For direct effect editing, read [Foundry's guide](https://foundry.noisedeck.app/llms-full.txt).
+For Shade's generation model or an external agent in its session, read
+[Shade's guide](https://shade.noisedeck.app/llms-full.txt). Those guides define
+app commands; this contract defines the engine. Through a shared session,
+operate only on its shared program and effect. Private workspaces and drafts
+are not part of that session.
+
+Start with the requested visual mechanism and controls for its primitives.
+Search the installed effect library before creating a custom effect. Check
+an effect's actual function, namespace, arguments, defaults, types and ranges.
+A generator starts a chain; a filter consumes its input. For example:
+
+```text
+search synth
+noise().write(o0)
+render(o0)
+```
+
+Expose the relevant primitives' shape, position, scale, stretch, deformation,
+material and motion as named controls. Keep defaults that reproduce the
+reference, then allow wide finite ranges and nonphysical combinations for
+exploration. A global brightness or speed knob is not a substitute for
+primitive-level controls. Keep both shader implementations bound to the same
+typed arguments, and verify each control changes its intended primitive.
+
+### Act
+
+1. Read the current workspace before writing. Preserve its files, assets and
+   metadata. If the host uses revisions, write against the revision just read;
+   reread and reconcile a conflict. Preserve unpublished editor buffers.
+2. Keep the complete definition and all programs: typed globals, pass inputs
+   and outputs, internal textures, uniform layouts, defaults and supported
+   aliases. Validate against the target version before migrating legacy
+   fields. Do not silently discard metadata to make an import pass.
+3. Bind each user argument explicitly. A `uniform` changes at render time;
+   a `define` selects compiled code and needs recompilation. An unrelated
+   numeric override cannot change a define. Keep vectors, colors, booleans,
+   enums and expressions in their typed DSL form. Do not replace authored
+   arguments with metadata defaults. Apply a control to its intended program
+   step; a global uniform override can change several instances.
+4. Use the host's portable format: definition JSON, starter DSL and paired
+   `glsl/<program>.glsl` / `wgsl/<program>.wgsl`. Connect every multi-pass
+   program through declared intermediate textures. User surfaces `o0` through
+   `o7` belong to the composition; effect state uses internal textures.
+   Keep image assets as separate binary assets when saving or sharing.
+5. Match both languages' binding layouts, texture formats, alpha and sampling
+   semantics. Derive coordinate conventions from a working effect in the
+   target host. The host may transform the output during presentation;
+   matching native surface readbacks alone does not prove that the displayed
+   canvases have the same orientation. Check an asymmetric frame.
+6. Treat `time` as normalized loop phase `0..1`, not seconds. Wrap the phase
+   before periodic operations, use integer-frequency cycles or closed-orbit
+   noise sampling, and match both value and velocity at the seam. A linear
+   translation jumps; matching endpoint positions can still hide a velocity
+   reversal. Use a deterministic seed. Feedback needs an explicit reset,
+   warm-up and frame sequence; a fresh arbitrary-time frame cannot recreate
+   its history.
+7. Discover shader-craft references and exact helper signatures on demand
+   through the installed shade-mcp catalog. `searchShaderKnowledge` category
+   `shader-craft` supplies workflows and technique references;
+   `searchShaderLibrary` finds language-specific symbols. Use deterministic
+   PCG helpers instead of sine hashes. `bundleShader` inserts the used helper
+   dependency closure and credits; preserve the copyright and MIT notice.
+   `checkShader` reports advisory source findings and does not compile shaders.
+8. Light and mix in scene-linear color. Decode display colors before shading,
+   apply exposure and tonemapping, then encode sRGB once at final output.
+   Keep multi-pass intermediates linear. For SDF scenes, preserve distance
+   bounds through deformations and use a bounded marcher, normals, materials
+   and lighting. Read the relevant reference instead of loading the entire
+   library into a prompt.
+
+For a reference video, use the video-to-shader workflow in the app guide.
+Extract timestamped frames and measure duration, composition, visible object
+parts, palette, camera and motion before authoring. Get the requested visual
+breakdown approved in the conversation. In apps with these commands, set
+`setLoopDuration({seconds: L})`, then use
+`renderAt({time: s / L, maxDimension: 1024, format: "png"})` for second `s`.
+Inspect the returned image and compare the same samples on both backends.
+Use frame strips around transitions, contacts and the loop seam; a pair of
+endpoint stills does not verify the motion.
+
+### Validate
+
+Compile and render the exact candidate, each referenced program and each
+requested backend. Inspect both displayed pixels and diagnostics. A save,
+structural check or successful compile alone is not visual proof. Confirm
+that the returned effect, backend, seed, dimensions and time are the intended
+ones. An unavailable backend leaves the requested coverage incomplete.
+
+Change each meaningful control independently with seed, time and dimensions
+fixed. Verify its intended visual effect, including compile-time choices and
+multiple instances of a repeated effect. For a filter, compare with the input
+so a pass-through cannot masquerade as success. A small brightness difference
+does not establish that a control works.
+
+Compare several loop phases and frame sequences around the seam. Inspect
+asymmetric displayed frames on both backends, report the measured differences
+and the comparison threshold, and retain failed checks as failures. Finite,
+reduced-resolution samples do not prove all-time or full-resolution equality.
+Keep warm-up and reset conditions equal for history-dependent effects.
+
+Export and re-import the final effect. Check that its source, typed arguments,
+passes, textures, bindings and assets survive. Keep the host's seed,
+dimensions, loop length and any legacy overrides equal for pixel comparison.
+When a portable package cannot represent a host-specific setting, retain the
+workspace export and report that limitation before claiming a faithful round
+trip.
+
+### Diagnose
+
+Retain the exact failing shader, program, pass and diagnostic. Reduce to the
+first failing expression or binding and repair that cause. A blank frame can
+mean a missing output, namespace mismatch, inactive uniform, binding or alpha
+error, or unavailable GPU. Distinguish them through compiler output and
+controlled visual changes. Do not substitute an unrelated effect or change
+the requested visual to obtain a passing metric.
+
+The detailed definition, globals, graph, texture and rendered-output sections
+below remain the source of exact engine behavior. Tool availability and app
+commands are discovered from their current catalogs; this workflow does not
+change the pinned MCP snapshot documented above.
+
 ## Effect definition
 
 ### Introspect

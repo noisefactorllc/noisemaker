@@ -31,6 +31,10 @@ Use this file as the short public map. For a fuller agent-oriented overview, rea
 
 ## Agent Tooling
 
+Start with the [portable effect authoring workflow](https://noisemaker.app/llms-full.txt#portable-effect-authoring) for host-independent discovery, typed bindings, paired shaders, looping, rendered checks and export round trips.
+
+For app control, read [Foundry](https://foundry.noisedeck.app/llms-full.txt) or [Shade](https://shade.noisedeck.app/llms-full.txt). Their guides add shader-craft and reference-video workflows.
+
 - [shade-mcp](https://github.com/noisefactorllc/shade-mcp): MCP server for effect search, source search, compile, render, metrics, parity, and structure checks.
 - [portable](https://github.com/noisefactorllc/portable): Portable effect package format with definition JSON, help docs, GLSL, WGSL, and viewer.
 
