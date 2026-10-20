@@ -39,6 +39,10 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    fieldTex: {
+      type: "surface", default: "inputTex",
+      ui: { label: "field map", category: "source" }
+    },
     moveSpeed: {
       type: "float",
       default: 1.78,
@@ -171,7 +175,7 @@ export default new Effect({
         // Read pheromone texture for sensor feedback
         trailTex: "global_physarum_pheromone",
         // Read input for field attraction
-        inputTex: "inputTex"
+        inputTex: "fieldTex"
       },
       uniforms: {
         moveSpeed: "moveSpeed",

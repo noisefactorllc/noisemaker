@@ -35,6 +35,10 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    heightTex: {
+      type: "surface", default: "inputTex",
+      ui: { label: "height map", category: "source" }
+    },
     stride: {
       type: "float",
       default: 10,
@@ -93,7 +97,7 @@ export default new Effect({
         xyzTex: "global_xyz",
         velTex: "global_vel",
         rgbaTex: "global_rgba",
-        inputTex: "inputTex"
+        inputTex: "heightTex"
       },
       uniforms: {
         stride: "stride",

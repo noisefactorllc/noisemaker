@@ -33,6 +33,10 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    fieldTex: {
+      type: "surface", default: "inputTex",
+      ui: { label: "field map", category: "source" }
+    },
     // stateSize parameter for texture sizing (must match pointsEmit)
     stateSize: {
       type: "int",
@@ -137,7 +141,7 @@ export default new Effect({
         velTex: "global_vel",
         rgbaTex: "global_rgba",
         // Flow reads input for luminance-based direction
-        inputTex: "inputTex"
+        inputTex: "fieldTex"
       },
       uniforms: {
         behavior: "behavior",

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "points/flock",
-  "sourceHash": "fd23027ff07ca220a20de451593292870a3c166b8c5446f44390172b877bb104",
+  "sourceHash": "0957d8cbacd45f94ea72ccb79adc8a45f02bf44c7b087abc3993d3888391000e",
   "caseHash": "d886889efdb3e55d67907f723e8ee2846e7c2a8e039388ecdca7f3164813e074",
   "resolution": [
     64,
@@ -13,14 +13,14 @@
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 3612
+      "uniqueColors": 3611
     },
     "webgpu": {
       "width": 64,
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 3612
+      "uniqueColors": 3611
     }
   },
   "execution": {

@@ -36,6 +36,10 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    fieldTex: {
+      type: "surface", default: "inputTex",
+      ui: { label: "field map", category: "source" }
+    },
     // stateSize must match pointsEmit (inherited, not displayed)
     stateSize: {
       type: "int",
@@ -178,7 +182,7 @@ export default new Effect({
         velTex: "global_vel",
         rgbaTex: "global_rgba",
         gridTex: "global_dla_grid",
-        inputTex: "inputTex"
+        inputTex: "fieldTex"
       },
       uniforms: {
         stride: "stride",

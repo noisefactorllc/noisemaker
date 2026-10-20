@@ -10,6 +10,10 @@ export default new Effect({
 
     // Global parameters exposed to the user
     globals: {
+        diffuseTex: {
+            type: "surface", default: "inputTex",
+            ui: { label: "diffuse map", category: "source", resetOnChange: true }
+        },
         // State texture size (controls agent count)
         // 256=65k, 512=262k, 1024=1M, 2048=4M
         stateSize: {
@@ -132,8 +136,8 @@ export default new Effect({
                 velTex: "global_vel",
                 rgbaTex: "global_rgba",
 
-                // Chained input texture for coloring agents
-                inputTex: "inputTex"
+                // Particle color source (defaults to the chained input)
+                inputTex: "diffuseTex"
             },
 
             uniforms: {
