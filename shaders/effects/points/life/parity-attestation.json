@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "points/life",
-  "sourceHash": "9a34996c2d3addc0ab55ec672f353e11e1657dbf00f9b187b0b31e06974fb089",
+  "sourceHash": "d609ec13003f077cc8dd20f60643e5db8735665911283ab0e4c57362be039aa9",
   "caseHash": "72a3dac8e5d6b086791edd66a0f9f067d3bd9446811c2b19539014db18983057",
   "resolution": [
     64,
