@@ -759,6 +759,8 @@ typed arguments, and verify each control changes its intended primitive.
    library into a prompt.
 
 For a reference video, use the video-to-shader workflow in the app guide.
+This workflow creates procedural interpretations of reference videos. It is
+not intended for photographic-quality reproductions.
 Extract timestamped frames and measure duration, composition, visible object
 parts, palette, camera and motion before authoring. Get the requested visual
 breakdown approved in the conversation. In apps with these commands, set
