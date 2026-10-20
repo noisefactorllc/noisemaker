@@ -12,7 +12,7 @@ export default new Effect({
     globals: {
         diffuseTex: {
             type: "surface", default: "inputTex",
-            ui: { label: "diffuse map", category: "source", resetOnChange: true }
+            ui: { label: "diffuse map", category: "general", resetOnChange: true }
         },
         // State texture size (controls agent count)
         // 256=65k, 512=262k, 1024=1M, 2048=4M
