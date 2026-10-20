@@ -16,7 +16,11 @@ try {
     const errors = []
     page.on('pageerror', error => errors.push(error.message))
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()) })
-    await page.goto(baseUrl)
+    // Establish a trustworthy origin like the sibling tests do, but load a
+    // harmless local JSON page: the repo root would run the demo page and
+    // couple this GPU test to its live remote assets (site CDN bundle, fonts,
+    // tokens.css), which fails on runners whose egress denies those hosts.
+    await page.goto(`${baseUrl}/shaders/effects/manifest.json`)
     await page.setContent('<style>body{margin:0}canvas{display:block}</style><canvas></canvas>')
     await page.evaluate(async baseUrl => {
         const { WebGPUBackend } = await import(`${baseUrl}/shaders/src/runtime/backends/webgpu.js`)
