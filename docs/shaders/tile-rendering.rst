@@ -31,5 +31,6 @@ These effects use full-image coordinates during tiled rendering on WebGL2 and We
 
 * ``classicNoisedeck/effects`` keeps sample coordinates and effect patterns aligned across tile joins. The tiled shader test covers each named effect mode.
 * ``filter/glyphMap`` keeps its glyph grid aligned, including on the origin tile.
+* On WebGL2 and WebGPU, ``synth/media`` uses ``tileOffset`` and ``fullResolution`` to keep image positioning and source sampling consistent across tiles.
 
 The ``cga``, ``subpixel``, and glyph-cell patterns use ``renderScale``. Tile support depends on each effect's shader. Runtime uniforms do not make every effect tile-aware. Check each effect's shader before you use it for tile rendering.
