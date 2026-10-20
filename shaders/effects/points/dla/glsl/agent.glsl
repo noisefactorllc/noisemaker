@@ -10,6 +10,7 @@ uniform int frame;
 // DLA parameters
 uniform float stride;
 uniform float inputWeight;
+uniform float fieldActive;
 uniform float attrition;
 uniform int stateSize;
 uniform bool resetState;
@@ -21,12 +22,22 @@ uniform sampler2D rgbaTex;   // [r, g, b, a]
 
 // DLA internal textures
 uniform sampler2D gridTex;   // Anchor grid (internal, not rendered)
+uniform sampler2D fieldTex;
 uniform sampler2D inputTex;  // For input-weighted movement
 
 // Output state (MRT)
 layout(location = 0) out vec4 outXYZ;
 layout(location = 1) out vec4 outVel;
 layout(location = 2) out vec4 outRGBA;
+
+uniform sampler2D diffuseTex;
+uniform float diffuseActive;
+
+vec4 selectedDiffuse(vec2 uv) {
+    ivec2 size = textureSize(diffuseTex, 0);
+    ivec2 pixel = clamp(ivec2(clamp(uv, vec2(0.0), vec2(0.999999)) * vec2(size)), ivec2(0), size - 1);
+    return texelFetch(diffuseTex, pixel, 0);
+}
 
 // Integer-based hash for deterministic randomness
 uint hash_uint(uint seed) {
@@ -127,9 +138,9 @@ void main() {
     float inputW = inputWeight / 100.0;
     vec2 stepDir = randomDir;
     if (inputW > 0.0) {
-        ivec2 inputDims = textureSize(inputTex, 0);
+        ivec2 inputDims = fieldActive > 0.5 ? textureSize(fieldTex, 0) : textureSize(inputTex, 0);
         ivec2 inputCoord = ivec2(wrap01(pos) * vec2(inputDims));
-        vec4 inputVal = texelFetch(inputTex, inputCoord, 0);
+        vec4 inputVal = fieldActive > 0.5 ? texelFetch(fieldTex, inputCoord, 0) : texelFetch(inputTex, inputCoord, 0);
         vec2 inputDir = inputVal.xy * 2.0 - 1.0;
         if (length(inputDir) > 0.01) {
             inputDir = normalize(inputDir);
@@ -167,16 +178,16 @@ void main() {
         // Agent stuck: mark as dead for respawn, flag justStuck for deposit
         outXYZ = vec4(candidate, 0.0, 0.0);  // w=0 signals death to pointsEmit
         outVel = vec4(seed, 1.0, 0.0, agentRand);  // y=1 signals "just stuck" for depositGrid
-        outRGBA = rgba;
+        outRGBA = diffuseActive > 0.5 ? selectedDiffuse(candidate) : rgba;
     } else if (needsRespawn) {
         // Attrition death: mark for respawn
         outXYZ = vec4(candidate, 0.0, 0.0);  // w=0 signals death
         outVel = vec4(seed, 0.0, 0.0, agentRand);  // y=0, not stuck
-        outRGBA = rgba;
+        outRGBA = diffuseActive > 0.5 ? selectedDiffuse(candidate) : rgba;
     } else {
         // Continue walking
         outXYZ = vec4(candidate, 0.0, 1.0);  // w=1 alive
         outVel = vec4(seed, 0.0, 0.0, agentRand);
-        outRGBA = rgba;
+        outRGBA = diffuseActive > 0.5 ? selectedDiffuse(candidate) : rgba;
     }
 }

@@ -3,6 +3,7 @@
 // Binding order: loaded textures (0-2), sampled texture pair (3-4), uniforms (5)
 
 struct Uniforms {
+    diffuseActive: f32,
     resolution: vec2f,
     muG: f32,
     sigmaG: f32,
@@ -13,6 +14,14 @@ struct Uniforms {
 @group(0) @binding(0) var xyzTex: texture_2d<f32>;
 @group(0) @binding(1) var velTex: texture_2d<f32>;
 @group(0) @binding(2) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(6) var diffuseTex: texture_2d<f32>;
+
+fn selectedDiffuse(uv: vec2f) -> vec4f {
+    let size = textureDimensions(diffuseTex, 0);
+    let pixel = clamp(vec2i(clamp(uv, vec2f(0.0), vec2f(0.999999)) * vec2f(size)), vec2i(0), vec2i(size) - vec2i(1));
+    return textureLoad(diffuseTex, pixel, 0);
+}
+
 @group(0) @binding(3) var fieldSampler: sampler;
 @group(0) @binding(4) var fieldTex: texture_2d<f32>;
 @group(0) @binding(5) var<uniform> uniforms: Uniforms;
@@ -111,7 +120,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> FragmentOutput {
     // Output
     output.outXYZ = vec4f(newPos, xyz.z, 1.0);
     output.outVel = vec4f(velocity, age, vel.w);
-    output.outRGBA = rgba;
+    output.outRGBA = select(rgba, selectedDiffuse(newPos), uniforms.diffuseActive > 0.5);
 
     return output;
 }

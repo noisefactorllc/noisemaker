@@ -12,6 +12,7 @@ Based on [Particle Lenia](https://google-research.github.io/self-organising-syst
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
+| diffuseTex | surface | none | - | Particle color map; none preserves the existing particle color |
 | muK | float | 25 | 1-30 | Kernel μ |
 | sigmaK | float | 5 | 0.1-10 | Kernel σ |
 | muG | float | 0.25 | 0.1-2 | Growth μ |

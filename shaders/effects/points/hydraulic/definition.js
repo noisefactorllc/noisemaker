@@ -35,8 +35,12 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "agents" }
+    },
     heightTex: {
-      type: "surface", default: "inputTex",
+      type: "surface", default: "none", colorModeUniform: "fieldActive",
       ui: { label: "height map", category: "agents" }
     },
     stride: {
@@ -97,9 +101,13 @@ export default new Effect({
         xyzTex: "global_xyz",
         velTex: "global_vel",
         rgbaTex: "global_rgba",
-        inputTex: "heightTex"
+        inputTex: "inputTex",
+        heightTex: "heightTex",
+        diffuseTex: "diffuseTex"
       },
       uniforms: {
+        diffuseActive: "diffuseActive",
+        fieldActive: "fieldActive",
         stride: "stride",
         quantize: "quantize",
         inverse: "inverse",

@@ -24,6 +24,15 @@ layout(location = 0) out vec4 outXYZ;
 layout(location = 1) out vec4 outVel;
 layout(location = 2) out vec4 outRGBA;
 
+uniform sampler2D diffuseTex;
+uniform float diffuseActive;
+
+vec4 selectedDiffuse(vec2 uv) {
+    ivec2 size = textureSize(diffuseTex, 0);
+    ivec2 pixel = clamp(ivec2(clamp(uv, vec2(0.0), vec2(0.999999)) * vec2(size)), ivec2(0), size - 1);
+    return texelFetch(diffuseTex, pixel, 0);
+}
+
 uint hash_uint(uint s) {
     uint state = s * 747796405u + 2891336453u;
     uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
@@ -131,7 +140,7 @@ void main() {
 
         outXYZ = vec4(screen, 0.5, 1.0);
         outVel = vec4(cRe, cIm, 1.0, escapeStep);
-        outRGBA = vec4(brightness, brightness, brightness, 1.0);
+        outRGBA = diffuseActive > 0.5 ? vec4(selectedDiffuse(screen).rgb * brightness, 1.0) : vec4(brightness, brightness, brightness, 1.0);
         return;
     }
 
@@ -173,5 +182,5 @@ void main() {
 
     outXYZ = vec4(screen, 0.5, 1.0);
     outVel = vec4(cRe, cIm, step, escapeStep);
-    outRGBA = col;
+    outRGBA = diffuseActive > 0.5 ? vec4(selectedDiffuse(screen).rgb * 0.03, 1.0) : col;
 }

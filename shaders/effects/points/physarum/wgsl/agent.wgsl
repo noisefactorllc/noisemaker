@@ -2,6 +2,7 @@
 // Reads xyz/vel/rgba from pipeline, applies sensor-based steering
 
 struct Uniforms {
+    diffuseActive: f32,
     resolution: vec2f,
     time: f32,
     moveSpeed: f32,
@@ -9,16 +10,27 @@ struct Uniforms {
     sensorAngle: f32,
     sensorDistance: f32,
     inputWeight: f32,
+    fieldActive: f32,
 }
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var xyzTex: texture_2d<f32>;
 @group(0) @binding(3) var velTex: texture_2d<f32>;
 @group(0) @binding(5) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(11) var diffuseTex: texture_2d<f32>;
+
+fn selectedDiffuse(uv: vec2f) -> vec4f {
+    let size = textureDimensions(diffuseTex, 0);
+    let pixel = clamp(vec2i(clamp(uv, vec2f(0.0), vec2f(0.999999)) * vec2f(size)), vec2i(0), vec2i(size) - vec2i(1));
+    return textureLoad(diffuseTex, pixel, 0);
+}
+
 @group(0) @binding(7) var trailTex: texture_2d<f32>;
 @group(0) @binding(8) var trailSampler: sampler;
 @group(0) @binding(9) var inputTex: texture_2d<f32>;
+@group(0) @binding(12) var fieldTex: texture_2d<f32>;
 @group(0) @binding(10) var inputSampler: sampler;
+@group(0) @binding(13) var fieldSampler: sampler;
 
 struct Outputs {
     @location(0) outXYZ: vec4f,
@@ -61,7 +73,8 @@ fn sampleTrail(uv: vec2f) -> f32 {
 fn sampleExternalField(uv: vec2f, weight: f32) -> f32 {
     if (weight <= 0.0) { return 0.0; }
     let blend = clamp(weight * 0.01, 0.0, 1.0);
-    return luminance(textureSampleLevel(inputTex, inputSampler, uv, 0.0).rgb) * blend * 0.05;
+    let field = select(textureSampleLevel(inputTex, inputSampler, uv, 0.0).rgb, textureSampleLevel(fieldTex, fieldSampler, uv, 0.0).rgb, u.fieldActive > 0.5);
+    return luminance(field) * blend * 0.05;
 }
 
 @fragment
@@ -129,7 +142,8 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     var speedScale = 1.0;
     let blend = clamp(u.inputWeight * 0.01, 0.0, 1.0);
     if (blend > 0.0) {
-        let localInput = luminance(textureSampleLevel(inputTex, inputSampler, pos, 0.0).rgb);
+        let field = select(textureSampleLevel(inputTex, inputSampler, pos, 0.0).rgb, textureSampleLevel(fieldTex, fieldSampler, pos, 0.0).rgb, u.fieldActive > 0.5);
+        let localInput = luminance(field);
         // Invert: slow in bright, fast in dark
         speedScale = mix(1.0, mix(1.8, 0.35, localInput), blend);
     }
@@ -145,6 +159,6 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     return Outputs(
         vec4f(newPos, newHeading, 1.0),  // alive = 1
         vec4f(0.0, 0.0, newAge, seed),
-        rgba  // Color unchanged
+        select(rgba, selectedDiffuse(newPos), u.diffuseActive > 0.5)
     );
 }

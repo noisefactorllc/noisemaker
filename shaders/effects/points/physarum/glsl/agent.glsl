@@ -7,6 +7,7 @@ uniform sampler2D xyzTex;      // [x, y, heading, alive] in normalized [0,1]
 uniform sampler2D velTex;      // [0, 0, age, seed]
 uniform sampler2D rgbaTex;     // [r, g, b, a]
 uniform sampler2D trailTex;    // Trail texture for sensor feedback
+uniform sampler2D fieldTex;
 uniform sampler2D inputTex;    // Input texture for field attraction
 
 uniform vec2 resolution;
@@ -16,11 +17,21 @@ uniform float turnSpeed;
 uniform float sensorAngle;
 uniform float sensorDistance;  // Now in normalized [0,1] coords
 uniform float inputWeight;
+uniform float fieldActive;
 
 // MRT outputs
 layout(location = 0) out vec4 outXYZ;
 layout(location = 1) out vec4 outVel;
 layout(location = 2) out vec4 outRGBA;
+
+uniform sampler2D diffuseTex;
+uniform float diffuseActive;
+
+vec4 selectedDiffuse(vec2 uv) {
+    ivec2 size = textureSize(diffuseTex, 0);
+    ivec2 pixel = clamp(ivec2(clamp(uv, vec2(0.0), vec2(0.999999)) * vec2(size)), ivec2(0), size - 1);
+    return texelFetch(diffuseTex, pixel, 0);
+}
 
 const float TAU = 6.28318530718;
 
@@ -57,7 +68,8 @@ float sampleTrail(vec2 uv) {
 float sampleExternalField(vec2 uv, float weight) {
     if (weight <= 0.0) return 0.0;
     float blend = clamp(weight * 0.01, 0.0, 1.0);
-    return luminance(texture(inputTex, uv).rgb) * blend * 0.05;
+    vec3 field = fieldActive > 0.5 ? texture(fieldTex, uv).rgb : texture(inputTex, uv).rgb;
+    return luminance(field) * blend * 0.05;
 }
 
 void main() {
@@ -123,7 +135,8 @@ void main() {
     float speedScale = 1.0;
     float blend = clamp(inputWeight * 0.01, 0.0, 1.0);
     if (blend > 0.0) {
-        float localInput = luminance(texture(inputTex, pos).rgb);
+        vec3 field = fieldActive > 0.5 ? texture(fieldTex, pos).rgb : texture(inputTex, pos).rgb;
+        float localInput = luminance(field);
         // Invert: slow in bright, fast in dark
         speedScale = mix(1.0, mix(1.8, 0.35, localInput), blend);
     }
@@ -139,5 +152,5 @@ void main() {
     // Output
     outXYZ = vec4(newPos, newHeading, 1.0);  // alive = 1
     outVel = vec4(0.0, 0.0, newAge, seed);
-    outRGBA = rgba;  // Color unchanged
+    outRGBA = diffuseActive > 0.5 ? selectedDiffuse(outXYZ.xy) : rgba;
 }

@@ -1,4 +1,5 @@
 struct Uniforms {
+    diffuseActive: f32,
     resolution: vec2f,
     time: f32,
     gravity: f32,
@@ -20,6 +21,14 @@ struct Outputs {
 @group(0) @binding(1) var xyzTex: texture_2d<f32>;
 @group(0) @binding(2) var velTex: texture_2d<f32>;
 @group(0) @binding(3) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(4) var diffuseTex: texture_2d<f32>;
+
+fn selectedDiffuse(uv: vec2f) -> vec4f {
+    let size = textureDimensions(diffuseTex, 0);
+    let pixel = clamp(vec2i(clamp(uv, vec2f(0.0), vec2f(0.999999)) * vec2f(size)), vec2i(0), vec2i(size) - vec2i(1));
+    return textureLoad(diffuseTex, pixel, 0);
+}
+
 
 fn hash_uint(seed: u32) -> u32 {
     var state = seed * 747796405u + 2891336453u;
@@ -135,7 +144,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
         return Outputs(
             vec4f(px, py, pz, 1.0),
             vec4f(vx, vy, vz, seed_f),
-            rgba
+            select(rgba, selectedDiffuse(vec2f(px, py)), u.diffuseActive > 0.5)
         );
     }
 }

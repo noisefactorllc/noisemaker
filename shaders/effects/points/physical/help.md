@@ -10,6 +10,7 @@ Particles fall under gravity, get pushed by wind, and experience drag and random
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
+| diffuseTex | surface | none | - | Particle color map; none preserves the existing particle color |
 | stateSize | int | 256 | - | - |
 | gravity | float | 0.05 | -2-2 | Gravity |
 | wind | float | 0 | -2-2 | Wind |

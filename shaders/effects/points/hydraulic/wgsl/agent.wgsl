@@ -4,12 +4,14 @@
 // Positions in normalized coords [0,1], velocities in pixel-space
 
 struct Uniforms {
+    diffuseActive: f32,
     resolution: vec2f,
     time: f32,
     stride: f32,
     quantize: f32,
     inverse: f32,
     inputWeight: f32,
+    fieldActive: f32,
 }
 
 struct Outputs {
@@ -20,9 +22,18 @@ struct Outputs {
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
+@group(0) @binding(7) var heightTex: texture_2d<f32>;
 @group(0) @binding(3) var xyzTex: texture_2d<f32>;
 @group(0) @binding(4) var velTex: texture_2d<f32>;
 @group(0) @binding(5) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(6) var diffuseTex: texture_2d<f32>;
+
+fn selectedDiffuse(uv: vec2f) -> vec4f {
+    let size = textureDimensions(diffuseTex, 0);
+    let pixel = clamp(vec2i(clamp(uv, vec2f(0.0), vec2f(0.999999)) * vec2f(size)), vec2i(0), vec2i(size) - vec2i(1));
+    return textureLoad(diffuseTex, pixel, 0);
+}
+
 
 // === ORIGINAL HFLOW HELPER FUNCTIONS (PRESERVED EXACTLY) ===
 
@@ -75,7 +86,7 @@ fn oklab_l(rgb: vec3f) -> f32 {
 fn fetch_texel(x: i32, y: i32, width: i32, height: i32) -> vec4f {
     let wrapped_x = wrap_int(x, width);
     let wrapped_y = wrap_int(y, height);
-    return textureLoad(inputTex, vec2i(wrapped_x, wrapped_y), 0);
+    return select(textureLoad(inputTex, vec2i(wrapped_x, wrapped_y), 0), textureLoad(heightTex, vec2i(wrapped_x, wrapped_y), 0), u.fieldActive > 0.5);
 }
 
 fn luminance_at(x: i32, y: i32, width: i32, height: i32) -> f32 {
@@ -198,6 +209,6 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     return Outputs(
         vec4f(newPx, newPy, xyz.z, alive),
         vec4f(normVx, normVy, vz, seed_f),
-        rgba
+        select(rgba, selectedDiffuse(vec2f(newPx, newPy)), u.diffuseActive > 0.5)
     );
 }

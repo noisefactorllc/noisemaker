@@ -58,6 +58,10 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "kernel" }
+    },
     // Kernel parameters (K - the attraction shell)
     muK: {
       type: "float",
@@ -225,9 +229,11 @@ export default new Effect({
         xyzTex: "global_xyz",
         velTex: "global_vel",
         rgbaTex: "global_rgba",
+        diffuseTex: "diffuseTex",
         fieldTex: "global_lenia_field"
       },
       uniforms: {
+        diffuseActive: "diffuseActive",
         muG: "muG",
         sigmaG: "sigmaG",
         repulsion: "repulsion",

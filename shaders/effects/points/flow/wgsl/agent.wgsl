@@ -4,6 +4,7 @@
 // Positions in normalized coords [0,1]
 
 struct Uniforms {
+    diffuseActive: f32,
     resolution: vec2f,
     time: f32,
     stride: f32,
@@ -11,6 +12,7 @@ struct Uniforms {
     kink: f32,
     quantize: f32,
     inputWeight: f32,
+    fieldActive: f32,
     behavior: f32,
 }
 
@@ -22,9 +24,18 @@ struct Outputs {
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
+@group(0) @binding(7) var fieldTex: texture_2d<f32>;
 @group(0) @binding(3) var xyzTex: texture_2d<f32>;
 @group(0) @binding(4) var velTex: texture_2d<f32>;
 @group(0) @binding(5) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(6) var diffuseTex: texture_2d<f32>;
+
+fn selectedDiffuse(uv: vec2f) -> vec4f {
+    let size = textureDimensions(diffuseTex, 0);
+    let pixel = clamp(vec2i(clamp(uv, vec2f(0.0), vec2f(0.999999)) * vec2f(size)), vec2i(0), vec2i(size) - vec2i(1));
+    return textureLoad(diffuseTex, pixel, 0);
+}
+
 
 const TAU: f32 = 6.283185307179586;
 const RIGHT_ANGLE: f32 = 1.5707963267948966;
@@ -120,10 +131,10 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     }
     
     // Sample input texture at current position for flow direction
-    let texSize = textureDimensions(inputTex, 0);
+    let texSize = select(textureDimensions(inputTex, 0), textureDimensions(fieldTex, 0), u.fieldActive > 0.5);
     var texCoord = vec2i(i32(px * f32(texSize.x)), i32(py * f32(texSize.y)));
     texCoord = clamp(texCoord, vec2i(0), vec2i(texSize) - vec2i(1));
-    let texel = textureLoad(inputTex, texCoord, 0);
+    let texel = select(textureLoad(inputTex, texCoord, 0), textureLoad(fieldTex, texCoord, 0), u.fieldActive > 0.5);
     let inputLuma = oklab_l(texel.rgb);
     
     // inputWeight controls how much the input texture influences flow direction
@@ -161,6 +172,6 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     return Outputs(
         vec4f(newX, newY, pz, 1.0),
         vec4f(0.0, 0.0, rotRand, strideRand),
-        rgba
+        select(rgba, selectedDiffuse(vec2f(newX, newY)), u.diffuseActive > 0.5)
     );
 }

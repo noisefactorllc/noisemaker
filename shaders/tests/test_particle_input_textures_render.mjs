@@ -31,7 +31,8 @@ try {
             window.renderer = renderer
             await renderer.loadManifest()
             await renderer.loadEffects(['synth/solid', 'synth/noise', 'render/pointsEmit', 'render/pointsRender',
-                'points/flow', 'points/hydraulic', 'points/dla', 'points/physarum', 'points/life'])
+                'points/flow', 'points/hydraulic', 'points/dla', 'points/physarum', 'points/life',
+                'points/flock', 'points/physical', 'points/attractor', 'points/buddhabrot', 'points/lenia'])
             window.frame = async (dsl, effect, output) => {
                 await renderer.compile(dsl)
                 renderer.stop()
@@ -44,24 +45,30 @@ try {
             }
         }, { baseUrl, backend })
 
-        const dsl = ({ effect = '', params = '', render = false, emitterDiffuse = false,
-            source = 'solid(color: #ff0000)' } = {}) => `search synth, render, points\n${source}.write(o1)\nsolid(color: #00ff00).pointsEmit(stateSize: x64, layout: grid, resetState: true${emitterDiffuse ? ', diffuseTex: read(o1)' : ''})${effect ? `.${effect}(${params})` : ''}${render ? '.pointsRender(density: 100, intensity: 0, inputIntensity: 0)' : ''}.write(o0)\nrender(o0)`
+        const dsl = ({ effect = '', params = '', render = false,
+            source = 'solid(color: #ff0000)' } = {}) => `search synth, render, points\n${source}.write(o1)\nsolid(color: #00ff00).pointsEmit(stateSize: x64, layout: grid, resetState: true)${effect ? `.${effect}(${params})` : ''}${render ? '.pointsRender(density: 100, intensity: 0, inputIntensity: 0)' : ''}.write(o0)\nrender(o0)`
         const read = (program, effect, output) => page.evaluate(
             ({ program, effect, output }) => window.frame(program, effect, output), { program, effect, output })
 
         const defaultColor = await read(dsl(), 'pointsEmit', 'outRGBA')
-        const namedColor = await read(dsl({ emitterDiffuse: true }), 'pointsEmit', 'outRGBA')
         assert.equal(defaultColor.backend, backend)
         assert.deepEqual(defaultColor.values.slice(0, 4), [0, 255, 0, 255], `${backend}: emitter defaults to inputTex`)
-        assert.deepEqual(namedColor.values.slice(0, 4), [255, 0, 0, 255], `${backend}: emitter takes diffuseTex`)
 
-        const defaultLife = await read(dsl({ effect: 'life' }), 'life', 'outRGBA')
-        const namedLife = await read(dsl({ effect: 'life', params: 'diffuseTex: read(o1)' }), 'life', 'outRGBA')
-        assert.deepEqual(defaultLife.values.slice(0, 4), [0, 255, 0, 255], `${backend}: life defaults to inputTex`)
-        assert.deepEqual(namedLife.values.slice(0, 4), [255, 0, 0, 255], `${backend}: life takes diffuseTex`)
+        for (const effect of ['flow', 'hydraulic', 'dla', 'physarum', 'life',
+            'flock', 'physical', 'attractor', 'buddhabrot', 'lenia']) {
+            const fallback = await read(dsl({ effect }), effect, 'outRGBA')
+            const none = await read(dsl({ effect, params: 'diffuseTex: none' }), effect, 'outRGBA')
+            const named = await read(dsl({ effect, params: 'diffuseTex: read(o1)' }), effect, 'outRGBA')
+            assert.deepEqual(none.values, fallback.values, `${backend}: ${effect} none preserves omitted particle color`)
+            assert.notDeepEqual(named.values, fallback.values, `${backend}: ${effect} explicit diffuse changes particle color`)
+            assert.ok(named.values.some((v, i) => i % 4 === 0 && v > named.values[i + 1]),
+                `${backend}: ${effect} explicit diffuse produces red particles`)
+        }
 
         const defaultFlow = await read(dsl({ effect: 'flow', params: 'inputWeight: 100' }), 'flow', 'outXYZ')
         const namedFlow = await read(dsl({ effect: 'flow', params: 'inputWeight: 100, fieldTex: read(o1)' }), 'flow', 'outXYZ')
+        const noneFlow = await read(dsl({ effect: 'flow', params: 'inputWeight: 100, fieldTex: none' }), 'flow', 'outXYZ')
+        assert.deepEqual(noneFlow.values, defaultFlow.values, `${backend}: flow none preserves inputTex movement`)
         assert.notDeepEqual(defaultFlow.values, namedFlow.values, `${backend}: flow takes fieldTex`)
 
         for (const { effect, surface, source } of [
@@ -71,13 +78,15 @@ try {
         ]) {
             const options = { effect, params: 'inputWeight: 100', source }
             const fallback = await read(dsl(options), effect, 'outXYZ')
+            const none = await read(dsl({ ...options, params: `inputWeight: 100, ${surface}: none` }), effect, 'outXYZ')
             const named = await read(dsl({ ...options, params: `inputWeight: 100, ${surface}: read(o1)` }), effect, 'outXYZ')
+            assert.deepEqual(none.values, fallback.values, `${backend}: ${effect} none preserves inputTex movement`)
             assert.notDeepEqual(fallback.values, named.values, `${backend}: ${effect} takes ${surface}`)
         }
 
-        await read(dsl({ render: true }), 'pointsEmit', 'outRGBA')
+        await read(dsl({ effect: 'flow', render: true }), 'flow', 'outRGBA')
         const defaultPixels = PNG.sync.read(await page.locator('canvas').screenshot({ omitBackground: true })).data
-        await read(dsl({ render: true, emitterDiffuse: true }), 'pointsEmit', 'outRGBA')
+        await read(dsl({ effect: 'flow', params: 'diffuseTex: read(o1)', render: true }), 'flow', 'outRGBA')
         const namedPixels = PNG.sync.read(await page.locator('canvas').screenshot({ omitBackground: true })).data
         let green = 0, red = 0, wrongDefault = 0, wrongNamed = 0
         for (let i = 0; i < defaultPixels.length; i += 4) {

@@ -2,8 +2,10 @@
 // Reads agent state from pointsEmit, performs random walk, detects sticking
 
 struct Uniforms {
+    diffuseActive: f32,
     stride: f32,
     inputWeight: f32,
+    fieldActive: f32,
     attrition: f32,
     stateSize: i32,
 }
@@ -23,8 +25,17 @@ struct FragmentOutputs {
 @group(0) @binding(1) var xyzTex: texture_2d<f32>;
 @group(0) @binding(2) var velTex: texture_2d<f32>;
 @group(0) @binding(3) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(6) var diffuseTex: texture_2d<f32>;
+
+fn selectedDiffuse(uv: vec2f) -> vec4f {
+    let size = textureDimensions(diffuseTex, 0);
+    let pixel = clamp(vec2i(clamp(uv, vec2f(0.0), vec2f(0.999999)) * vec2f(size)), vec2i(0), vec2i(size) - vec2i(1));
+    return textureLoad(diffuseTex, pixel, 0);
+}
+
 @group(0) @binding(4) var gridTex: texture_2d<f32>;
 @group(0) @binding(5) var inputTex: texture_2d<f32>;
+@group(0) @binding(7) var fieldTex: texture_2d<f32>;
 
 // Integer-based hash for deterministic randomness
 fn hash_uint(seed: u32) -> u32 {
@@ -124,9 +135,9 @@ fn main(in: VertexOutput) -> FragmentOutputs {
     let inputW = u.inputWeight / 100.0;
     var stepDir = randomDir;
     if (inputW > 0.0) {
-        let inputDims = textureDimensions(inputTex);
+        let inputDims = select(textureDimensions(inputTex), textureDimensions(fieldTex), u.fieldActive > 0.5);
         let inputCoord = vec2<i32>(wrap01(pos) * vec2<f32>(inputDims));
-        let inputVal = textureLoad(inputTex, inputCoord, 0);
+        let inputVal = select(textureLoad(inputTex, inputCoord, 0), textureLoad(fieldTex, inputCoord, 0), u.fieldActive > 0.5);
         var inputDir = inputVal.xy * 2.0 - 1.0;
         if (length(inputDir) > 0.01) {
             inputDir = normalize(inputDir);
@@ -165,21 +176,21 @@ fn main(in: VertexOutput) -> FragmentOutputs {
         return FragmentOutputs(
             vec4<f32>(candidate, 0.0, 0.0),  // w=0 signals death to pointsEmit
             vec4<f32>(seed, 1.0, 0.0, agentRand),  // y=1 signals "just stuck" for depositGrid
-            rgba
+            select(rgba, selectedDiffuse(candidate), u.diffuseActive > 0.5)
         );
     } else if (needsRespawn) {
         // Attrition death: mark for respawn
         return FragmentOutputs(
             vec4<f32>(candidate, 0.0, 0.0),  // w=0 signals death
             vec4<f32>(seed, 0.0, 0.0, agentRand),  // y=0, not stuck
-            rgba
+            select(rgba, selectedDiffuse(candidate), u.diffuseActive > 0.5)
         );
     } else {
         // Continue walking
         return FragmentOutputs(
             vec4<f32>(candidate, 0.0, 1.0),  // w=1 alive
             vec4<f32>(seed, 0.0, 0.0, agentRand),
-            rgba
+            select(rgba, selectedDiffuse(candidate), u.diffuseActive > 0.5)
         );
     }
 }

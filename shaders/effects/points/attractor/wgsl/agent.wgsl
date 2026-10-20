@@ -2,6 +2,7 @@
 // Updates particle positions based on attractor dynamics
 
 struct Uniforms {
+    diffuseActive: f32,
     time: f32,
     resolution: vec2<f32>,
     seed: i32,
@@ -13,6 +14,14 @@ struct Uniforms {
 @group(0) @binding(1) var xyzTex: texture_2d<f32>;
 @group(0) @binding(3) var velTex: texture_2d<f32>;
 @group(0) @binding(5) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(6) var diffuseTex: texture_2d<f32>;
+
+fn selectedDiffuse(uv: vec2f) -> vec4f {
+    let size = textureDimensions(diffuseTex, 0);
+    let pixel = clamp(vec2i(clamp(uv, vec2f(0.0), vec2f(0.999999)) * vec2f(size)), vec2i(0), vec2i(size) - vec2i(1));
+    return textureLoad(diffuseTex, pixel, 0);
+}
+
 
 struct Outputs {
     @location(0) outXYZ: vec4<f32>,
@@ -157,7 +166,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> Outputs {
         return Outputs(
             vec4<f32>(newX, newY, newZ, 1.0),
             vel,
-            col
+            select(col, selectedDiffuse(fract(vec2f(newX, newY))), u.diffuseActive > 0.5)
         );
     }
     
@@ -185,6 +194,6 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> Outputs {
     return Outputs(
         vec4<f32>(newPos, 1.0),
         vel,
-        col
+        select(col, selectedDiffuse(fract(newPos.xy)), u.diffuseActive > 0.5)
     );
 }

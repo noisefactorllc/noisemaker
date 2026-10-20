@@ -32,6 +32,10 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "boids" }
+    },
     // Classic boids parameters
     separation: {
       type: "float",
@@ -177,9 +181,11 @@ export default new Effect({
       inputs: {
         xyzTex: "global_xyz",
         velTex: "global_vel",
-        rgbaTex: "global_rgba"
+        rgbaTex: "global_rgba",
+        diffuseTex: "diffuseTex"
       },
       uniforms: {
+        diffuseActive: "diffuseActive",
         separation: "separation",
         alignment: "alignment",
         cohesion: "cohesion",

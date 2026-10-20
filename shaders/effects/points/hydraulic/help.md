@@ -10,7 +10,8 @@ Agents flow downhill following the steepest descent of the input texture brightn
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| heightTex | surface | inputTex | - | Height field; defaults to the chained input |
+| diffuseTex | surface | none | - | Particle color map; none preserves the existing particle color |
+| heightTex | surface | none | - | Height field; defaults to the chained input |
 | stride | float | 10 | 1-1000 | Stride |
 | quantize | boolean | false | - | Quantize |
 | inverse | boolean | false | - | Inverse |

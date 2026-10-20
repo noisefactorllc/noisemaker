@@ -13,7 +13,6 @@ This is the starting point for all agent-based effects. It creates and manages t
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| diffuseTex | surface | inputTex | - | Initial particle color; defaults to the chained input |
 | stateSize | int | x256 | x64/x128/x256/x512/x1024/x2048 | State size |
 | layout | int | random | random/grid/center/ring/clusters/spiral | Layout |
 | seed | int | 0 | 0-100 | Seed |

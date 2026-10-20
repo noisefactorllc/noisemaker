@@ -4,6 +4,7 @@
 // Positions in normalized coords [0,1]
 
 struct Uniforms {
+    diffuseActive: f32,
     resolution: vec2f,
     time: f32,
     separation: f32,
@@ -28,6 +29,14 @@ struct Outputs {
 @group(0) @binding(3) var xyzTex: texture_2d<f32>;
 @group(0) @binding(4) var velTex: texture_2d<f32>;
 @group(0) @binding(5) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(6) var diffuseTex: texture_2d<f32>;
+
+fn selectedDiffuse(uv: vec2f) -> vec4f {
+    let size = textureDimensions(diffuseTex, 0);
+    let pixel = clamp(vec2i(clamp(uv, vec2f(0.0), vec2f(0.999999)) * vec2f(size)), vec2i(0), vec2i(size) - vec2i(1));
+    return textureLoad(diffuseTex, pixel, 0);
+}
+
 
 // === ORIGINAL BOIDS HELPER FUNCTIONS (PRESERVED EXACTLY) ===
 
@@ -305,6 +314,6 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     return Outputs(
         vec4f(newPx, newPy, xyz.z, 1.0),
         vec4f(velocity, age, seed),
-        rgba
+        select(rgba, selectedDiffuse(vec2f(newPx, newPy)), u.diffuseActive > 0.5)
     );
 }

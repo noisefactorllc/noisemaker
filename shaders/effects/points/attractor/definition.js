@@ -41,6 +41,10 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "general" }
+    },
     // stateSize parameter for texture sizing (must match pointsEmit)
     stateSize: {
       type: "int",
@@ -101,9 +105,11 @@ export default new Effect({
         // Read from shared global textures
         xyzTex: "global_xyz",
         velTex: "global_vel",
-        rgbaTex: "global_rgba"
+        rgbaTex: "global_rgba",
+        diffuseTex: "diffuseTex"
       },
       uniforms: {
+        diffuseActive: "diffuseActive",
         attractor: "attractor",
         speed: "speed"
       },

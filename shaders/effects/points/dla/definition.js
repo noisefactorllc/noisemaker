@@ -36,8 +36,12 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "chemistry" }
+    },
     fieldTex: {
-      type: "surface", default: "inputTex",
+      type: "surface", default: "none", colorModeUniform: "fieldActive",
       ui: { label: "field map", category: "chemistry" }
     },
     // stateSize must match pointsEmit (inherited, not displayed)
@@ -182,9 +186,13 @@ export default new Effect({
         velTex: "global_vel",
         rgbaTex: "global_rgba",
         gridTex: "global_dla_grid",
-        inputTex: "fieldTex"
+        inputTex: "inputTex",
+        fieldTex: "fieldTex",
+        diffuseTex: "diffuseTex"
       },
       uniforms: {
+        diffuseActive: "diffuseActive",
+        fieldActive: "fieldActive",
         stride: "stride",
         inputWeight: "inputWeight",
         attrition: "attrition",

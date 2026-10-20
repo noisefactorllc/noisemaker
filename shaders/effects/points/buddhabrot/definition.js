@@ -36,6 +36,10 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "fractal" }
+    },
     stateSize: {
       type: "int",
       default: 512,
@@ -119,9 +123,11 @@ export default new Effect({
       inputs: {
         xyzTex: "global_xyz",
         velTex: "global_vel",
-        rgbaTex: "global_rgba"
+        rgbaTex: "global_rgba",
+        diffuseTex: "diffuseTex"
       },
       uniforms: {
+        diffuseActive: "diffuseActive",
         maxIter: "maxIter",
         minIter: "minIter",
         mode: "mode",

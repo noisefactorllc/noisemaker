@@ -39,8 +39,12 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "general" }
+    },
     fieldTex: {
-      type: "surface", default: "inputTex",
+      type: "surface", default: "none", colorModeUniform: "fieldActive",
       ui: { label: "field map", category: "general" }
     },
     moveSpeed: {
@@ -175,9 +179,13 @@ export default new Effect({
         // Read pheromone texture for sensor feedback
         trailTex: "global_physarum_pheromone",
         // Read input for field attraction
-        inputTex: "fieldTex"
+        inputTex: "inputTex",
+        fieldTex: "fieldTex",
+        diffuseTex: "diffuseTex"
       },
       uniforms: {
+        diffuseActive: "diffuseActive",
+        fieldActive: "fieldActive",
         moveSpeed: "moveSpeed",
         turnSpeed: "turnSpeed",
         sensorAngle: "sensorAngle",

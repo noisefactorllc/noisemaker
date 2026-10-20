@@ -2,6 +2,7 @@
 // 3 MRT outputs — matches pointsEmit layout
 
 struct Uniforms {
+    diffuseActive: f32,
     time: f32,
     resolution: vec2<f32>,
     seed: i32,
@@ -17,6 +18,14 @@ struct Uniforms {
 @group(0) @binding(1) var xyzTex: texture_2d<f32>;
 @group(0) @binding(3) var velTex: texture_2d<f32>;
 @group(0) @binding(5) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(6) var diffuseTex: texture_2d<f32>;
+
+fn selectedDiffuse(uv: vec2f) -> vec4f {
+    let size = textureDimensions(diffuseTex, 0);
+    let pixel = clamp(vec2i(clamp(uv, vec2f(0.0), vec2f(0.999999)) * vec2f(size)), vec2i(0), vec2i(size) - vec2i(1));
+    return textureLoad(diffuseTex, pixel, 0);
+}
+
 
 struct Outputs {
     @location(0) outXYZ: vec4<f32>,
@@ -126,7 +135,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> Outputs {
         return Outputs(
             vec4<f32>(screen, 0.5, 1.0),
             vec4<f32>(cRe, cIm, 1.0, escapeStep),
-            vec4<f32>(brightness, brightness, brightness, 1.0),
+            select(vec4<f32>(brightness, brightness, brightness, 1.0), vec4<f32>(selectedDiffuse(screen).rgb * brightness, 1.0), u.diffuseActive > 0.5),
         );
     }
 
@@ -170,6 +179,6 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> Outputs {
     return Outputs(
         vec4<f32>(screen, 0.5, 1.0),
         vec4<f32>(cRe, cIm, step, escapeStep),
-        col,
+        select(col, vec4f(selectedDiffuse(screen).rgb * 0.03, 1.0), u.diffuseActive > 0.5),
     );
 }

@@ -21,6 +21,15 @@ layout(location = 0) out vec4 outXYZ;
 layout(location = 1) out vec4 outVel;
 layout(location = 2) out vec4 outRGBA;
 
+uniform sampler2D diffuseTex;
+uniform float diffuseActive;
+
+vec4 selectedDiffuse(vec2 uv) {
+    ivec2 size = textureSize(diffuseTex, 0);
+    ivec2 pixel = clamp(ivec2(clamp(uv, vec2(0.0), vec2(0.999999)) * vec2(size)), ivec2(0), size - 1);
+    return texelFetch(diffuseTex, pixel, 0);
+}
+
 // Integer-based hash for cross-platform determinism
 uint hash_uint(uint seed) {
     uint state = seed * 747796405u + 2891336453u;
@@ -158,7 +167,7 @@ void main() {
         
         outXYZ = vec4(pos.xyz, 1.0);
         outVel = vel;
-        outRGBA = col;
+        outRGBA = diffuseActive > 0.5 ? selectedDiffuse(fract(outXYZ.xy)) : col;
         return;
     }
     
@@ -185,5 +194,5 @@ void main() {
     
     outXYZ = vec4(newPos, 1.0);
     outVel = vel;
-    outRGBA = col;
+    outRGBA = diffuseActive > 0.5 ? selectedDiffuse(fract(outXYZ.xy)) : col;
 }

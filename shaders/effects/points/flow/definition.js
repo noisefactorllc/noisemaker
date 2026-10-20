@@ -33,8 +33,12 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "agents" }
+    },
     fieldTex: {
-      type: "surface", default: "inputTex",
+      type: "surface", default: "none", colorModeUniform: "fieldActive",
       ui: { label: "field map", category: "agents" }
     },
     // stateSize parameter for texture sizing (must match pointsEmit)
@@ -141,9 +145,13 @@ export default new Effect({
         velTex: "global_vel",
         rgbaTex: "global_rgba",
         // Flow reads input for luminance-based direction
-        inputTex: "fieldTex"
+        inputTex: "inputTex",
+        fieldTex: "fieldTex",
+        diffuseTex: "diffuseTex"
       },
       uniforms: {
+        diffuseActive: "diffuseActive",
+        fieldActive: "fieldActive",
         behavior: "behavior",
         stride: "stride",
         strideDeviation: "strideDeviation",

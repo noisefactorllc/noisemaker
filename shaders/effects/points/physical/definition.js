@@ -34,6 +34,10 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "physics" }
+    },
     // stateSize parameter for texture sizing (must match pointsEmit)
     stateSize: {
       type: "int",
@@ -134,9 +138,11 @@ export default new Effect({
         // Within-frame: updateFrameSurfaceBindings makes pointsEmit's writes visible
         xyzTex: "global_xyz",
         velTex: "global_vel",
-        rgbaTex: "global_rgba"
+        rgbaTex: "global_rgba",
+        diffuseTex: "diffuseTex"
       },
       uniforms: {
+        diffuseActive: "diffuseActive",
         gravity: "gravity",
         wind: "wind",
         energy: "energy",
