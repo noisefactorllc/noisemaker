@@ -37,7 +37,7 @@ export default new Effect({
   globals: {
     heightTex: {
       type: "surface", default: "inputTex",
-      ui: { label: "height map", category: "source" }
+      ui: { label: "height map", category: "agents" }
     },
     stride: {
       type: "float",

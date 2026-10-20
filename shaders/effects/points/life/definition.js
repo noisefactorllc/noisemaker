@@ -50,7 +50,7 @@ export default new Effect({
   globals: {
     diffuseTex: {
       type: "surface", default: "inputTex",
-      ui: { label: "diffuse map", category: "source" }
+      ui: { label: "diffuse map", category: "types" }
     },
     // State size param - inherited from upstream pointsEmit
     stateSize: {

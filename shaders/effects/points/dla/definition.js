@@ -38,7 +38,7 @@ export default new Effect({
   globals: {
     fieldTex: {
       type: "surface", default: "inputTex",
-      ui: { label: "field map", category: "source" }
+      ui: { label: "field map", category: "chemistry" }
     },
     // stateSize must match pointsEmit (inherited, not displayed)
     stateSize: {

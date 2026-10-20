@@ -35,7 +35,7 @@ export default new Effect({
   globals: {
     fieldTex: {
       type: "surface", default: "inputTex",
-      ui: { label: "field map", category: "source" }
+      ui: { label: "field map", category: "agents" }
     },
     // stateSize parameter for texture sizing (must match pointsEmit)
     stateSize: {
