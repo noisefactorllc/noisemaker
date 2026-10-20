@@ -10,6 +10,7 @@ Agents move according to the brightness of the input texture, creating painterly
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
+| fieldTex | surface | inputTex | - | Flow field; defaults to the chained input |
 | stateSize | int | 256 | - | - |
 | behavior | int | obedient | none/obedient/crosshatch/unruly/chaotic/randomMix/meandering | Behavior |
 | stride | float | 10 | 1-1000 | Stride |

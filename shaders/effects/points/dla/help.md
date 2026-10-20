@@ -10,6 +10,7 @@ Agents perform random walks until they contact existing structure, then stick an
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
+| fieldTex | surface | inputTex | - | Movement field; defaults to the chained input |
 | stateSize | int | 256 | - | - |
 | anchorDensity | float | 0.5 | 0.01-5 | Anchor density |
 | stride | float | 15 | 1-50 | Stride |
