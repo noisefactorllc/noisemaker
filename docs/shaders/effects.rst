@@ -719,6 +719,7 @@ The following schema summarizes the consumed authoring shape. Regular expression
        "outputGeo": { "type": "string", "description": "Internal texture name to expose as geometry buffer output" },
        "uniformLayout": { "type": "object" },
        "uniformLayouts": { "type": "object" },
+       "paramAliases": { "type": "object" },
        "openCategories": { "type": "array", "items": { "type": "string" } },
        "defaultProgram": { "type": "string" },
        "hidden": { "type": "boolean" },

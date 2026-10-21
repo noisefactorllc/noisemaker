@@ -484,7 +484,7 @@ The ``pointsEmit`` wrapper initializes agent colors from that input.
 
 Set ``diffuseTex`` on a behavior to sample a separate color map. Except for ``heightGrid``, omitting it or setting it to ``none`` preserves the behavior's current particle colors.
 
-``flow``, ``dla``, and ``physarum`` accept ``fieldTex`` for movement. Their field selectors use the chained input when omitted or set to ``none``. ``hydraulic`` accepts ``heightTex`` for terrain height.
+``flow``, ``dla``, ``physarum``, and ``hydraulic`` accept ``heightTex`` for movement. Their height selectors use the chained input when omitted or set to ``none``. ``fieldTex`` is a deprecated alias for ``heightTex`` in ``flow``, ``dla``, and ``physarum`` until 2027-06-01.
 
 ``heightGrid`` accepts ``heightTex`` and ``diffuseTex`` for height and color maps. Both selectors default to the chained input.
 
@@ -494,7 +494,7 @@ Set ``diffuseTex`` on a behavior to sample a separate color map. Except for ``he
    noise().write(o1)
    solid(color: #ff0000).write(o2)
    solid(color: #ffffff).pointsEmit()
-     .flow(fieldTex: read(o1), diffuseTex: read(o2))
+     .flow(heightTex: read(o1), diffuseTex: read(o2))
      .pointsRender()
      .write(o0)
    render(o0)

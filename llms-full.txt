@@ -96,7 +96,7 @@ type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
 
 type Diagnostic = {
   code: "S001" | "S002" | "S003" | "S004" | "S005" | "S006" |
-        "S008" | "P008" | "P009" | "P010"
+        "S007" | "S008" | "P008" | "P009" | "P010"
   message: string
   severity: "error" | "warning"
   nodeId?: string | number | null  // null on the P008-P010 subchain warnings
@@ -613,7 +613,7 @@ Use these falsifiable stages:
 | backend compile | every referenced program in backend program map | compile completes without throw |
 | execution | `pipeline.lastPassCount` after a frame | equals number of non-skipped expanded passes after repeat expansion |
 
-Warnings (`S002`, `S008`) do not make `compileGraph()` fail. Any semantic
+Warnings (`S002`, `S007`, `S008`) do not make `compileGraph()` fail. Any semantic
 error does. `runDslProgram` is a convenient combined validator on either
 backend; its exact contract is in the MCP section.
 
@@ -647,6 +647,7 @@ Declared diagnostic codes are:
 | `S004` | semantic/error | assigning `null` or `undefined` |
 | `S005` | semantic/error | illegal starter/chain/input position |
 | `S006` | semantic/error | starter chain missing terminal write |
+| `S007` | semantic/warning | deprecated parameter alias |
 | `S008` | semantic/warning | deprecated effect alias |
 | `R001` | runtime/error | declared but not emitted by the compiler/backends shown here |
 
@@ -865,6 +866,7 @@ interface EffectDefinition {
   outputGeo?: string
   uniformLayout?: UniformLayout
   uniformLayouts?: Record<string, UniformLayout>
+  paramAliases?: Record<string, string>
   openCategories?: string[]
   defaultProgram?: string
   hidden?: boolean
@@ -1030,8 +1032,8 @@ lifecycle hooks (`initLifecycleEffects()`/`_invokeUpdateHooks()`/`_withRuntimeUn
 - every global has a known `type` and only known spec and `ui` fields, with
   consistent `default`, `min`/`max`, `choices` and std-enum references.
 - unknown top-level fields, tags, hook values that are not functions,
-  texture specs, uniform layouts and `enabledBy` conditions are diagnosed.
-  Retired `paramAliases` is an unknown top-level field.
+  texture specs, uniform layouts, `paramAliases` and `enabledBy` conditions
+  are diagnosed.
 
 That validator does not prove the complete grammar. A development gate must
 also require:
@@ -1566,6 +1568,7 @@ Parameter-related semantic failures use `Diagnostic`:
 - `S002`: out-of-range value with `(got <v>, clamped to <c>)`, wrong value form,
   nonnumeric array element, or invalid audio channel.
 - `S003`: undefined variable, enum identifier, or inline choice.
+- `S007`: a deprecated parameter alias was rewritten.
 
 Selected-device audio bindings the built-in manager cannot capture evaluate to
 `min`; the manager emits a console warning when the graph requires such a
@@ -2389,6 +2392,7 @@ partitions them by starter state.
 
 Sources: `shaders/src/lang/transform.js` - `listSteps()`,
 `getCompatibleReplacements()`, `predictReplacement()`; `shaders/src/lang/ops.js` - `ops`;
+`shaders/src/lang/paramAliases.js` - `getParamAliases()`;
 `shaders/tests/test_transform.js` - effect-only length, index, and builtin-target
 regressions.
 
@@ -2424,10 +2428,11 @@ Every successful listing attaches `predictions`: a per-candidate prediction
 (`predictReplacement()` in `shaders/src/lang/transform.js`) of the candidate's
 compatibility dimensions — shader availability (registered definition in the
 runtime registry; `available` is `unknown` when no definitions are registered
-at all), arguments (unknown names and missing no-default arguments),
-types, ranges (min/max/choices, reported under the argument name), passes,
-outputs, sampler topology (with the replaced effect's topology as
-`changedFrom`), and backend support from the optional
+at all), arguments (unknown names, with param-alias awareness via the read-only
+`getParamAliases()` in `shaders/src/lang/paramAliases.js`, and missing
+no-default arguments), types, ranges (min/max/choices, reported under the
+canonical argument name), passes, outputs, sampler topology (with the replaced
+effect's topology as `changedFrom`), and backend support from the optional
 `options.manifest` (`effects/manifest.json` shape). Dimensions without
 available data are reported as `unknown`, never invented. Listing-time
 predictions use empty arguments, so requires-arguments candidates are not
@@ -2477,7 +2482,7 @@ No other shape participates. `replaceEffect` performs these steps:
 8. Reset namespace metadata.
 
 Sources: `shaders/src/lang/transform.js` - `replaceEffect()`,
-`predictReplacement()`.
+`predictReplacement()`; `shaders/src/lang/paramAliases.js` - `getParamAliases()`.
 
 ### Validate
 
@@ -2521,7 +2526,7 @@ After a successful replacement, all parse, semantic, expansion, backend, output,
 and parity failures use their respective surfaces' diagnostic channels.
 Parameter names/types/ranges, pass shape, shader availability, and backend
 support are predicted before mutation by `predictReplacement()`. Availability,
-arguments, types and ranges raise issues that can block;
+arguments (param-alias aware), types and ranges raise issues that can block;
 passes, outputs and sampler topology are reported for information and never
 block; backend support is predicted only when the
 caller supplies `options.manifest`; dimensions without data are reported
