@@ -44,13 +44,13 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
-    diffuseTex: {
-      type: "surface", default: "none", colorModeUniform: "diffuseActive",
-      ui: { label: "diffuse map", category: "general" }
-    },
     heightTex: {
       type: "surface", default: "none", colorModeUniform: "fieldActive",
       ui: { label: "height map", category: "general" }
+    },
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "general" }
     },
     moveSpeed: {
       type: "float",

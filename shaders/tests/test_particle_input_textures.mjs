@@ -125,3 +125,13 @@ for (const effect of ['flow', 'hydraulic', 'dla', 'physarum', 'flock', 'physical
         assert.doesNotMatch(agent.scopedParams?.stateSize ?? '', /_node_/, 'the memory reads the pipeline stateSize and never writes it')
     })
 }
+
+test('every particle behavior lists its height map before its diffuse map, as heightGrid does', async () => {
+    for (const name of ['heightGrid', 'flow', 'hydraulic', 'dla', 'physarum', 'life',
+        'flock', 'physical', 'attractor', 'buddhabrot', 'lenia']) {
+        const effect = (await import(`../effects/points/${name}/definition.js`)).default
+        const keys = Object.keys(effect.globals)
+        if (!keys.includes('heightTex') || !keys.includes('diffuseTex')) continue
+        assert.ok(keys.indexOf('heightTex') < keys.indexOf('diffuseTex'), `${name}: heightTex before diffuseTex`)
+    }
+})

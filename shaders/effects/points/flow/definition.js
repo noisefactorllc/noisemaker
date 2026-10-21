@@ -40,13 +40,13 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
-    diffuseTex: {
-      type: "surface", default: "none", colorModeUniform: "diffuseActive",
-      ui: { label: "diffuse map", category: "agents" }
-    },
     heightTex: {
       type: "surface", default: "none", colorModeUniform: "fieldActive",
       ui: { label: "height map", category: "agents" }
+    },
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "agents" }
     },
     // stateSize parameter for texture sizing (must match pointsEmit)
     stateSize: {

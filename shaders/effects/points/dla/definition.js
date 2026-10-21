@@ -41,13 +41,13 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
-    diffuseTex: {
-      type: "surface", default: "none", colorModeUniform: "diffuseActive",
-      ui: { label: "diffuse map", category: "chemistry" }
-    },
     heightTex: {
       type: "surface", default: "none", colorModeUniform: "fieldActive",
       ui: { label: "height map", category: "chemistry" }
+    },
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "chemistry" }
     },
     // stateSize must match pointsEmit (inherited, not displayed)
     stateSize: {
