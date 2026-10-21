@@ -772,7 +772,7 @@ The following schema summarizes the consumed authoring shape. Regular expression
            {"type": "number"},
            {"type": "string", "description": "screen, auto, input, resolution, or a percentage parsed with parseFloat (the string keywords all resolve to screen size)"},
            {"type": "object", "required": ["scale"], "properties": {"scale": {"type":"number"}, "clamp": {"type":"object", "properties": {"min": {"type":"number"}, "max": {"type":"number"}}}}},
-           {"type": "object", "required": ["param"], "properties": {"param": {"type":"string"}, "paramDefault": {"type":"number"}, "default": {"type":"number"}, "multiply": {"type":"number"}, "power": {"type":"number"}}},
+           {"type": "object", "required": ["param"], "properties": {"param": {"type":"string"}, "paramDefault": {"type":"number"}, "default": {"type":"number"}, "multiply": {"type":"number"}, "power": {"type":"number"}, "inherit": {"type":"boolean"}}},
            {"type": "object", "required": ["screenDivide"], "properties": {"screenDivide": {"type":"string"}, "default": {"type":"number"}}}
          ]
        },
@@ -952,6 +952,11 @@ For each texture dimension (``width`` or ``height``), resolve to integer pixels:
 All dimensions MUST be positive integers. Numeric, percentage, parameter, and
 scale results round down. The ``screenDivide`` form rounds to the nearest
 integer. Dimension resolution enforces a minimum of 1px.
+
+A parameter dimension with ``inherit: true`` reads the value its scope already
+has and never writes the effect's own value over it. A particle behavior sizes
+its per-agent textures with ``{ param: 'stateSize', inherit: true }`` so they
+follow the ``pointsEmit`` state size.
 
 7.3 Backend Format Resolution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -40,6 +40,11 @@ export default new Effect({
 
   // Private textures for field computation
   textures: {
+    global_lenia_base_color: {
+      width: { param: 'stateSize', inherit: true },
+      height: { param: 'stateSize', inherit: true },
+      format: "rgba8"
+    },
     global_lenia_density: {
       width: "50%",
       height: "50%",
@@ -224,12 +229,14 @@ export default new Effect({
     {
       name: "agent",
       program: "agentField",
-      drawBuffers: 3,
+      drawBuffers: 4,
       inputs: {
         xyzTex: "global_xyz",
         velTex: "global_vel",
         rgbaTex: "global_rgba",
         diffuseTex: "diffuseTex",
+        baseColorTex: "global_lenia_base_color",
+        inputTex: "inputTex",
         fieldTex: "global_lenia_field"
       },
       uniforms: {
@@ -242,7 +249,8 @@ export default new Effect({
       outputs: {
         outXYZ: "global_xyz",
         outVel: "global_vel",
-        outRGBA: "global_rgba"
+        outRGBA: "global_rgba",
+        outBaseColor: "global_lenia_base_color"
       }
     },
 

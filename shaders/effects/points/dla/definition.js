@@ -27,6 +27,11 @@ export default new Effect({
 
   // Internal simulation grid for anchor detection (NOT rendered by pointsRender)
   textures: {
+    global_dla_base_color: {
+      width: { param: 'stateSize', inherit: true },
+      height: { param: 'stateSize', inherit: true },
+      format: "rgba8"
+    },
     global_dla_grid: { width: "100%", height: "100%", format: "rgba16f" }
   },
 
@@ -182,7 +187,7 @@ export default new Effect({
     {
       name: "agent",
       program: "agent",
-      drawBuffers: 3,
+      drawBuffers: 4,
       inputs: {
         xyzTex: "global_xyz",
         velTex: "global_vel",
@@ -190,7 +195,8 @@ export default new Effect({
         gridTex: "global_dla_grid",
         inputTex: "inputTex",
         heightTex: "heightTex",
-        diffuseTex: "diffuseTex"
+        diffuseTex: "diffuseTex",
+        baseColorTex: "global_dla_base_color"
       },
       uniforms: {
         diffuseActive: "diffuseActive",
@@ -203,7 +209,8 @@ export default new Effect({
       outputs: {
         outXYZ: "global_xyz",
         outVel: "global_vel",
-        outRGBA: "global_rgba"
+        outRGBA: "global_rgba",
+        outBaseColor: "global_dla_base_color"
       }
     },
 

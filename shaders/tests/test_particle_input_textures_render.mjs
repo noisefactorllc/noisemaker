@@ -43,6 +43,31 @@ try {
                 const pixels = await renderer.pipeline.backend.readPixels(surface.read)
                 return { backend: renderer.pipeline.backend.getName().toLowerCase(), values: Array.from(pixels.data) }
             }
+            // On a fresh renderer, render each [dsl, frames] phase in turn, recompiling
+            // between phases as the host does when a control changes, and read the
+            // agent colors after each phase.
+            window.phases = async (phases, effect) => {
+                const canvas = document.createElement('canvas')
+                canvas.width = 128
+                canvas.height = 128
+                const fresh = new CanvasRenderer({ canvas, width: 128, height: 128,
+                    basePath: `${baseUrl}/shaders`, preferWebGPU: backend === 'webgpu' })
+                await fresh.loadManifest()
+                await fresh.loadEffects(['synth/solid', 'synth/noise', 'render/pointsEmit', `points/${effect}`])
+                let frame = 0
+                const colors = []
+                for (const [dsl, frames] of phases) {
+                    await fresh.compile(dsl)
+                    fresh.stop()
+                    for (let i = 0; i < frames; i++) fresh.render(frame++ / 60)
+                    await fresh.pipeline.backend.waitForIdle?.()
+                    const pass = fresh.pipeline.graph.passes.find(p => p.effectFunc === effect && p.outputs?.outRGBA)
+                    const surface = fresh.pipeline.surfaces.get(pass.outputs.outRGBA.slice(7))
+                    colors.push(Array.from((await fresh.pipeline.backend.readPixels(surface.read)).data))
+                }
+                await fresh.dispose()
+                return colors
+            }
         }, { baseUrl, backend })
 
         const dsl = ({ effect = '', params = '', render = false,
@@ -82,6 +107,21 @@ try {
             const named = await read(dsl({ ...options, params: `inputWeight: 100, ${surface}: read(o1)` }), effect, 'outXYZ')
             assert.deepEqual(none.values, fallback.values, `${backend}: ${effect} none preserves inputTex movement`)
             assert.notDeepEqual(fallback.values, named.values, `${backend}: ${effect} takes ${surface}`)
+        }
+
+        // Setting a diffuse map back to none restores each agent's own color, exactly
+        // as if no diffuse map had been selected. No resetState: agents keep living.
+        const toggleProgram = (effect, diffuse) => `search synth, render, points\nsolid(color: #ff0000).write(o1)\nnoise(seed: 3, colorMode: rgb).pointsEmit(stateSize: x64).${effect}(diffuseTex: ${diffuse}).write(o0)\nrender(o0)`
+        const redAgents = colors => colors.filter((v, i) => i % 4 === 0 && v === 255 && colors[i + 1] === 0 && colors[i + 2] === 0).length
+        for (const effect of ['flow', 'hydraulic', 'dla', 'physarum', 'life', 'flock', 'physical', 'attractor', 'buddhabrot', 'lenia']) {
+            const none = toggleProgram(effect, 'none')
+            const control = await page.evaluate(({ phases, effect }) => window.phases(phases, effect),
+                { phases: [[none, 20], [none, 20], [none, 20]], effect })
+            const toggled = await page.evaluate(({ phases, effect }) => window.phases(phases, effect),
+                { phases: [[none, 20], [toggleProgram(effect, 'read(o1)'), 20], [none, 20]], effect })
+            assert.notDeepEqual(toggled[1], control[1], `${backend}: ${effect} diffuse recolors agents`)
+            assert.deepEqual(toggled[2], control[2], `${backend}: ${effect} none restores every agent's own color`)
+            assert.equal(redAgents(toggled[2]), 0, `${backend}: ${effect} keeps no diffuse color after none`)
         }
 
         await read(dsl({ effect: 'flow', render: true }), 'flow', 'outRGBA')

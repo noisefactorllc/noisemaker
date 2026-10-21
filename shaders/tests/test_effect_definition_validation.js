@@ -167,6 +167,14 @@ test('ui.resetOnChange is accepted as a boolean and diagnosed otherwise', () => 
     assert.equal(validate(def).filter(e => /resetOnChange/.test(e)).length, 1)
 })
 
+test('an inherited texture dimension is accepted as a boolean and diagnosed otherwise', () => {
+    const def = validDefinition()
+    def.textures.state = { width: { param: 'amount', inherit: true }, height: { param: 'amount', inherit: true } }
+    assert.deepEqual(validate(def), [])
+    def.textures.state.width.inherit = 'yes'
+    assert.equal(validate(def).filter(e => /inherit/.test(e)).length, 1)
+})
+
 test('paramAliases mapping to declared globals are accepted', () => {
     const def = validDefinition()
     def.paramAliases = { amt: 'amount' }

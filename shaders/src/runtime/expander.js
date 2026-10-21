@@ -365,7 +365,7 @@ export function expand(compilationResult, options = {}) {
             // Helper to scope particle textures to current pipeline
             const scopeParticleTex = (texName) => {
                 if (!currentParticlePipelineId) return texName
-                if (/^global_(xyz|vel|rgba|points_trail|life_data)$/.test(texName)) {
+                if (/^global_(xyz|vel|rgba|points_trail|life_data|[a-z]+_base_color)$/.test(texName)) {
                     return `${texName}_${currentParticlePipelineId}`
                 }
                 return texName
@@ -462,12 +462,13 @@ export function expand(compilationResult, options = {}) {
 
             // Collect texture specs from effect definition
             // Textures starting with 'global_' are shared within a pipeline segment.
-            // Particle textures (global_xyz, global_vel, global_rgba, global_points_trail, global_life_data)
-            // get scoped to the current particle pipeline to allow multiple pipelines to coexist.
+            // Particle textures (global_xyz, global_vel, global_rgba, global_points_trail, global_life_data,
+            // and each behavior's global_<behavior>_base_color) get scoped to the current particle
+            // pipeline to allow multiple pipelines to coexist, and are sized by its stateSize.
             if (effectDef.textures) {
                 for (const [texName, spec] of Object.entries(effectDef.textures)) {
                     let virtualTexId
-                    const isParticleTex = /^global_(xyz|vel|rgba|points_trail|life_data)$/.test(texName)
+                    const isParticleTex = /^global_(xyz|vel|rgba|points_trail|life_data|[a-z]+_base_color)$/.test(texName)
                     const shouldScopeAsParticle = isParticleTex && currentParticlePipelineId
                     const shouldScopeAsChain = texName.startsWith('global_') && !isParticleTex
 
@@ -517,8 +518,10 @@ export function expand(compilationResult, options = {}) {
                                 const dimensionScope = originalParam === 'stateSize' && currentParticlePipelineId && !texName.startsWith('global_')
                                     ? currentParticlePipelineId : scopeSuffix
                                 const scopedParam = originalParam === 'volumeSize' ? volumeSizeParam : `${originalParam}_${dimensionScope}`
-                                // Track this mapping so we can copy uniform values later
-                                scopedParamMap.set(originalParam, scopedParam)
+                                // Track this mapping so we can copy uniform values later.
+                                // An inherited dimension reads the scope's value and never
+                                // writes this effect's own value over it.
+                                if (!dimSpec.inherit) scopedParamMap.set(originalParam, scopedParam)
                                 return {
                                     ...dimSpec,
                                     param: scopedParam

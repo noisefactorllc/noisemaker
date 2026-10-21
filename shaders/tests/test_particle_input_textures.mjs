@@ -116,3 +116,12 @@ test('pointsEmit defaults particle color to the chained input', () => {
     const init = graph.passes.find(pass => pass.effectFunc === 'pointsEmit' && pass.program.endsWith('_init'))
     assert.equal(init.inputs.inputTex, 'node_0_out')
 })
+
+for (const effect of ['flow', 'hydraulic', 'dla', 'physarum', 'flock', 'physical', 'attractor', 'buddhabrot', 'lenia']) {
+    test(`${effect} keeps each agent's own color in a pipeline-sized memory`, () => {
+        const { agent } = agentPass(effect)
+        assert.equal(agent.inputs.baseColorTex, agent.outputs.outBaseColor)
+        assert.match(agent.outputs.outBaseColor, new RegExp(`^global_${effect}_base_color_node_\\d+$`))
+        assert.doesNotMatch(agent.scopedParams?.stateSize ?? '', /_node_/, 'the memory reads the pipeline stateSize and never writes it')
+    })
+}

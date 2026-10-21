@@ -2068,7 +2068,7 @@ type DimensionSpec =
   | "resolution"   // resolves to the screen size
   | `${number}%`
   | { param: string, paramDefault?: number, multiply?: number,
-      power?: number, default?: number }
+      power?: number, default?: number, inherit?: boolean }
   | { screenDivide: string, default?: number }
   | { scale: number, clamp?: { min?: number, max?: number } }
 
@@ -2105,7 +2105,7 @@ Dimension resolution:
 | number | `max(1,floor(spec))` |
 | `screen` / `auto` | the corresponding pipeline screen dimension |
 | percentage string | `max(1,floor(screenSize * parseFloat(spec)/100))` |
-| `{param}` | uniform value or `paramDefault` or 64. Then multiply/power. Transformed missing-param can use final `default`. Floor and clamp to at least 1 |
+| `{param}` | uniform value or `paramDefault` or 64. Then multiply/power. Transformed missing-param can use final `default`. Floor and clamp to at least 1. With `inherit: true` the effect reads its scope's value and never writes its own over it |
 | `{screenDivide}` | `max(1,round(screenSize/(uniform or default or 1)))` |
 | `{scale}` | floor of screenSizexscale, optional min/max clamp, then at least 1 |
 | any other value/string | screen size |

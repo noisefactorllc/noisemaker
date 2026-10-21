@@ -93,6 +93,7 @@ async function loadEffect(file, namespace, name) {
 
 await loadEffect(new URL('../effects/synth/noise/definition.js', import.meta.url).pathname, 'synth', 'noise')
 await loadEffect(new URL('../effects/render/pointsEmit/definition.js', import.meta.url).pathname, 'render', 'pointsEmit')
+await loadEffect(new URL('../effects/points/flow/definition.js', import.meta.url).pathname, 'points', 'flow')
 
 class StubBackend {
     constructor(capabilities) {
@@ -273,6 +274,35 @@ await test('same-size regular 3D texture is recreated when its format changes', 
     pipeline.recreateTextures()
     if (pipeline.backend.textures.get('node_0_volume') !== after) {
         throw new Error('matching regular 3D texture was recreated unnecessarily')
+    }
+})
+
+await test('a behavior keeps agent positions at rgba32f with its base color memory under a 32-byte budget', () => {
+    const graph = compileGraph(`search synth, render, points
+noise().pointsEmit(stateSize: x64).flow().write(o0)
+render(o0)`)
+    const pipeline = new Pipeline(graph, new StubBackend({ maxColorBytesPerSample: 32 }))
+    pipeline.width = 512
+    pipeline.height = 512
+    pipeline.createSurfaces()
+    pipeline.recreateTextures(pipeline.collectDefaultUniforms())
+    const agent = graph.passes.find(pass => pass.effectFunc === 'flow' && pass.outputs?.outBaseColor)
+    if (!agent) throw new Error('flow agent pass with outBaseColor not found')
+    const formats = Object.fromEntries(Object.entries(agent.outputs).map(([name, id]) => [name, graph.textures.get(id)?.format]))
+    const expected = { outXYZ: 'rgba32f', outVel: 'rgba16f', outRGBA: 'rgba8', outBaseColor: 'rgba8' }
+    if (JSON.stringify(formats) !== JSON.stringify(expected)) {
+        throw new Error(`flow agent formats: expected ${JSON.stringify(expected)}, got ${JSON.stringify(formats)}`)
+    }
+    // The memory follows pointsEmit's stateSize, never flow's own default.
+    const xyz = createdFormat(pipeline, 'global_xyz')
+    const base = createdFormat(pipeline, 'global_flow_base_color')
+    const xyzTex = pipeline.backend.textures.get(xyz.key)
+    const baseTex = pipeline.backend.textures.get(base.key)
+    if (xyzTex.width !== 64 || baseTex.width !== 64 || baseTex.height !== 64) {
+        throw new Error(`expected 64x64 state and memory, got xyz ${xyzTex.width}x${xyzTex.height}, memory ${baseTex.width}x${baseTex.height}`)
+    }
+    if (agent.scopedParams?.stateSize) {
+        throw new Error(`flow must not write its own stateSize into the pipeline scope: ${JSON.stringify(agent.scopedParams)}`)
     }
 })
 

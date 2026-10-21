@@ -23,9 +23,16 @@ export default new Effect({
 
   description: "Agent-based luminosity flow field with behaviors",
 
-  // No local textures - we use shared global_xyz/vel/rgba textures
-  // These are created by pointsEmit and shared across the particle pipeline
-  textures: {},
+  // global_xyz/vel/rgba are created by pointsEmit and shared across the
+  // particle pipeline. global_flow_base_color keeps each agent's own color
+  // while a diffuse map recolors it.
+  textures: {
+    global_flow_base_color: {
+      width: { param: 'stateSize', inherit: true },
+      height: { param: 'stateSize', inherit: true },
+      format: "rgba8"
+    }
+  },
 
   // Expose outputs to pipeline for downstream effects
   outputXyz: "global_xyz",
@@ -140,7 +147,7 @@ export default new Effect({
     {
       name: "agent",
       program: "agent",
-      drawBuffers: 3,
+      drawBuffers: 4,
       inputs: {
         // Read from shared global textures
         xyzTex: "global_xyz",
@@ -149,7 +156,8 @@ export default new Effect({
         // Flow reads input for luminance-based direction
         inputTex: "inputTex",
         heightTex: "heightTex",
-        diffuseTex: "diffuseTex"
+        diffuseTex: "diffuseTex",
+        baseColorTex: "global_flow_base_color"
       },
       uniforms: {
         diffuseActive: "diffuseActive",
@@ -165,7 +173,8 @@ export default new Effect({
         // Write to shared global textures (ping-pong for next frame)
         outXYZ: "global_xyz",
         outVel: "global_vel",
-        outRGBA: "global_rgba"
+        outRGBA: "global_rgba",
+        outBaseColor: "global_flow_base_color"
       }
     },
 

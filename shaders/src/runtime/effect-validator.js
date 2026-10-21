@@ -70,7 +70,7 @@ const LAYOUT_ENTRY_KEYS = new Set(['name', 'slot', 'components'])
 
 const BYTE_LAYOUT_KEYS = new Set(['name', 'offset', 'size', 'type'])
 
-const DIM_SPEC_KEYS = new Set(['param', 'power', 'multiply', 'default', 'paramDefault', 'screenDivide', 'scale', 'clamp', 'inputOverride'])
+const DIM_SPEC_KEYS = new Set(['param', 'power', 'multiply', 'default', 'paramDefault', 'screenDivide', 'scale', 'clamp', 'inputOverride', 'inherit'])
 
 const TOP_LEVEL_KEYS = new Set([
     'name', 'namespace', 'func', 'description', 'tags', 'globals', 'passes',
@@ -170,6 +170,9 @@ function validateDimSpec(spec, errors, label) {
             if (spec.inputOverride !== undefined &&
                 (typeof spec.inputOverride !== 'string' || !spec.inputOverride)) {
                 errors.push(`${label}: "inputOverride" must be a non-empty string`)
+            }
+            if (spec.inherit !== undefined && typeof spec.inherit !== 'boolean') {
+                errors.push(`${label}: "inherit" must be a boolean`)
             }
             return
         }

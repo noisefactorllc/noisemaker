@@ -26,6 +26,11 @@ export default new Effect({
   // Private pheromone texture - NOT shared with pointsRender
   // This isolates chemistry (deposit/decay) from visual trail intensity
   textures: {
+    global_physarum_base_color: {
+      width: { param: 'stateSize', inherit: true },
+      height: { param: 'stateSize', inherit: true },
+      format: "rgba8"
+    },
     global_physarum_pheromone: {
       width: "100%",
       height: "100%",
@@ -173,7 +178,7 @@ export default new Effect({
     {
       name: "agent",
       program: "agent",
-      drawBuffers: 3,
+      drawBuffers: 4,
       inputs: {
         xyzTex: "global_xyz",
         velTex: "global_vel",
@@ -183,7 +188,8 @@ export default new Effect({
         // Read input for field attraction
         inputTex: "inputTex",
         heightTex: "heightTex",
-        diffuseTex: "diffuseTex"
+        diffuseTex: "diffuseTex",
+        baseColorTex: "global_physarum_base_color"
       },
       uniforms: {
         diffuseActive: "diffuseActive",
@@ -197,7 +203,8 @@ export default new Effect({
       outputs: {
         outXYZ: "global_xyz",
         outVel: "global_vel",
-        outRGBA: "global_rgba"
+        outRGBA: "global_rgba",
+        outBaseColor: "global_physarum_base_color"
       }
     },
 
