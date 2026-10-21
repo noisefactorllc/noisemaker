@@ -4,10 +4,16 @@ import { CanvasRenderer, compile, registerStarterOps, predictReplacement, replac
 import { ops } from '../src/lang/ops.js'
 import noise from '../effects/synth/noise/definition.js'
 import blendMode from '../effects/mixer/blendMode/definition.js'
+import flow from '../effects/points/flow/definition.js'
+import dla from '../effects/points/dla/definition.js'
+import physarum from '../effects/points/physarum/definition.js'
 
 const renderer = new CanvasRenderer()
 renderer.registerEffectWithRuntime({ namespace: 'synth', name: 'Noise', instance: noise })
 renderer.registerEffectWithRuntime({ namespace: 'mixer', name: 'BlendMode', instance: blendMode })
+for (const [name, instance] of [['Flow', flow], ['Dla', dla], ['Physarum', physarum]]) {
+    renderer.registerEffectWithRuntime({ namespace: 'points', name, instance })
+}
 registerStarterOps(['synth.noise'])
 
 test('retired parameter names fail validation while canonical names compile', () => {
@@ -63,3 +69,17 @@ test('portable effects reject parameter alias metadata', async () => {
     }
     await assert.rejects(() => new CanvasRenderer().registerPortableEffect(raw), /paramAliases/)
 })
+
+for (const effect of ['flow', 'dla', 'physarum']) {
+    test(`${effect} accepts fieldTex as a deprecated alias for heightTex until 2027-06-01`, () => {
+        const program = `search synth, points\nnoise().write(o1)\nnoise().${effect}(%s: read(o1)).write(o0)`
+        const aliased = compile(program.replace('%s', 'fieldTex'))
+        assert.ok(!aliased.diagnostics.some(d => d.severity === 'error'), JSON.stringify(aliased.diagnostics))
+        const warning = aliased.diagnostics.find(d => d.code === 'S007')
+        assert.match(warning?.message || '', /param 'fieldTex' is deprecated, use 'heightTex' instead\. Aliases will be removed on 2027-06-01\./)
+        const canonical = compile(program.replace('%s', 'heightTex'))
+        assert.ok(!canonical.diagnostics.some(d => d.code === 'S007'))
+        assert.deepEqual(aliased.plans[1].chain[1].args, canonical.plans[1].chain[1].args)
+        assert.equal('fieldTex' in aliased.plans[1].chain[1].args, false)
+    })
+}

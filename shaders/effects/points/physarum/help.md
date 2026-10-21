@@ -11,7 +11,7 @@ Agents sense pheromone trails using forward sensors and steer towards higher con
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | diffuseTex | surface | none | - | Particle color map; none preserves the existing particle color |
-| fieldTex | surface | none | - | Movement field; defaults to the chained input |
+| heightTex | surface | none | - | Height field; defaults to the chained input |
 | moveSpeed | float | 1.78 | 0.05-3 | Move speed |
 | turnSpeed | float | 1 | 0-3.14159 | Turn speed |
 | sensorAngle | float | 1.26 | 0.1-1.5 | Sensor angle |

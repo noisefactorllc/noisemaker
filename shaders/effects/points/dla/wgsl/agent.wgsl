@@ -35,7 +35,7 @@ fn selectedDiffuse(uv: vec2f) -> vec4f {
 
 @group(0) @binding(4) var gridTex: texture_2d<f32>;
 @group(0) @binding(5) var inputTex: texture_2d<f32>;
-@group(0) @binding(7) var fieldTex: texture_2d<f32>;
+@group(0) @binding(7) var heightTex: texture_2d<f32>;
 
 // Integer-based hash for deterministic randomness
 fn hash_uint(seed: u32) -> u32 {
@@ -135,9 +135,9 @@ fn main(in: VertexOutput) -> FragmentOutputs {
     let inputW = u.inputWeight / 100.0;
     var stepDir = randomDir;
     if (inputW > 0.0) {
-        let inputDims = select(textureDimensions(inputTex), textureDimensions(fieldTex), u.fieldActive > 0.5);
+        let inputDims = select(textureDimensions(inputTex), textureDimensions(heightTex), u.fieldActive > 0.5);
         let inputCoord = vec2<i32>(wrap01(pos) * vec2<f32>(inputDims));
-        let inputVal = select(textureLoad(inputTex, inputCoord, 0), textureLoad(fieldTex, inputCoord, 0), u.fieldActive > 0.5);
+        let inputVal = select(textureLoad(inputTex, inputCoord, 0), textureLoad(heightTex, inputCoord, 0), u.fieldActive > 0.5);
         var inputDir = inputVal.xy * 2.0 - 1.0;
         if (length(inputDir) > 0.01) {
             inputDir = normalize(inputDir);

@@ -56,10 +56,10 @@ test('heightGrid resolves each optional surface independently', () => {
 })
 
 for (const [effect, surface] of [
-    ['flow', 'fieldTex'],
+    ['flow', 'heightTex'],
     ['hydraulic', 'heightTex'],
-    ['dla', 'fieldTex'],
-    ['physarum', 'fieldTex']
+    ['dla', 'heightTex'],
+    ['physarum', 'heightTex']
 ]) {
     test(`${effect} defaults its movement field to the chained input`, () => {
         const { agent } = agentPass(effect)

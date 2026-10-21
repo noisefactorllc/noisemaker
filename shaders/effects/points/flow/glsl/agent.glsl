@@ -16,7 +16,7 @@ uniform float fieldActive;
 uniform float behavior;
 
 // Input state from pipeline (from pointsEmit)
-uniform sampler2D fieldTex;
+uniform sampler2D heightTex;
 uniform sampler2D inputTex;  // Source texture for luminance-based flow
 uniform sampler2D xyzTex;    // [x, y, z, alive]
 uniform sampler2D velTex;    // [vx, vy, rotRand, strideRand]
@@ -134,10 +134,10 @@ void main() {
     }
     
     // Sample input texture at current position for flow direction
-    ivec2 texSize = fieldActive > 0.5 ? textureSize(fieldTex, 0) : textureSize(inputTex, 0);
+    ivec2 texSize = fieldActive > 0.5 ? textureSize(heightTex, 0) : textureSize(inputTex, 0);
     ivec2 texCoord = ivec2(px * float(texSize.x), py * float(texSize.y));
     texCoord = clamp(texCoord, ivec2(0), texSize - 1);
-    vec4 texel = fieldActive > 0.5 ? texelFetch(fieldTex, texCoord, 0) : texelFetch(inputTex, texCoord, 0);
+    vec4 texel = fieldActive > 0.5 ? texelFetch(heightTex, texCoord, 0) : texelFetch(inputTex, texCoord, 0);
     float inputLuma = oklab_l(texel.rgb);
     
     // inputWeight controls how much the input texture influences flow direction

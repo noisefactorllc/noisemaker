@@ -22,6 +22,7 @@
 import { registerOp } from '../lang/ops.js'
 import { lex } from '../lang/lexer.js'
 import { parse } from '../lang/parser.js'
+import { registerParamAliases } from '../lang/paramAliases.js'
 import { registerEffectAlias } from '../lang/effectAliases.js'
 import { registerStarterOps } from '../lang/validator.js'
 import { createRuntime, recompile } from '../runtime/compiler.js'
@@ -1643,6 +1644,10 @@ export class CanvasRenderer {
                 args: args
             }
             registerOp(`${namespace}.${instance.func}`, opSpec)
+
+            if (instance.paramAliases) {
+                registerParamAliases(`${namespace}.${instance.func}`, instance.paramAliases)
+            }
 
             if (instance.hidden && instance.deprecatedBy) {
                 registerEffectAlias(`${namespace}.${instance.func}`, instance.deprecatedBy)

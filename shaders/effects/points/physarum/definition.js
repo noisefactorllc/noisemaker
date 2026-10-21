@@ -43,9 +43,9 @@ export default new Effect({
       type: "surface", default: "none", colorModeUniform: "diffuseActive",
       ui: { label: "diffuse map", category: "general" }
     },
-    fieldTex: {
+    heightTex: {
       type: "surface", default: "none", colorModeUniform: "fieldActive",
-      ui: { label: "field map", category: "general" }
+      ui: { label: "height map", category: "general" }
     },
     moveSpeed: {
       type: "float",
@@ -150,6 +150,8 @@ export default new Effect({
     }
   },
 
+  paramAliases: { fieldTex: 'heightTex' },
+
   passes: [
     // Pass 1: Decay pheromone - apply persistence before agents sense it
     {
@@ -180,7 +182,7 @@ export default new Effect({
         trailTex: "global_physarum_pheromone",
         // Read input for field attraction
         inputTex: "inputTex",
-        fieldTex: "fieldTex",
+        heightTex: "heightTex",
         diffuseTex: "diffuseTex"
       },
       uniforms: {

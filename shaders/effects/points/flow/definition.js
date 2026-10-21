@@ -37,9 +37,9 @@ export default new Effect({
       type: "surface", default: "none", colorModeUniform: "diffuseActive",
       ui: { label: "diffuse map", category: "agents" }
     },
-    fieldTex: {
+    heightTex: {
       type: "surface", default: "none", colorModeUniform: "fieldActive",
-      ui: { label: "field map", category: "agents" }
+      ui: { label: "height map", category: "agents" }
     },
     // stateSize parameter for texture sizing (must match pointsEmit)
     stateSize: {
@@ -131,6 +131,8 @@ export default new Effect({
     }
   },
 
+  paramAliases: { fieldTex: 'heightTex' },
+
   passes: [
     // Pass 1: Update flow agent movement
     // Read from shared global textures (previous frame or pointsEmit output)
@@ -146,7 +148,7 @@ export default new Effect({
         rgbaTex: "global_rgba",
         // Flow reads input for luminance-based direction
         inputTex: "inputTex",
-        fieldTex: "fieldTex",
+        heightTex: "heightTex",
         diffuseTex: "diffuseTex"
       },
       uniforms: {

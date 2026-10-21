@@ -28,9 +28,9 @@ fn selectedDiffuse(uv: vec2f) -> vec4f {
 @group(0) @binding(7) var trailTex: texture_2d<f32>;
 @group(0) @binding(8) var trailSampler: sampler;
 @group(0) @binding(9) var inputTex: texture_2d<f32>;
-@group(0) @binding(12) var fieldTex: texture_2d<f32>;
+@group(0) @binding(12) var heightTex: texture_2d<f32>;
 @group(0) @binding(10) var inputSampler: sampler;
-@group(0) @binding(13) var fieldSampler: sampler;
+@group(0) @binding(13) var heightSampler: sampler;
 
 struct Outputs {
     @location(0) outXYZ: vec4f,
@@ -73,7 +73,7 @@ fn sampleTrail(uv: vec2f) -> f32 {
 fn sampleExternalField(uv: vec2f, weight: f32) -> f32 {
     if (weight <= 0.0) { return 0.0; }
     let blend = clamp(weight * 0.01, 0.0, 1.0);
-    let field = select(textureSampleLevel(inputTex, inputSampler, uv, 0.0).rgb, textureSampleLevel(fieldTex, fieldSampler, uv, 0.0).rgb, u.fieldActive > 0.5);
+    let field = select(textureSampleLevel(inputTex, inputSampler, uv, 0.0).rgb, textureSampleLevel(heightTex, heightSampler, uv, 0.0).rgb, u.fieldActive > 0.5);
     return luminance(field) * blend * 0.05;
 }
 
@@ -142,7 +142,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     var speedScale = 1.0;
     let blend = clamp(u.inputWeight * 0.01, 0.0, 1.0);
     if (blend > 0.0) {
-        let field = select(textureSampleLevel(inputTex, inputSampler, pos, 0.0).rgb, textureSampleLevel(fieldTex, fieldSampler, pos, 0.0).rgb, u.fieldActive > 0.5);
+        let field = select(textureSampleLevel(inputTex, inputSampler, pos, 0.0).rgb, textureSampleLevel(heightTex, heightSampler, pos, 0.0).rgb, u.fieldActive > 0.5);
         let localInput = luminance(field);
         // Invert: slow in bright, fast in dark
         speedScale = mix(1.0, mix(1.8, 0.35, localInput), blend);

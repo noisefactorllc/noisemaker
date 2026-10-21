@@ -66,15 +66,15 @@ try {
         }
 
         const defaultFlow = await read(dsl({ effect: 'flow', params: 'inputWeight: 100' }), 'flow', 'outXYZ')
-        const namedFlow = await read(dsl({ effect: 'flow', params: 'inputWeight: 100, fieldTex: read(o1)' }), 'flow', 'outXYZ')
-        const noneFlow = await read(dsl({ effect: 'flow', params: 'inputWeight: 100, fieldTex: none' }), 'flow', 'outXYZ')
+        const namedFlow = await read(dsl({ effect: 'flow', params: 'inputWeight: 100, heightTex: read(o1)' }), 'flow', 'outXYZ')
+        const noneFlow = await read(dsl({ effect: 'flow', params: 'inputWeight: 100, heightTex: none' }), 'flow', 'outXYZ')
         assert.deepEqual(noneFlow.values, defaultFlow.values, `${backend}: flow none preserves inputTex movement`)
-        assert.notDeepEqual(defaultFlow.values, namedFlow.values, `${backend}: flow takes fieldTex`)
+        assert.notDeepEqual(defaultFlow.values, namedFlow.values, `${backend}: flow takes heightTex`)
 
         for (const { effect, surface, source } of [
             { effect: 'hydraulic', surface: 'heightTex', source: 'noise(seed: 1)' },
-            { effect: 'dla', surface: 'fieldTex' },
-            { effect: 'physarum', surface: 'fieldTex' }
+            { effect: 'dla', surface: 'heightTex' },
+            { effect: 'physarum', surface: 'heightTex' }
         ]) {
             const options = { effect, params: 'inputWeight: 100', source }
             const fallback = await read(dsl(options), effect, 'outXYZ')

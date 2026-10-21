@@ -40,9 +40,9 @@ export default new Effect({
       type: "surface", default: "none", colorModeUniform: "diffuseActive",
       ui: { label: "diffuse map", category: "chemistry" }
     },
-    fieldTex: {
+    heightTex: {
       type: "surface", default: "none", colorModeUniform: "fieldActive",
-      ui: { label: "field map", category: "chemistry" }
+      ui: { label: "height map", category: "chemistry" }
     },
     // stateSize must match pointsEmit (inherited, not displayed)
     stateSize: {
@@ -144,6 +144,8 @@ export default new Effect({
     }
   },
 
+  paramAliases: { fieldTex: 'heightTex' },
+
   passes: [
     // Pass 1: Initialize/decay anchor grid (seeds anchors on frame 1)
     {
@@ -187,7 +189,7 @@ export default new Effect({
         rgbaTex: "global_rgba",
         gridTex: "global_dla_grid",
         inputTex: "inputTex",
-        fieldTex: "fieldTex",
+        heightTex: "heightTex",
         diffuseTex: "diffuseTex"
       },
       uniforms: {

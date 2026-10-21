@@ -167,6 +167,12 @@ test('ui.resetOnChange is accepted as a boolean and diagnosed otherwise', () => 
     assert.equal(validate(def).filter(e => /resetOnChange/.test(e)).length, 1)
 })
 
+test('paramAliases mapping to declared globals are accepted', () => {
+    const def = validDefinition()
+    def.paramAliases = { amt: 'amount' }
+    assert.deepEqual(validate(def), [])
+})
+
 test('pass clear and samplerTypes, consumed by the runtime, are validated', () => {
     const def = validDefinition()
     def.passes[0].clear = true
@@ -230,7 +236,6 @@ test('malformed containers are reported without throwing', () => {
         def => { def.uniformLayout = { u: { slot: 0.5, components: 'x' } } },
         def => { def.uniformLayout = { u: { slot: 0, components: 'x' }, v: { slot: 0, components: 'y' }, w: { slot: 0, components: 'x' } } },
         def => { def.uniformLayouts = { p: 'layout' } },
-        def => { def.paramAliases = { amt: 'amount' } },
         def => { def.paramAliases = 'aliases' },
         def => { def.paramAliases = { amt: 'nosuchglobal' } },
         def => { def.tags = 'noise' },
