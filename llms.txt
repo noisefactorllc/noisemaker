@@ -36,7 +36,7 @@ Timeline, start from the [platform guide](https://noisefactor.io/llms.txt).
 
 Start with the "Portable effect authoring" section of [llms-full.txt](https://noisemaker.app/llms-full.txt) for host-independent discovery, typed bindings, paired shaders, looping, rendered checks and export round trips.
 
-The [effect manifest](https://shaders.noisedeck.app/1/effects/manifest.json) lists every effect as `namespace/name`. Each effect's `help.md` gives its parameters with their types, defaults and ranges, as plain text: `https://raw.githubusercontent.com/noisefactorllc/noisemaker/main/shaders/effects/<namespace>/<name>/help.md`.
+The [effect manifest](https://shaders.noisedeck.app/1/effects/manifest.json) lists every effect as `namespace/name`. Each effect's `help.md` gives its parameters with their types, defaults and ranges, as plain text: `https://raw.githubusercontent.com/noisefactorllc/noisemaker/v<version>/shaders/effects/<namespace>/<name>/help.md`, where `<version>` is the `version` in https://shaders.noisedeck.app/1/deployment-meta.json, the engine that the apps run.
 
 For app control, read [Foundry](https://foundry.noisedeck.app/llms-full.txt) or [Shade](https://shade.noisedeck.app/llms-full.txt). Their guides add shader-craft and reference-video workflows.
 
