@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "points/flow",
-  "sourceHash": "a5bac5379bea7114e3f1c8a92aab8173a87a05c9d9719113d52e24412dcbd94f",
+  "sourceHash": "ec80df2dd5c8b9e6dbe757fbf5973e1382e3279ab0308b2adcf29b9e1e7619f5",
   "caseHash": "1c60c0ac2b3eeb6dc6ce134de23b0eec28df99e37e947a24d6959956012b003b",
   "resolution": [
     64,
@@ -13,14 +13,14 @@
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 3620
+      "uniqueColors": 3621
     },
     "webgpu": {
       "width": 64,
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 3620
+      "uniqueColors": 3621
     }
   },
   "execution": {

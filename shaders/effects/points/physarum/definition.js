@@ -27,8 +27,8 @@ export default new Effect({
   // This isolates chemistry (deposit/decay) from visual trail intensity
   textures: {
     global_physarum_base_color: {
-      width: { param: 'stateSize', inherit: true },
-      height: { param: 'stateSize', inherit: true },
+      width: { param: 'stateSize', inherit: true, default: 256 },
+      height: { param: 'stateSize', inherit: true, default: 256 },
       format: "rgba8"
     },
     global_physarum_pheromone: {

@@ -306,6 +306,26 @@ render(o0)`)
     }
 })
 
+await test('a behavior sizes its base color memory like pointsEmit when stateSize is a function', () => {
+    // The runtime does not evaluate a function-valued stateSize, so each
+    // texture falls back to its spec's own default. pointsEmit's state and the
+    // behavior's memory are attachments of one agent pass, so they must fall
+    // back to the same size, or WebGPU rejects the pass.
+    const graph = compileGraph(`search synth, render, points
+noise().pointsEmit(stateSize: () => 128).flow().write(o0)
+render(o0)`)
+    const pipeline = new Pipeline(graph, new StubBackend())
+    pipeline.width = 512
+    pipeline.height = 512
+    pipeline.createSurfaces()
+    pipeline.recreateTextures(pipeline.collectDefaultUniforms())
+    const xyzTex = pipeline.backend.textures.get(createdFormat(pipeline, 'global_xyz').key)
+    const baseTex = pipeline.backend.textures.get(createdFormat(pipeline, 'global_flow_base_color').key)
+    if (baseTex.width !== xyzTex.width || baseTex.height !== xyzTex.height) {
+        throw new Error(`memory ${baseTex.width}x${baseTex.height} does not match agent state ${xyzTex.width}x${xyzTex.height}`)
+    }
+})
+
 // ---------------------------------------------------------------------------
 
 console.log(`\n${passed} passed, ${failed} failed`)

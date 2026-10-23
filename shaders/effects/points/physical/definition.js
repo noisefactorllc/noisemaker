@@ -27,8 +27,8 @@ export default new Effect({
   // keeps each agent's own color while a diffuse map recolors it.
   textures: {
     global_physical_base_color: {
-      width: { param: 'stateSize', inherit: true },
-      height: { param: 'stateSize', inherit: true },
+      width: { param: 'stateSize', inherit: true, default: 256 },
+      height: { param: 'stateSize', inherit: true, default: 256 },
       format: "rgba8"
     }
   },

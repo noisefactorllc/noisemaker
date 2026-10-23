@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "points/lenia",
-  "sourceHash": "945043c290f07c76683b946f985d4aa7dbdd7b7e19b2532eb9463ca84d59be0b",
+  "sourceHash": "fa9328f2b3a6a355c2755e2506a5e15ecf366257b9407bc937b0cecd29ce8d3c",
   "caseHash": "d5226ec35c0af9acb1436700983b698b774eb88c8f27c6c7b5439e39c4336143",
   "resolution": [
     64,
@@ -13,14 +13,14 @@
       "height": 64,
       "nonzeroRgbPixels": 4095,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 3325
+      "uniqueColors": 3327
     },
     "webgpu": {
       "width": 64,
       "height": 64,
       "nonzeroRgbPixels": 4095,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 3325
+      "uniqueColors": 3327
     }
   },
   "execution": {

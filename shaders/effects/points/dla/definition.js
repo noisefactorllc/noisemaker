@@ -28,8 +28,8 @@ export default new Effect({
   // Internal simulation grid for anchor detection (NOT rendered by pointsRender)
   textures: {
     global_dla_base_color: {
-      width: { param: 'stateSize', inherit: true },
-      height: { param: 'stateSize', inherit: true },
+      width: { param: 'stateSize', inherit: true, default: 256 },
+      height: { param: 'stateSize', inherit: true, default: 256 },
       format: "rgba8"
     },
     global_dla_grid: { width: "100%", height: "100%", format: "rgba16f" }
