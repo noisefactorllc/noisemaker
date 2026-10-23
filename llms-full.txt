@@ -2697,6 +2697,24 @@ attribute or property keeps that size, and a disagreement with the renderer
 options emits exactly one diagnostic naming both sizes. `resize()` changes the
 render resolution but not the canvas element, so a host that requests a
 different capture resolution must resize the element itself.
+`CanvasRenderer`'s `softwareRendering` option is a single-frame mode for
+browsers without a GPU: `'off'` (the default, no detection), `'auto'` or
+`'on'`. `'auto'` runs `detectSoftwareRendering()` on throwaway canvases. A
+renderer string naming SwiftShader, llvmpipe, softpipe, Microsoft Basic Render
+Driver or Apple Software Renderer is software. A string naming any other
+renderer is hardware, even when a `failIfMajorPerformanceCaveat: true` context
+fails; that probe decides only when the string is masked or missing.
+`renderer.softwareRendering` returns `{ mode, active, report }`, where `report`
+holds `software`, `webgl2`, `renderer`, `caveatProbe` and `reasons`. While the
+mode is active, WebGPU is unavailable (`preferWebGPU` is ignored and
+`switchBackend('wgsl')` keeps WebGL2), `start()` renders the current frame
+without an animation loop, and `stepFrame(fromTime?)` renders the next frame:
+time advances by `1 / (60 * loopDuration)` from `fromTime` or the last rendered
+time, wrapping at 1, and simulations take one step. `stepFrame()` also renders
+on a GPU while the loop is stopped, and returns null while it runs. A harness
+that captures from the running loop keeps `'off'`.
+Sources: `shaders/src/renderer/software-rendering.js`;
+`shaders/src/renderer/canvas.js` - `start()`, `stepFrame()`, `switchBackend()`.
 
 Sources: Shade MCP `src/tools/browser/render.ts` - request handling;
 Noisemaker `shaders/src/renderer/canvas.js` - construction-time element

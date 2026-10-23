@@ -67,6 +67,7 @@ export {
     is3dProcessor,
     isStarterEffect
 } from './renderer/canvas.js'
+export { detectSoftwareRendering, classifySoftwareRendering } from './renderer/software-rendering.js'
 
 // ProgramState & UI Utilities
 // Re-export for downstream use (noisedeck, shade, etc.)

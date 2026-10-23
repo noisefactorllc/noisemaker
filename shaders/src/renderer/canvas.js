@@ -26,6 +26,7 @@ import { registerParamAliases } from '../lang/paramAliases.js'
 import { registerEffectAlias } from '../lang/effectAliases.js'
 import { registerStarterOps } from '../lang/validator.js'
 import { createRuntime, recompile } from '../runtime/compiler.js'
+import { resolveSoftwareRendering } from './software-rendering.js'
 import { registerEffect, getEffect, unregisterEffect } from '../runtime/registry.js'
 import { Effect } from '../runtime/effect.js'
 import { mergeIntoEnums } from '../lang/enums.js'
@@ -228,6 +229,10 @@ export class CanvasRenderer {
      * @param {number} [options.height=1024] - Render resolution height; sizes an unsized canvas element
      * @param {string} [options.basePath='../../shaders'] - Base path for shader assets
      * @param {boolean} [options.preferWebGPU=false] - Use WebGPU backend
+     * @param {string} [options.softwareRendering='off'] - Single-frame mode for a software rasterizer:
+     *   'off' runs no detection; 'auto' turns the mode on when no GPU renders WebGL2; 'on' forces it.
+     *   In the mode, WebGPU is unavailable, start() renders one frame without a loop, and
+     *   stepFrame() advances one frame. See the softwareRendering getter.
      * @param {boolean} [options.useBundles=false] - Load effects from pre-built bundles
      * @param {string} [options.bundlePath='../../dist/effects'] - Base path for effect bundles
      * @param {function} [options.onFrame] - Callback after each frame (receives frameCount)
@@ -246,6 +251,13 @@ export class CanvasRenderer {
         this._height = options.height || 1024
         this._basePath = options.basePath || '../../shaders'
         this._preferWebGPU = options.preferWebGPU || false
+
+        // Software rendering mode: single frames on a software rasterizer, WebGL2 only
+        this._softwareRendering = resolveSoftwareRendering(options.softwareRendering)
+        if (this._softwareRendering.active && this._preferWebGPU) {
+            console.warn('[CanvasRenderer] Software rendering is active, so WebGPU is unavailable; using WebGL2.')
+            this._preferWebGPU = false
+        }
 
         // Bundle loading mode
         this._useBundles = options.useBundles || false
@@ -555,6 +567,17 @@ export class CanvasRenderer {
         return this._preferWebGPU ? 'wgsl' : 'glsl'
     }
 
+    /**
+     * Software rendering mode, resolved once at construction.
+     * `report` is the detection verdict (`software`, `webgl2`, `renderer`,
+     * `caveatProbe`, `reasons`); it is null when the mode is 'off'.
+     * @returns {{mode: string, active: boolean, report: object|null}}
+     */
+    get softwareRendering() {
+        const { mode, active, report } = this._softwareRendering
+        return { mode, active, report }
+    }
+
     /** @returns {object|null} Current pipeline object */
     get pipeline() {
         return this._pipeline
@@ -862,9 +885,14 @@ export class CanvasRenderer {
     // =========================================================================
 
     /**
-     * Start the animation loop
+     * Start the animation loop. In software rendering mode, render the
+     * current frame once instead; stepFrame() advances from there.
      */
     start() {
+        if (this._softwareRendering.active) {
+            this._renderSingleFrame(this.lastTime)
+            return
+        }
         if (this._isRunning) return
         this._isRunning = true
         this._lastFrameTime = performance.now()
@@ -909,6 +937,33 @@ export class CanvasRenderer {
                     this._onError(err)
                 }
             }
+        }
+    }
+
+    /**
+     * Render the next frame while the animation loop is stopped: advance one
+     * 60 fps frame of the loop (1 / (60 * loopDuration), wrapping at 1) and
+     * render once, so simulations take exactly one step.
+     * @param {number} [fromTime=this.lastTime] - Normalized time to step from
+     * @returns {number|null} The rendered normalized time, or null when nothing rendered
+     */
+    stepFrame(fromTime = this.lastTime) {
+        if (this._isRunning) {
+            console.warn('[CanvasRenderer] stepFrame() renders only while the animation loop is stopped.')
+            return null
+        }
+        if (!this._pipeline || this._isContextLost) return null
+        const time = (fromTime + 1 / (60 * this._loopDuration)) % 1
+        this._renderSingleFrame(time)
+        return time
+    }
+
+    /** @private Render one frame outside the animation loop and report it like the loop does. */
+    _renderSingleFrame(time) {
+        const before = this._frameCount
+        this.render(time)
+        if (this._frameCount !== before && this._onFrame) {
+            this._onFrame(this._frameCount)
         }
     }
 
@@ -1253,6 +1308,10 @@ export class CanvasRenderer {
      */
     async switchBackend(backend) {
         const preferWebGPU = backend === 'wgsl'
+        if (preferWebGPU && this._softwareRendering.active) {
+            console.warn('[CanvasRenderer] Software rendering is active, so WebGPU is unavailable; staying on WebGL2.')
+            return
+        }
         if (preferWebGPU === this._preferWebGPU) {
             return
         }
