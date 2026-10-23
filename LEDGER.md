@@ -3119,3 +3119,18 @@ work, verify it, then update the checkpoint and append a log line.
     `75507112` / shade-mcp `7fd0d975`: nine surface sections, worked validated
     effect, 9×4 traceability matrix, 26-gap register. Audited clean through
     `478989b6`; checkpoint established at the contract's own snapshot.
+
+<!-- ai-contract-checkpoint:start -->
+## AI contract checkpoint
+
+Last good source revision: pending. No callback-confirmed source checkpoint has been recorded. Existing historical checkpoints remain unchanged.
+
+```json
+{
+  "version": 1,
+  "repository": "noisefactorllc/noisemaker",
+  "branch": "main",
+  "last_good": null
+}
+```
+<!-- ai-contract-checkpoint:end -->
