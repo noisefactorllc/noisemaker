@@ -14,16 +14,16 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `7e6c613079b8074a7f9b0f0f7b3c7d8d87123f17`.
-- Shade MCP: `830603b5bc112460eb3cf0b22f28e7dd51f84895`.
-- Shade MCP protocol: server name `shade-mcp`, server version `0.4.13`, built on
+- Noisemaker: `32d8d3e6a6dbb3dee2dfbcc8d31bd1c52342eca3`.
+- Shade MCP: `bf6f2cae00e5e4cd8ce54c0e112118d459a9a1da`.
+- Shade MCP protocol: server name `shade-mcp`, server version `0.5.0`, built on
   `@modelcontextprotocol/sdk` 1.32.1, which accepts the protocol versions
   `2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05` and `2024-10-07`,
   echoes the version the client requests, and answers `2025-11-25` to any other
-  request; 18 tools are returned by `tools/list`.
+  request; 21 tools are returned by `tools/list`.
 - The repository config runs
-  `npx -y github:noisedeck/shade-mcp#830603b5bc112460eb3cf0b22f28e7dd51f84895`,
-  matching release v0.4.13 delivered to `vendor/shade-mcp/`.
+  `npx -y github:noisedeck/shade-mcp#bf6f2cae00e5e4cd8ce54c0e112118d459a9a1da`,
+  matching release v0.5.0 delivered to `vendor/shade-mcp/`.
 
 Primary source roots:
 
@@ -33,7 +33,7 @@ Primary source roots:
 - backend behavior: `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`.
 - repository validation policy: `shaders/tests/test-harness.js`.
 - Shade MCP source for the pinned snapshot:
-  `https://github.com/noisefactorllc/shade-mcp/tree/830603b5bc112460eb3cf0b22f28e7dd51f84895/src`.
+  `https://github.com/noisefactorllc/shade-mcp/tree/bf6f2cae00e5e4cd8ce54c0e112118d459a9a1da/src`.
 
 ## Freshness and maintenance
 
@@ -205,7 +205,8 @@ keyword arguments), missing array-closing brackets, non-identifier member
 segments after `.`, unexpected primary tokens, and number coercion. Number
 coercion locates the offending AST node's private source position when the
 node was built from a lexer token (array literals carry the bracket token's
-source position non-enumerably), falls back to the node's parser-authored
+source position and identifiers their own token's source position, both
+non-enumerably), falls back to the node's parser-authored
 `loc`, and is explicitly `null` when neither carries valid coordinates. The two defense-in-depth throw sites that
 are unreachable through public `parse`/`compile` (a duplicate `render()`
 directive and the write/write3d dispatch fallback) also carry P005 for
@@ -362,7 +363,7 @@ VarAssign        ::= "let" Identifier "=" Expr
 IfStmt           ::= "if" "(" Expr ")" Block
                      { "elif" "(" Expr ")" Block }
                      [ "else" Block ]
-Block            ::= "{" { Statement Semicolons } "}"
+Block            ::= "{" { Comments Statement Semicolons } Comments "}"
 BreakStmt        ::= "break"
 ContinueStmt     ::= "continue"
 ReturnStmt       ::= "return" [ Expr ]
@@ -643,7 +644,7 @@ Declared diagnostic codes are:
 | `P010` | parser/warning | Missing `,` between subchain arguments; `nodeId: null` |
 | `S001` | semantic/error | unknown effect/argument/enum, invalid surface, illegal inline read, invalid function, and other semantic failures |
 | `S002` | semantic/warning | clamping, wrong numeric/vector/array form |
-| `S003` | semantic/error | unresolved identifier or enum choice |
+| `S003` | semantic/error | unresolved identifier or enum choice, or a variable read before its `let` |
 | `S004` | semantic/error | assigning `null` or `undefined` |
 | `S005` | semantic/error | illegal starter/chain/input position |
 | `S006` | semantic/error | starter chain missing terminal write |
@@ -881,18 +882,21 @@ interface EffectDefinition {
   // Copied and invoked by Pipeline after texture allocation.
   asyncInit?: (this: EffectHookThis, context: AsyncInitContext) => Promise<void>
 
+  // Copied by new Effect(config) and consumed by expander/loader.
+  textures3d?: Record<string, TextureSpec3D>
+  externalTexture?: string
+  shaders?: Record<string, ProgramSources> // populated by loader in normal use
+
   // Consumed by expander/loader when exposed by a subclass or assigned later.
   // The base Effect constructor does NOT copy these config keys.
   outputTex?: string
   outputXyz?: string
   outputVel?: string
   outputRgba?: string
-  textures3d?: Record<string, TextureSpec3D>
-  externalTexture?: string
-  shaders?: Record<string, ProgramSources> // populated by loader in normal use
 
-  // Observed in current definitions/manifests but not consumed by Effect,
-  // expander, or Pipeline as effect-definition contracts.
+  // Copied by new Effect(config) and observed in current definitions/manifests,
+  // but not consumed by Effect, expander, or Pipeline as effect-definition
+  // contracts.
   externalMesh?: string
   builtinMeshes?: unknown
 }
@@ -1031,7 +1035,8 @@ lifecycle hooks (`initLifecycleEffects()`/`_invokeUpdateHooks()`/`_withRuntimeUn
   `inputs`/`outputs`.
 - every global has a known `type` and only known spec and `ui` fields, with
   consistent `default`, `min`/`max`, `choices` and std-enum references.
-- unknown top-level fields, tags, hook values that are not functions,
+- unknown top-level fields (plain definition objects only; `Effect` instances
+  and subclasses skip this check), tags, hook values that are not functions,
   texture specs, uniform layouts, `paramAliases` and `enabledBy` conditions
   are diagnosed.
 
@@ -1058,8 +1063,8 @@ Sources: `shaders/src/runtime/effect-validator.js` -
 
 ### Diagnose
 
-Representative definition-validator strings (`effect-validator.js` has
-about 150 distinct messages, all prefixed with the field they concern):
+Representative definition-validator strings (most `effect-validator.js`
+messages begin with the label of the field they concern):
 
 ```text
 Effect definition is null or undefined
@@ -1122,8 +1127,9 @@ vec2 vec3 vec4 volume
 ```
 
 The DSL validator has explicit argument branches for `surface`, `color`,
-`vec3`, `vec4`, `volume`, `geometry`, `string`, `boolean`, and `member`. Other
-types use the numeric/general branch. A `boolean` argument keeps `true`/`false`
+`vec3`, `vec4`, `volume`, `geometry`, `string`, `boolean`, and `member`, and
+for a two-argument `vec2()` call on a `vec2` parameter. Other `vec2` forms and
+other types use the numeric/general branch. A `boolean` argument keeps `true`/`false`
 (or a state function); it is not converted to `0/1` and is not clamped. During DSL registration, `vec4` is projected as DSL type `color`.
 
 Current observed global keys are:
@@ -1234,7 +1240,8 @@ Formal value contracts:
 | `geometry` | `geo0`-`geo7`, `none`, or single-argument `read3d(geoN)` |
 | `color` | Hex color. An invalid form uses the default and produces a diagnostic. |
 | `vec3` | `vec3(n,n,n)`, hex color RGB, numeric array literal, or default |
-| `vec4` | `vec4(n,n,n,n)`, hex RGBA, numeric array literal, or default. The normal loader projects it to DSL `color`. |
+| `vec2` | `vec2(n,n)`, numeric array literal, or another numeric/general form. A nonnumeric `vec2()` component becomes `0` with S002; another `vec2()` argument count uses the default with S002. |
+| `vec4` | `vec4(n,n,n,n)` (through the normal loader only when `default` is a four-element array), hex RGBA, numeric array literal, or default. A nonnumeric `vec4()` component becomes `0` with S002. The normal loader projects it to DSL `color`. |
 | `string` | quoted string only for `text.text`, `text.font`, `text.justify`, `text.style`. The validator also accepts a matching choice identifier. |
 | `palette` | Numeric/general argument. The expander additionally writes dependent palette uniforms already present on the pass |
 
@@ -1567,7 +1574,8 @@ Parameter-related semantic failures use `Diagnostic`:
   automation cycle, or automation depth overflow.
 - `S002`: out-of-range value with `(got <v>, clamped to <c>)`, wrong value form,
   nonnumeric array element, or invalid audio channel.
-- `S003`: undefined variable, enum identifier, or inline choice.
+- `S003`: undefined variable, variable read before its `let`, enum identifier,
+  or inline choice.
 - `S007`: a deprecated parameter alias was rewritten.
 
 Selected-device audio bindings the built-in manager cannot capture evaluate to
@@ -2105,7 +2113,7 @@ Dimension resolution:
 | number | `max(1,floor(spec))` |
 | `screen` / `auto` | the corresponding pipeline screen dimension |
 | percentage string | `max(1,floor(screenSize * parseFloat(spec)/100))` |
-| `{param}` | uniform value or `paramDefault` or 64. Then multiply/power. Transformed missing-param can use final `default`. Floor and clamp to at least 1. With `inherit: true` the effect reads its scope's value and never writes its own over it |
+| `{param}` | uniform value or `paramDefault` or 64. Then multiply/power. Transformed missing-param can use final `default`. Floor and clamp to at least 1. With `inherit: true` on a 2D `textures` width or height, that dimension reads its scope's value and never writes the effect's own value over it; `textures3d` dimensions are not scoped, so the flag has no effect there |
 | `{screenDivide}` | `max(1,round(screenSize/(uniform or default or 1)))` |
 | `{scale}` | floor of screenSizexscale, optional min/max clamp, then at least 1 |
 | any other value/string | screen size |
@@ -2470,7 +2478,11 @@ flattened into the chain as a dependency of a surface-type parameter (e.g.
 
 No other shape participates. `replaceEffect` performs these steps:
 
-1. Deep-clone the compiled program.
+1. Deep-clone the compiled program's enumerable properties. The clone drops
+   the non-enumerable statement order and branch source that `unparse()`
+   reads, so `unparse()` of the result writes every top-level `let` before the
+   first plan and writes an arrow-function branch condition as
+   `[object Object]`.
 2. Start with every target argument default.
 3. Apply `newArgs` over those defaults.
 4. Round non-integer numeric `newArgs` to three decimal places.
@@ -3166,7 +3178,7 @@ Sources: backend compile/execute methods; Shade MCP
 2. Send `notifications/initialized`.
 3. Call `tools/list`.
 
-For the snapshot at the top of this document, `tools/list` returned the 18 verb
+For the snapshot at the top of this document, `tools/list` returned the 21 verb
 names documented below. Every tool descriptor declares
 `inputSchema.$schema:"http://json-schema.org/draft-07/schema#"` and
 `execution:{taskSupport:"forbidden"}`. None declares an `outputSchema`.
@@ -3182,8 +3194,12 @@ batch envelope (below); `definition.js` projections can carry `partial` and
 reports an unresponsive uniform as `fail` and an unstable uniform without a
 verdict as `error`; the six direct browser check/capture verbs separate the
 requested `effect_id` from the viewer's `page_effect_id`; and the capture
-verbs read the presented half of the render surface. Knowledge-search results
-are source guidance, not a rendered-loop validation result.
+verbs read the presented half of the render surface. The 0.5.0 release keeps
+those schemas and results, adds the shader-craft verbs `searchShaderLibrary`,
+`checkShader`, and `bundleShader`, and adds the shader-craft documents to the
+`searchShaderKnowledge` index. Knowledge-search, library-search, and
+shader-check results are source guidance, not a rendered-loop validation
+result.
 
 The transport result for every verb is:
 
@@ -3306,8 +3322,8 @@ with `Invalid effect id: <id>` before reading. Browser selectors remain literal.
 
 No numeric schema below uses Zod `.int()`, `.finite()`, `.min()`, `.max()`, or a
 positive-resolution refinement unless explicitly stated. Descriptive ranges
-are not validation, except in `runDslProgram`, whose bounds are enforced (see
-its schema).
+are not validation, except in `runDslProgram` and `searchShaderLibrary.limit`,
+whose bounds are enforced (see their schemas).
 
 The direct browser check/capture verbs call `BrowserSession.setBackend()` before
 capture/compile work.
@@ -3595,7 +3611,8 @@ instead). With `effects`, each listed Portable package is served at
 from the per-pass `glsl/`/`wgsl` program sources, and the raw Portable
 definition registered live — this requires a Noisemaker renderer that
 supports `registerPortableEffect` (present since the canvas-registration
-change; built-in effect names stay protected and duplicate names are
+change; built-in effect names stay protected, and duplicate names,
+`paramAliases`, and `func` names that a `search user` program cannot call are
 rejected).
 
 Source: Shade MCP `src/tools/browser/dsl.ts` - schema and `runDslProgram()`.
@@ -3846,12 +3863,165 @@ type SearchShaderKnowledgeResult = {
 }
 ```
 
-Search uses synonym expansion and TF-IDF cosine similarity. Returned score is
-rounded to three decimals and must be at least `0.05`. Cosine similarity is in
-`[0,1]`. Full `content` is included only for the first three results.
+The index holds the curated notes and the shader-craft workflow, references,
+and examples, which use category `shader-craft`. Search expands the query with the technique synonyms
+and the shader-craft synonyms, then ranks by TF-IDF cosine similarity.
+Returned score is rounded to three decimals and must be at least `0.05`.
+Cosine similarity is in `[0,1]`. Full `content` is included only for the first
+three results.
 
 Source: Shade MCP `src/tools/knowledge/search-knowledge.ts`;
+`src/knowledge/shader-knowledge.ts` - `SEARCHABLE_KNOWLEDGE`,
+`SEARCH_SYNONYMS`, `expandQueryWithSynonyms()`;
+`src/knowledge/shader-craft/index.ts` - `SHADER_CRAFT_DOCUMENTS`;
 `src/knowledge/vector-db.ts` - `search()`, `getStats()`.
+
+#### searchShaderLibrary
+
+```ts
+type SearchShaderLibraryInput = {
+  query: string
+  language?: "glsl" | "wgsl" // default glsl
+  limit?: number             // Zod .int().min(0).max(217); default 15
+}
+type ShaderLibraryEntry = {
+  outcome: "ok"
+  id: string       // same in both languages; a function's ID is its GLSL
+                   // name and parameter types, such as hash12(vec2)
+  language: "glsl" | "wgsl"
+  name: string     // name in the requested language
+  signature: string
+  summary: string
+  module: string
+}
+// The payload is an array, so every response, including an empty one, uses
+// the batch envelope.
+type SearchShaderLibraryResult = {
+  outcome: Outcome
+  summary: { total: number, ok: number, fail: number, warning: number,
+             skipped: number, error: number }
+  results: ShaderLibraryEntry[]
+}
+```
+
+The search reads the in-process shader-craft library; it does not read
+`SHADE_EFFECTS_DIR`. The query is lowercased and split into `\w+` words. No
+words, or `limit` 0, returns no entries. Each symbol scores `0.1` when it is a
+function, plus per word: `10` for its exact name in the requested language or
+`5` for a name substring, and `1` when its signature, summary, or module
+contains the word. Entries scoring at least `1` are returned, descending,
+sliced to `limit`; equal scores keep library order. A `limit` outside the
+schema bounds is an SDK input-validation error.
+
+Source: Shade MCP `src/tools/knowledge/shader-craft.ts` -
+`searchShaderLibrarySchema`; `src/knowledge/shader-craft/search-library.ts` -
+`searchShaderLibrary()`.
+
+#### checkShader
+
+```ts
+type ShaderSourceInput = {
+  source?: string            // exactly one of source or file
+  file?: string              // resolved against SHADE_PROJECT_ROOT or the working directory
+  language?: "glsl" | "wgsl" // required with source
+}
+type ShaderSourceFinding = {
+  rule: "sine-hash" | "reversed-smoothstep" | "shadertoy-contract" |
+        "derivative-control-flow" | "nan-risk" | "integer-float-mix" |
+        "round" | "unbounded-loop"
+  severity: "error" | "warning"
+  line: number // one-based; comments and blank lines count
+  message: string
+}
+type CheckShaderResult = {
+  language: "glsl" | "wgsl"
+  advisory: true
+  findings: ShaderSourceFinding[] // sorted by line, then rule
+}
+```
+
+A `file` must end in `.wgsl`, `.glsl`, `.frag`, or `.vert` (case-insensitive)
+and resolve to a regular file strictly inside `SHADE_EFFECTS_DIR` or the
+project root, lexically and after `realpath`, with no symbolic link in any
+path segment below that root. Without `language`, `.wgsl` selects WGSL and the
+other extensions select GLSL. The verb reads the source and never writes a
+file.
+
+The checker tokenizes the source without a compiler. It reports:
+
+- `sine-hash` (error): the literal `43758.5453`, or `fract()` over an
+  expression that calls `sin()`.
+- `shadertoy-contract` (error): `mainImage`, `iTime`, `iGlobalTime`,
+  `iResolution`, `iFrame`, `iMouse`, `gl_FragColor`, `texture2D`, or an
+  `iChannel<N>` identifier, or a function parameter named `fragCoord` that is
+  not `out`.
+- `reversed-smoothstep` (error): `smoothstep()` whose literal first edge is not
+  less than its second.
+- `integer-float-mix` (error, GLSL only): an integer literal with a float
+  operand in `+`, `-`, `*`, `/`, or `%`, or with a float argument to `clamp`,
+  `min`, `max`, `mix`, `step`, `smoothstep`, `pow`, or `mod`.
+- `nan-risk` (warning): `pow()` or `sqrt()` without a provable nonnegative
+  first argument, `log()`, `log2()`, or `inversesqrt()` without a provable
+  positive one, `normalize()` without a provable nonzero one, or a
+  two-argument `atan()`/`atan2()` with neither argument provably nonzero.
+- `round` (warning): every `round()` call.
+- `derivative-control-flow` (warning): `dFdx`, `dFdy`, `dpdx`, `dpdy`, or
+  `fwidth` (with optional `Coarse`/`Fine`), or a helper that calls one, inside
+  a loop, a non-uniform `if` or `switch`, a ternary branch with a non-uniform
+  condition, or the right operand of `&&`/`||` with a non-uniform left operand.
+- `unbounded-loop` (warning): a `for` or `while` condition without `<`, `<=`,
+  `>`, `>=`, or `!=`, or a WGSL `loop` without a `break if` or `if` whose
+  condition has one.
+
+`#define` replacement text is checked with its physical source lines.
+
+Source: Shade MCP `src/tools/knowledge/shader-craft.ts` - `checkShaderSchema`,
+`shaderInput()`, `checkShader()`; `src/knowledge/shader-craft/checker.ts` -
+`checkShaderSource()`.
+
+#### bundleShader
+
+```ts
+type BundleShaderInput = ShaderSourceInput & {
+  write?: boolean // default false; true requires file
+}
+type BundleShaderResult = {
+  source: string     // the program with the inserted library symbols
+  added: string[]    // newly inserted symbol IDs, in library order
+  credits: string[]  // technique credit keys for the newly inserted symbols
+  language: "glsl" | "wgsl"
+  written: boolean   // true only when write was true
+}
+```
+
+Input resolution is the `checkShader` contract. The bundler inserts the
+library symbols that the program references, and their dependencies. A
+function name counts as a reference only before `(`, a name after `.` never
+counts, and a declaration of the name is not a reference. `#define` bodies are
+scanned too. GLSL includes every overload of a referenced name; WGSL uses
+exact names. A symbol the program already defines is not inserted: GLSL
+functions match by name and parameter types, and a GLSL macro of the same name
+also suppresses the symbol. With nothing to add, the source returns unchanged
+with empty `added` and `credits`.
+
+Insertion happens before the first function. When that function sits inside a
+preprocessor conditional, insertion moves before the first top-level `#if`,
+`#ifdef`, or `#ifndef` that precedes it. In GLSL it moves above an earlier
+ordinary declaration that names an inserted symbol.
+A `/* shader-craft credits ... */` block precedes the inserted code. It names
+the upstream source and licence, lists `Included symbols:` as JSON, and gives
+each technique credit. An existing block is replaced and lists the earlier and
+the newly required symbols. GLSL output also gains prototypes for caller-owned
+functions that inserted code calls, and `vec2 map(vec3 p);` when an inserted
+symbol needs `map` and the program declares no earlier prototype.
+
+With `write: true`, the returned source is written to the resolved `file`,
+even when nothing was added. This verb changes state only then. Do not pass
+`write: true` during read-only introspection.
+
+Source: Shade MCP `src/tools/knowledge/shader-craft.ts` - `bundleShaderSchema`,
+`bundleShader()`; `src/knowledge/shader-craft/bundler.ts` -
+`bundleShaderSource()`.
 
 #### listEffects
 
@@ -3925,6 +4095,9 @@ common pass gate. Apply the predicate for that verb:
 | `compareShaders` | both sides non-null and no `note` for every program |
 | `analyzeBranching` | Validate the AI-derived fields. The tool returns `warning` when the opportunity count is `>=2`. Otherwise, it returns `ok`. |
 | search/list/analyze | The requested record is present. These tools have no success status. |
+| `searchShaderLibrary` | The requested symbol is present in `results`. Every entry, and every response that is not an error, is `ok`. |
+| `checkShader` | `outcome === "ok"`, then `findings` is empty or every finding is resolved. A completed check reports `ok` whatever it finds. |
+| `bundleShader` | `outcome === "ok"`, the needed symbols are in `added` or already defined, then compile and render the returned `source` on both backends |
 | `generateManifest` | status `ok`, then independently inspect the written diff |
 
 Batch callers must validate every `results` member; the batch `summary`
@@ -3949,11 +4122,33 @@ Multiple effects found (<n>). Please specify effect_id or effects parameter. Ava
 Browser tools catch per-effect exceptions as `OuterEffectError`.
 Analysis/knowledge tools keep their own error payload forms
 (`{status:"error",error}` or `{error}`), and every payload carries the common
-`outcome` beside them. All 18 tools return through the shared `toolResult()`
+`outcome` beside them. All 21 tools return through the shared `toolResult()`
 envelope, and the server routes every handler through `guardToolErrors()`, so
 an exception thrown before a handler's own error handling also returns the
 JSON error envelope with `isError:true`. SDK-generated `tools/call` errors for
 schema rejection and unknown or disabled tools use the same envelope.
+
+`checkShader` and `bundleShader` throw these input errors (the last only from
+`bundleShader`), which arrive in that envelope:
+
+```text
+Provide exactly one of source or file.
+Source text requires language: glsl or wgsl.
+Shader file must use .wgsl, .glsl, .frag or .vert.
+Shader paths must contain regular files and directories, without symbolic links.
+Shader file must be a regular file inside SHADE_EFFECTS_DIR or SHADE_PROJECT_ROOT.
+write: true requires a file input.
+```
+
+A missing path segment fails with the filesystem error message. `bundleShader`
+also throws when an inserted symbol needs a program definition that is
+absent:
+
+```text
+Shader-craft requires program symbol <name>: <requirement>
+Shader-craft requires ZERO initialization in the WGSL entry point: ZERO = min(i32(frame), 0); use the program frame uniform.
+Define ZERO in the GLSL preamble before the first function or library-dependent initializer.
+```
 
 AI-dependent tools use this exact no-key message:
 
@@ -4401,21 +4596,14 @@ fn gridLines(uv: vec2f) -> vec4f {
     let n = max(uniforms.gridSize, 1);
     let cellUV = fract(uv * f32(n));
     let edge = min(cellUV, 1.0 - cellUV);
-    // Non-tiling: original fwidth-based AA (byte-identical baseline).
-    // Tiling: analytic AA width mirroring glsl/testPattern.glsl, which is
-    // seam-stable across tiles where screen-space derivatives are not.
-    let isTile = length(uniforms.tileOffset) > 0.0;
-    // fwidthFine must be evaluated in uniform control flow (function scope),
-    // so compute it unconditionally, then override only when tiling. The
-    // analytic-width divide is skipped entirely on the non-tile path.
-    var fw = fwidthFine(uv * f32(n));
-    var edgeMul = 1.5;
-    if (isTile) {
-        let fr = select(uniforms.resolution, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
-        fw = vec2f(1.0) / fr * f32(n);
-        edgeMul = 2.0;
-    }
-    let line = 1.0 - smoothstep(0.0, edgeMul * fw.x, edge.x) * smoothstep(0.0, edgeMul * fw.y, edge.y);
+
+    // Use direct calculation instead of fwidth() for tile-aware rendering.
+    // This maintains the same line thickness in normal rendering while ensuring
+    // continuity across tile boundaries during large-format print export.
+    let fr = select(uniforms.resolution, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
+    let fw = vec2f(1.0) / fr * f32(n);
+
+    let line = 1.0 - smoothstep(0.0, 2.0 * fw.x, edge.x) * smoothstep(0.0, 2.0 * fw.y, edge.y);
     return vec4f(vec3f(line), 1.0);
 }
 
@@ -4511,8 +4699,8 @@ program expansion.
 
 <!-- WORKED:MCP-REQUESTS -->
 
-One configured-pin session returned server `shade-mcp` version `0.4.13` and
-listed 18 tools. All eight calls ran in that session, none returning MCP
+One configured-pin session returned server `shade-mcp` version `0.5.0` and
+listed 21 tools. All eight calls ran in that session, none returning MCP
 `isError`; the passthrough call returned the expected domain status `skipped`
 (`outcome:"skipped"`) because this is a source effect. On hosts where the
 parity verb's browser cannot obtain a WebGPU adapter, its WebGPU leg fails
@@ -4543,7 +4731,7 @@ capture; these are the values from this session):
 {"outcome":"ok","status":"ok","tested_uniforms":["pattern:pass","gridSize:pass"],"uniforms":[{"name":"pattern","uniform":"pattern","default_value":0,"test_value":1,"luma_diff":0.0031082153320312056,"max_channel_diff":0.0031082153320312056,"pixel_diff":0.37701416015625,"strong_fraction":0.875299072265625,"responds":true},{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":12,"luma_diff":0.002946472167968728,"max_channel_diff":0.002946472167968728,"pixel_diff":0.39990234375,"strong_fraction":0.48483123779296877,"responds":true,"enabled_with":{"pattern":0}}],"threshold":0.002,"strong_threshold":0.0005,"details":"Uniforms affect output","measured_size":[1024,640],"backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern"}
 {"outcome":"skipped","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern"}
 {"outcome":"ok","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
-{"outcome":"ok","status":"ok","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":60.35,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.57,"jitter_ms":0.9,"min_frame_time_ms":14.3,"max_frame_time_ms":18.7}}
+{"outcome":"ok","status":"ok","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":60.25,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.6,"jitter_ms":0.68,"min_frame_time_ms":12.1,"max_frame_time_ms":17.7}}
 ```
 
 The structure scan has no issues and reports the one declared effect pass.
@@ -4574,7 +4762,7 @@ Every cell points to an executable contract or an explicitly identified gap.
 | Compatibility and mutation | compiled AST, `listSteps`, `getCompatibleReplacements` | typed `replaceEffect` contract | candidate precheck and post-selection browser identity | compatibility and transform errors |
 | Rendered output | frame dimensions, `ImageMetrics`, sink stats, and `PackedFrame` | `RenderEffectFrameInput`, `Sink`, and `FrameExportQueue` contracts | exact metric predicates plus bounded queue/accounting rules | metric, capture, sink, and export failures |
 | Cross-backend parity | source-pair availability and parity report | GLSL ES 3.00/WGSL authoring contracts | buffer diff predicates with confirmed effect/backend on both legs | compile/readback/divergence reports |
-| Shade MCP tool contracts | `tools/list`, effect scanners, all output types | Full signatures for all 18 verbs | verb-specific domain predicates | the common `outcome` envelope, selector errors and tool-specific fields |
+| Shade MCP tool contracts | `tools/list`, effect scanners, all output types | Full signatures for all 21 verbs | verb-specific domain predicates | the common `outcome` envelope, selector errors and tool-specific fields |
 
 External ports are deliberately outside this matrix. Their repositories define
 separate candidate renderers, golden-image comparators, tolerance policies, and
