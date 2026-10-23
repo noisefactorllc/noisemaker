@@ -184,6 +184,26 @@ test('softwareRendering defaults to off and runs no detection', async () => {
     assert.equal(gpu.calls.contexts.length, 0)
 })
 
+test('a renderer created without its constructor behaves as off', async () => {
+    const renderer = Object.create(CanvasRenderer.prototype)
+    Object.assign(renderer, { _pipeline: null, _preferWebGPU: false, _isRunning: false, _isContextLost: false })
+    assert.deepEqual(renderer.softwareRendering, { mode: 'off', active: false, report: null })
+    renderer._loopDuration = 10
+    const pipeline = recordingPipeline()
+    renderer._pipeline = pipeline
+    renderer._frameCount = 0
+    assert.equal(renderer.stepFrame(0), 1 / 600)
+    renderer.dispose = async () => {}
+    renderer._replaceCanvas = () => {}
+    await renderer.switchBackend('wgsl')
+    assert.equal(renderer.preferredBackend, 'wgsl', 'the switch proceeds as before')
+    const previousRaf = globalThis.requestAnimationFrame
+    let rafCalls = 0
+    globalThis.requestAnimationFrame = () => { rafCalls++; return 1 }
+    try { renderer.start() } finally { globalThis.requestAnimationFrame = previousRaf }
+    assert.equal(rafCalls, 1, 'start() runs the animation loop')
+})
+
 test('auto mode turns on for a software renderer and stays off for a hardware GPU', async () => {
     await withOffscreenCanvas(fakeGpu({ renderer: SWIFTSHADER }), () => {
         const state = rendererWith({ softwareRendering: 'auto' }).softwareRendering

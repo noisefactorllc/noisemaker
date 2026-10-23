@@ -574,8 +574,13 @@ export class CanvasRenderer {
      * @returns {{mode: string, active: boolean, report: object|null}}
      */
     get softwareRendering() {
-        const { mode, active, report } = this._softwareRendering
+        const { mode = 'off', active = false, report = null } = this._softwareRendering || {}
         return { mode, active, report }
+    }
+
+    /** @private True in software rendering mode; an instance built without the constructor is 'off'. */
+    get _isSoftwareRendering() {
+        return Boolean(this._softwareRendering?.active)
     }
 
     /** @returns {object|null} Current pipeline object */
@@ -889,7 +894,7 @@ export class CanvasRenderer {
      * current frame once instead; stepFrame() advances from there.
      */
     start() {
-        if (this._softwareRendering.active) {
+        if (this._isSoftwareRendering) {
             this._renderSingleFrame(this.lastTime)
             return
         }
@@ -1308,7 +1313,7 @@ export class CanvasRenderer {
      */
     async switchBackend(backend) {
         const preferWebGPU = backend === 'wgsl'
-        if (preferWebGPU && this._softwareRendering.active) {
+        if (preferWebGPU && this._isSoftwareRendering) {
             console.warn('[CanvasRenderer] Software rendering is active, so WebGPU is unavailable; staying on WebGL2.')
             return
         }
