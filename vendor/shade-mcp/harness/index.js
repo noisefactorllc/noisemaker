@@ -18,7 +18,9 @@ var DEFAULT_GLOBALS = {
   setPaused: "__shadeSetPaused",
   setPausedTime: "__shadeSetPausedTime",
   frameCount: "__shadeFrameCount",
-  pipelineGeneration: "__shadePipelineGeneration"
+  pipelineGeneration: "__shadePipelineGeneration",
+  selectEffect: "__shadeSelectEffect",
+  setBackend: "__shadeSetBackend"
 };
 function globalsFromPrefix(prefix) {
   return {
@@ -29,7 +31,9 @@ function globalsFromPrefix(prefix) {
     setPaused: `${prefix}SetPaused`,
     setPausedTime: `${prefix}SetPausedTime`,
     frameCount: `${prefix}FrameCount`,
-    pipelineGeneration: `${prefix}PipelineGeneration`
+    pipelineGeneration: `${prefix}PipelineGeneration`,
+    selectEffect: `${prefix}SelectEffect`,
+    setBackend: `${prefix}SetBackend`
   };
 }
 
@@ -395,7 +399,7 @@ function swiftshaderVulkanEnv() {
     return {};
   }
 }
-function selectAndAwaitEffect({ effectId, globals, timeout }) {
+function selectAndAwaitEffect({ effectId, effectUrl, globals, timeout }) {
   return new Promise((resolve4) => {
     const w = window;
     const readId = () => {
@@ -423,10 +427,23 @@ function selectAndAwaitEffect({ effectId, globals, timeout }) {
       generation: typeof genName === "string" && typeof w[genName] === "number" ? w[genName] : null,
       statusText: document.getElementById("status")?.textContent || ""
     };
-    const select = document.getElementById("effect-select");
-    if (select) {
-      select.value = effectId;
-      select.dispatchEvent(new Event("change"));
+    let selectError = null;
+    const selectFn = typeof globals.selectEffect === "string" ? w[globals.selectEffect] : void 0;
+    if (typeof selectFn === "function") {
+      Promise.resolve().then(() => selectFn(effectId, { url: effectUrl })).then(
+        (r) => {
+          if (r && typeof r.error === "string") selectError = r.error;
+        },
+        (e) => {
+          selectError = e && e.message ? e.message : String(e);
+        }
+      );
+    } else {
+      const select = document.getElementById("effect-select");
+      if (select) {
+        select.value = effectId;
+        select.dispatchEvent(new Event("change"));
+      }
     }
     const start = Date.now();
     let compilingNow = before.compiling;
@@ -443,6 +460,16 @@ function selectAndAwaitEffect({ effectId, globals, timeout }) {
         resolve4({
           status: "error",
           message: `Timed out after ${timeout} ms waiting for the viewer to finish building ${effectId}` + (idNow && idNow !== effectId ? ` (the viewer is still showing ${idNow})` : !idNow ? " (the viewer does not report which effect it is showing)" : ""),
+          effectId: idNow ?? null,
+          backend: backendName,
+          passes: null
+        });
+        return;
+      }
+      if (selectError !== null) {
+        resolve4({
+          status: "error",
+          message: selectError,
           effectId: idNow ?? null,
           backend: backendName,
           passes: null
@@ -692,8 +719,12 @@ var BrowserSession = class {
       const w = window;
       const readBackend = () => typeof w[globals.currentBackend] === "function" ? w[globals.currentBackend]() : "glsl";
       if (readBackend() === targetBackend2) return { reached: true, backend: targetBackend2 };
+      const setFn = typeof globals.setBackend === "string" ? w[globals.setBackend] : void 0;
       const renderer = w[globals.canvasRenderer];
-      if (renderer && typeof renderer.switchBackend === "function") {
+      if (typeof setFn === "function") {
+        await setFn(targetBackend2);
+        return { reached: readBackend() === targetBackend2, backend: readBackend() };
+      } else if (renderer && typeof renderer.switchBackend === "function") {
         await renderer.switchBackend(targetBackend2);
       } else {
         const btn = document.querySelector(`button[data-backend="${targetBackend2}"]`);
@@ -751,8 +782,10 @@ var BrowserSession = class {
    */
   async selectEffect(effectId) {
     const page = this.page;
+    const effectUrl = `/effects/${effectId.split("/").map(encodeURIComponent).join("/")}/`;
     const outcome = await page.evaluate(selectAndAwaitEffect, {
       effectId,
+      effectUrl,
       globals: this.globals,
       timeout: this.timeoutMs
     });

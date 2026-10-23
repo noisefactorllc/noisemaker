@@ -15,6 +15,20 @@ export interface ViewerGlobals {
      * absent, the selection wait falls back to graph-swap / isCompiling signals.
      */
     pipelineGeneration?: string;
+    /**
+     * Optional selection entry point (`${prefix}SelectEffect`). Viewers without
+     * an effect-select element publish it: the harness calls
+     * `selectEffect(id, { url })`, where `url` is where its viewer server serves
+     * the effect's directory, and the viewer loads and compiles that effect. It
+     * may resolve to `{ error }` to report a compile failure for the selection.
+     */
+    selectEffect?: string;
+    /**
+     * Optional backend switch (`${prefix}SetBackend`). Viewers that must
+     * recompile after a backend change publish it: the harness calls
+     * `setBackend('glsl' | 'wgsl')` instead of the renderer's switchBackend.
+     */
+    setBackend?: string;
 }
 export declare const DEFAULT_GLOBALS: ViewerGlobals;
 export declare function globalsFromPrefix(prefix: string): ViewerGlobals;
