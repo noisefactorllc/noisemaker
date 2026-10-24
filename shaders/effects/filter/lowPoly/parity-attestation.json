@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "filter/lowPoly",
-  "sourceHash": "91f656dda1daeb02fdcb3e533b217a877ae5b04effc80e512e26298129e80327",
+  "sourceHash": "dc1148afc4a7529f093e2728e160c66f1164bf8625ca9e81858e6903de2777d4",
   "caseHash": "91dc062f387c307508be80ff7260ee14605468110dceee3b1478232a4ef17a21",
   "resolution": [
     64,

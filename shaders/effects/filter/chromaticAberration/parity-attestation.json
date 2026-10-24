@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "filter/chromaticAberration",
-  "sourceHash": "56415f54f8f97daca8fb68553e07cd7500a48b7a07a55e39424387ec44f2b9ad",
+  "sourceHash": "b8e53f829326a5e56993e4b170176f682e97a769b397ea2cde2b118a5e3ef24a",
   "caseHash": "1ac3c865e17b199af621211eb66fb112bca681a1e6db58d1b0300e6cdb28e16f",
   "resolution": [
     64,

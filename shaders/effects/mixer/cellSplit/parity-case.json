@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ],
+  "epsilon": 0,
+  "requireColorVariation": true,
+  "effects": [
+    "synth/gradient",
+    "synth/noise",
+    "mixer/cellSplit"
+  ],
+  "dsl": "search synth, mixer\ngradient(seed: 2).write(o1)\nnoise(seed: 1).cellSplit(tex: read(o1), seed: 4).write(o0)\nrender(o0)"
+}

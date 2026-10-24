@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "filter/pixelSort",
-  "sourceHash": "e27015160092bc7fb3cb3fe8b11fc80478fc466ba1a0965567a3120929dea21e",
+  "sourceHash": "6bdb68ffe750db56c8aba4e4dd3f0ff15dab52b799b2b506eccc28ed6acbde34",
   "caseHash": "cb965f4d909af9460af20177368548d85b2505231c39a026e7c00c1286e8e5ea",
   "resolution": [
     192,
@@ -13,14 +13,14 @@
       "height": 192,
       "nonzeroRgbPixels": 36864,
       "nonzeroAlphaPixels": 36864,
-      "uniqueColors": 25717
+      "uniqueColors": 25718
     },
     "webgpu": {
       "width": 192,
       "height": 192,
       "nonzeroRgbPixels": 36864,
       "nonzeroAlphaPixels": 36864,
-      "uniqueColors": 25717
+      "uniqueColors": 25718
     }
   },
   "execution": {

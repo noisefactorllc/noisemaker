@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "filter/pondRipples",
-  "sourceHash": "56cd3f425c472e034d62bb6f1e7c29a974e2261f2922351a0fb12500f17ee0db",
+  "sourceHash": "4e43a51f2965634cf7b1041960d993c0ddea5fa80c420492ede1adf5a1cadfc3",
   "caseHash": "2f57c46182b52cc4f9c63033f6315a3e4d82f1f24203e3e9b755186ad1e552c3",
   "resolution": [
     64,

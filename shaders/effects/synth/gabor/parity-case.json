@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ],
+  "epsilon": 0,
+  "requireColorVariation": true,
+  "effects": [
+    "synth/gabor"
+  ],
+  "dsl": "search synth\ngabor(seed: 3).write(o0)\nrender(o0)"
+}

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "synth/navierStokes",
-  "sourceHash": "7c2700ec51c49fab85870ca2ddc545ba1ec395cdb83867ff828e6a0e664023ed",
+  "sourceHash": "35c8cb2f06d02b7eaf4489c12bfbec627aef761f1f29c86383574a157491b816",
   "caseHash": "f2cdde5a563eae4a943466799b37bdb6371d0ccfb42442819bfbdb114cb6a183",
   "resolution": [
     64,
@@ -13,14 +13,14 @@
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 229
+      "uniqueColors": 224
     },
     "webgpu": {
       "width": 64,
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 229
+      "uniqueColors": 224
     }
   },
   "execution": {

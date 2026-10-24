@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "synth/gabor",
+  "sourceHash": "878164548371b5ea327bd37c595de567afa5c9b2b2c6d54aa4440db9862397ca",
+  "caseHash": "146440ed3e1fe21ac3346ab90858c3d404b48150f735a738a0f53d569f2d9d71",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4081,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 255
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4081,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 255
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

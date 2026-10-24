@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "filter/crt",
-  "sourceHash": "71f2f69a874641b3c737927dc3b921fb282b0f1d05868b6bce76eac016999adf",
+  "sourceHash": "53c2a2d3cd17e7eb8f6731af38bf63b88cd18450e87686a0d7717058781d50c1",
   "caseHash": "1df7464d3d6bcf772bcb3e57abc6818302d854aa194793aa7cd516bc221bc196",
   "resolution": [
     64,
@@ -13,14 +13,14 @@
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 4095
+      "uniqueColors": 4096
     },
     "webgpu": {
       "width": 64,
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 4095
+      "uniqueColors": 4096
     }
   },
   "execution": {
