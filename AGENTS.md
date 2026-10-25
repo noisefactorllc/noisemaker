@@ -8,11 +8,11 @@ Use the **shade** MCP server for all shader development tasks: compiling, render
 
 ## Rules
 
-- **NEVER push to the repo** without explicit user instruction
-- **NEVER run build commands** (`npm run build`, `npx rollup`, etc.) — dist/ bundles are built externally
-- **ONE WAY ONLY**: Do not add aliases, alternatives, or "also supports" options. If a pattern exists, use it.
-- Do not produce documentation unless requested
-- **NEVER commit hard-coded dev-environment paths or hacks.** No absolute paths to a user home, no `localhost`/`127.0.0.1` URLs, no machine-specific config in any checked-in file (`.mcp.json`, `package.json`, configs, scripts, etc.). Files committed to this repo must work for any contributor who clones it.
+- Never push to the repo without explicit user instruction.
+- Never run build commands (`npm run build`, `npx rollup`, etc.); dist/ bundles are built externally.
+- One way only: do not add aliases, alternatives or "also supports" options. If a pattern exists, use it.
+- Do not produce documentation unless requested.
+- Never commit hard-coded dev-environment paths or hacks: no absolute paths to a user home, no `localhost`/`127.0.0.1` URLs, no machine-specific config in any checked-in file (`.mcp.json`, `package.json`, configs, scripts, etc.). Committed files must work for any contributor who clones the repo.
 
 ## Project Structure
 
@@ -25,7 +25,7 @@ Use the **shade** MCP server for all shader development tasks: compiling, render
 
 ## Shader Conventions
 
-- Surfaces `o0`..`o7` are **USER-ONLY**. Effects must allocate internal textures for feedback/temp storage. Never hardwire `o0`..`o7` in effect definitions.
+- Surfaces `o0`..`o7` are user-only. Effects must allocate internal textures for feedback/temp storage. Never hardwire `o0`..`o7` in effect definitions.
 - Use `type: "compute"` for state updates, simulations, and multi-output passes. The WebGL2 backend converts these to GPGPU render passes automatically. Never write separate "simplified" WebGL2 shaders.
 - All textures are 4-channel RGBA.
 - WGSL struct members end with `,` (comma), not `;`.
