@@ -3123,14 +3123,44 @@ work, verify it, then update the checkpoint and append a log line.
 <!-- ai-contract-checkpoint:start -->
 ## AI contract checkpoint
 
-Last good source revision: pending. No callback-confirmed source checkpoint has been recorded. Existing historical checkpoints remain unchanged.
+Last good source revision: `61e80cc4cc4fc40fa6c6396bd2f2da2e2ed0dc32`.
+
+The tracked AI contracts were independently audited against that source revision.
+
+- `llms-full.txt`: `ec20487bac1532dda4b017328df86f2380fc43b0`
+- `llms.txt`: `4571eb66007cf606c868b79e6d7103b3b39388f7`
 
 ```json
 {
   "version": 1,
   "repository": "noisefactorllc/noisemaker",
   "branch": "main",
-  "last_good": null
+  "last_good": {
+    "revision": "61e80cc4cc4fc40fa6c6396bd2f2da2e2ed0dc32",
+    "contracts": [
+      {
+        "path": "llms-full.txt",
+        "sha": "ec20487bac1532dda4b017328df86f2380fc43b0"
+      },
+      {
+        "path": "llms.txt",
+        "sha": "4571eb66007cf606c868b79e6d7103b3b39388f7"
+      }
+    ],
+    "references": [
+      {
+        "repository": "noisefactorllc/shade-mcp",
+        "branch": "main",
+        "revision": "e67a3b474a750c1f187c9b60d9da7a8964f060f9"
+      }
+    ],
+    "verified_at": "2026-10-25T21:02:48.946Z",
+    "audit": {
+      "job_id": "11d484a0-9f4e-4e6e-b1ac-6e8b9f978bd9",
+      "review_id": "44e0a078-6136-448e-a0fc-c8e3cb4897e9",
+      "reviewer_session_id": "20261025_210119_0a5d5b"
+    }
+  }
 }
 ```
 <!-- ai-contract-checkpoint:end -->
