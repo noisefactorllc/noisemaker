@@ -183,6 +183,38 @@ test('registerNamespace rejects reserved function names (from/osc/midi/audio)', 
     }
 })
 
+test('registerNamespace rejects ids that the lexer reads as surface references', () => {
+    const referenceTypes = ['OUTPUT_REF', 'SOURCE_REF', 'VOL_REF', 'GEO_REF', 'XYZ_REF', 'VEL_REF', 'RGBA_REF', 'MESH_REF']
+    const ids = ['s1', 'o1', 'o9', 'vol0', 'geo2', 'xyz3', 'vel4', 'rgba5', 'mesh6']
+    for (const prefix of ['o', 's', 'vol', 'geo', 'xyz', 'vel', 'rgba', 'mesh']) {
+        for (const digits of ['0', '7', '8', '12']) {
+            for (const suffix of ['', 'x', 'Tools', '9']) ids.push(`${prefix}${digits}${suffix}`)
+        }
+    }
+    for (const id of ids) {
+        // The lexer reads each id as a reference token. Output references
+        // above o7 fail with L004 before a token is made.
+        let first
+        try { first = lex(id)[0].type } catch (e) { first = e.diagnostic?.code }
+        assert(referenceTypes.includes(first) || first === 'L004', `${id} must lex as a surface reference, got ${first}`)
+        assertThrows(() => registerNamespace(id, { description: 'x' }), 'surface reference', id)
+        assertEquals(VALID_NAMESPACES.includes(id), false, `${id} must not be in VALID_NAMESPACES`)
+        assertEquals(isValidNamespace(id), false, `${id} must not be a valid namespace`)
+    }
+})
+
+test('registerNamespace accepts an identifier id that the search directive can name', () => {
+    registerNamespace('myTools', { description: 'Tools' })
+    try {
+        engineIndex.registerOp('myTools.probeGen', { name: 'probeGen', args: [] })
+        engineIndex.registerStarterOps(['myTools.probeGen'])
+        const compiled = engineIndex.compile('search myTools\nprobeGen().write(o0)\nrender(o0)')
+        assertEquals(compiled.plans[0].chain[0].op, 'myTools.probeGen', 'search myTools resolves probeGen()')
+    } finally {
+        unregisterNamespace('myTools')
+    }
+})
+
 test('registerNamespace rejects bad descriptors', () => {
     assertThrows(() => registerNamespace('myFooDesc', null), 'descriptor', 'null descriptor')
     assertThrows(() => registerNamespace('myFooDesc', undefined), 'descriptor', 'undefined descriptor')

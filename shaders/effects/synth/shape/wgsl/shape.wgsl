@@ -5,7 +5,7 @@
  */
 
 struct Uniforms {
-    data : array<vec4<f32>, 3>,
+    data : array<vec4<f32>, 4>,
 };
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -23,6 +23,9 @@ var<private> loopBScale : f32;
 var<private> speedA : f32;
 var<private> speedB : f32;
 var<private> aspectRatio : f32;
+var<private> tileOffset : vec2<f32>;
+var<private> fullResolution : vec2<f32>;
+var<private> globalCoord : vec2<f32>;
 
 const PI : f32 = 3.14159265359;
 const TAU : f32 = 6.28318530718;
@@ -61,16 +64,61 @@ fn periodicFunction(p: f32) -> f32 {
     return map(sin(x), -1.0, 1.0, 0.0, 1.0);
 }
 
-fn constant(st_in: vec2<f32>, freq: f32, speed: f32) -> f32 {
-    var x = st_in.x * freq;
-    var y = st_in.y * freq;
+// Positive modulo for lattice wrapping
+fn positiveModulo(a: i32, b: i32) -> i32 {
+    var result = a - (a / b) * b;
+    if (result < 0) { result = result + b; }
+    return result;
+}
+
+// The GLSL lattice hash: pcg over the integer lattice cell (offset by xyOffset),
+// the seed and fixed jitter words, wrapped on an integer period.
+fn randomFromLatticeWithOffset(st: vec2<f32>, freq: f32, xyOffset: vec2<i32>) -> vec3<f32> {
+    let scaled = st * freq;
+    let base = vec2<i32>(floor(scaled)) + xyOffset;
+    let frac = fract(scaled);
+
+    let seedInt = i32(seed);
+    let seedFrac = 0.0;
+
+    let xCombined = frac.x + seedFrac;
+    var xi = base.x + seedInt + i32(floor(xCombined));
+    var yi = base.y;
+
     if (wrap) {
-        x = modulo(x, freq);
-        y = modulo(y, freq);
+        let freqInt = i32(freq + 0.5);
+        if (freqInt > 0) {
+            xi = positiveModulo(xi, freqInt);
+            yi = positiveModulo(yi, freqInt);
+        }
     }
-    x = x + seed;
-    let rand = prng(vec3<f32>(floor(vec2<f32>(x, y)), seed));
-    let scaledTime = periodicFunction(rand.x - time) * map(abs(speed), 0.0, 100.0, 0.0, 0.33);
+
+    let xBits = bitcast<u32>(xi);
+    let yBits = bitcast<u32>(yi);
+    let seedBits = bitcast<u32>(seedInt);
+    let fracBits = 0u;
+
+    let jitter = vec3<u32>(
+        (fracBits * 374761393u) ^ 0x9E3779B9u,
+        (fracBits * 668265263u) ^ 0x7F4A7C15u,
+        (fracBits * 2246822519u) ^ 0x94D049B4u
+    );
+
+    let state = vec3<u32>(xBits, yBits, seedBits) ^ jitter;
+    let prngState = pcg(state);
+    let denom = f32(0xffffffffu);
+    return vec3<f32>(
+        f32(prngState.x) / denom,
+        f32(prngState.y) / denom,
+        f32(prngState.z) / denom
+    );
+}
+
+fn constant(st: vec2<f32>, freq: f32, speed: f32) -> f32 {
+    let randTime = randomFromLatticeWithOffset(st, freq, vec2<i32>(40, 0));
+    let scaledTime = periodicFunction(randTime.x - time) * map(abs(speed), 0.0, 100.0, 0.0, 0.33);
+
+    let rand = randomFromLatticeWithOffset(st, freq, vec2<i32>(0, 0));
     return periodicFunction(rand.y - scaledTime);
 }
 
@@ -230,8 +278,8 @@ fn sineNoise(st_in: vec2<f32>, freq: f32, s: f32, blend: f32) -> f32 {
     let b = blend;
     let c = 1.0 - blend;
 
-    let r1 = prng(vec3<f32>(s, 0.0, 0.0)) * 0.75 + 0.125;
-    let r2 = prng(vec3<f32>(s + 10.0, 0.0, 0.0)) * 0.75 + 0.125;
+    let r1 = prng(vec3<f32>(s)) * 0.75 + 0.125;
+    let r2 = prng(vec3<f32>(s + 10.0)) * 0.75 + 0.125;
     let x = sin(r1.x * st.y + sin(r1.y * st.x + a) + sin(r1.z * st.x + b) + c);
     let y = sin(r2.x * st.x + sin(r2.y * st.y + b) + sin(r2.z * st.y + c) + a);
 
@@ -376,7 +424,7 @@ fn rings(st: vec2<f32>, freq: f32) -> f32 {
 }
 
 fn diamonds(pos: vec4<f32>, freq: f32) -> f32 {
-    var stLocal = pos.xy / resolution.y;
+    var stLocal = globalCoord / fullResolution.y;
     stLocal = stLocal - vec2<f32>(0.5 * aspectRatio, 0.5);
     stLocal = stLocal * freq;
     return (cos(stLocal.x * PI) + cos(stLocal.y * PI));
@@ -430,12 +478,14 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     speedB = uniforms.data[2].z;
     // Slot [2].w unused (was paletteMode)
 
-    // Slots [3] and [4] unused (were palette parameters)
-
-    aspectRatio = resolution.x / resolution.y;
+    // Slot [3] = (tileOffset.x, tileOffset.y, fullResolution.x, fullResolution.y)
+    tileOffset = uniforms.data[3].xy;
+    fullResolution = uniforms.data[3].zw;
 
     var color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
-    var st = pos.xy / resolution.y;
+    globalCoord = pos.xy + tileOffset;
+    var st = globalCoord / fullResolution.y;
+    aspectRatio = fullResolution.x / fullResolution.y;
 
     var lf1 = map(loopAScale, 1.0, 100.0, 6.0, 1.0);
     if (wrap) {

@@ -17,6 +17,6 @@ Displays camera or uploaded media with positioning, tiling, flip/mirror, and tra
 | rotation | float | 0 | -180-180 | Rotate |
 | offsetX | float | 0 | -100-100 | Offset x |
 | offsetY | float | 0 | -100-100 | Offset y |
-| backgroundColor | color | 0,0,0 | - | Background color |
-| backgroundOpacity | float | 0 | 0-1 | Background opacity |
+| bgColor | color | 0,0,0 | - | Background color |
+| bgAlpha | float | 0 | 0-1 | Background opacity |
 | imageSize | vec2 | 1024,1024 | - | - |

@@ -14,7 +14,6 @@ setSeed(seed)
 setValueSeed(seed)
 
 const ctx = new Context(null, DEBUG)
-await ctx.initWebGPU()
 const base = await basic(2, [128, 128, 3], { hueRotation: 0, ctx })
 
 const tensor = await voronoiEffect(

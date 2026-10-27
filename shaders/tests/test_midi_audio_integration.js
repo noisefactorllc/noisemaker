@@ -216,7 +216,7 @@ test('audio() compiles to runtime config and resolves correctly', () => {
     // Resolve against a consumer range of 1-10
     const value = pipeline.resolveUniformValue(scaleArg, 0, { min: 1, max: 10 })
 
-    // 0.5 mapped to 1-10: 1 + 0.5 * 9 = 5.5
+    // 0.5 mapped to the consumer range 1-10 is 5.5.
     assertApprox(value, 5.5, 0.01, 'should resolve audio value correctly')
 })
 
@@ -355,6 +355,28 @@ test('oscillator still works correctly', () => {
     // At time 0.5, sine wave peaks: oscSine(0.5) = (1 - cos(π)) * 0.5 = 1
     const valueMid = pipeline.resolveUniformValue(scaleArg, 0.5, { min: 0, max: 10 })
     assertApprox(valueMid, 10, 0.1, 'oscillator should peak at max')
+})
+
+test('compiled out-of-range bounds produce normalized runtime endpoints', () => {
+    const { pipeline, midiState, audioState } = createTestPipeline()
+    for (const source of [
+        'midi(channel: 1, mode: midiMode.gateVelocity, min: -2, max: 10)',
+        'audio(band: audioBand.low, min: -2, max: 10)',
+        'osc(type: oscKind.sine, speed: 1, min: -2, max: 10)'
+    ]) {
+        midiState.getChannel(1).noteOn(60, 127)
+        audioState.low = 1
+        const compiled = compile(`search synth\nnoise(scale: ${source}).write(o0)`)
+        const descriptor = compiled.plans[0].chain[0].args.scale
+        assertEqual(descriptor.min, 0, `${descriptor.type} compiled lower bound`)
+        assertEqual(descriptor.max, 1, `${descriptor.type} compiled upper bound`)
+        assertApprox(pipeline.resolveUniformValue(descriptor, 0.5), 1, 0.001,
+            `${descriptor.type} compiled value stays normalized`)
+        midiState.getChannel(1).noteOff(60)
+        audioState.low = 0
+        assertApprox(pipeline.resolveUniformValue(descriptor, 0), 0, 0.001,
+            `${descriptor.type} compiled lower endpoint stays normalized`)
+    }
 })
 
 // ============================================================================

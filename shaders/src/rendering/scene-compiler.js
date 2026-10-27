@@ -217,6 +217,7 @@ const DESCRIPTOR_DISCRIMINANT = Object.freeze({
  */
 export function isAnimationDescriptor(value) {
     if (value === null || typeof value !== 'object') return false
+    if (value.type === 'Midi' && Number.isFinite(value.zone)) return true
     const discriminant = DESCRIPTOR_DISCRIMINANT[value.type]
     return discriminant !== undefined && Number.isFinite(value[discriminant])
 }
@@ -292,14 +293,31 @@ function canonicalOscillator(node) {
     }
 }
 
+function descriptorInteger(node, name, fallback, min, max, descriptorNode) {
+    const value = descriptorNumber(node, name, fallback, descriptorNode)
+    if (!Number.isInteger(value) || value < min || value > max) {
+        throw sceneError(`${DESCRIPTOR_FUNCTION[descriptorNode.type]}() ${name} must be an integer between ${min} and ${max}`, descriptorNode)
+    }
+    return value
+}
+
 function canonicalMidi(node) {
+    const mode = node.mode === undefined ? 4 : descriptorEnum(node.mode, 'mode', 'midiMode', node)
+    const hasZone = node.zone !== undefined
+    const zone = hasZone ? descriptorEnum(node.zone, 'zone', 'midiZone', node) : undefined
+    if (hasZone && zone !== 0 && zone !== 1) throw sceneError('midi() zone must be a midiZone value', node)
+    if (hasZone && node.channel !== undefined) throw sceneError('midi() channel and zone are mutually exclusive', node)
+    if (!hasZone && node.members !== undefined) throw sceneError('midi() members requires zone', node)
+    if (mode === 7 && node.nrpn === undefined) throw sceneError('midi() nrpn mode requires a parameter number', node)
     return {
         type: 'Midi',
-        channel: descriptorNumber(node.channel, 'channel', 1, node),
-        // The parser fills `mode` with midiMode.velocity when it is omitted;
-        // the fallback here is the same mode by value, for a node built
-        // without it.
-        mode: node.mode === undefined ? 4 : descriptorEnum(node.mode, 'mode', 'midiMode', node),
+        channel: hasZone ? undefined : descriptorInteger(node.channel, 'channel', 1, 1, 16, node),
+        mode,
+        ...(node.cc !== undefined || mode === 5 || mode === 6
+            ? { cc: descriptorInteger(node.cc, 'cc', 1, 0, mode === 6 ? 31 : 127, node) } : {}),
+        ...(node.nrpn !== undefined && { nrpn: descriptorInteger(node.nrpn, 'nrpn', undefined, 0, 16382, node) }),
+        ...(hasZone && { zone }),
+        ...(node.members !== undefined && { members: descriptorInteger(node.members, 'members', undefined, 1, 15, node) }),
         min: descriptorPercentage(node.min, 'min', 0, node),
         max: descriptorPercentage(node.max, 'max', 1, node),
         sensitivity: descriptorNumber(node.sensitivity, 'sensitivity', 1, node),
@@ -313,7 +331,10 @@ function canonicalAudio(node) {
         type: 'Audio',
         band: node.band === undefined ? 0 : descriptorEnum(node.band, 'band', 'audioBand', node),
         min: descriptorPercentage(node.min, 'min', 0, node),
-        max: descriptorPercentage(node.max, 'max', 1, node)
+        max: descriptorPercentage(node.max, 'max', 1, node),
+        ...(node.channel !== undefined && { channel: descriptorInteger(node.channel, 'channel', undefined, 1, 32, node) }),
+        ...(node.name !== undefined && { name: descriptorString(node.name, 'name', node) }),
+        ...(node.id !== undefined && { id: descriptorString(node.id, 'id', node) })
     }
 }
 

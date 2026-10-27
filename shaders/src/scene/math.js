@@ -1,5 +1,5 @@
 // shaders/src/scene/math.js
-import { vec3, mat4, quat } from 'gl-matrix'
+import { vec3, mat4, quat } from './linalg.js'
 
 export function degToRad(deg) {
   return deg * Math.PI / 180
@@ -63,7 +63,7 @@ export function decomposeTransform(matrix) {
  * Float32 stand-ins for the eye/centre/up a view matrix is built from.
  *
  * The three vectors used to be `vec3.fromValues(...)`, which rounds each
- * component to float32 BEFORE gl-matrix does any arithmetic. Handing
+ * component to float32 before matrix arithmetic. Handing
  * `mat4.lookAt` the caller's plain (float64) arrays instead would do the
  * normalisation at double precision and round only the result, moving the
  * matrix by an ulp or two. These buffers keep the original rounding, and

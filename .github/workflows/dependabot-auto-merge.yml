@@ -52,7 +52,6 @@ on:
       - Shaders                      # noisemaker
       - Claude Code Review           # noisedeck
       - API check                    # handfish
-      - Test dashboard-traffic awk   # scaffold
     types: [completed]
   schedule:
     # Safety net: catch anything the fast path dropped.
@@ -68,7 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name != 'workflow_run' || github.event.workflow_run.event == 'pull_request'
     steps:
-      - name: Mint EHSRE app token
+      - name: Mint app token
         id: app-token
         # EHSRE_APP_PRIVATE_KEY is an org secret with visibility=private, so it
         # is absent in public repos. continue-on-error lets us fall back to
@@ -151,7 +150,7 @@ jobs:
               return 0
             fi
 
-            # Verify every CI run for this SHA passed. The EHSRE app has no
+            # Verify every CI run for this SHA passed. The GitHub App has no
             # `checks` permission, so read Actions workflow runs (covered by
             # `actions`) instead of check-runs. Consider only PR-triggered CI
             # runs, which excludes this workflow_run-triggered auto-merge run.

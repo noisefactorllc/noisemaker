@@ -19,6 +19,9 @@ export default new Effect({
     melt: { slot: 2, components: 'x' },
     scatter: { slot: 2, components: 'y' },
     bandHeight: { slot: 2, components: 'z' },
+    renderScale: { slot: 2, components: 'w' },
+    tileOffset: { slot: 3, components: 'xy' },
+    fullResolution: { slot: 3, components: 'zw' },
   },
   globals: {
     intensity: {

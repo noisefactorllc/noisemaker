@@ -20,21 +20,21 @@
  */
 
 import { registerOp } from '../lang/ops.js'
+import { lex } from '../lang/lexer.js'
+import { parse } from '../lang/parser.js'
 import { registerParamAliases } from '../lang/paramAliases.js'
 import { registerEffectAlias } from '../lang/effectAliases.js'
 import { registerStarterOps } from '../lang/validator.js'
 import { createRuntime, recompile, compileGraph } from '../runtime/compiler.js'
-import { registerEffect, getEffect } from '../runtime/registry.js'
+import { resolveSoftwareRendering } from './software-rendering.js'
+import { registerEffect, getEffect, unregisterEffect } from '../runtime/registry.js'
+import { Effect } from '../runtime/effect.js'
 import { mergeIntoEnums } from '../lang/enums.js'
 import { stdEnums } from '../lang/std_enums.js'
 import { MidiState, AudioState, MidiInputManager, AudioInputManager, ExternalInputManager } from '../runtime/external-input.js'
 import { expandPalette } from '../runtime/palette-expansion.js'
 import { SCENE_COLOR_TEXTURE } from '../rendering/scene-compiler.js'
 
-// Scene modules depend on gl-matrix, a bare module specifier that only
-// resolves where an import map provides it. Loading them lazily keeps
-// ordinary 2D effect programs — and the pages that host them — free of that
-// requirement; they are pulled in only when a scene() program compiles.
 let sceneModules = null
 async function loadSceneModules() {
     if (!sceneModules) {
@@ -54,6 +54,7 @@ async function loadSceneModules() {
     }
     return sceneModules
 }
+import { writeUniformAliases } from '../runtime/uniform-aliases.js'
 
 // Re-export for convenience
 export { MidiState, AudioState, MidiInputManager, AudioInputManager, ExternalInputManager }
@@ -70,10 +71,10 @@ function isAutomationControlled(value) {
 }
 
 // Known 3D generator effects (self-initialize volumes)
-const KNOWN_3D_GENERATORS = ['noise3d', 'cell3d', 'shape3d', 'fractal3d', 'flythrough3d', 'cellularAutomata3d', 'reactionDiffusion3d']
+const KNOWN_3D_GENERATORS = ['noise3d', 'cell3d', 'shape3d', 'fractal3d', 'flythrough3d', 'cellularAutomata3d', 'reactionDiffusion3d', 'heightmap3d']
 
 // Known 3D processor effects (modify volumes, need inputTex3d)
-const KNOWN_3D_PROCESSORS = ['flow3d', 'palette3d', 'render3d', 'renderLit3d', 'renderCubemap3d', 'renderCubemapSurface']
+const KNOWN_3D_PROCESSORS = ['flow3d', 'palette3d', 'render3d', 'renderLit3d', 'renderCubemap3d', 'renderCubemapSurface', 'renderLandscape3d']
 
 /**
  * Deep clone a parameter value
@@ -101,6 +102,23 @@ export function cloneParamValue(value) {
  */
 export function isValidIdentifier(name) {
     return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)
+}
+
+/**
+ * Check if a `search user` program can call `name()` as an effect. Keywords,
+ * surface references (o1, s1, vol2, ...) and the calls that the parser turns
+ * into other nodes (osc, midi, audio, read, read3d, from) cannot be called.
+ * @param {string} name - Identifier to check
+ * @returns {boolean}
+ */
+function parsesAsUserEffectCall(name) {
+    let chain
+    try {
+        chain = parse(lex(`search user\n${name}()`)).plans?.[0]?.chain
+    } catch {
+        return false
+    }
+    return chain?.length === 1 && chain[0].type === 'Call' && chain[0].name === name
 }
 
 /**
@@ -228,10 +246,14 @@ export class CanvasRenderer {
      * @param {object} options - Configuration options
      * @param {HTMLCanvasElement} options.canvas - Target canvas element
      * @param {HTMLElement} [options.canvasContainer] - Container element for canvas reset
-     * @param {number} [options.width=1024] - Render width
-     * @param {number} [options.height=1024] - Render height
+     * @param {number} [options.width=1024] - Render resolution width; sizes an unsized canvas element
+     * @param {number} [options.height=1024] - Render resolution height; sizes an unsized canvas element
      * @param {string} [options.basePath='../../shaders'] - Base path for shader assets
      * @param {boolean} [options.preferWebGPU=false] - Use WebGPU backend
+     * @param {string} [options.softwareRendering='off'] - Single-frame mode for a software rasterizer:
+     *   'off' runs no detection; 'auto' turns the mode on when no GPU renders WebGL2; 'on' forces it.
+     *   In the mode, WebGPU is unavailable, start() renders one frame without a loop, and
+     *   stepFrame() advances one frame. See the softwareRendering getter.
      * @param {boolean} [options.useBundles=false] - Load effects from pre-built bundles
      * @param {string} [options.bundlePath='../../dist/effects'] - Base path for effect bundles
      * @param {function} [options.onFrame] - Callback after each frame (receives frameCount)
@@ -250,6 +272,13 @@ export class CanvasRenderer {
         this._height = options.height || 1024
         this._basePath = options.basePath || '../../shaders'
         this._preferWebGPU = options.preferWebGPU || false
+
+        // Software rendering mode: single frames on a software rasterizer, WebGL2 only
+        this._softwareRendering = resolveSoftwareRendering(options.softwareRendering)
+        if (this._softwareRendering.active && this._preferWebGPU) {
+            console.warn('[CanvasRenderer] Software rendering is active, so WebGPU is unavailable; using WebGL2.')
+            this._preferWebGPU = false
+        }
 
         // Bundle loading mode
         this._useBundles = options.useBundles || false
@@ -280,6 +309,7 @@ export class CanvasRenderer {
 
         // Frame counting and FPS measurement
         this._frameCount = 0
+        this._deferredFrameCount = 0
         this._fpsFrameCount = 0
         this._fpsLastUpdateTime = performance.now()
         this._currentFPS = 0
@@ -342,6 +372,10 @@ export class CanvasRenderer {
 
         // Set up WebGL context loss/restore listeners
         this._setupContextLossHandlers()
+
+        // Size an unsized canvas element from the render options so the
+        // drawing buffer (and pixel readback) matches the render resolution.
+        this._applyInitialCanvasSize()
     }
 
     /**
@@ -390,6 +424,39 @@ export class CanvasRenderer {
 
         interceptDimension('width', widthDesc)
         interceptDimension('height', heightDesc)
+    }
+
+    /**
+     * Size the canvas element from the render options when the host has not
+     * sized it. A canvas element's drawing buffer is its width/height, so an
+     * element left at the browser default (300x150) exports 300x150 pixels
+     * even though the pipeline renders internally at options.width x
+     * options.height. When the element already carries a size (attribute or
+     * property), the host's size wins and a disagreement is reported as a
+     * diagnostic naming both sizes.
+     * @private
+     */
+    _applyInitialCanvasSize() {
+        const canvas = this._canvas
+        if (!canvas || typeof canvas.getAttribute !== 'function') return
+
+        const hostSized =
+            canvas.getAttribute('width') !== null ||
+            canvas.getAttribute('height') !== null
+
+        if (!hostSized) {
+            canvas.width = this._width
+            canvas.height = this._height
+            return
+        }
+
+        if (canvas.width !== this._width || canvas.height !== this._height) {
+            console.warn(
+                `[Canvas] Canvas element is ${canvas.width}x${canvas.height} ` +
+                `but the renderer options specify ${this._width}x${this._height}; ` +
+                `the element size governs the output buffer.`
+            )
+        }
     }
 
     /**
@@ -513,9 +580,44 @@ export class CanvasRenderer {
         return this._isContextLost
     }
 
-    /** @returns {string} Current backend ('glsl' or 'wgsl') */
+    /**
+     * The backend the active pipeline runs ('glsl' for WebGL2, 'wgsl' for
+     * WebGPU). A WebGPU request runs WebGL2 when WebGPU is unavailable. Before
+     * the first compile, and after switchBackend() or a context restore
+     * disposes the pipeline, it is preferredBackend.
+     * @returns {string}
+     */
     get backend() {
+        const name = this._pipeline?.backend?.getName?.()
+        if (name === 'WebGPU') return 'wgsl'
+        if (name === 'WebGL2') return 'glsl'
+        return this.preferredBackend
+    }
+
+    /**
+     * The backend that preferWebGPU or the last switchBackend() asked for
+     * ('glsl' or 'wgsl'). The pipeline runs WebGL2 when WebGPU is unavailable,
+     * so this can differ from the backend that renders.
+     * @returns {string}
+     */
+    get preferredBackend() {
         return this._preferWebGPU ? 'wgsl' : 'glsl'
+    }
+
+    /**
+     * Software rendering mode, resolved once at construction.
+     * `report` is the detection verdict (`software`, `webgl2`, `renderer`,
+     * `caveatProbe`, `reasons`); it is null when the mode is 'off'.
+     * @returns {{mode: string, active: boolean, report: object|null}}
+     */
+    get softwareRendering() {
+        const { mode = 'off', active = false, report = null } = this._softwareRendering || {}
+        return { mode, active, report }
+    }
+
+    /** @private True in software rendering mode; an instance built without the constructor is 'off'. */
+    get _isSoftwareRendering() {
+        return Boolean(this._softwareRendering?.active)
     }
 
     /** @returns {object|null} Current pipeline object */
@@ -559,6 +661,11 @@ export class CanvasRenderer {
     /** @returns {number} Total frames rendered */
     get frameCount() {
         return this._frameCount
+    }
+
+    /** @returns {number} Loop frames skipped because an output sink deferred rendering */
+    get deferredFrameCount() {
+        return this._deferredFrameCount
     }
 
     /** @returns {number} Current measured FPS */
@@ -962,9 +1069,14 @@ export class CanvasRenderer {
     // =========================================================================
 
     /**
-     * Start the animation loop
+     * Start the animation loop. In software rendering mode, render the
+     * current frame once instead; stepFrame() advances from there.
      */
     start() {
+        if (this._isSoftwareRendering) {
+            this._renderSingleFrame(this.lastTime)
+            return
+        }
         if (this._isRunning) return
         this._isRunning = true
         this._lastFrameTime = performance.now()
@@ -1102,6 +1214,53 @@ export class CanvasRenderer {
         }
     }
 
+    /**
+     * Render the next frame while the animation loop is stopped: advance one
+     * 60 fps frame of the loop (1 / (60 * loopDuration), wrapping at 1) and
+     * render once, so simulations take exactly one step.
+     * @param {number} [fromTime=this.lastTime] - Normalized time to step from
+     * @returns {number|null} The rendered normalized time, or null when nothing rendered
+     */
+    stepFrame(fromTime) {
+        if (this._isRunning) {
+            console.warn('[CanvasRenderer] stepFrame() renders only while the animation loop is stopped.')
+            return null
+        }
+        if (!this._pipeline || this._isContextLost) return null
+        const base = fromTime ?? (this._isScene ? (this._sceneStepTime ?? this.lastTime) : this.lastTime)
+        const time = (base + 1 / (60 * this._loopDuration)) % 1
+        if (this._isScene) {
+            const pipeline = this._pipeline
+            this._sceneStepTime = time
+            const pending = (this._sceneStepQueue ?? Promise.resolve()).then(() => {
+                if (this._pipeline === pipeline && !this._isRunning) return this._renderSingleFrame(time)
+            })
+            this._sceneStepQueue = pending
+            const clear = () => {
+                if (this._sceneStepQueue === pending) {
+                    this._sceneStepQueue = null
+                    this._sceneStepTime = null
+                }
+            }
+            pending.then(clear, clear)
+        } else {
+            this._renderSingleFrame(time)
+        }
+        return time
+    }
+
+    /** @private Render one frame outside the animation loop and report it like the loop does. */
+    _renderSingleFrame(time) {
+        const before = this._frameCount
+        const isScene = this._isScene
+        const rendered = this.render(time)
+        const report = () => {
+            if (this._frameCount !== before && this._onFrame) this._onFrame(this._frameCount)
+        }
+        if (isScene) return rendered.then(report)
+        report()
+    }
+
     /** @private Main render loop */
     async _renderLoop(time) {
         if (!this._isRunning) return
@@ -1124,14 +1283,18 @@ export class CanvasRenderer {
         // Same _isScene gate as render(): a 2D frame has no scene to wait for,
         // and awaiting anyway moves every draw out of the rAF callback and into
         // a microtask after it.
-        if (this._isScene && !this._sceneRenderPending) {
+        const deferRender = this._pipeline && this._pipeline.shouldDeferRender?.()
+        if (!deferRender && this._isScene && !this._sceneRenderPending) {
             await this._renderScene(time, normalizedTime)
             // Teardown can land while the scene render is in flight.
             if (!this._isRunning) return
         }
 
-        if (this._pipeline) {
-            // Normal effect pipeline rendering path
+        if (deferRender) {
+            // An output sink is behind (for example an encoder backlog). Skip
+            // this draw so the sink's GPU work can complete; time still advances.
+            this._deferredFrameCount++
+        } else if (this._pipeline) {
             try {
                 const renderStart = performance.now()
                 this._pipeline.render(normalizedTime)
@@ -1209,7 +1372,17 @@ export class CanvasRenderer {
      * Reset the canvas element (for backend switching)
      */
     resetCanvas() {
-        if (!this._canvasContainer || !this._canvas) {
+        this._replaceCanvas(this._canvasContainer)
+    }
+
+    /**
+     * @private Put a fresh copy of the canvas in its place inside `parent`.
+     * A canvas keeps the context type that it got first, so a new backend
+     * needs a new canvas element.
+     * @param {Node|null} parent - The canvas's parent node
+     */
+    _replaceCanvas(parent) {
+        if (!parent || !this._canvas) {
             return
         }
 
@@ -1221,7 +1394,7 @@ export class CanvasRenderer {
         newCanvas.width = this._canvas.width
         newCanvas.height = this._canvas.height
 
-        this._canvasContainer.replaceChild(newCanvas, this._canvas)
+        parent.replaceChild(newCanvas, this._canvas)
         this._canvas = newCanvas
 
         // A lost context belonged to the canvas we just discarded, and its
@@ -1292,6 +1465,38 @@ export class CanvasRenderer {
      * @returns {Promise<object>} The created pipeline
      */
     async compile(dsl, options = {}) {
+        const generation = this._lifecycleGeneration ?? 0
+        const run = () => this._isLifecycleCurrent(generation) ? this._compile(dsl, options) : null
+        // UI mode changes and initial loading can overlap. Serialize all callers
+        // so they cannot configure or mutate the same canvas pipeline concurrently.
+        const pending = this._compileQueue ? this._compileQueue.then(run, run) : run()
+        this._compileQueue = pending
+        const clear = () => {
+            if (this._compileQueue === pending) this._compileQueue = null
+        }
+        pending.then(clear, clear)
+        return pending
+    }
+
+    /**
+     * @private Compile after earlier requests for this canvas have settled.
+     * A rejected compile keeps the previous pipeline, so `currentDsl` returns
+     * to the source of that pipeline. A context restore then rebuilds the
+     * program that was rendering, not the rejected one.
+     */
+    async _compile(dsl, options = {}) {
+        const previousDsl = this._currentDsl
+        this._currentDsl = dsl
+        try {
+            return await this._compileSource(dsl, options)
+        } catch (err) {
+            if (this._currentDsl === dsl) this._currentDsl = previousDsl
+            throw err
+        }
+    }
+
+    /** @private Build the pipeline for `dsl`, or recompile the active one. */
+    async _compileSource(dsl, options = {}) {
         const shaderOverrides = options.shaderOverrides
         const lifecycleGeneration = this._lifecycleGeneration ?? 0
 
@@ -1302,32 +1507,16 @@ export class CanvasRenderer {
         // from it rather than from a second compile of the same source.
         const graph = compileGraph(dsl, { shaderOverrides })
 
-        // A scene program still builds a normal pipeline: the scene renders
-        // into SCENE_COLOR_TEXTURE, and the pipeline's blit carries it into a
-        // surface where 2D effects can consume it. Only the scene objects are
-        // set up here; the renderer needs the pipeline's backend and is built
-        // once that exists.
+        // Prepare scene state without replacing the active scene. Compilation
+        // can fail or be cancelled before the new pipeline is ready.
+        let nextSceneTree = null
+        let nextSceneBindings = null
+        let nextClock = null
         if (graph._isScene) {
             const { SceneTree, Clock, collectBindings } = await loadSceneModules()
-            this._isScene = true
-            this._sceneTree = SceneTree.fromIR(graph.sceneIR)
-            this._sceneBindings = collectBindings(this._sceneTree)
-            this._clock = new Clock()
-        } else {
-            this._isScene = false
-            this._sceneTree = null
-            // Recompiling from a scene program to a non-scene one keeps the same
-            // pipeline and backend alive, so dropping the reference without
-            // disposing stranded every scene texture — and recompiling back to a
-            // scene then created new ones under the same ids, orphaning the old
-            // handles a second time.
-            if (this._sceneRenderer) {
-                this._sceneRenderer.dispose()
-                this._sceneRenderer = null
-            }
-            this._sceneRenderPending = null
-            this._sceneBindings = null
-            this._clock = null
+            nextSceneTree = SceneTree.fromIR(graph.sceneIR)
+            nextSceneBindings = collectBindings(nextSceneTree)
+            nextClock = new Clock()
         }
 
         if (!this._pipeline) {
@@ -1434,6 +1623,23 @@ export class CanvasRenderer {
             return null
         }
 
+        // Commit the scene state only after the replacement pipeline is ready.
+        // A failed recompile must leave the previous scene usable.
+        if (graph._isScene) {
+            this._isScene = true
+            this._sceneTree = nextSceneTree
+            this._sceneBindings = nextSceneBindings
+            this._clock = nextClock
+        } else {
+            this._isScene = false
+            this._sceneTree = null
+            this._sceneRenderer?.dispose()
+            this._sceneRenderer = null
+            this._sceneRenderPending = null
+            this._sceneBindings = null
+            this._clock = null
+        }
+
         // The scene renderer needs the pipeline's backend, so it is built (or
         // rebuilt, after a backend swap) once the pipeline is in place.
         if (this._isScene && this._pipeline?.backend) {
@@ -1502,11 +1708,17 @@ export class CanvasRenderer {
     }
 
     /**
-     * Switch rendering backend
+     * Switch rendering backend. Call compile() again to render on the new
+     * backend. The new backend presents on a fresh canvas element in the old
+     * canvas's place, so read `renderer.canvas` after the switch.
      * @param {string} backend - 'glsl' or 'wgsl'
      */
     async switchBackend(backend) {
         const preferWebGPU = backend === 'wgsl'
+        if (preferWebGPU && this._isSoftwareRendering) {
+            console.warn('[CanvasRenderer] Software rendering is active, so WebGPU is unavailable; staying on WebGL2.')
+            return
+        }
         if (preferWebGPU === this._preferWebGPU) {
             return
         }
@@ -1518,6 +1730,12 @@ export class CanvasRenderer {
             loseContext: previousBackend === 'glsl',
             resetCanvas: true
         })
+
+        // dispose() replaces the canvas only inside a canvasContainer. The old
+        // canvas cannot take the new context type, so replace it in its parent.
+        if (!this._canvasContainer) {
+            this._replaceCanvas(this._canvas?.parentNode)
+        }
     }
 
     // =========================================================================
@@ -1526,17 +1744,25 @@ export class CanvasRenderer {
 
     /**
      * Load the shader manifest
-     * @returns {Promise<object>} The loaded manifest
+     * @returns {Promise<object>} The loaded manifest. Rejects when the
+     *   manifest cannot be fetched (the message names its URL and the HTTP
+     *   status) or read as JSON.
      */
     async loadManifest() {
+        const manifestUrl = `${this._basePath}/effects/manifest.json`
+        let manifestRes
         try {
-            const manifestRes = await fetch(`${this._basePath}/effects/manifest.json`)
-            if (manifestRes.ok) {
-                this._manifest = await manifestRes.json()
-            }
-        } catch (e) {
-            console.warn('Failed to load shader manifest')
-            throw new Error('Could not load shader manifest - lazy loading requires manifest.json')
+            manifestRes = await fetch(manifestUrl)
+        } catch (err) {
+            throw new Error(`Could not load shader manifest ${manifestUrl}: ${err.message}`, { cause: err })
+        }
+        if (!manifestRes.ok) {
+            throw new Error(`Could not load shader manifest ${manifestUrl}: HTTP ${manifestRes.status}`)
+        }
+        try {
+            this._manifest = await manifestRes.json()
+        } catch (err) {
+            throw new Error(`Could not read shader manifest ${manifestUrl}: ${err.message}`, { cause: err })
         }
 
         // Register starter ops from manifest
@@ -1736,6 +1962,94 @@ export class CanvasRenderer {
         }
 
         await Promise.all(shaderPromises)
+    }
+
+    /**
+     * Register a Portable definition whose shader sources have already been loaded.
+     * Registries are shared within a JavaScript realm. Use a fresh realm when
+     * verifying a replacement; duplicate names must not change accepted effects.
+     * This checks registration inputs, not shader compilation or backend support.
+     * @param {object} definition - Raw Portable JSON plus shaders[program].glsl/wgsl
+     * @returns {Promise<object>} Cached user effect with an Effect instance
+     */
+    async registerPortableEffect(definition) {
+        const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value)
+        const fail = message => { throw new Error(`Portable effect: ${message}`) }
+        if (!isRecord(definition)) fail('expected a definition object')
+        const { namespace, passes, shaders, globals, starter } = definition
+        const func = definition.func ?? definition.name
+        if (typeof func !== 'string' || !isValidIdentifier(func)) fail('func must be a DSL identifier')
+        if (!parsesAsUserEffectCall(func)) fail(`reserved func ${func}`)
+        // The shared operator/enum registries use object trees. JSON keys that
+        // control their prototypes must never reach those registration paths.
+        const reserved = [...Object.getOwnPropertyNames(Object.prototype), 'prototype']
+        if (reserved.includes(func)) fail(`reserved func ${func}`)
+        const pending = [definition]
+        const visited = new Set()
+        while (pending.length) {
+            const value = pending.pop()
+            if (!value || typeof value !== 'object' || visited.has(value)) continue
+            visited.add(value)
+            for (const [key, child] of Object.entries(value)) {
+                if (reserved.includes(key)) fail(`reserved metadata key ${key}`)
+                if (child && typeof child === 'object') pending.push(child)
+            }
+        }
+        if (namespace !== undefined && namespace !== 'user') fail('namespace must be user')
+        if (starter !== undefined && typeof starter !== 'boolean') fail('starter must be boolean')
+        if (!Array.isArray(passes) || passes.length === 0) fail('passes must be a nonempty array')
+        if (!isRecord(shaders)) fail('loaded shaders are required')
+        const hasSource = source => typeof source === 'string' && source.trim().length > 0
+        for (const pass of passes) {
+            if (!isRecord(pass) || typeof pass.program !== 'string' || !pass.program) fail('each pass must name a program')
+            for (const field of ['inputs', 'outputs']) {
+                if (pass[field] !== undefined && (!isRecord(pass[field]) || Object.values(pass[field]).some(value => !hasSource(value)))) {
+                    fail(`pass ${field} must map names to nonempty texture references`)
+                }
+            }
+            const source = shaders[pass.program]
+            if (!isRecord(source) || ![source.glsl, source.wgsl].some(hasSource)) {
+                fail(`missing shader source for ${pass.program}`)
+            }
+        }
+        for (const language of ['glsl', 'wgsl']) {
+            if (passes.some(pass => hasSource(shaders[pass.program][language]))) {
+                for (const pass of passes) {
+                    if (!hasSource(shaders[pass.program][language])) fail(`missing ${language} shader source for ${pass.program}`)
+                }
+            }
+        }
+        if (globals !== undefined && (!isRecord(globals) || Object.values(globals).some(spec => !isRecord(spec)))) {
+            fail('globals must contain parameter objects')
+        }
+        for (const [key, spec] of Object.entries(globals || {})) {
+            if (spec.choices !== undefined && (!isRecord(spec.choices) || Object.values(spec.choices).some(value =>
+                value !== null && (spec.type === 'string' ? typeof value !== 'string' : !Number.isFinite(value))))) {
+                fail(`choices for ${key} must map names to ${spec.type === 'string' ? 'strings' : 'numbers'} or null`)
+            }
+        }
+        if (definition.paramAliases !== undefined) fail('paramAliases is no longer supported')
+        if (getEffect(`user.${func}`) || getEffect(`user/${func}`)) fail(`user.${func} is already registered`)
+
+        const instance = new Effect({ ...definition, func, namespace: 'user' })
+        instance.shaders = shaders
+        const pipelineInputs = ['inputTex', 'inputTex3d', 'inputGeo', 'inputXyz', 'inputVel', 'inputRgba', 'src', 'o0', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7']
+        instance.starter = starter ?? !passes.some(pass =>
+            Object.values(pass.inputs || {}).some(input => pipelineInputs.includes(input)))
+        const effect = { namespace: 'user', name: func, instance }
+        // Portable effects belong to user.*; preserve a built-in's bare lookup.
+        const previousBare = getEffect(func)
+        let choices
+        try {
+            choices = this.registerEffectWithRuntime(effect)
+        } finally {
+            if (previousBare === undefined) unregisterEffect(func)
+            else registerEffect(func, previousBare)
+        }
+        this._enums = await mergeIntoEnums(choices)
+        if (instance.starter) registerStarterOps([`user.${func}`])
+        this._loadedEffects.set(`user/${func}`, effect)
+        return effect
     }
 
     /**
@@ -1956,16 +2270,18 @@ export class CanvasRenderer {
      * @param {string[]} effectIds - Array of effect IDs
      * @param {object} [options] - Loading options
      * @param {function} [options.onProgress] - Progress callback
-     * @returns {Promise<object[]>} Loaded effects
+     * @returns {Promise<object[]>} Loaded effects. A failed effect does not
+     *   reject the promise: the array's `failed` property lists
+     *   `{ effectId, error }` for each effect that could not load.
      */
     async loadEffects(effectIds, options = {}) {
-        if (effectIds.length === 0) return []
+        if (effectIds.length === 0) return Object.assign([], { failed: [] })
 
         // Filter out already loaded effects
         const needsLoading = effectIds.filter(id => !this._loadedEffects.has(id))
 
         if (needsLoading.length === 0) {
-            return effectIds.map(id => this._loadedEffects.get(id))
+            return Object.assign(effectIds.map(id => this._loadedEffects.get(id)), { failed: [] })
         }
 
         if (this._onLoadingStart) {
@@ -1975,19 +2291,19 @@ export class CanvasRenderer {
         try {
             const loadPromises = needsLoading.map(effectId =>
                 this.loadEffect(effectId, options)
-                    .catch(err => {
-                        console.error(`Failed to load ${effectId}:`, err)
-                        return null
+                    .then(() => null, error => {
+                        console.error(`Failed to load ${effectId}:`, error)
+                        return { effectId, error }
                     })
             )
 
-            await Promise.all(loadPromises)
+            const failed = (await Promise.all(loadPromises)).filter(Boolean)
 
             if (this._onLoadingEnd) {
                 this._onLoadingEnd()
             }
 
-            return effectIds.map(id => this._loadedEffects.get(id)).filter(Boolean)
+            return Object.assign(effectIds.map(id => this._loadedEffects.get(id)).filter(Boolean), { failed })
         } catch (err) {
             if (this._onLoadingEnd) {
                 this._onLoadingEnd()
@@ -2123,6 +2439,7 @@ export class CanvasRenderer {
      * Update a texture from an external source (video, image, canvas).
      * This is used for media input effects that need to display camera/video content.
      * @param {string} texId - Texture ID from effect's externalTexture property
+     *   (per-step: 'imageTex_step_N'; list them with getMediaSteps())
      * @param {HTMLVideoElement|HTMLImageElement|HTMLCanvasElement|ImageBitmap} source - Media source
      * @param {object} [options] - Update options
      * @param {boolean} [options.flipY=true] - Whether to flip the Y axis
@@ -2135,6 +2452,20 @@ export class CanvasRenderer {
         }
 
         return this._pipeline.backend.updateTextureFromSource(texId, source, options)
+    }
+
+    /**
+     * List the current program's media texture bindings.
+     *
+     * Each step that uses an external-texture effect (e.g. synth/media) binds
+     * its own texture, named '<externalTexture>_step_N' where N is the step's
+     * node index in the compiled program. Returns one entry per distinct
+     * texture id, in program order.
+     *
+     * @returns {Array<{textureId: string, uniform: string, stepIndex: number, effect: string}>}
+     */
+    getMediaSteps() {
+        return this._pipeline?.graph?.mediaSteps || []
     }
 
     // =========================================================================
@@ -2499,6 +2830,20 @@ export class CanvasRenderer {
     }
 
     /**
+     * Whether a graph pass belongs to `effect` (same func, and same namespace
+     * when both are known).
+     * @private
+     */
+    _isEffectPass(pass, effect) {
+        if (!pass) return false
+        const passFunc = pass.effectFunc || pass.effectKey || null
+        if (!passFunc || passFunc !== effect.instance.func) return false
+        const targetNamespace = effect.instance.namespace || effect.namespace || null
+        const passNamespace = pass.effectNamespace || null
+        return !(targetNamespace && passNamespace && passNamespace !== targetNamespace)
+    }
+
+    /**
      * Build uniform bindings for the current effect
      * @param {object} effect - Effect object
      */
@@ -2528,17 +2873,8 @@ export class CanvasRenderer {
             }
         }
 
-        const targetFunc = effect.instance.func
-        const targetNamespace = effect.instance.namespace || effect.namespace || null
-
         this._pipeline.graph.passes.forEach((pass, index) => {
-            if (!pass) return
-
-            const passFunc = pass.effectFunc || pass.effectKey || null
-            const passNamespace = pass.effectNamespace || null
-
-            if (!passFunc || passFunc !== targetFunc) return
-            if (targetNamespace && passNamespace && passNamespace !== targetNamespace) return
+            if (!this._isEffectPass(pass, effect)) return
 
             for (const [paramName, spec] of Object.entries(effect.instance.globals)) {
                 if (spec.type === 'surface') continue
@@ -2643,6 +2979,14 @@ export class CanvasRenderer {
 
             const converted = this.convertParameterForUniform(currentValue, spec)
 
+            // A pass that carries the param under its own name gets a direct
+            // binding and no bridge, so its renamed shader uniform is written
+            // here, on this effect's passes only.
+            for (const pass of this._pipeline.graph.passes) {
+                if (!this._isEffectPass(pass, effect)) continue
+                writeUniformAliases(pass, paramName, spec.uniform || paramName, converted)
+            }
+
             for (const binding of bindings) {
                 const pass = this._pipeline.graph.passes[binding.passIndex]
                 if (!pass || !pass.uniforms) {
@@ -2730,7 +3074,11 @@ export class CanvasRenderer {
                 // Skip uniforms controlled by colorModeUniform (they're set by expander based on surface)
                 if (colorModeControlledUniforms.has(uniformName)) continue
 
-                if (!pass.uniforms || !(uniformName in pass.uniforms)) continue
+                if (!pass.uniforms) continue
+                if (!(uniformName in pass.uniforms)) {
+                    writeUniformAliases(pass, paramName, uniformName, this.convertParameterForUniform(value, spec))
+                    continue
+                }
 
                 // Consumer passes inherit volumeSize from the upstream source
                 // emitter — their own step-state default is stale. Writing it
@@ -2745,6 +3093,7 @@ export class CanvasRenderer {
                 if (this._sceneVolumeSizeRefused(pass, uniformName, converted)) continue
 
                 pass.uniforms[uniformName] = Array.isArray(converted) ? converted.slice() : converted
+                writeUniformAliases(pass, paramName, uniformName, converted)
 
                 // Propagate to chain-scoped variant so resolveDimension() sees the update,
                 // and broadcast to other chain members so collectDefaultUniforms() merges

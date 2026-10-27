@@ -31,13 +31,15 @@ struct Uniforms {
     wrap: i32,
     // kernel was here — now compile-time KERNEL
     effectWidth: f32,
+    tileOffset: vec2f,
+    fullResolution: vec2f,
 }
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
 
 fn aspectRatio() -> f32 {
-    return u.resolution.x / u.resolution.y;
+    return u.fullResolution.x / u.fullResolution.y;
 }
 
 fn mapRange(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
@@ -77,8 +79,8 @@ fn randomFromLatticeWithOffset(st: vec2f, freq: f32, offset: vec2i) -> vec3f {
     let baseFloor = floor(lattice);
     var base = vec2i(baseFloor) + offset;
     let frac = lattice - baseFloor;
-    let seedInt = i32(floor(f32(u.seed)));
-    let seedFrac = fract(f32(u.seed));
+    let seedInt = u.seed;
+    let seedFrac = 0.0;
     let xCombined = frac.x + seedFrac;
     var xi = base.x + seedInt + i32(floor(xCombined));
     var yi = base.y;
@@ -89,9 +91,9 @@ fn randomFromLatticeWithOffset(st: vec2f, freq: f32, offset: vec2i) -> vec3f {
             yi = positiveModulo(yi, freqInt);
         }
     }
-    let xBits = u32(xi);
-    let yBits = u32(yi);
-    let seedBits = bitcast<u32>(f32(u.seed));
+    let xBits = bitcast<u32>(xi);
+    let yBits = bitcast<u32>(yi);
+    let seedBits = bitcast<u32>(u.seed);
     let fracBits = bitcast<u32>(seedFrac);
     let jitter = vec3u(
         (fracBits * 374761393u) ^ 0x9E3779B9u,
@@ -285,7 +287,7 @@ fn value(st_in: vec2f, freq: f32, interp: i32) -> f32 {
 
 fn hsv2rgb(hsv: vec3f) -> vec3f {
     let h = fract(hsv.x); let s = hsv.y; let v = hsv.z;
-    let c = v * s; let x = c * (1.0 - abs(fract(h * 6.0) * 2.0 - 1.0)); let m = v - c;
+    let c = v * s; let x = c * (1.0 - abs((h * 6.0) - 2.0 * floor((h * 6.0) / 2.0) - 1.0)); let m = v - c;
     var rgb: vec3f;
     if (h < 1.0/6.0) { rgb = vec3f(c, x, 0.0); }
     else if (h < 2.0/6.0) { rgb = vec3f(x, c, 0.0); }
@@ -296,13 +298,21 @@ fn hsv2rgb(hsv: vec3f) -> vec3f {
     return rgb + vec3f(m);
 }
 
+// GLSL mod(x,y) = x - y*floor(x/y) (sign of y). WGSL `%` = x - y*trunc(x/y)
+// (sign of x); they diverge for negative x. kaleidoscope() folds a signed
+// angle and rgb2hsv computes a red-dominant hue's sector, so both use the
+// GLSL definition to match glsl/kaleido.glsl.
+fn glslMod(x: f32, y: f32) -> f32 {
+    return x - y * floor(x / y);
+}
+
 fn rgb2hsv(rgb: vec3f) -> vec3f {
     let maxC = max(rgb.r, max(rgb.g, rgb.b));
     let minC = min(rgb.r, min(rgb.g, rgb.b));
     let delta = maxC - minC;
     var h = 0.0;
     if (delta != 0.0) {
-        if (maxC == rgb.r) { h = ((rgb.g - rgb.b) / delta) % 6.0 / 6.0; }
+        if (maxC == rgb.r) { h = glslMod((rgb.g - rgb.b) / delta, 6.0) / 6.0; }
         else if (maxC == rgb.g) { h = ((rgb.b - rgb.r) / delta + 2.0) / 6.0; }
         else { h = ((rgb.r - rgb.g) / delta + 4.0) / 6.0; }
     }
@@ -451,13 +461,6 @@ fn offset(st: vec2f, freq: f32) -> f32 {
     return 0.0;
 }
 
-// GLSL mod(x,y) = x - y*floor(x/y) (sign of y). WGSL `%` = x - y*trunc(x/y)
-// (sign of x); they diverge for negative x. kaleidoscope() folds a signed
-// angle, so it must use the GLSL definition to match glsl/kaleido.glsl.
-fn glslMod(x: f32, y: f32) -> f32 {
-    return x - y * floor(x / y);
-}
-
 fn kaleidoscope(st_in: vec2f, sides: f32, blendy: f32) -> vec2f {
     let r = getMetric(st_in) + blendy;
     var st = st_in - vec2f(0.5 * aspectRatio(), 0.5);
@@ -473,11 +476,10 @@ fn kaleidoscope(st_in: vec2f, sides: f32, blendy: f32) -> vec2f {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    // Aspect-preserving UV from resolution (uv.x in [0, aspect], uv.y in
-    // [0, 1]), matching glsl/kaleido.glsl `gl_FragCoord.xy / fullResolution.y`
-    // for the non-tiled case. Uses u.resolution like working sibling
-    // classicNoisedeck WGSL effects; the runtime always populates it.
-    var uv = fragCoord.xy / u.resolution.y;
+    // Aspect-preserving global UV (uv.x in [0, aspect], uv.y in [0, 1]),
+    // matching glsl/kaleido.glsl `(gl_FragCoord.xy + tileOffset) / fullResolution.y`.
+    let globalCoord = fragCoord.xy + u.tileOffset;
+    var uv = globalCoord / u.fullResolution.y;
 
     var lf = mapRange(u.loopScale, 1.0, 100.0, 6.0, 1.0);
     if (u.wrap != 0) { lf = floor(lf); }

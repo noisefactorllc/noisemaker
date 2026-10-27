@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "synth/cellularAutomata",
+  "sourceHash": "9091098362e5b214b16aa886e377bdf2820fbc708a90dd0a9d662de486c34126",
+  "caseHash": "65454de2a000db1192f214fad6f08a9c7d2c5930302b7dfdb250209c1f2b0db3",
+  "resolution": [
+    128,
+    128
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 128,
+      "height": 128,
+      "nonzeroRgbPixels": 9122,
+      "nonzeroAlphaPixels": 16384,
+      "uniqueColors": 256
+    },
+    "webgpu": {
+      "width": 128,
+      "height": 128,
+      "nonzeroRgbPixels": 9122,
+      "nonzeroAlphaPixels": 16384,
+      "uniqueColors": 256
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 2,
+    "webgpuTargetPasses": 2
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

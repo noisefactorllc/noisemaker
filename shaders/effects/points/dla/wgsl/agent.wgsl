@@ -2,8 +2,10 @@
 // Reads agent state from pointsEmit, performs random walk, detects sticking
 
 struct Uniforms {
+    diffuseActive: f32,
     stride: f32,
     inputWeight: f32,
+    fieldActive: f32,
     attrition: f32,
     stateSize: i32,
 }
@@ -17,14 +19,46 @@ struct FragmentOutputs {
     @location(0) outXYZ: vec4<f32>,
     @location(1) outVel: vec4<f32>,
     @location(2) outRGBA: vec4<f32>,
+    @location(3) baseColor: vec4<f32>,
 }
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var xyzTex: texture_2d<f32>;
 @group(0) @binding(2) var velTex: texture_2d<f32>;
 @group(0) @binding(3) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(6) var diffuseTex: texture_2d<f32>;
+@group(0) @binding(8) var baseColorTex: texture_2d<f32>;
+
+fn selectedDiffuse(uv: vec2f) -> vec4f {
+    let size = textureDimensions(diffuseTex, 0);
+    let pixel = clamp(vec2i(clamp(uv, vec2f(0.0), vec2f(0.999999)) * vec2f(size)), vec2i(0), vec2i(size) - vec2i(1));
+    return textureLoad(diffuseTex, pixel, 0);
+}
+
+// Color render/pointsEmit gives an agent spawned at pos.
+fn spawnColor(pos: vec2f) -> vec4f {
+    let dims = textureDimensions(inputTex);
+    let sampled = textureLoad(inputTex, vec2<i32>(pos * vec2<f32>(dims)), 0);
+    return select(vec4f(1.0), sampled, sampled.a > 0.0);
+}
+
+// The agent's color without a diffuse map. baseColorTex keeps it (alpha > 0)
+// while a diffuse map is active and is cleared otherwise, so this is rgba
+// unless the agent still carries a diffuse color and has not respawned.
+fn baseColor(coord: vec2i, rgba: vec4f, pos: vec2f) -> vec4f {
+    let kept = textureLoad(baseColorTex, coord, 0);
+    if (kept.a == 0.0) { return rgba; }
+    let spawnDelta = abs(round(rgba * 255.0) - round(clamp(spawnColor(pos), vec4f(0.0), vec4f(1.0)) * 255.0));
+    return select(kept, rgba, all(spawnDelta <= vec4f(1.0)));
+}
+
+fn keptBaseColor(base: vec4f) -> vec4f {
+    return select(vec4f(0.0), vec4f(base.rgb, max(base.a, 1.0 / 255.0)), u.diffuseActive > 0.5);
+}
+
 @group(0) @binding(4) var gridTex: texture_2d<f32>;
 @group(0) @binding(5) var inputTex: texture_2d<f32>;
+@group(0) @binding(7) var heightTex: texture_2d<f32>;
 
 // Integer-based hash for deterministic randomness
 fn hash_uint(seed: u32) -> u32 {
@@ -58,9 +92,7 @@ fn wrap01(v: vec2<f32>) -> vec2<f32> {
 
 fn sampleGrid(uv: vec2<f32>) -> f32 {
     let dims = vec2<f32>(textureDimensions(gridTex));
-    let w = wrap01(uv);
-    // WebGPU: gridTex y=0=top, worldPos y=0=visual-bottom. Read at 1-y.
-    let coord = vec2<i32>(vec2f(w.x, 1.0 - w.y) * dims);
+    let coord = vec2<i32>(wrap01(uv) * dims);
     return textureLoad(gridTex, coord, 0).a;
 }
 
@@ -85,6 +117,7 @@ fn main(in: VertexOutput) -> FragmentOutputs {
     let xyz = textureLoad(xyzTex, coord, 0);
     let vel = textureLoad(velTex, coord, 0);
     let rgba = textureLoad(rgbaTex, coord, 0);
+    let base = baseColor(coord, rgba, xyz.xy);
     
     // Extract state
     var pos = xyz.xy;
@@ -107,7 +140,8 @@ fn main(in: VertexOutput) -> FragmentOutputs {
         return FragmentOutputs(
             xyz,
             vec4<f32>(seed, 0.0, 0.0, agentRand),
-            rgba
+            rgba,
+            keptBaseColor(base)
         );
     }
     
@@ -126,11 +160,9 @@ fn main(in: VertexOutput) -> FragmentOutputs {
     let inputW = u.inputWeight / 100.0;
     var stepDir = randomDir;
     if (inputW > 0.0) {
-        let inputDims = textureDimensions(inputTex);
-        let wpos = wrap01(pos);
-        // WebGPU: inputTex y=0=top, worldPos y=0=visual-bottom. Read at 1-y.
-        let inputCoord = vec2<i32>(vec2f(wpos.x, 1.0 - wpos.y) * vec2<f32>(inputDims));
-        let inputVal = textureLoad(inputTex, inputCoord, 0);
+        let inputDims = select(textureDimensions(inputTex), textureDimensions(heightTex), u.fieldActive > 0.5);
+        let inputCoord = vec2<i32>(wrap01(pos) * vec2<f32>(inputDims));
+        let inputVal = select(textureLoad(inputTex, inputCoord, 0), textureLoad(heightTex, inputCoord, 0), u.fieldActive > 0.5);
         var inputDir = inputVal.xy * 2.0 - 1.0;
         if (length(inputDir) > 0.01) {
             inputDir = normalize(inputDir);
@@ -169,21 +201,24 @@ fn main(in: VertexOutput) -> FragmentOutputs {
         return FragmentOutputs(
             vec4<f32>(candidate, 0.0, 0.0),  // w=0 signals death to pointsEmit
             vec4<f32>(seed, 1.0, 0.0, agentRand),  // y=1 signals "just stuck" for depositGrid
-            rgba
+            select(base, selectedDiffuse(candidate), u.diffuseActive > 0.5),
+            keptBaseColor(base)
         );
     } else if (needsRespawn) {
         // Attrition death: mark for respawn
         return FragmentOutputs(
             vec4<f32>(candidate, 0.0, 0.0),  // w=0 signals death
             vec4<f32>(seed, 0.0, 0.0, agentRand),  // y=0, not stuck
-            rgba
+            select(base, selectedDiffuse(candidate), u.diffuseActive > 0.5),
+            keptBaseColor(base)
         );
     } else {
         // Continue walking
         return FragmentOutputs(
             vec4<f32>(candidate, 0.0, 1.0),  // w=1 alive
             vec4<f32>(seed, 0.0, 0.0, agentRand),
-            rgba
+            select(base, selectedDiffuse(candidate), u.diffuseActive > 0.5),
+            keptBaseColor(base)
         );
     }
 }

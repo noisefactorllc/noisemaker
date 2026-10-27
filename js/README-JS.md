@@ -9,11 +9,11 @@ This document covers the JS port of Noisemaker. See additional
 
 ## [Cross-language parity tests](https://docs.noisemaker.app/javascript/#cross-language-parity)
 
-`npm test` runs the JavaScript suite, which invokes the Python reference
-implementation in a subprocess and compares outputs directly. No fixture files
-or canned images are used. Any difference between languages is treated as a
-test failure—do not modify the Python reference implementation, and do not skip
-or weaken tests to hide problems.
+`npm test` runs the JavaScript suite. Its parity tests invoke the Python
+reference implementation in a subprocess and compare outputs directly. Some unit
+tests compare with JSON fixtures under `test/fixtures/` instead. Any difference
+between languages is treated as a test failure—do not modify the Python
+reference implementation, and do not skip or weaken tests to hide problems.
 
 ## [Command-line rendering](https://docs.noisemaker.app/javascript/#command-line-rendering-experimental)
 
@@ -25,9 +25,10 @@ rendering presets without opening the browser. After installing dependencies
 noisemaker-js generate basic --filename output.png --width 512 --height 512 --seed 123
 ```
 
-Additional options include `--time`, `--speed`, `--with-alpha`, and `--debug`
-to mirror the browser controls. The CLI writes a PNG file to the requested
-location and creates parent directories as needed.
+Additional options include `--time`, `--speed`, `--with-alpha`, `--debug-print`
+and `--debug-out FILE`. The debug options print or save the preset's layers
+and settings. The CLI writes a PNG file to the requested location and creates
+parent directories as needed.
 
 ### Custom Presets
 

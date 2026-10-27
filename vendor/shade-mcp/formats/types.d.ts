@@ -1,13 +1,16 @@
 export interface EffectUniform {
     name: string;
-    type: 'float' | 'int' | 'vec2' | 'vec3' | 'vec4' | 'boolean';
+    type: 'float' | 'int' | 'vec2' | 'vec3' | 'vec4' | 'boolean' | (string & {});
     uniform: string;
-    default?: number | number[];
+    default?: unknown;
     min?: number;
     max?: number;
     step?: number;
-    choices?: Record<string, number>;
+    choices?: Record<string, unknown>;
     control?: boolean;
+    /** Compile-time define name for a global that is not a runtime uniform. */
+    define?: string;
+    ui?: Record<string, unknown>;
 }
 export interface EffectPass {
     name?: string;
@@ -27,5 +30,12 @@ export interface EffectDefinition {
     passes: EffectPass[];
     format: 'json' | 'js';
     effectDir: string;
+    /**
+     * Set when a `definition.js` value could not be read without running the
+     * module (for example passes built with a spread or `Array.from`). The
+     * definition is then incomplete, and `partialReasons` says where.
+     */
+    partial?: boolean;
+    partialReasons?: string[];
 }
 //# sourceMappingURL=types.d.ts.map

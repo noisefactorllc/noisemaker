@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "render/pointsEmit",
+  "sourceHash": "95dee5419321e52760bdaf54cf9cfe2de8ca365b94fd6564818fb0d55ca53c37",
+  "caseHash": "ef0356bbbf2083c57a361be75ac710ea350d43655850045794374032913edc7f",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 4095
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 4095
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 2,
+    "webgpuTargetPasses": 2
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

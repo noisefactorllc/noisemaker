@@ -40,6 +40,8 @@ struct FragmentOutput {
     @location(1) geoOut: vec4<f32>,
 }
 
+const MARCHER_LIGHT_X: f32 = 1.0;
+
 // Convert 3D volume coordinates to 2D atlas texel coordinates
 fn volumeToAtlas(x: i32, y: i32, z: i32, volSize: i32) -> vec2<i32> {
     return vec2<i32>(x, y + z * volSize);
@@ -329,7 +331,7 @@ fn isosurfaceTrace(ro: vec3<f32>, rd: vec3<f32>) -> IsoHit {
 // Shading for smooth isosurface
 fn shade(p: vec3<f32>, rd: vec3<f32>) -> vec3<f32> {
     let n = calcNormal(p);
-    let lightDir = normalize(vec3<f32>(1.0, 1.0, -1.0));
+    let lightDir = normalize(vec3<f32>(MARCHER_LIGHT_X, 1.0, -1.0));
 
     let diff = max(dot(n, lightDir), 0.0);
     let amb: f32 = 0.15;
@@ -354,7 +356,7 @@ fn shade(p: vec3<f32>, rd: vec3<f32>) -> vec3<f32> {
 
 // Voxel shading with flat face normals
 fn shadeVoxel(p: vec3<f32>, rd: vec3<f32>, n: vec3<f32>, voxel: vec3<i32>) -> vec3<f32> {
-    let lightDir = normalize(vec3<f32>(1.0, 1.0, -1.0));
+    let lightDir = normalize(vec3<f32>(MARCHER_LIGHT_X, 1.0, -1.0));
 
     let diff = max(dot(n, lightDir), 0.0);
     let amb: f32 = 0.3;

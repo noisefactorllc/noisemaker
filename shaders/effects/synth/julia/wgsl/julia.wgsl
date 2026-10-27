@@ -138,7 +138,7 @@ fn transformCoords(fragCoord: vec2<f32>, resolution: vec2<f32>,
     let angle = -rot * TAU / 360.0;
     let cs = cos(angle);
     let sn = sin(angle);
-    uv = vec2<f32>(cs * uv.x - sn * uv.y, sn * uv.x + cs * uv.y);
+    uv = mat2x2<f32>(cs, -sn, sn, cs) * uv;
 
     let scale = 2.5 / zm;
     let reDF = df64_add(df64_mul_f(df64_from(uv.x), scale), df64_from(cx));

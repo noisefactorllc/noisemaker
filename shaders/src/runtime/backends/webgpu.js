@@ -15,6 +15,81 @@ import {
     DEFAULT_VERTEX_SHADER_WGSL
 } from '../default-shaders.js'
 import { WebGPUFrameExportAdapter } from './webgpu-frame-export.js'
+import {
+    DIAGNOSTIC_CODES,
+    DiagnosticCollector,
+    ShaderDiagnostic,
+    parseWebGPUCompilationMessages,
+    toDiagnostic
+} from './diagnostics.js'
+
+/**
+ * Full mip chain length for a 2D texture dimension pair.
+ * @param {number} width
+ * @param {number} height
+ * @returns {number} level count (>= 1)
+ */
+function mipLevelCount(width, height) {
+    const maxDim = Math.max(1, Math.floor(width), Math.floor(height))
+    return Math.max(1, Math.floor(Math.log2(maxDim)) + 1)
+}
+
+/**
+ * Size (>= 1) of one mip level for a dimension. Matches the WebGPU mip
+ * level size rule (max(1, floor(dim / 2^level))).
+ * @param {number} dim - Level-0 dimension
+ * @param {number} level
+ * @returns {number}
+ */
+function mipLevelSize(dim, level) {
+    return Math.max(1, Math.floor(dim / Math.pow(2, level)))
+}
+
+// Shared resample shader: a fullscreen triangle that reads the source texture
+// with textureLoad (works for filterable and unfilterable float formats alike).
+// fsMip downsamples the bound single-mip source view with a nearest blit into
+// the destination mip level; fsScale resamples the source to the destination
+// size (used by the persistent-texture copy path when the destination has new
+// dimensions).
+const RESAMPLE_WGSL = /* wgsl */`
+struct VsOut {
+    @builtin(position) pos: vec4f,
+}
+
+@vertex
+fn vs(@builtin(vertex_index) vi: u32) -> VsOut {
+    var points = array<vec2f, 3>(vec2f(-1.0, -1.0), vec2f(3.0, -1.0), vec2f(-1.0, 3.0));
+    var out: VsOut;
+    out.pos = vec4f(points[vi], 0.0, 1.0);
+    return out;
+}
+
+@group(0) @binding(0) var src: texture_2d<f32>;
+@group(0) @binding(1) var<uniform> dims: vec4f;
+
+struct FsParams {
+    @builtin(position) frag: vec4f,
+}
+
+@fragment
+fn fsMip(f: FsParams) -> @location(0) vec4f {
+    let d = vec2u(f.frag.xy);
+    let sourceSize = textureDimensions(src);
+    let targetSize = max(sourceSize / 2u, vec2u(1u));
+    let sourceCoord = min(vec2u((vec2f(d) + vec2f(0.5)) * vec2f(sourceSize) / vec2f(targetSize)), sourceSize - vec2u(1u));
+    return textureLoad(src, sourceCoord, 0u);
+}
+
+@fragment
+fn fsScale(f: FsParams) -> @location(0) vec4f {
+    let d = vec2u(f.frag.xy);
+    let ratio = vec2f(dims.x, dims.y) / vec2f(dims.z, dims.w);
+    let scaled = (vec2f(d) + vec2f(0.5)) * ratio;
+    let maxCoord = vec2u(vec2f(max(dims.x - 1.0, 0.0), max(dims.y - 1.0, 0.0)));
+    let coord = min(vec2u(scaled), maxCoord);
+    return textureLoad(src, coord, 0u);
+}
+`
 
 /**
  * Convert a float16 value (stored as uint16) to float32
@@ -157,6 +232,7 @@ export class WebGPUBackend extends Backend {
         this.bindGroups = new Map() // passId -> bind group
         this.samplers = new Map() // config -> sampler
         this.storageBuffers = new Map() // bufferId -> GPUBuffer
+        this.retiredStorageBuffers = [] // Replaced buffers awaiting submission completion
         this.commandEncoder = null
         this.defaultVertexModule = null
         this.canvasFormat = (typeof navigator !== 'undefined' && navigator.gpu?.getPreferredCanvasFormat)
@@ -185,9 +261,19 @@ export class WebGPUBackend extends Backend {
         this._uniformDataView = new DataView(this._uniformBufferData)
         this._uniformBufferSize = 512
 
+        // Structured diagnostics for device-validation failures
+        this.diagnostics = new DiagnosticCollector()
+
         // Listen for uncaptured errors
         this.device.addEventListener('uncapturederror', (event) => {
-            console.error('WebGPU uncaptured error:', event.error?.message || event.error)
+            const detail = event.error?.message || String(event.error)
+            console.error('WebGPU uncaptured error:', detail)
+            this.diagnostics.add({
+                code: DIAGNOSTIC_CODES.DEVICE_VALIDATION,
+                backend: 'webgpu',
+                stage: 'device-validation',
+                detail
+            })
         })
     }
 
@@ -286,6 +372,15 @@ export class WebGPUBackend extends Backend {
             addressModeV: 'repeat'
         }))
 
+        // Sampler for mipmapped textures (opt-in via texture spec `mipmaps: true`)
+        this.samplers.set('mipmap', this.device.createSampler({
+            minFilter: 'linear',
+            magFilter: 'linear',
+            mipmapFilter: 'linear',
+            addressModeU: 'clamp-to-edge',
+            addressModeV: 'clamp-to-edge'
+        }))
+
         // Create a 1x1 black dummy texture for shaders that declare optional inputs
         const dummyTexture = this.device.createTexture({
             size: { width: 1, height: 1, depthOrArrayLayers: 1 },
@@ -313,6 +408,10 @@ export class WebGPUBackend extends Backend {
         // usage", which surfaces as a soft validation error per affected effect.
         const usage = this.resolveUsage(spec.usage || ['render', 'sample', 'copySrc', 'copyDst'])
 
+        // Opt-in mip chain: allocate the full chain up front; the Pipeline
+        // calls generateMipmaps() with mipmapped texture ids after each frame.
+        const mipLevels = spec.mipmaps ? mipLevelCount(spec.width, spec.height) : 1
+
         const texture = this.device.createTexture({
             size: {
                 width: spec.width,
@@ -320,19 +419,33 @@ export class WebGPUBackend extends Backend {
                 depthOrArrayLayers: 1
             },
             format,
+            mipLevelCount: mipLevels,
             usage
         })
 
         const view = texture.createView()
 
+        // Per-level single-mip views: level 0 is the render/compute write
+        // target (WebGPU render and storage bindings require exactly one mip
+        // level per view); the default view stays the full chain for sampling.
+        const mipViews = []
+        for (let level = 0; level < mipLevels; level++) {
+            mipViews.push(texture.createView({ baseMipLevel: level, mipLevelCount: 1 }))
+        }
+
         this.textures.set(id, {
             handle: texture,
             view,
+            renderView: mipViews[0],
+            mipViews,
             width: spec.width,
             height: spec.height,
             format: spec.format,
             gpuFormat: format,
-            usage  // Store the usage flags for later checks
+            usage,  // Store the usage flags for later checks
+            mipmaps: mipLevels > 1,
+            mipLevels,
+            persistent: !!spec.persistent
         })
 
         return texture
@@ -370,7 +483,8 @@ export class WebGPUBackend extends Backend {
             format: spec.format,
             gpuFormat: format,
             usage,
-            is3D: true
+            is3D: true,
+            filter: spec.filter || 'linear'
         })
 
         return texture
@@ -555,7 +669,7 @@ export class WebGPUBackend extends Backend {
      * Update a texture from an external source (video, image, canvas).
      * This is used for media input effects that need to display camera/video content.
      * @param {string} id - Texture ID
-     * @param {HTMLVideoElement|HTMLImageElement|HTMLCanvasElement|ImageBitmap} source - Media source
+     * @param {HTMLVideoElement|HTMLImageElement|HTMLCanvasElement|ImageBitmap|VideoFrame} source - Borrowed media source
      * @param {object} [options] - Update options
      * @param {boolean} [options.flipY=true] - Whether to flip the Y axis
      * @returns {{ width: number, height: number }} Source dimensions
@@ -566,13 +680,19 @@ export class WebGPUBackend extends Backend {
      * imageSize uniform). Declaring this `async` returned a Promise instead,
      * so those reads silently yielded undefined on WebGPU. Every write below
      * is a queue submission, so there is nothing to await.
+     * VideoFrame crop, display size, rotation, color and alpha follow external
+     * image copy semantics. The caller owns the frame and may close it after
+     * submission returns; this method neither retains nor closes its handle.
      */
     updateTextureFromSource(id, source, options = {}) {
         let tex = this.textures.get(id)
 
         // Get source dimensions
         let width, height
-        if (source instanceof HTMLVideoElement) {
+        if (typeof VideoFrame === 'function' && source instanceof VideoFrame) {
+            width = source.displayWidth
+            height = source.displayHeight
+        } else if (source instanceof HTMLVideoElement) {
             width = source.videoWidth
             height = source.videoHeight
         } else if (source instanceof HTMLImageElement) {
@@ -620,6 +740,35 @@ export class WebGPUBackend extends Backend {
             this.textures.set(id, tex)
         }
 
+        // A 2D canvas keeps premultiplied pixels. WebGL2's texImage2D uploads
+        // them unpremultiplied byte-for-byte as getImageData returns them,
+        // while copyExternalImageToTexture unpremultiplies on the GPU and
+        // rounds low-alpha texels differently. A canvas created with
+        // willReadFrequently keeps its pixels in CPU memory, so upload it from
+        // getImageData and both backends sample the same bytes. GPU-backed
+        // canvases stay on copyExternalImageToTexture, which avoids a GPU
+        // readback on every upload.
+        const context2d = source instanceof HTMLCanvasElement ? source.getContext('2d') : null
+        if (context2d?.getContextAttributes?.().willReadFrequently) {
+            const pixels = context2d.getImageData(0, 0, width, height).data
+            const rowBytes = width * 4
+            let data = pixels
+            if (flipY) {
+                data = new Uint8Array(pixels.length)
+                for (let row = 0; row < height; row++) {
+                    const from = (height - 1 - row) * rowBytes
+                    data.set(pixels.subarray(from, from + rowBytes), row * rowBytes)
+                }
+            }
+            this.device.queue.writeTexture(
+                { texture: tex.handle },
+                data,
+                { bytesPerRow: rowBytes, rowsPerImage: height },
+                { width, height }
+            )
+            return { width, height }
+        }
+
         // Use copyExternalImageToTexture for efficient video/image upload
         this.device.queue.copyExternalImageToTexture(
             { source, flipY },
@@ -646,6 +795,15 @@ export class WebGPUBackend extends Backend {
             return
         }
 
+        // Dimension-changing copies (persistent textures recreated at a new
+        // size) need a resample pass; copyTextureToTexture requires identical
+        // dimensions.
+        if (srcTex.width !== dstTex.width || srcTex.height !== dstTex.height ||
+            srcTex.mipLevels > 1 || dstTex.mipLevels > 1) {
+            this.copyTextureScaled(srcId, dstId)
+            return
+        }
+
         // Create a command encoder for the copy operation
         const commandEncoder = this.device.createCommandEncoder()
 
@@ -657,6 +815,142 @@ export class WebGPUBackend extends Backend {
 
         // Submit immediately
         this.device.queue.submit([commandEncoder.finish()])
+    }
+
+    /**
+     * Get or create a render pipeline for the shared resample shader.
+     * Uses layout:'auto' so the fsMip variant (which ignores the dims uniform)
+     * only binds its texture. Cached per gpu format + entry point.
+     * @param {string} gpuFormat - Destination color attachment format
+     * @param {string} entryPoint - 'fsMip' or 'fsScale'
+     * @returns {GPURenderPipeline}
+     */
+    getResamplePipeline(gpuFormat, entryPoint) {
+        const key = `${gpuFormat}|${entryPoint}`
+        let pipeline = this.resamplePipelines?.get(key)
+        if (!pipeline) {
+            if (!this.resamplePipelines) {
+                this.resamplePipelines = new Map()
+                this.resampleModule = this.device.createShaderModule({ code: RESAMPLE_WGSL })
+            }
+            pipeline = this.device.createRenderPipeline({
+                layout: 'auto',
+                vertex: { module: this.resampleModule, entryPoint: 'vs' },
+                fragment: {
+                    module: this.resampleModule,
+                    entryPoint,
+                    targets: [{ format: gpuFormat }]
+                },
+                primitive: { topology: 'triangle-list' }
+            })
+            this.resamplePipelines.set(key, pipeline)
+        }
+        return pipeline
+    }
+
+    /**
+     * Copy one texture into another, resampling when the dimensions differ.
+     * The destination must be a 2D renderable texture. If the source has a mip
+     * chain, only level 0 is copied (chains are regenerated by generateMipmaps).
+     * @param {string} srcId - Source texture id
+     * @param {string} dstId - Destination texture id
+     */
+    copyTextureScaled(srcId, dstId) {
+        const srcTex = this.textures.get(srcId)
+        const dstTex = this.textures.get(dstId)
+        if (!srcTex || !dstTex || dstTex.is3D) {
+            console.warn(`[copyTextureScaled] Incompatible textures: src=${srcId}, dst=${dstId}`)
+            return
+        }
+
+        const srcView = srcTex.renderView || srcTex.view
+        const dstFormat = dstTex.gpuFormat || this.resolveFormat(dstTex.format || 'rgba16float')
+        const pipeline = this.getResamplePipeline(dstFormat, 'fsScale')
+
+        // dims = [srcWidth, srcHeight, dstWidth, dstHeight]
+        const dimsBuffer = this.device.createBuffer({
+            size: 16,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        })
+        this.device.queue.writeBuffer(dimsBuffer, 0, new Float32Array([
+            srcTex.width, srcTex.height, dstTex.width, dstTex.height
+        ]))
+
+        const entries = [
+            { binding: 0, resource: srcView },
+            { binding: 1, resource: { buffer: dimsBuffer } }
+        ]
+
+        const encoder = this.device.createCommandEncoder()
+        const renderPass = encoder.beginRenderPass({
+            colorAttachments: [{
+                view: dstTex.renderView || dstTex.view,
+                clearValue: { r: 0, g: 0, b: 0, a: 0 },
+                loadOp: 'clear',
+                storeOp: 'store'
+            }]
+        })
+        renderPass.setPipeline(pipeline)
+        renderPass.setBindGroup(0, this.device.createBindGroup({
+            layout: pipeline.getBindGroupLayout(0),
+            entries
+        }))
+        renderPass.draw(3)
+        renderPass.end()
+        this.device.queue.submit([encoder.finish()])
+        dimsBuffer.destroy()
+    }
+
+    /**
+     * Regenerate the mip chain of mipmapped 2D textures from level 0.
+     * Called by the Pipeline after each frame's passes for every texture
+     * authored with `mipmaps: true`. Each level renders a nearest blit
+     * of the previous level into that level's single-mip view. Textures
+     * without a mip chain are skipped.
+     * @param {string[]} ids - Texture ids to regenerate
+     */
+    generateMipmaps(ids) {
+        for (const id of ids) {
+            const tex = this.textures.get(id)
+            if (!tex || !tex.mipmaps || tex.is3D || !tex.mipViews) continue
+
+            const dstFormat = tex.gpuFormat || this.resolveFormat(tex.format || 'rgba16float')
+            const pipeline = this.getResamplePipeline(dstFormat, 'fsMip')
+
+            for (let level = 1; level < tex.mipLevels; level++) {
+                // Cache the per-level bind group on the texture record: the
+                // source view and layout are fixed for the texture lifetime,
+                // so recreating it every frame would be a per-frame
+                // allocation in the render loop.
+                if (!tex.mipBindGroups) tex.mipBindGroups = new Array(tex.mipLevels)
+                let bindGroup = tex.mipBindGroups[level]
+                if (!bindGroup) {
+                    bindGroup = this.device.createBindGroup({
+                        layout: pipeline.getBindGroupLayout(0),
+                        entries: [
+                            { binding: 0, resource: tex.mipViews[level - 1] }
+                        ]
+                    })
+                    tex.mipBindGroups[level] = bindGroup
+                }
+
+                const encoder = this.device.createCommandEncoder()
+                const renderPass = encoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: tex.mipViews[level],
+                        clearValue: { r: 0, g: 0, b: 0, a: 0 },
+                        loadOp: 'clear',
+                        storeOp: 'store'
+                    }]
+                })
+                renderPass.setPipeline(pipeline)
+                renderPass.setViewport(0, 0, mipLevelSize(tex.width, level), mipLevelSize(tex.height, level), 0, 1)
+                renderPass.setBindGroup(0, bindGroup)
+                renderPass.draw(3)
+                renderPass.end()
+                this.device.queue.submit([encoder.finish()])
+            }
+        }
     }
 
     /**
@@ -677,7 +971,7 @@ export class WebGPUBackend extends Backend {
         // Begin a render pass that clears to transparent black
         const renderPass = commandEncoder.beginRenderPass({
             colorAttachments: [{
-                view: tex.view,
+                view: tex.renderView || tex.view,
                 clearValue: { r: 0, g: 0, b: 0, a: 0 },
                 loadOp: 'clear',
                 storeOp: 'store'
@@ -688,6 +982,30 @@ export class WebGPUBackend extends Backend {
 
         // Submit immediately
         this.device.queue.submit([commandEncoder.finish()])
+    }
+
+    /**
+     * Record a missing render target as a structured diagnostic, matching the
+     * WebGL2 backend. The console warning at each call site is unchanged; the
+     * record is deduplicated per kind|output|pass so per-frame rendering
+     * cannot grow it unboundedly.
+     * @param {'mrt'|'storage-surface'|'copy-output'} kind
+     * @param {string|null} outputId
+     * @param {string|null} passId
+     */
+    _recordMissingRenderTarget(kind, outputId, passId) {
+        if (!this._warnedMissingRenderTargets) this._warnedMissingRenderTargets = new Set()
+        const key = `${kind}|${outputId}|${passId}`
+        if (this._warnedMissingRenderTargets.has(key)) return
+        this._warnedMissingRenderTargets.add(key)
+        this.diagnostics.add({
+            code: DIAGNOSTIC_CODES.MISSING_RENDER_TARGET,
+            backend: 'webgpu',
+            stage: 'render',
+            kind,
+            pass: passId,
+            output: outputId
+        })
     }
 
     /**
@@ -713,11 +1031,13 @@ export class WebGPUBackend extends Backend {
         const source = this.resolveWGSLSource(spec)
 
         if (!source) {
-            throw {
+            throw new ShaderDiagnostic({
                 code: 'ERR_NO_WGSL_SOURCE',
-                detail: `No WGSL shader source found for program '${id}'. Available keys: ${Object.keys(spec).join(', ')}`,
-                program: id
-            }
+                backend: 'webgpu',
+                stage: 'missing-source',
+                program: id,
+                detail: `No WGSL shader source found for program '${id}'. Available keys: ${Object.keys(spec).join(', ')}`
+            })
         }
 
         // Inject defines
@@ -785,6 +1105,108 @@ export class WebGPUBackend extends Backend {
      */
     parseEntryPointBindings(source, bindings) {
         const entryPointBindings = new Map()
+        // Resources used in helper functions are part of the selected entry's
+        // auto layout too. Comments must not introduce a resource or call edge.
+        source = this.stripWGSLComments(source)
+        const functionBodies = new Map()
+        const functionRegex = /\bfn\s+(\w+)\s*\(/g
+        let functionMatch
+        while ((functionMatch = functionRegex.exec(source)) !== null) {
+            const parametersStart = functionRegex.lastIndex
+            let parametersEnd = parametersStart
+            let parentheses = 1
+            for (; parametersEnd < source.length && parentheses > 0; parametersEnd++) {
+                if (source[parametersEnd] === '(') parentheses++
+                else if (source[parametersEnd] === ')') parentheses--
+            }
+            if (parentheses !== 0) continue
+            const parameters = new Set()
+            const parameterSource = source.slice(parametersStart, parametersEnd - 1)
+            const parameterRegex = /(?:^|,)\s*(?:@\w+\s*\([^)]*\)\s*)*([A-Za-z_]\w*)\s*:/g
+            for (const parameter of parameterSource.matchAll(parameterRegex)) parameters.add(parameter[1])
+            const openingBrace = source.indexOf('{', parametersEnd)
+            if (openingBrace < 0) continue
+            const start = openingBrace + 1
+            let depth = 1
+            let end = start
+            for (; end < source.length && depth > 0; end++) {
+                if (source[end] === '{') depth++
+                else if (source[end] === '}') depth--
+            }
+            functionBodies.set(functionMatch[1], { body: source.slice(start, end - 1), parameters })
+            functionRegex.lastIndex = end
+        }
+
+        const bindingByName = new Map(bindings.map(binding => [binding.name, binding.binding]))
+        const analyzeBody = ({ body, parameters }) => {
+            const tokens = body.match(/[A-Za-z_]\w*|\d+\w*|[{}().,:;<>]/g) || []
+            const scopes = [new Set(parameters)]
+            const used = new Set()
+            const calls = new Set()
+            const forBodyOpens = new Set()
+            const forBodyDepths = []
+            const declarations = new Set()
+            const pendingDeclarations = []
+            for (let i = 0; i < tokens.length; i++) {
+                const token = tokens[i]
+                if (token === ';') {
+                    // WGSL local names enter scope after their declaration,
+                    // so an initializer can still refer to a global of that name.
+                    for (const declaration of pendingDeclarations) declaration.scope.add(declaration.name)
+                    pendingDeclarations.length = 0
+                    continue
+                }
+                if (token === 'for' && tokens[i + 1] === '(') {
+                    let parentheses = 0
+                    let end = i + 1
+                    for (; end < tokens.length; end++) {
+                        if (tokens[end] === '(') parentheses++
+                        else if (tokens[end] === ')' && --parentheses === 0) break
+                    }
+                    if (tokens[end + 1] === '{') {
+                        scopes.push(new Set())
+                        forBodyOpens.add(end + 1)
+                    }
+                    continue
+                }
+                if (token === '{') {
+                    scopes.push(new Set())
+                    if (forBodyOpens.has(i)) forBodyDepths.push(scopes.length)
+                    continue
+                }
+                if (token === '}') {
+                    const closingDepth = scopes.length
+                    if (closingDepth > 1) scopes.pop()
+                    if (forBodyDepths.at(-1) === closingDepth) {
+                        scopes.pop()
+                        forBodyDepths.pop()
+                    }
+                    continue
+                }
+                if (token === 'let' || token === 'var' || token === 'const') {
+                    let nameIndex = i + 1
+                    if (token === 'var' && tokens[nameIndex] === '<') {
+                        let brackets = 1
+                        for (nameIndex++; nameIndex < tokens.length && brackets > 0; nameIndex++) {
+                            if (tokens[nameIndex] === '<') brackets++
+                            else if (tokens[nameIndex] === '>') brackets--
+                        }
+                    }
+                    const localName = tokens[nameIndex]
+                    if (localName && /^[A-Za-z_]\w*$/.test(localName)) {
+                        declarations.add(nameIndex)
+                        pendingDeclarations.push({ name: localName, scope: scopes.at(-1) })
+                    }
+                }
+                if (declarations.has(i)) continue
+                if (bindingByName.has(token) && tokens[i - 1] !== '.' &&
+                    !scopes.some(scope => scope.has(token))) used.add(bindingByName.get(token))
+                if (functionBodies.has(token) && tokens[i + 1] === '(' && tokens[i - 1] !== '.') {
+                    calls.add(token)
+                }
+            }
+            return { used, calls }
+        }
 
         // Find all entry points with their function bodies
         const entryPointRegex = /@(?:compute|vertex|fragment)[^f]*fn\s+(\w+)\s*\([^)]*\)[^{]*\{/g
@@ -803,15 +1225,17 @@ export class WebGPUBackend extends Backend {
                 endIdx = i
             }
 
-            const functionBody = source.slice(startIdx, endIdx)
+            const reachable = [{ body: source.slice(startIdx, endIdx),
+                parameters: functionBodies.get(entryPoint)?.parameters || new Set() }]
+            const visited = new Set([entryPoint])
             const usedBindings = new Set()
-
-            // Check which binding names are referenced in this function body
-            for (const binding of bindings) {
-                // Look for the binding name as a word (not part of another identifier)
-                const nameRegex = new RegExp(`\\b${binding.name}\\b`)
-                if (nameRegex.test(functionBody)) {
-                    usedBindings.add(binding.binding)
+            for (let index = 0; index < reachable.length; index++) {
+                const { used, calls } = analyzeBody(reachable[index])
+                for (const binding of used) usedBindings.add(binding)
+                for (const name of calls) {
+                    if (visited.has(name)) continue
+                    visited.add(name)
+                    reachable.push(functionBodies.get(name))
                 }
             }
 
@@ -830,11 +1254,15 @@ export class WebGPUBackend extends Backend {
         const errors = compilationInfo.messages.filter(m => m.type === 'error')
 
         if (errors.length > 0) {
-            throw {
+            throw new ShaderDiagnostic({
                 code: 'ERR_SHADER_COMPILE',
+                backend: 'webgpu',
+                stage: 'compile',
+                program: id,
                 detail: errors.map(e => `Line ${e.lineNum}: ${e.message}`).join('\n'),
-                program: id
-            }
+                messages: parseWebGPUCompilationMessages(errors),
+                source
+            })
         }
 
         // Parse binding declarations from the shader
@@ -879,6 +1307,7 @@ export class WebGPUBackend extends Backend {
             entryPoints,  // All available entry points
             entryPointBindings,  // Map of entry point -> Set of used binding indices
             bindings,  // Store parsed bindings for bind group creation
+            samplerTextureNames: this.parseSamplerTextureUses(source),
             // True if the source contains any `@binding` declarations at all,
             // even ones we filtered out as dead. Used by createBindGroup to
             // distinguish "modern shader, all bindings filtered as dead" (use
@@ -916,31 +1345,40 @@ export class WebGPUBackend extends Backend {
         const moduleErrors = moduleInfo.messages.filter(m => m.type === 'error')
 
         if (moduleErrors.length > 0) {
-            throw {
+            throw new ShaderDiagnostic({
                 code: 'ERR_SHADER_COMPILE',
+                backend: 'webgpu',
+                stage: 'compile',
+                program: id,
                 detail: moduleErrors.map(e => `Line ${e.lineNum}: ${e.message}`).join('\n'),
-                program: id
-            }
+                messages: parseWebGPUCompilationMessages(moduleErrors),
+                source
+            })
         }
 
         // Handle vertex module
         let vertexModule
         let vertexEntryPoint
+        let vertexSource = ''
         let fragmentModule = mainModule
 
         if (spec.vertexWGSL || spec.vertexWgsl) {
             // Separate vertex shader source provided
-            const vertexSource = spec.vertexWGSL || spec.vertexWgsl
+            vertexSource = spec.vertexWGSL || spec.vertexWgsl
             vertexModule = this.device.createShaderModule({ code: vertexSource })
             const vertexInfo = await vertexModule.getCompilationInfo()
             const vertexErrors = vertexInfo.messages.filter(m => m.type === 'error')
 
             if (vertexErrors.length > 0) {
-                throw {
+                throw new ShaderDiagnostic({
                     code: 'ERR_SHADER_COMPILE',
+                    backend: 'webgpu',
+                    stage: 'compile',
+                    program: id,
                     detail: vertexErrors.map(e => `Line ${e.lineNum}: ${e.message}`).join('\n'),
-                    program: id
-                }
+                    messages: parseWebGPUCompilationMessages(vertexErrors),
+                    source: vertexSource
+                })
             }
 
             vertexEntryPoint = spec.vertexEntryPoint || DEFAULT_VERTEX_ENTRY_POINT
@@ -1048,6 +1486,7 @@ export class WebGPUBackend extends Backend {
             perBindingUniforms: spec.perBindingUniforms === true,
             _wgslSources: [source, spec.vertexWGSL || spec.vertexWgsl || null],
             _bindingLayoutCache: new Map(),
+            samplerTextureNames: this.parseSamplerTextureUses(source + '\n' + (vertexSource || '')),
             // See compileComputeProgram for what this flag is for.
             _sourceHasBindings: sourceHasBindings,
             // Use definition-provided uniformLayout if available, fall back to shader parsing
@@ -1750,7 +2189,7 @@ export class WebGPUBackend extends Backend {
 
             // Determine binding type
             let bindingType = 'unknown'
-            if (typeDecl.includes('texture_storage_2d')) {
+            if (typeDecl.includes('texture_storage_2d') || typeDecl.includes('texture_storage_3d')) {
                 bindingType = 'storage_texture'
             } else if (
                 typeDecl.includes('texture_2d') ||
@@ -1805,6 +2244,27 @@ export class WebGPUBackend extends Backend {
         })
 
         return filtered
+    }
+
+    /**
+     * Cache the texture associated with each sampler at compile time. WGSL
+     * binding declarations have no required order, so the actual sampling
+     * calls determine which texture's authored filter applies. A sampler used
+     * with multiple textures has no single inferred filter; callers retain
+     * their existing default or provide an explicit samplerTypes override.
+     */
+    parseSamplerTextureUses(source) {
+        const clean = this.stripWGSLComments(source)
+        const names = new Map()
+        const samples = /\btextureSample\w*\s*\(\s*(\w+)\s*,\s*(\w+)\s*,/g
+        let match
+        while ((match = samples.exec(clean)) !== null) {
+            const textureName = match[1]
+            const samplerName = match[2]
+            if (!names.has(samplerName)) names.set(samplerName, textureName)
+            else if (names.get(samplerName) !== textureName) names.set(samplerName, null)
+        }
+        return names
     }
 
     hasShaderBindings(source) {
@@ -1927,7 +2387,9 @@ export class WebGPUBackend extends Backend {
         }
 
         let outputTex = this.textures.get(outputId) || state.surfaces?.[outputId]
-        let targetView = outputTex?.view
+        // Mipmapped textures render into level 0; the default view spans the
+        // whole chain (for sampling) and is not a valid render attachment.
+        let targetView = outputTex?.renderView || outputTex?.view
 
         if (outputTex?.cube) {
             const face = pass.cubeFace
@@ -2070,6 +2532,7 @@ export class WebGPUBackend extends Backend {
             const tex = this.textures.get(outputId) || state.surfaces?.[outputId]
             if (!tex) {
                 console.warn(`[executeMRTRenderPass] Texture not found for ${outputId} in pass ${pass.id}`)
+                this._recordMissingRenderTarget('mrt', outputId, pass.id ?? null)
                 continue
             }
 
@@ -2091,7 +2554,7 @@ export class WebGPUBackend extends Backend {
             formats.push(resolvedFormat)
 
             colorAttachments.push({
-                view: tex.view,
+                view: tex.renderView || tex.view,
                 clearValue: { r: 0, g: 0, b: 0, a: 0 },
                 loadOp: pass.clear ? 'clear' : 'load',
                 storeOp: 'store'
@@ -2393,8 +2856,12 @@ export class WebGPUBackend extends Backend {
             return { x: 0, y: 0, w: tex.width, h: tex.height }
         }
 
-        if (pass.viewport) {
-            return { x: pass.viewport.x, y: pass.viewport.y, w: pass.viewport.w, h: pass.viewport.h }
+        // Authored viewport resolution: the pipeline-resolved
+        // numbers take precedence over a raw spec; a manually supplied
+        // numeric viewport keeps its legacy direct read.
+        const viewport = pass.viewportResolved || pass.viewport
+        if (viewport) {
+            return { x: viewport.x, y: viewport.y, w: viewport.w, h: viewport.h }
         }
 
         if (this.context?.canvas) {
@@ -2613,7 +3080,7 @@ export class WebGPUBackend extends Backend {
         const targetPipeline = pipeline || program.pipeline
 
 
-        // For multi-entry-point compute shaders, filter bindings based on pass inputs/outputs
+        // For multi-entry-point compute shaders, filter bindings based on pass resources
         // This prevents including bindings that are optimized out by WebGPU for this entry point
         if (pass.entryPoint && program.isCompute) {
             const neededBindingNames = new Set()
@@ -2629,6 +3096,19 @@ export class WebGPUBackend extends Backend {
             if (pass.outputs) {
                 for (const outputName of Object.keys(pass.outputs)) {
                     neededBindingNames.add(outputName)
+                }
+            }
+
+            // A storage texture is mapped separately from ordinary pass outputs.
+            // Keep only storage declarations used by the selected entry point;
+            // auto layouts omit declarations used exclusively by another entry.
+            const usedBindings = program.entryPointBindings?.get(pass.entryPoint)
+            if (pass.storageTextures) {
+                for (const storageName of Object.keys(pass.storageTextures)) {
+                    const binding = bindings.find(b => b.name === storageName && b.type === 'storage_texture')
+                    if (binding && (!usedBindings || usedBindings.has(binding.binding))) {
+                        neededBindingNames.add(storageName)
+                    }
                 }
             }
 
@@ -2719,7 +3199,7 @@ export class WebGPUBackend extends Backend {
 
         // WebGL2 createTexture sets NEAREST min/mag on every surface render target;
         // WebGPU historically bound the LINEAR 'default' sampler for all inputs
-        // (pass.samplerTypes is never populated), so filter effects sampled their
+        // when a pass declared no samplerTypes, so filter effects sampled their
         // intermediate surface input LINEAR on WebGPU vs NEAREST on WebGL2 — a parity
         // gap. Mirror WebGL2: surface inputs sample NEAREST. External (video/image)
         // uploads are LINEAR in WebGL2, so a pass sampling one of those (isExternal)
@@ -2728,7 +3208,12 @@ export class WebGPUBackend extends Backend {
             const t = this.textures.get(texId) ||
                 (typeof texId === 'string' ? this.textures.get(texId.replace(/_chain_\d+$/, '')) : null)
             return t?.isExternal === true
-        })) ? 'default' : 'nearest'
+        })) ? 'default'
+            : (pass.inputs && Object.values(pass.inputs).some(texId => {
+                const t = this.textures.get(texId) ||
+                    (typeof texId === 'string' ? this.textures.get(texId.replace(/_chain_\d+$/, '')) : null)
+                return t?.mipmaps === true
+            })) ? 'mipmap' : 'nearest'
 
         // Create entries based on parsed shader bindings
         for (const binding of bindings) {
@@ -2763,7 +3248,16 @@ export class WebGPUBackend extends Backend {
                     entries.push(entry)
                 }
             } else if (binding.type === 'sampler') {
-                const samplerType = pass.samplerTypes?.[binding.name] || inputSamplerDefault
+                let samplerType = pass.samplerTypes?.[binding.name]
+                if (!samplerType) {
+                    const sampledName = program.samplerTextureNames?.get(binding.name)
+                    const texId = pass.inputs?.[sampledName]
+                    const sampledTexture = this.textures.get(texId) ||
+                        (typeof texId === 'string' ? this.textures.get(texId.replace(/_chain_\d+$/, '')) : null)
+                    samplerType = sampledTexture?.is3D
+                        ? (sampledTexture.filter === 'nearest' ? 'nearest' : 'default')
+                        : inputSamplerDefault
+                }
                 entry.resource = this.samplers.get(samplerType) || this.samplers.get('default')
                 entries.push(entry)
             } else if (binding.type === 'uniform') {
@@ -2815,7 +3309,8 @@ export class WebGPUBackend extends Backend {
 
                     // Handle missing, null, or invalid values by providing sensible defaults
                     if (value === undefined || value === null ||
-                        (typeof value !== 'number' && typeof value !== 'boolean' && !Array.isArray(value))) {
+                        (typeof value !== 'number' && typeof value !== 'boolean' &&
+                         !Array.isArray(value) && !(value instanceof Float32Array))) {
                         // Provide sensible defaults based on type
                         if (binding.typeDecl === 'i32' || binding.typeDecl === 'u32') {
                             value = 0
@@ -2896,16 +3391,25 @@ export class WebGPUBackend extends Backend {
 
         // Create bind group using the target pipeline's layout
         // Handle multi-entry-point shaders where some bindings may be optimized out
-        // Try direct creation first (most common case - no optimized-out bindings)
+        return this.createBindGroupFromEntries(targetPipeline.getBindGroupLayout(0), entries)
+    }
+
+    /**
+     * Create a bind group from explicit entries, retrying with progressively
+     * filtered entries when the browser reports optimized-out bindings.
+     * The retry decision is made from the structured diagnostic union
+     * (parsed `bindingIndex`), not by re-matching the raw browser string.
+     */
+    createBindGroupFromEntries(layout, entries) {
         try {
             return this.device.createBindGroup({
-                layout: targetPipeline.getBindGroupLayout(0),
+                layout,
                 entries
             })
         } catch (err) {
             // Fall back to retry loop only on binding errors
-            const errStr = err.message || String(err)
-            if (!errStr.includes('binding index')) {
+            const diagnostic = toDiagnostic(err, { backend: 'webgpu', stage: 'bind' })
+            if (diagnostic.bindingIndex === undefined) {
                 throw err
             }
 
@@ -2914,26 +3418,23 @@ export class WebGPUBackend extends Backend {
             const maxRetries = 10
 
             for (let attempt = 0; attempt < maxRetries; attempt++) {
-                const bindingMatch = /binding index (\d+) not present/.exec(errStr)
-                if (bindingMatch) {
-                    const problemBinding = parseInt(bindingMatch[1], 10)
-                    // Filter in place to avoid allocation on subsequent retries
-                    currentEntries = currentEntries.filter(e => e.binding !== problemBinding)
+                const problemBinding = diagnostic.bindingIndex
+                // Filter in place to avoid allocation on subsequent retries
+                currentEntries = currentEntries.filter(e => e.binding !== problemBinding)
 
-                    try {
-                        return this.device.createBindGroup({
-                            layout: targetPipeline.getBindGroupLayout(0),
-                            entries: currentEntries
-                        })
-                    } catch (retryErr) {
-                        const retryErrStr = retryErr.message || String(retryErr)
-                        if (!retryErrStr.includes('binding index')) {
-                            throw retryErr
-                        }
-                        continue
+                try {
+                    return this.device.createBindGroup({
+                        layout,
+                        entries: currentEntries
+                    })
+                } catch (retryErr) {
+                    const retryDiagnostic = toDiagnostic(retryErr, { backend: 'webgpu', stage: 'bind' })
+                    if (retryDiagnostic.bindingIndex === undefined) {
+                        throw retryErr
                     }
+                    diagnostic.bindingIndex = retryDiagnostic.bindingIndex
+                    continue
                 }
-                break
             }
 
             throw err
@@ -2948,7 +3449,14 @@ export class WebGPUBackend extends Backend {
         let data
         let byteLength
 
-        if (typeof value === 'boolean') {
+        if (typeof value === 'boolean' && typeDecl !== 'i32' && typeDecl !== 'u32') {
+            // A boolean bound to an f32 uniform: write 1.0 or 0.0. The int
+            // bits of 1 read as an f32 are a denormal the GPU flushes to
+            // zero, so `x != 0.0` never held (filter/pixelSort's darkest).
+            this._singleUniformFloat32[0] = value ? 1 : 0
+            data = this._singleUniformFloat32
+            byteLength = 4
+        } else if (typeof value === 'boolean') {
             // Reuse pre-allocated int32 array
             this._singleUniformInt32[0] = value ? 1 : 0
             data = this._singleUniformInt32
@@ -2963,7 +3471,7 @@ export class WebGPUBackend extends Backend {
                 data = this._singleUniformFloat32
                 byteLength = 4
             }
-        } else if (Array.isArray(value)) {
+        } else if (Array.isArray(value) || value instanceof Float32Array) {
             // Reuse pre-allocated float32 array for vectors
             const arr = this._singleUniformFloat32
             if (value.length === 2) {
@@ -3005,13 +3513,18 @@ export class WebGPUBackend extends Backend {
                     const count = m ? parseInt(m[1], 10) : Math.ceil(value.length / 4)
                     // Build a flat buffer of count * 4 floats. Treat the input as a
                     // flat sequence — every 4 input values become one vec4 entry.
-                    const flat = new Float32Array(count * 4)
-                    const copyLen = Math.min(value.length, flat.length)
-                    for (let i = 0; i < copyLen; i++) flat[i] = value[i]
-                    data = flat
-                    byteLength = flat.byteLength
+                    if (value instanceof Float32Array && value.length === count * 4) {
+                        data = value
+                        byteLength = value.byteLength
+                    } else {
+                        const flat = new Float32Array(count * 4)
+                        const copyLen = Math.min(value.length, flat.length)
+                        for (let i = 0; i < copyLen; i++) flat[i] = value[i]
+                        data = flat
+                        byteLength = flat.byteLength
+                    }
                 } else {
-                    data = new Float32Array(value)
+                    data = value instanceof Float32Array ? value : new Float32Array(value)
                     byteLength = data.byteLength
                 }
             }
@@ -3047,11 +3560,6 @@ export class WebGPUBackend extends Backend {
      */
     createStorageBuffer(binding, pass, state) {
         const bufferName = binding.name
-
-        // Check if buffer already exists
-        if (this.storageBuffers.has(bufferName)) {
-            return this.storageBuffers.get(bufferName)
-        }
 
         // Determine buffer size based on binding type and context
         let byteSize = 0
@@ -3092,11 +3600,15 @@ export class WebGPUBackend extends Backend {
         byteSize = Math.max(256, byteSize)
         byteSize = Math.ceil(byteSize / 256) * 256 // Align to 256 bytes
 
+        const existing = this.storageBuffers.get(bufferName)
+        if (existing?.size >= byteSize) return existing
+
         const buffer = this.device.createBuffer({
             size: byteSize,
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
         })
 
+        if (existing) this.retiredStorageBuffers.push(existing)
         this.storageBuffers.set(bufferName, buffer)
         return buffer
     }
@@ -3138,7 +3650,10 @@ export class WebGPUBackend extends Backend {
             if (writeTex) {
                 const texture = this.textures.get(writeTex)
                 if (texture) {
-                    return texture.view
+                    // Mipmapped textures write into level 0 (single-mip view);
+                    // the default view spans the whole chain and is not a
+                    // valid storage binding.
+                    return texture.renderView || texture.view
                 }
             }
         }
@@ -3150,7 +3665,10 @@ export class WebGPUBackend extends Backend {
             if (writeTex) {
                 const texture = this.textures.get(writeTex)
                 if (texture) {
-                    return texture.view
+                    // Mipmapped textures write into level 0 (single-mip view);
+                    // the default view spans the whole chain and is not a
+                    // valid storage binding.
+                    return texture.renderView || texture.view
                 }
             }
         }
@@ -3158,7 +3676,7 @@ export class WebGPUBackend extends Backend {
         // Look up in textures map
         const texture = this.textures.get(textureId)
         if (texture) {
-            return texture.view
+            return texture.renderView || texture.view
         }
 
         console.warn(`Storage texture ${textureId} not found`)
@@ -3177,13 +3695,17 @@ export class WebGPUBackend extends Backend {
             if (writeTex) {
                 const texture = this.textures.get(writeTex)
                 if (texture) {
-                    return texture.view
+                    // Mipmapped textures write into level 0 (single-mip view);
+                    // the default view spans the whole chain and is not a
+                    // valid storage binding.
+                    return texture.renderView || texture.view
                 }
             }
         }
 
         // Fallback: create a temporary storage texture if surface not available
         console.warn('Render surface write texture not found, using fallback storage texture')
+        this._recordMissingRenderTarget('storage-surface', renderSurfaceName ?? null, null)
         const width = state?.screenWidth || 1280
         const height = state?.screenHeight || 720
         const key = `outputStorage_${width}x${height}`
@@ -3268,9 +3790,13 @@ export class WebGPUBackend extends Backend {
 
                     // Match WebGL2 surface filtering (NEAREST) for surface inputs;
                     // external (video/image) uploads are LINEAR on WebGL2, keep LINEAR.
+                    // 3D textures honor their authored `filter` spec; mipmapped
+                    // 2D textures sample through the mipmap-capable sampler.
                     const texRec = this.textures.get(texId) ||
                         (typeof texId === 'string' ? this.textures.get(texId.replace(/_chain_\d+$/, '')) : null)
-                    const legacyDefault = texRec?.isExternal ? 'default' : 'nearest'
+                    const legacyDefault = texRec?.isExternal ? 'default'
+                        : texRec?.is3D ? (texRec.filter === 'linear' ? 'default' : 'nearest')
+                        : texRec?.mipmaps ? 'mipmap' : 'nearest'
                     const samplerType = pass.samplerTypes?.[samplerName] || legacyDefault
                     entries.push({
                         binding: binding++,
@@ -3722,6 +4248,15 @@ export class WebGPUBackend extends Backend {
             const commandBuffer = this.commandEncoder.finish()
             this.queue.submit([commandBuffer])
             this.commandEncoder = null
+            // A resized storage buffer may still be referenced by commands
+            // encoded earlier in this frame. Release it only after submission.
+            if (this.retiredStorageBuffers.length > 0) {
+                const retired = this.retiredStorageBuffers.splice(0)
+                this.queue.onSubmittedWorkDone().then(
+                    () => retired.forEach(buffer => buffer.destroy()),
+                    () => retired.forEach(buffer => buffer.destroy())
+                )
+            }
         }
     }
 
@@ -3742,11 +4277,12 @@ export class WebGPUBackend extends Backend {
 
         // Use a render pass to blit the texture to the canvas
         // This handles format conversion (e.g., rgba16float -> bgra8unorm)
+        const canvasTexture = this.context.getCurrentTexture()
+        const exactPixels = tex.width === canvasTexture.width && tex.height === canvasTexture.height
         const pipeline = this.getBlitPipeline()
-        const bindGroup = this.createBlitBindGroup(tex)
+        const bindGroup = this.createBlitBindGroup(tex, exactPixels)
 
         const commandEncoder = this.device.createCommandEncoder()
-        const canvasTexture = this.context.getCurrentTexture()
         const canvasView = canvasTexture.createView()
 
         const renderPass = commandEncoder.beginRenderPass({
@@ -3799,6 +4335,11 @@ export class WebGPUBackend extends Backend {
         this.bindGroups.clear()
         this.samplers.clear()
 
+        for (const buffer of this.storageBuffers.values()) buffer.destroy()
+        this.storageBuffers.clear()
+        for (const buffer of this.retiredStorageBuffers) buffer.destroy()
+        this.retiredStorageBuffers = []
+
         for (const buffer of this.uniformBufferPool) {
             buffer?.destroy?.()
         }
@@ -3811,7 +4352,11 @@ export class WebGPUBackend extends Backend {
 
         if (this.context?.unconfigure) {
             try {
-                this.context.unconfigure()
+                // A replacement backend can configure the same canvas before this
+                // backend is disposed. Only release a configuration we still own.
+                if (!this.context.getConfiguration || this.context.getConfiguration()?.device === this.device) {
+                    this.context.unconfigure()
+                }
             } catch (err) {
                 console.warn('Failed to unconfigure WebGPU canvas context', err)
             }
@@ -3887,9 +4432,11 @@ export class WebGPUBackend extends Backend {
     /**
      * Create a bind group for blitting a texture to the canvas
      */
-    createBlitBindGroup(tex) {
+    createBlitBindGroup(tex, exactPixels = false) {
         const pipeline = this.getBlitPipeline()
-        const sampler = this.samplers.get('default')
+        // Interpolated UVs can drift from texel centers. Avoid mixing neighbors
+        // during a same-size copy, but retain linear filtering when scaling.
+        const sampler = this.samplers.get(exactPixels ? 'nearest' : 'default')
 
         return this.device.createBindGroup({
             layout: pipeline.getBindGroupLayout(0),
@@ -4030,6 +4577,7 @@ export class WebGPUBackend extends Backend {
 
         if (!outputTex) {
             console.warn(`[copyBufferToTexture] Output texture not found: ${outputId}`)
+            this._recordMissingRenderTarget('copy-output', outputId, null)
             return
         }
 
@@ -4060,7 +4608,7 @@ export class WebGPUBackend extends Backend {
         // Execute the render pass
         const passEncoder = this.commandEncoder.beginRenderPass({
             colorAttachments: [{
-                view: outputTex.view,
+                view: outputTex.renderView || outputTex.view,
                 loadOp: 'clear',
                 storeOp: 'store',
                 clearValue: { r: 0, g: 0, b: 0, a: 1 }

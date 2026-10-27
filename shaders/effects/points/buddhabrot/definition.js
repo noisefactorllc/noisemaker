@@ -24,6 +24,11 @@ export default new Effect({
   description: "Buddhabrot fractal via progressive orbit accumulation",
 
   textures: {
+    global_buddhabrot_base_color: {
+      width: { param: 'stateSize', inherit: true, default: 256 },
+      height: { param: 'stateSize', inherit: true, default: 256 },
+      format: "rgba8"
+    },
     global_zState: {
       width: { param: "stateSize", paramDefault: 512 },
       height: { param: "stateSize", paramDefault: 512 },
@@ -36,6 +41,10 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "fractal" }
+    },
     stateSize: {
       type: "int",
       default: 512,
@@ -115,13 +124,16 @@ export default new Effect({
     {
       name: "agent",
       program: "agent",
-      drawBuffers: 3,
+      drawBuffers: 4,
       inputs: {
         xyzTex: "global_xyz",
         velTex: "global_vel",
-        rgbaTex: "global_rgba"
+        rgbaTex: "global_rgba",
+        diffuseTex: "diffuseTex",
+        baseColorTex: "global_buddhabrot_base_color"
       },
       uniforms: {
+        diffuseActive: "diffuseActive",
         maxIter: "maxIter",
         minIter: "minIter",
         mode: "mode",
@@ -132,7 +144,8 @@ export default new Effect({
       outputs: {
         outXYZ: "global_xyz",
         outVel: "global_vel",
-        outRGBA: "global_rgba"
+        outRGBA: "global_rgba",
+        outBaseColor: "global_buddhabrot_base_color"
       }
     },
     {

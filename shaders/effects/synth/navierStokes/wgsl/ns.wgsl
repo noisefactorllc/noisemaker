@@ -6,7 +6,8 @@
 struct Uniforms {
     // data[0] = (resolution.x, resolution.y, _, _)
     // data[1] = (inputIntensity, _, _, _)
-    data : array<vec4<f32>, 2>,
+    // data[2] = (tileOffset.x, tileOffset.y, fullResolution.x, fullResolution.y)
+    data : array<vec4<f32>, 3>,
 };
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -18,13 +19,16 @@ struct Uniforms {
 fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     let resolution = uniforms.data[0].xy;
     let inputIntensity = uniforms.data[1].x;
+    let tileOffset = uniforms.data[2].xy;
+    let fullResolution = uniforms.data[2].zw;
+    let globalCoord = pos.xy + tileOffset;
 
     let texSize = vec2<i32>(textureDimensions(fbTex, 0));
     let texSizeF = vec2<f32>(texSize);
     let minIdx = vec2<i32>(0);
     let maxIdx = texSize - vec2<i32>(1);
 
-    let texelPos = (pos.xy * texSizeF / resolution) - vec2<f32>(0.5);
+    let texelPos = (globalCoord * texSizeF / fullResolution) - vec2<f32>(0.5);
     let baseI = vec2<i32>(floor(texelPos));
     let f = fract(texelPos);
 
@@ -42,7 +46,8 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
 
     let blend = clamp(inputIntensity, 0.0, 100.0) * 0.01;
     if (blend > 0.0) {
-        let inputColor = textureSampleLevel(inputTex, samp, pos.xy / resolution, 0.0).rgb;
+        let inputUv = globalCoord / fullResolution;
+        let inputColor = textureSampleLevel(inputTex, samp, inputUv, 0.0).rgb;
         outCol = mix(outCol, inputColor, vec3<f32>(blend));
     }
 

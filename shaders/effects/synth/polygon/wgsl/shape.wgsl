@@ -9,6 +9,8 @@
 @group(0) @binding(7) var<uniform> fgAlpha: f32;
 @group(0) @binding(8) var<uniform> bgColor: vec3<f32>;
 @group(0) @binding(9) var<uniform> bgAlpha: f32;
+@group(0) @binding(10) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(11) var<uniform> fullResolution: vec2<f32>;
 
 const PI: f32 = 3.14159265359;
 
@@ -21,7 +23,8 @@ fn polygon(st: vec2<f32>, sides: f32) -> f32 {
 
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-  var st = position.xy / resolution;
+  let globalCoord = position.xy + tileOffset;
+  var st = globalCoord / fullResolution;
   st = (st - vec2<f32>(0.5, 0.5)) * 2.0;
   st.x *= aspect;
   // Apply rotation

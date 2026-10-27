@@ -3,6 +3,7 @@
 @group(0) @binding(2) var tex : texture_2d<f32>;
 @group(0) @binding(3) var<uniform> mixAmt : f32;
 @group(0) @binding(4) var<uniform> maskMode : i32;
+@group(0) @binding(5) var baseTex : texture_2d<f32>;
 
 fn map_range(value : f32, inMin : f32, inMax : f32, outMin : f32, outMax : f32) -> f32 {
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
@@ -16,24 +17,24 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     let color1 = textureSample(inputTex, samp, st);
     let color2 = textureSample(tex, samp, st);
 
-    // luminance mask mode
+    // Inputs use premultiplied RGBA: masking must scale color and coverage.
     if (maskMode != 0) {
         let maskVal = dot(color2.rgb, vec3<f32>(0.299, 0.587, 0.114));
-        return vec4<f32>(color1.rgb, color1.a * maskVal);
+        let background = textureSample(baseTex, samp, st);
+        return mix(background, color1, maskVal);
     }
 
-    // alpha blend. slider direction selects which input is on top, so either slot
+    // Premultiplied source-over. Slider direction selects which input is on top, so either slot
     // can serve as the alpha source — slide negative for A-on-top, positive for
     // B-on-top. each half reaches a full Porter-Duff source-over at the midpoint.
     var color : vec4<f32>;
     if (mixAmt < 0.0) {
-        let AoverB = color2 * (1.0 - color1.a) + color1 * color1.a;
+        let AoverB = color2 * (1.0 - color1.a) + color1;
         color = mix(color1, AoverB, map_range(mixAmt, -100.0, 0.0, 0.0, 1.0));
     } else {
-        let BoverA = color1 * (1.0 - color2.a) + color2 * color2.a;
+        let BoverA = color1 * (1.0 - color2.a) + color2;
         color = mix(BoverA, color2, map_range(mixAmt, 0.0, 100.0, 0.0, 1.0));
     }
 
-    color.a = max(color1.a, color2.a);
     return color;
 }

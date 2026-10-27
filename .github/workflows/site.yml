@@ -1,17 +1,17 @@
 name: Site
 
-# Scaffold is the sole authority for noisemaker.app deploys. This
-# workflow just fires the workflow_dispatch at scaffold's
-# static-site-release, which clones this repo at the pushed SHA, runs
+# The site release workflow is the sole authority for noisemaker.app
+# deploys. This workflow just fires its workflow_dispatch; the release
+# clones this repo at the pushed SHA, runs
 # `npm run bundle:site`, writes deployment-meta.json, and rsyncs
-# dist/site/ to ~/sites/noisemaker.app/content on nf-toronto.
+# dist/site/ to the production web server.
 #
-# Keeping the SSH key + server IP on the scaffold side means this
-# public repo carries no deploy secrets — only the EHSRE app private
-# key, which is scoped to dispatching scaffold workflows.
+# Keeping the SSH key + server IP on the release side means this
+# public repo carries no deploy secrets — only the GitHub App private
+# key, which is scoped to dispatching release workflows.
 #
 # shaders.yml dispatches this same `noisemaker-site` release when a
-# shader change requires a site rebuild. Both land in scaffold's
+# shader change requires a site rebuild. Both land in the release's
 # per-site concurrency group, so the two triggers serialize instead of
 # racing two `rsync --delete` runs against one content root.
 
@@ -26,6 +26,7 @@ on:
       - 'llms.txt'
       - 'llms-full.txt'
       - 'noisemaker.png'
+      - 'noisemaker.svg'
       - 'og-image.png'
       - 'favicon.ico'
       - 'scripts/bundle-site.js'
@@ -35,29 +36,46 @@ concurrency:
   group: site-${{ github.ref }}
   cancel-in-progress: false
 
+permissions: {}
+
 jobs:
-  trigger-scaffold-release:
-    name: Dispatch scaffold static-site-release
+  dispatch-release:
+    name: Dispatch the site release
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
 
     steps:
-    - name: Mint scaffold GitHub App token
+    - name: Check the release dispatch configuration
+      env:
+        RELEASE_REPOSITORY: ${{ secrets.RELEASE_REPOSITORY }}
+        STATIC_SITE_RELEASE_WORKFLOW: ${{ secrets.STATIC_SITE_RELEASE_WORKFLOW }}
+      run: |
+        missing=""
+        [ -n "$RELEASE_REPOSITORY" ] || missing="$missing RELEASE_REPOSITORY"
+        [ -n "$STATIC_SITE_RELEASE_WORKFLOW" ] || missing="$missing STATIC_SITE_RELEASE_WORKFLOW"
+        if [ -n "$missing" ]; then
+          echo "::error::The release dispatch is not configured. Empty or unset secret(s):$missing"
+          exit 1
+        fi
+
+    - name: Mint release GitHub App token
       id: app-token
       uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
       with:
         client-id: Iv23liy6T6BW0BXuZRzx
         private-key: ${{ secrets.EHSRE_APP_PRIVATE_KEY }}
         owner: noisefactorllc
-        repositories: scaffold
+        repositories: ${{ secrets.RELEASE_REPOSITORY }}
 
-    - name: Dispatch scaffold static-site-release for noisemaker.app
+    - name: Dispatch the site release for noisemaker.app
       env:
         GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        RELEASE_REPOSITORY: ${{ secrets.RELEASE_REPOSITORY }}
+        STATIC_SITE_RELEASE_WORKFLOW: ${{ secrets.STATIC_SITE_RELEASE_WORKFLOW }}
       run: |
-        gh workflow run static-site-release.yml \
-          --repo noisefactorllc/scaffold \
+        gh workflow run "$STATIC_SITE_RELEASE_WORKFLOW" \
+          --repo "$GITHUB_REPOSITORY_OWNER/$RELEASE_REPOSITORY" \
           --ref main \
           -f site=noisemaker-site \
           -f sha=${{ github.sha }}
-        echo "Dispatched scaffold static-site-release for noisemaker-site @ ${{ github.sha }}"
+        echo "Dispatched the site release for noisemaker-site @ ${{ github.sha }}"

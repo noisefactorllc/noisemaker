@@ -23,8 +23,15 @@ export default new Effect({
 
   description: "2D \"Boids\" flocking agent simulation",
 
-  // No local textures - use shared global_xyz/vel/rgba from pointsEmit
-  textures: {},
+  // global_xyz/vel/rgba are shared from pointsEmit. global_flock_base_color
+  // keeps each agent's own color while a diffuse map recolors it.
+  textures: {
+    global_flock_base_color: {
+      width: { param: 'stateSize', inherit: true, default: 256 },
+      height: { param: 'stateSize', inherit: true, default: 256 },
+      format: "rgba8"
+    }
+  },
 
   // Expose outputs to pipeline for downstream effects
   outputXyz: "global_xyz",
@@ -32,6 +39,10 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "boids" }
+    },
     // Classic boids parameters
     separation: {
       type: "float",
@@ -173,13 +184,17 @@ export default new Effect({
     {
       name: "agent",
       program: "agent",
-      drawBuffers: 3,
+      drawBuffers: 4,
       inputs: {
         xyzTex: "global_xyz",
         velTex: "global_vel",
-        rgbaTex: "global_rgba"
+        rgbaTex: "global_rgba",
+        diffuseTex: "diffuseTex",
+        baseColorTex: "global_flock_base_color",
+        inputTex: "inputTex"
       },
       uniforms: {
+        diffuseActive: "diffuseActive",
         separation: "separation",
         alignment: "alignment",
         cohesion: "cohesion",
@@ -194,7 +209,8 @@ export default new Effect({
       outputs: {
         outXYZ: "global_xyz",
         outVel: "global_vel",
-        outRGBA: "global_rgba"
+        outRGBA: "global_rgba",
+        outBaseColor: "global_flock_base_color"
       }
     },
 

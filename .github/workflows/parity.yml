@@ -1,0 +1,75 @@
+name: Python-JavaScript comparison
+
+# The comparison suite renders in software and runs for many minutes, so it
+# stays off the per-push gate. It runs every week and on manual dispatch.
+on:
+  schedule:
+    - cron: '23 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Python-JavaScript comparison
+    # The Python reference's TensorFlow and NumPy results differ on x86-64,
+    # and the JavaScript port matches the arm64 results.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+    - name: Set up Python
+      id: python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: "3.12"
+        cache: 'pip'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: '22'
+        cache: 'npm'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+
+    - name: Install JavaScript dependencies
+      run: npm ci
+
+    # The JavaScript comparison scripts start the Python reference as python3.
+    - name: Put the job's Python first on the PATH as python3
+      env:
+        PYTHON_PATH: ${{ steps.python.outputs.python-path }}
+      run: |
+        python_bin="$(dirname "$PYTHON_PATH")"
+        echo "$python_bin" >> "$GITHUB_PATH"
+        test -x "$python_bin/python3"
+
+    - name: Check that python3 is the job's Python
+      env:
+        PYTHON_PATH: ${{ steps.python.outputs.python-path }}
+      run: |
+        command -v python3
+        python3 -c 'import sys, noisemaker; print(sys.version); print(noisemaker.__file__)'
+        test "$(python3 -c 'import sys; print(sys.prefix)')" = "$("$PYTHON_PATH" -c 'import sys; print(sys.prefix)')"
+
+    # An empty Noisemaker folder, so no user fonts or settings load.
+    - name: Use an empty Noisemaker folder
+      run: |
+        mkdir -p "$RUNNER_TEMP/noisemaker-empty"
+        echo "NOISEMAKER_DIR=$RUNNER_TEMP/noisemaker-empty" >> "$GITHUB_ENV"
+
+    - name: Run the Python comparison tests
+      run: pytest -o addopts="" test/parity
+
+    # Also run the JavaScript tests when the Python comparison fails, so each
+    # weekly run reports both suites. The job fails if either suite fails.
+    - name: Run the JavaScript tests
+      if: ${{ !cancelled() }}
+      run: npm test

@@ -15,11 +15,9 @@ test('renderCube exports 6 distinct cube faces (readback works on this backend)'
   await page.waitForFunction(
     () => !!window.__noisemakerCanvasRenderer && !!window.__noisemakerCanvasRenderer.manifest,
     null, { timeout: 30000 })
-
-  if (useWGSL) {
-    expect(await page.evaluate(() => window.__noisemakerCurrentBackend?.()),
-      'WGSL backend should be active').toBe('wgsl')
-  }
+  // The demo compiles its startup effect after the manifest loads. Wait for
+  // that pipeline, so that it cannot replace the cube pipeline compiled below.
+  await page.waitForFunction(() => !!window.__noisemakerRenderingPipeline, null, { timeout: 30000 })
 
   // Cube export only works when the graph terminates in a cubemap renderer fed by a 3D volume.
   const DSL = [
@@ -42,6 +40,7 @@ test('renderCube exports 6 distinct cube faces (readback works on this backend)'
       if (f0[i] !== f0[0] || f0[i + 1] !== f0[1] || f0[i + 2] !== f0[2]) { multicolor = true; break }
     }
     return {
+      backend: r.backend,
       count: faces.length,
       width: faces[0].width,
       distinct: new Set(faces.map((f) => hash(f.data))).size,
@@ -49,6 +48,11 @@ test('renderCube exports 6 distinct cube faces (readback works on this backend)'
     }
   }, DSL)
 
+  // backend names the backend of the compiled pipeline. A WebGPU request runs
+  // WebGL2 only when the browser has no WebGPU adapter.
+  if (useWGSL) {
+    expect(result.backend, 'no WebGPU adapter: the renderer runs WebGL2').toBe('wgsl')
+  }
   expect(result.count, 'six faces returned').toBe(6)
   expect(result.width, 'faces at requested size').toBe(128)
   expect(result.multicolor, 'faces carry real pixel data (readback succeeded)').toBe(true)

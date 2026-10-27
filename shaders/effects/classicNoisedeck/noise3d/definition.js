@@ -144,7 +144,6 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { noiseScale: 'scale', noiseType: 'type' },
   passes: [
     {
       name: "render",

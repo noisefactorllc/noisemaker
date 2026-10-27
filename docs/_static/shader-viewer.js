@@ -516,7 +516,7 @@
             const placeholderEntry = effects.find(e => e.namespace === namespace && e.name === name);
             
             if (!placeholderEntry) {
-                paramsContainer.innerHTML = `<div class="shader-viewer-error">Effect ${effectPath} not found</div>`;
+                paramsContainer.innerHTML = `<div class="shader-viewer-error">Effect ${escapeHtml(String(effectPath))} not found</div>`;
                 return;
             }
 
@@ -677,7 +677,7 @@
                 } else {
                     errorMsg = String(e);
                 }
-                paramsContainer.innerHTML = `<div class="shader-viewer-error">Error: ${errorMsg}</div>`;
+                paramsContainer.innerHTML = `<div class="shader-viewer-error">Error: ${escapeHtml(String(errorMsg))}</div>`;
                 canvas.style.opacity = '1';
                 if (loadingIndicator) {
                     loadingIndicator.style.display = 'none';

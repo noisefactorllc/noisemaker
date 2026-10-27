@@ -13,6 +13,7 @@ function test(name, code, check, expectError = null) {
             failed++
             console.error(`FAIL: ${name}`)
             console.error('Expected error but parsing succeeded')
+            process.exitCode = 1
             return
         }
         check(ast)
@@ -27,12 +28,14 @@ function test(name, code, check, expectError = null) {
                 failed++
                 console.error(`FAIL: ${name}`)
                 console.error(validationError)
+                process.exitCode = 1
             }
             return
         }
         failed++
         console.error(`FAIL: ${name}`)
         console.error(e)
+        process.exitCode = 1
         try {
             const tokens = lex(code)
             const ast = parse(tokens)
@@ -211,9 +214,9 @@ test('Subchain with positional name', 'search synth\nnoise(10)\n  .subchain("my 
     if (subchain.name !== 'my subchain') throw new Error(`Expected name 'my subchain', got '${subchain.name}'`)
 })
 
-test('Multiple subchains in one chain', 'search synth, render\nnoise(10)\n  .subchain(name: "sc1") {\n    .loopBegin()\n    .loopEnd()\n  }\n  .subchain(name: "sc2") {\n    .loopBegin()\n    .loopEnd()\n  }\n  .colorspace()\n  .write(o0)', (ast) => {
+test('Multiple subchains in one chain', 'search synth, filter, render\nnoise(10)\n  .subchain(name: "sc1") {\n    .loopBegin()\n    .loopEnd()\n  }\n  .subchain(name: "sc2") {\n    .loopBegin()\n    .loopEnd()\n  }\n  .adjust(mode: hsv)\n  .write(o0)', (ast) => {
     const plan = ast.plans[0]
-    // Chain should have: noise, Subchain, Subchain, colorspace, Write
+    // Chain should have: noise, Subchain, Subchain, adjust, Write
     if (plan.chain.length !== 5) throw new Error(`Expected 5 elements in chain, got ${plan.chain.length}`)
     if (plan.chain[1].type !== 'Subchain') throw new Error('Expected first Subchain')
     if (plan.chain[2].type !== 'Subchain') throw new Error('Expected second Subchain')

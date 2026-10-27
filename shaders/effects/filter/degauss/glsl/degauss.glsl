@@ -306,7 +306,12 @@ float warped_channel_value(
     float noise_value = compute_noise_value(coord, width, height, freq, time, speed, channel);
     float centered = (noise_value * 2.0 - 1.0) * mask;
     float angle = centered * TAU;
-    vec2 offset = vec2(cos(angle), sin(angle)) * displacement * vec2(resolution.x, resolution.y);
+    // Offset in GLOBAL pixel space (fullResolution), not tile resolution:
+    // the untiled reference and every tile must displace by the same
+    // absolute print-pixel amount or the tiled wobble is renderScale× too
+    // small and tiles seam against the full render. width/height are the
+    // full-resolution dims passed by main().
+    vec2 offset = vec2(cos(angle), sin(angle)) * displacement * vec2(width, height);
 
     // Rotate offset by direction
     float dirRad = direction * TAU / 360.0;
@@ -353,8 +358,14 @@ void main() {
 
     float renderScale = fullResolution.x > 0.0 ? fullResolution.x / max(resolution.x, 1.0) : 1.0;
     bool isTiling = renderScale > 1.01;
+    // Tiling: bound the (global-pixel) offset to the 256px tile-overlap
+    // budget, measured against the full-resolution dims the offset now
+    // scales with. Untiled: keep the historical clamp exactly (fullRes ==
+    // resolution there, so this is the same formula it always was).
     float maxOffsetPixels = isTiling ? 256.0 : max(resolution.x, resolution.y);
-    float maxAllowedDisplacement = maxOffsetPixels / max(resolution.x, 1.0);
+    float maxAllowedDisplacement = isTiling
+        ? maxOffsetPixels / max(width_f, height_f)
+        : maxOffsetPixels / max(resolution.x, 1.0);
     float clampedDisplacement = min(displacement, maxAllowedDisplacement);
 
     vec2 freq = freq_for_shape(2.0, width_f, height_f);

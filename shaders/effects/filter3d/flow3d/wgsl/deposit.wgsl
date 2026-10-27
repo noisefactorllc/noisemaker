@@ -65,7 +65,8 @@ fn main(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     
     let ndc = vec2<f32>(
         (atlasX / atlasWidth) * 2.0 - 1.0,
-        (atlasY / atlasHeight) * 2.0 - 1.0
+        // WebGPU clip y runs opposite to GL's, so negate the GLSL's clip y
+        1.0 - (atlasY / atlasHeight) * 2.0
     );
     
     output.position = vec4<f32>(ndc, 0.0, 1.0);

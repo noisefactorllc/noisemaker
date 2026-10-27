@@ -7,9 +7,9 @@ Features
    scene
    cubemaps
    pipeline-3d
-   parallax
-   mashup
+   persistent-surfaces
    smrticles
    midi-audio
    renderer-output
    demo-ui
+   tile-rendering

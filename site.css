@@ -1,18 +1,23 @@
 :root {
-  color-scheme: dark;
-  --nm-bg: #444444;
-  --nm-panel: #363638;
-  --nm-panel-2: #3f3f42;
-  --nm-line: #5b565b;
-  --nm-line-hot: #ff6fbc;
-  --nm-text: #f3f1f3;
-  --nm-muted: #b6adb5;
-  --nm-dim: #827982;
-  --nm-magenta: #ff6fbc;
-  --nm-pink: #ffaad6;
-  --nm-lime: #33ff00;
-  --nm-cyan: #6ae8ff;
-  --nm-amber: #ffc44d;
+  color-scheme: light;
+  /* Handfish's corporate theme (hue 240 neutrals, hue 220 accent), in its own role mapping:
+     page = base, cards = surface, card hover = elevated, borders = its 40% border mix,
+     headings = bright text, copy = normal text, accent and accent hover. */
+  --nm-bg: #f3f5f7;
+  --nm-panel: #e7eaec;
+  --nm-panel-2: #d3d8dc;
+  --nm-line: color-mix(in srgb, #a8afb4 40%, transparent);
+  --nm-text: #080c0e;
+  --nm-muted: #363b3f;
+  /* Fill for the header strip, primary button and card hover borders. site.js passes it to the
+     strip's DSL program as its solid() color, so it must stay a hex value. */
+  --nm-accent: #007192;
+  /* White on --nm-accent measures 5.56:1. The header still gives it a dark text-shadow, because
+     the strip's lighting puts bright highlights behind the text. */
+  --nm-on-accent: #ffffff;
+  /* The accent as text (links, section labels): 5.09:1 on the page, 4.60:1 on cards. */
+  --nm-accent-text: #007192;
+  --nm-hover: #00455e;
   --nm-font: var(--hf-font-family);
   --nm-mono: var(--hf-font-family-mono);
   --nm-radius: 8px;
@@ -43,12 +48,12 @@ body {
 }
 
 a {
-  color: var(--nm-pink);
+  color: var(--nm-accent-text);
   text-decoration: none;
 }
 
 a:hover {
-  color: var(--nm-lime);
+  color: var(--nm-hover);
 }
 
 code,
@@ -67,7 +72,7 @@ pre {
   min-height: 72px;
   padding: 0.85rem clamp(1rem, 3vw, 2rem);
   overflow: hidden;
-  background: var(--nm-magenta);
+  background: var(--nm-accent);
   border-bottom: 1px solid color-mix(in srgb, var(--nm-bg) 40%, transparent);
 }
 
@@ -88,7 +93,7 @@ pre {
   align-items: center;
   gap: 0.7rem;
   flex-shrink: 0;
-  color: var(--nm-text);
+  color: var(--nm-on-accent);
   font-weight: 900;
   font-size: 1.05rem;
   line-height: 1;
@@ -96,16 +101,18 @@ pre {
 }
 
 .nm-brand:hover {
-  color: var(--nm-text);
+  color: var(--nm-on-accent);
 }
 
+/* The one-color nm mark, drawn as a mask the way noisefactor.io draws it. Its glyph fills the
+   middle 65% of the SVG's square, so 154% makes it the box's full width. */
 .nm-brand-mark {
   width: 56px;
   height: 56px;
   margin: -8px 0;
-  object-fit: contain;
-  object-position: center;
-  border-radius: 2px;
+  background: var(--nm-on-accent);
+  -webkit-mask: url(./noisemaker.svg) center / 154% no-repeat;
+  mask: url(./noisemaker.svg) center / 154% no-repeat;
 }
 
 .nm-nav {
@@ -119,14 +126,14 @@ pre {
 }
 
 .nm-nav a {
-  color: var(--nm-text);
+  color: var(--nm-on-accent);
   opacity: 1;
   font-weight: 750;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 0, 0, 0.45);
 }
 
 .nm-nav a:hover {
-  color: var(--nm-text);
+  color: var(--nm-on-accent);
 }
 
 main {
@@ -146,7 +153,7 @@ main {
 
 .nm-kicker {
   margin: 0 0 0.75rem;
-  color: var(--nm-magenta);
+  color: var(--nm-accent-text);
   font-size: 0.75rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -175,38 +182,6 @@ h2 {
   font-size: clamp(1.55rem, 3.1vw, 2.85rem);
   font-weight: 880;
   line-height: 1.06;
-}
-
-.nm-human-rainbow {
-  position: relative;
-  display: inline-block;
-  padding-inline: 0.08em;
-  color: oklch(0 0 0 / 0);
-  background:
-    linear-gradient(
-      90deg,
-      oklch(0.78 0.23 25) 0%,
-      oklch(0.84 0.21 65) 8.333%,
-      oklch(0.88 0.20 125) 16.666%,
-      oklch(0.84 0.20 190) 25%,
-      oklch(0.78 0.24 280) 33.333%,
-      oklch(0.82 0.25 330) 41.666%,
-      oklch(0.78 0.23 25) 50%,
-      oklch(0.84 0.21 65) 58.333%,
-      oklch(0.88 0.20 125) 66.666%,
-      oklch(0.84 0.20 190) 75%,
-      oklch(0.78 0.24 280) 83.333%,
-      oklch(0.82 0.25 330) 91.666%,
-      oklch(0.78 0.23 25) 100%
-    );
-  background-size: 200% 100%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: oklch(0 0 0 / 0);
-  text-shadow:
-    0 0 0.32em oklch(0.82 0.25 330 / 0.36),
-    0 0 0.72em oklch(0.88 0.20 125 / 0.18);
-  animation: nm-human-rainbow 7s linear infinite;
 }
 
 h3 {
@@ -245,15 +220,15 @@ h3 {
 .nm-button:hover,
 .nm-button:focus-visible {
   color: var(--nm-bg);
-  border-color: var(--nm-lime);
-  background: var(--nm-lime);
+  border-color: var(--nm-hover);
+  background: var(--nm-hover);
   outline: none;
 }
 
 .nm-button-primary {
-  border-color: var(--nm-magenta);
-  background: var(--nm-magenta);
-  color: var(--nm-text);
+  border-color: var(--nm-accent);
+  background: var(--nm-accent);
+  color: var(--nm-on-accent);
 }
 
 .nm-feature,
@@ -270,18 +245,10 @@ h3 {
   border-top: 1px solid var(--nm-line);
 }
 
-.nm-thesis {
-  display: grid;
-  grid-template-columns: 0.82fr 1.18fr;
-  gap: clamp(1.25rem, 3vw, 2.5rem);
-  align-items: start;
-}
-
 .nm-section-heading {
   max-width: 70ch;
 }
 
-.nm-thesis p:last-child,
 .nm-section-copy {
   color: var(--nm-muted);
   font-size: clamp(1.05rem, 1.6vw, 1.22rem);
@@ -319,7 +286,7 @@ h3 {
 }
 
 .nm-feature code {
-  color: var(--nm-cyan);
+  color: var(--nm-accent-text);
 }
 
 .nm-agent-grid {
@@ -344,7 +311,7 @@ h3 {
 .nm-adapter-list a:hover,
 .nm-adapter-list a:focus-visible {
   color: var(--nm-text);
-  border-color: var(--nm-magenta);
+  border-color: var(--nm-accent);
   background: var(--nm-panel-2);
   outline: none;
 }
@@ -368,7 +335,7 @@ h3 {
 
 .nm-product-list a:hover,
 .nm-product-list a:focus-visible {
-  border-color: var(--nm-magenta);
+  border-color: var(--nm-accent);
   background: var(--nm-panel-2);
   outline: none;
 }
@@ -402,21 +369,7 @@ h3 {
   justify-content: flex-end;
 }
 
-@keyframes nm-human-rainbow {
-  from {
-    background-position: 0% 50%;
-  }
-
-  to {
-    background-position: 100% 50%;
-  }
-}
-
 @media (max-width: 980px) {
-  .nm-thesis {
-    grid-template-columns: 1fr;
-  }
-
   h1,
   h2 {
     max-width: none;
@@ -488,9 +441,5 @@ h3 {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
-  }
-
-  .nm-human-rainbow {
-    animation: none;
   }
 }

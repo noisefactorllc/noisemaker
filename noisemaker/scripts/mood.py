@@ -5,6 +5,12 @@ import textwrap
 import click
 from PIL import Image, ImageDraw, ImageFont
 
+from noisemaker.util import fonts_dir
+
+
+def font_path(font):
+    return os.path.join(fonts_dir(), f"{font}.ttf")
+
 
 def mood_text(input_filename, text, font="LiberationSans-Bold", font_size=42, fill=None, rect=True, wrap_width=42, bottom=False, right=False, invert=False):
     if fill is None:
@@ -17,11 +23,9 @@ def mood_text(input_filename, text, font="LiberationSans-Bold", font_size=42, fi
 
     input_width, input_height = image.size
 
-    font_path = os.path.join(os.path.expanduser("~"), ".noisemaker", "fonts", f"{font}.ttf")
-
     # Supersample: render text at 4x size, then downscale for proper kerning
     scale = 4
-    font = ImageFont.truetype(font_path, font_size * scale)
+    font = ImageFont.truetype(font_path(font), font_size * scale)
 
     overlay = Image.new("RGBA", (input_width * scale, input_height * scale), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
@@ -85,6 +89,9 @@ def mood_text(input_filename, text, font="LiberationSans-Bold", font_size=42, fi
 @click.option("--right", is_flag=True)
 @click.option("--invert", is_flag=True)
 def main(filename, text, font, font_size, color, no_rect, wrap_width, bottom, right, invert):
+    if not os.path.exists(font_path(font)):
+        raise click.ClickException(f"the font {font}.ttf is not in {fonts_dir()}")
+
     if color:
         if invert:
             fill = (random.randint(0, 128), random.randint(0, 128), random.randint(0, 128), 255)

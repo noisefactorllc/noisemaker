@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "filter3d/flow3d",
+  "sourceHash": "9a9d1598c13a3ad1dd41e01f21adba19cf82f2a6214a8b981fa66f97fa7be158",
+  "caseHash": "541597da089bab453c67d89e8198f056ad2f0551aa24b67f87b03e1e1f2ea828",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 119
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 119
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 5,
+    "webgpuTargetPasses": 5
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

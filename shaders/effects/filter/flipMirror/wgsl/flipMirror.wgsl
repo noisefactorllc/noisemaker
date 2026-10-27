@@ -8,6 +8,8 @@ struct Uniforms {
     _pad1: i32,
     _pad2: i32,
     _pad3: i32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -17,7 +19,10 @@ struct Uniforms {
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
-    var uv = pos.xy / texSize;
+    let globalCoord = pos.xy + uniforms.tileOffset;
+    let globalUV = globalCoord / uniforms.fullResolution;
+
+    var uv = globalUV;
 
     if (uniforms.flipMode == 1) {
         // flip both
@@ -40,13 +45,14 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             uv.x = 1.0 - uv.x;
         }
     } else if (uniforms.flipMode == 13) {
-        // mirror up to down
-        if (uv.y > 0.5) {
+        // mirror up to down. uv.y runs up the frame, so the top half is
+        // uv.y > 0.5 and the bottom half samples its reflection.
+        if (uv.y < 0.5) {
             uv.y = 1.0 - uv.y;
         }
     } else if (uniforms.flipMode == 14) {
         // mirror down to up
-        if (uv.y < 0.5) {
+        if (uv.y > 0.5) {
             uv.y = 1.0 - uv.y;
         }
     } else if (uniforms.flipMode == 15) {
@@ -54,7 +60,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         if (uv.x > 0.5) {
             uv.x = 1.0 - uv.x;
         }
-        if (uv.y > 0.5) {
+        if (uv.y < 0.5) {
             uv.y = 1.0 - uv.y;
         }
     } else if (uniforms.flipMode == 16) {
@@ -62,7 +68,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         if (uv.x > 0.5) {
             uv.x = 1.0 - uv.x;
         }
-        if (uv.y < 0.5) {
+        if (uv.y > 0.5) {
             uv.y = 1.0 - uv.y;
         }
     } else if (uniforms.flipMode == 17) {
@@ -70,7 +76,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         if (uv.x < 0.5) {
             uv.x = 1.0 - uv.x;
         }
-        if (uv.y > 0.5) {
+        if (uv.y < 0.5) {
             uv.y = 1.0 - uv.y;
         }
     } else if (uniforms.flipMode == 18) {
@@ -78,10 +84,11 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         if (uv.x < 0.5) {
             uv.x = 1.0 - uv.x;
         }
-        if (uv.y < 0.5) {
+        if (uv.y > 0.5) {
             uv.y = 1.0 - uv.y;
         }
     }
 
-    return textureSampleLevel(inputTex, inputSampler, uv, 0.0);
+    let localUV = fract((uv * uniforms.fullResolution - uniforms.tileOffset) / texSize);
+    return textureSampleLevel(inputTex, inputSampler, localUV, 0.0);
 }

@@ -50,7 +50,7 @@ const SINGULAR_WARNED = new WeakSet()
 /**
  * Invert `modelMatrix` into `out`, falling back to identity when it is singular.
  *
- * gl-matrix's `invert` returns null on a singular matrix and leaves `out`
+ * `invert` returns null on a singular matrix and leaves `out`
  * UNTOUCHED. Because these output buffers are reused across frames, an
  * unchecked call does not fail loudly: frame 1 keeps whatever `mat4.create()`
  * left, and every frame after it keeps the PREVIOUS frame's inverse. For a

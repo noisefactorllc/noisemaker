@@ -11,6 +11,11 @@ export default new Effect({
 
     // Internal trail texture for accumulation
     textures: {
+        depthOrderA: { width: { param: 'stateSize', default: 256 }, height: { param: 'stateSize', default: 256 }, format: "rgba32f" },
+        depthOrderB: { width: { param: 'stateSize', default: 256 }, height: { param: 'stateSize', default: 256 }, format: "rgba32f" },
+        spriteMeanTiles: { width: 160, height: 160, format: "rgba32f" },
+        spriteMean: { width: 5, height: 5, format: "rgba32f" },
+        defocus: { width: "25%", height: "25%", format: "rgba16f" },
         global_billboard_trail: {
             width: "100%",
             height: "100%",
@@ -23,6 +28,8 @@ export default new Effect({
         shapeMode: {
             type: "int",
             default: 1,
+            min: 0,
+            max: 7,
             uniform: "shapeMode",
             choices: {
                 texture: 0,
@@ -182,14 +189,17 @@ export default new Effect({
             }
         },
 
-        // 3D viewport: view mode (0=2D normalized, 1=3D orthographic)
+        // Existing modes retain their projection; perspective uses world coordinates.
         viewMode: {
             type: "int",
             default: 0,
+            min: 0,
+            max: 2,
             uniform: "viewMode",
             choices: {
                 "flat": 0,
-                "ortho": 1
+                "ortho": 1,
+                "perspective": 2
             },
             ui: {
                 label: "view",
@@ -292,23 +302,216 @@ export default new Effect({
                 category: "view",
                 enabledBy: "viewMode"
             }
+        },
+
+        posZ: {
+            type: "float",
+            default: 0,
+            uniform: "posZ",
+            min: -200,
+            max: 200,
+            step: 0.1,
+            ui: {
+                label: "pos z",
+                control: "slider",
+                category: "view",
+                enabledBy: "viewMode"
+            }
+        },
+
+        fieldOfView: {
+            type: "float",
+            default: 60,
+            uniform: "fieldOfView",
+            min: 10,
+            max: 150,
+            step: 1,
+            ui: {
+                label: "field of view",
+                control: "slider",
+                category: "view",
+                enabledBy: { param: "viewMode", eq: 2 }
+            }
+        },
+
+        sizeDistance: {
+            type: "float",
+            default: 0,
+            uniform: "sizeDistance",
+            min: 0,
+            max: 500,
+            step: 1,
+            ui: {
+                label: "size fade distance",
+                control: "slider",
+                category: "distance",
+                enabledBy: "viewMode"
+            }
+        },
+
+        brightnessDistance: {
+            type: "float",
+            default: 0,
+            uniform: "brightnessDistance",
+            min: 0,
+            max: 500,
+            step: 1,
+            ui: {
+                label: "brightness fade distance",
+                control: "slider",
+                category: "distance",
+                enabledBy: "viewMode"
+            }
+        },
+
+        aperture: {
+            type: "float",
+            default: 0,
+            uniform: "aperture",
+            min: 0,
+            max: 20,
+            step: 0.1,
+            ui: {
+                label: "aperture",
+                control: "slider",
+                category: "focus",
+                enabledBy: "viewMode"
+            }
+        },
+
+        focalDistance: {
+            type: "float",
+            default: 80,
+            uniform: "focalDistance",
+            min: 1,
+            max: 500,
+            step: 1,
+            ui: {
+                label: "focal dist",
+                control: "slider",
+                category: "focus",
+                enabledBy: { and: ["viewMode", { param: "aperture", gt: 0 }] }
+            }
         }
     },
 
-    paramAliases: { rotationVariation: 'rotationVar' },
 
     passes: [
+        {
+            name: "depthKeys",
+            type: "compute",
+            program: "depthKeys",
+            conditions: { runIf: [{ uniform: "blendMode", equals: 1 }], skipIf: [{ uniform: "viewMode", equals: 0 }] },
+            inputs: { xyzTex: "global_xyz" },
+            uniforms: { viewMode: "viewMode", rotateX: "rotateX", rotateY: "rotateY", posZ: "posZ" },
+            outputs: { fragColor: "depthOrderA" }
+        },
+        // Merge sorted runs entirely on the GPU, ending in depthOrderA.
+        // Stages beyond the actual texture size copy through, so live emitter
+        // resizing cannot leave a stale uniform deciding the number of stages.
+        ...Array.from({ length: 22 }, (_, stage) => ({
+            name: `depthMerge${stage}`,
+            type: "compute",
+            program: "depthMerge",
+            conditions: {
+                runIf: [{ uniform: "blendMode", equals: 1 }],
+                skipIf: [{ uniform: "viewMode", equals: 0 }]
+            },
+            inputs: { orderTex: stage % 2 === 0 ? "depthOrderA" : "depthOrderB" },
+            uniforms: { runLength: 2 ** stage },
+            outputs: { fragColor: stage % 2 === 0 ? "depthOrderB" : "depthOrderA" }
+        })),
+        {
+            name: "spriteMeanTiles",
+            type: "compute",
+            program: "spriteMeanTiles",
+            conditions: { runIf: [{ uniform: "shapeMode", equals: 0 }],
+                skipIf: [{ uniform: "aperture", equals: 0 }, { uniform: "viewMode", equals: 0 }] },
+            inputs: { spriteTex: "tex" },
+            uniforms: { shapeMode: "shapeMode", aperture: "aperture", viewMode: "viewMode" },
+            outputs: { fragColor: "spriteMeanTiles" }
+        },
+        {
+            name: "spriteMean",
+            type: "compute",
+            program: "spriteMean",
+            conditions: { skipIf: [{ uniform: "aperture", equals: 0 }, { uniform: "viewMode", equals: 0 }] },
+            inputs: { tilesTex: "spriteMeanTiles" },
+            uniforms: { shapeMode: "shapeMode", aperture: "aperture", viewMode: "viewMode" },
+            outputs: { fragColor: "spriteMean" }
+        },
+        {
+            name: "clearDefocus",
+            program: "clearDefocus",
+            conditions: { runIf: [{ uniform: "blendMode", equals: 0 }],
+                skipIf: [{ uniform: "aperture", equals: 0 }, { uniform: "viewMode", equals: 0 }] },
+            uniforms: { clearValue: 0 },
+            outputs: { fragColor: "defocus" }
+        },
+        // Broad additive blur is rasterized at quarter resolution.
+        {
+            name: "depositDefocus",
+            program: "deposit",
+            conditions: { runIf: [{ uniform: "blendMode", equals: 0 }],
+                skipIf: [{ uniform: "aperture", equals: 0 }, { uniform: "viewMode", equals: 0 }] },
+            drawMode: "billboards",
+            count: 'input', // Derive from xyzTex dimensions for dynamic stateSize
+            blend: true,
+
+            inputs: {
+                // Read from shared global textures
+                xyzTex: "global_xyz",
+                rgbaTex: "global_rgba",
+                orderTex: "depthOrderA",
+                spriteTex: "tex",
+                spriteMeanTex: "spriteMean"
+            },
+
+            uniforms: {
+                shapeMode: "shapeMode",
+                blendMode: "blendMode",
+                blurLayer: 1,
+                depositOpacity: "depositOpacity",
+                density: "density",
+                pointSize: "pointSize",
+                sizeVariation: "sizeVariation",
+                rotationVar: "rotationVar",
+                seed: "seed",
+                viewMode: "viewMode",
+                rotateX: "rotateX",
+                rotateY: "rotateY",
+                rotateZ: "rotateZ",
+                viewScale: "viewScale",
+                posX: "posX",
+                posY: "posY",
+                posZ: "posZ",
+                fieldOfView: "fieldOfView",
+                sizeDistance: "sizeDistance",
+                brightnessDistance: "brightnessDistance",
+                aperture: "aperture",
+                focalDistance: "focalDistance"
+            },
+
+            outputs: {
+                fragColor: "defocus"
+            }
+        },
+
         // Pass 1: Diffuse - decay existing trail
         {
             name: "diffuse",
             program: "diffuse",
 
             inputs: {
-                trailTex: "global_billboard_trail"
+                trailTex: "global_billboard_trail",
+                defocusTex: "defocus"
             },
 
             uniforms: {
-                intensity: "intensity"
+                intensity: "intensity",
+                aperture: "aperture",
+                viewMode: "viewMode",
+                blendMode: "blendMode"
             },
 
             outputs: {
@@ -343,11 +546,15 @@ export default new Effect({
                 // Read from shared global textures
                 xyzTex: "global_xyz",
                 rgbaTex: "global_rgba",
-                spriteTex: "tex"
+                orderTex: "depthOrderA",
+                spriteTex: "tex",
+                spriteMeanTex: "spriteMean"
             },
 
             uniforms: {
                 shapeMode: "shapeMode",
+                blendMode: "blendMode",
+                blurLayer: 0,
                 depositOpacity: "depositOpacity",
                 density: "density",
                 pointSize: "pointSize",
@@ -360,7 +567,13 @@ export default new Effect({
                 rotateZ: "rotateZ",
                 viewScale: "viewScale",
                 posX: "posX",
-                posY: "posY"
+                posY: "posY",
+                posZ: "posZ",
+                fieldOfView: "fieldOfView",
+                sizeDistance: "sizeDistance",
+                brightnessDistance: "brightnessDistance",
+                aperture: "aperture",
+                focalDistance: "focalDistance"
             },
 
             outputs: {
@@ -380,11 +593,15 @@ export default new Effect({
             inputs: {
                 xyzTex: "global_xyz",
                 rgbaTex: "global_rgba",
-                spriteTex: "tex"
+                orderTex: "depthOrderA",
+                spriteTex: "tex",
+                spriteMeanTex: "spriteMean"
             },
 
             uniforms: {
                 shapeMode: "shapeMode",
+                blendMode: "blendMode",
+                blurLayer: 0,
                 depositOpacity: "depositOpacity",
                 density: "density",
                 pointSize: "pointSize",
@@ -397,7 +614,13 @@ export default new Effect({
                 rotateZ: "rotateZ",
                 viewScale: "viewScale",
                 posX: "posX",
-                posY: "posY"
+                posY: "posY",
+                posZ: "posZ",
+                fieldOfView: "fieldOfView",
+                sizeDistance: "sizeDistance",
+                brightnessDistance: "brightnessDistance",
+                aperture: "aperture",
+                focalDistance: "focalDistance"
             },
 
             outputs: {
@@ -424,5 +647,22 @@ export default new Effect({
                 fragColor: "outputTex"
             }
         }
-    ]
+    ].flatMap(pass => {
+        if (pass.program !== 'deposit' && pass.program !== 'depthKeys') return [pass]
+        // Keep mode controls live while the GPU compiles away the other views,
+        // blend modes, and defocus layer in each selected draw.
+        const views = pass.name === 'depositDefocus' || pass.program === 'depthKeys' ? [1, 2] : [0, 1, 2]
+        return views.map(viewMode => ({
+            ...pass,
+            name: `${pass.name}_${viewMode}`,
+            defines: { VIEW_MODE: viewMode, ...(pass.program === 'deposit' ? {
+                BLEND_MODE: pass.name === 'deposit_alpha' ? 1 : 0,
+                BLUR_LAYER: pass.name === 'depositDefocus' ? 1 : 0
+            } : {}) },
+            conditions: {
+                ...pass.conditions,
+                runIf: [...(pass.conditions?.runIf || []), { uniform: 'viewMode', equals: viewMode }]
+            }
+        }))
+    })
 })

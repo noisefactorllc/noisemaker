@@ -70,8 +70,25 @@ registerOp('synth3d.distort', {
     ]
 })
 
+// Register a starter with surface-type params (like heightmap3d)
+registerOp('synth3d.heightmap', {
+    name: 'heightmap',
+    args: [
+        { name: 'heightTex', type: 'surface', default: 'none' },
+        { name: 'tex', type: 'surface', default: 'none' },
+        { name: 'scale', type: 'float', default: 1 }
+    ]
+})
+
+registerOp('synth.solid', {
+    name: 'solid',
+    args: [
+        { name: 'color', type: 'color', default: '#ff0000' }
+    ]
+})
+
 // Register starters
-registerStarterOps(['synth.noise', 'synth.voronoi', 'synth.gradient', 'synth3d.fractal'])
+registerStarterOps(['synth.noise', 'synth.voronoi', 'synth.gradient', 'synth3d.fractal', 'synth3d.heightmap', 'synth.solid'])
 
 function compile(code) {
     const tokens = lex(code)
@@ -118,7 +135,9 @@ test('listSteps - simple chain', () => {
     const allSteps = listSteps(compiled)
     const steps = allSteps.filter((s) => s.kind === 'effect')
 
-    assertEqual(steps.length, 2, 'Should have 2 effect steps')
+    assertEqual(steps.length, 2, 'Should have 2 steps')
+    assertEqual(steps[0].stepIndex, 0, 'First effect should keep its compiled step index')
+    assertEqual(steps[1].stepIndex, 1, 'Second effect should keep its compiled step index')
 
     // First step is noise (starter)
     assertEqual(steps[0].effectName, 'synth.noise', 'First step should be noise')
@@ -226,6 +245,16 @@ test('replaceEffect - invalid step index', () => {
     assertTrue(result.error.includes('not found'), 'Error should mention not found')
 })
 
+test('replaceEffect - builtin step index is not a replacement target', () => {
+    const compiled = compile('search synth, filter\nnoise(10).write(o0)')
+    const builtinStepIndex = compiled.plans[0].chain.find(step => step.builtin).temp
+
+    const result = replaceEffect(compiled, builtinStepIndex, 'bloom')
+
+    assertFalse(result.success, 'Replacement should fail')
+    assertEqual(result.error, `Step with index ${builtinStepIndex} not found`, 'Builtin should use the existing not-found failure')
+})
+
 test('replaceEffect - immutability', () => {
     const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
     const steps = listSteps(compiled)
@@ -287,6 +316,16 @@ test('getCompatibleReplacements - invalid step index', () => {
 
     assertFalse(result.success, 'Should fail')
     assertTrue(result.error.includes('not found'), 'Error should mention not found')
+})
+
+test('getCompatibleReplacements - builtin step index is not a replacement target', () => {
+    const compiled = compile('search synth, filter\nnoise(10).write(o0)')
+    const builtinStepIndex = compiled.plans[0].chain.find(step => step.builtin).temp
+
+    const result = getCompatibleReplacements(compiled, builtinStepIndex)
+
+    assertFalse(result.success, 'Compatibility lookup should fail')
+    assertEqual(result.error, `Step with index ${builtinStepIndex} not found`, 'Builtin should use the existing not-found failure')
 })
 
 // ============================================================================
@@ -352,6 +391,229 @@ test('replaceEffect - same namespace does not duplicate searchNamespaces', () =>
     assertTrue(result.success, 'Replacement should succeed')
     assertEqual(result.program.searchNamespaces.length, 2, 'Should not duplicate namespace')
     assertEqual(result.program.searchNamespaces[0], 'synth', 'Should keep original namespace')
+})
+
+// ============================================================================
+// Inline surface producer tests (effects as texture params, e.g. heightTex: noise())
+// ============================================================================
+
+test('listSteps - inline surface producers are in starter position', () => {
+    const compiled = compile('search synth, synth3d\nheightmap(heightTex: noise(), tex: gradient()).write(o0)')
+    const steps = listSteps(compiled)
+
+    const noiseStep = steps.find(s => s.effectName === 'synth.noise')
+    const gradientStep = steps.find(s => s.effectName === 'synth.gradient')
+    const heightmapStep = steps.find(s => s.effectName === 'synth3d.heightmap')
+
+    assertTrue(noiseStep, 'Should find noise step')
+    assertTrue(gradientStep, 'Should find gradient step')
+    assertTrue(heightmapStep, 'Should find heightmap step')
+
+    assertTrue(noiseStep.isStarterPosition, 'Inline noise producer should be in starter position')
+    assertTrue(gradientStep.isStarterPosition, 'Inline gradient producer should be in starter position')
+    assertTrue(heightmapStep.isStarterPosition, 'Heightmap (chain head) should be in starter position')
+
+    assertTrue(noiseStep.canReplaceWithStarter, 'Inline noise producer should accept starter replacement')
+    assertFalse(noiseStep.canReplaceWithNonStarter, 'Inline noise producer should reject non-starter replacement')
+})
+
+test('replaceEffect - replace inline surface producer starter with another starter (valid)', () => {
+    const compiled = compile('search synth, synth3d\nheightmap(heightTex: noise(), tex: gradient()).write(o0)')
+    const steps = listSteps(compiled)
+    const gradientStep = steps.find(s => s.effectName === 'synth.gradient')
+
+    const result = replaceEffect(compiled, gradientStep.stepIndex, 'solid')
+
+    assertTrue(result.success, 'Replacing inline starter producer with another starter should succeed')
+    const replacedStep = result.program.plans[0].chain.find(s => s.temp === gradientStep.stepIndex)
+    assertEqual(replacedStep.op, 'synth.solid', 'Effect should be replaced to solid')
+})
+
+test('replaceEffect - replace inline surface producer starter with non-starter (invalid)', () => {
+    const compiled = compile('search synth, synth3d, filter\nheightmap(heightTex: noise(), tex: gradient()).write(o0)')
+    const steps = listSteps(compiled)
+    const gradientStep = steps.find(s => s.effectName === 'synth.gradient')
+
+    const result = replaceEffect(compiled, gradientStep.stepIndex, 'kaleid')
+
+    assertFalse(result.success, 'Replacing inline starter producer with non-starter should fail')
+    assertTrue(result.error.includes('starter'), 'Error should mention starter')
+})
+
+// ============================================================================
+// Replacement preflight prediction tests
+// ============================================================================
+
+import { registerEffect } from '../src/runtime/registry.js'
+
+// Full effect instance for filter.grain, registered like the renderer does
+registerOp('filter.grain', {
+    name: 'grain',
+    args: [
+        { name: 'amount', type: 'float', default: 0.5, min: 0, max: 1 },
+        { name: 'mode', type: 'int', default: 0, choices: { fine: 0, coarse: 1 } }
+    ]
+})
+
+registerEffect('filter.grain', {
+    name: 'Grain',
+    namespace: 'filter',
+    func: 'grain',
+    globals: {
+        amount: { type: 'float', default: 0.5, min: 0, max: 1 },
+        mode: { type: 'int', default: 0, choices: { fine: 0, coarse: 1 } }
+    },
+    textures: {
+        scratch: { width: 'resolution', height: 'resolution' }
+    },
+    passes: [
+        {
+            name: 'grain',
+            program: 'grain',
+            inputs: {},
+            outputs: { color: 'outputTex' }
+        }
+    ]
+})
+
+const GRAIN_MANIFEST = {
+    'filter/grain': {
+        description: 'Grain',
+        glsl: { grain: 'combined' },
+        starter: false
+        // no wgsl entry: WebGPU unsupported
+    }
+}
+
+test('getCompatibleReplacements - predictions expose candidate dimensions', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    const result = getCompatibleReplacements(compiled, steps[1].stepIndex)
+
+    assertTrue(result.success, 'Should succeed')
+    assertTrue(result.predictions, 'Should return a predictions map')
+
+    const grain = result.predictions['filter.grain']
+    assertTrue(grain, 'Should predict filter.grain')
+    assertEqual(grain.available, true, 'Registered instance should be available')
+    assertEqual(grain.arguments.unknown.length, 0, 'No unknown arguments without provided args')
+    assertEqual(grain.types.length, 0, 'No type mismatches without provided args')
+    assertEqual(grain.ranges.length, 0, 'No range violations without provided args')
+    assertEqual(grain.passes.passes[0].program, 'grain', 'Pass prediction should name the shader program')
+    assertEqual(grain.passes.passes[0].outputs.color, 'outputTex', 'Pass prediction should list outputs')
+    assertTrue(grain.samplerTopology.internalTextures.includes('scratch'), 'Sampler topology should list internal textures')
+    assertEqual(grain.backendSupport, undefined, 'Backend support is unknown without a manifest')
+})
+
+test('getCompatibleReplacements - manifest predicts backend support', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    const result = getCompatibleReplacements(compiled, steps[1].stepIndex, { manifest: GRAIN_MANIFEST })
+    const grain = result.predictions['filter.grain']
+
+    assertEqual(grain.backendSupport.webgl2, true, 'GLSL-only manifest should mark WebGL2 supported')
+    assertEqual(grain.backendSupport.webgpu, false, 'Missing WGSL entry should mark WebGPU unsupported')
+
+    const missing = getCompatibleReplacements(compiled, steps[1].stepIndex, {
+        manifest: { 'filter/grain': { glsl: {}, wgsl: {} } }
+    })
+    assertEqual(missing.predictions['filter.grain'].backendSupport.webgl2, false, 'Missing manifest entry is unsupported')
+})
+
+test('getCompatibleReplacements - default classification is unchanged', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    const result = getCompatibleReplacements(compiled, steps[1].stepIndex)
+
+    assertTrue(result.compatible.includes('filter.bloom'), 'Bloom stays compatible without preflight opt-in')
+    assertTrue(result.incompatible.includes('synth.noise'), 'Starters stay incompatible without preflight opt-in')
+})
+
+test('getCompatibleReplacements - preflight moves unavailable candidates to blocked', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    // The runtime registry is populated (filter.grain registered above), so
+    // ops without a registered definition are predicted unavailable.
+    const result = getCompatibleReplacements(compiled, steps[1].stepIndex, { preflight: true })
+
+    assertFalse(result.compatible.includes('filter.bloom'), 'Bloom should leave compatible under preflight')
+    assertTrue(result.compatible.includes('filter.grain'), 'Grain should stay compatible under preflight')
+    assertTrue(result.blocked, 'Preflight should return a blocked list')
+    const bloomBlock = result.blocked.find(b => b.effect === 'filter.bloom')
+    assertTrue(bloomBlock, 'Bloom should be blocked')
+    assertTrue(bloomBlock.issues.some(i => i.dimension === 'shader-availability'), 'Block reason should be shader availability')
+})
+
+test('replaceEffect - default behavior unchanged, prediction is attached', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    // Unknown argument, out-of-range value: previously accepted, must stay accepted
+    const result = replaceEffect(compiled, steps[1].stepIndex, 'grain', { amnt: 9 })
+
+    assertTrue(result.success, 'Previously accepted input must still succeed without opt-in')
+    assertTrue(result.prediction, 'Success should carry the prediction')
+    assertTrue(result.prediction.arguments.unknown.includes('amnt'), 'Prediction should report the unknown argument')
+    assertEqual(result.prediction.ranges.length, 0, 'Unknown arguments have no declared range to check')
+})
+
+test('replaceEffect - preflight refuses unknown argument', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    const result = replaceEffect(compiled, steps[1].stepIndex, 'grain', { amnt: 0.9 }, { preflight: true })
+
+    assertFalse(result.success, 'Preflight should refuse unknown arguments')
+    assertTrue(result.error.includes('preflight'), 'Error should mention preflight')
+    assertTrue(result.error.includes('amnt'), 'Error should name the unknown argument')
+    assertEqual(result.program, undefined, 'No program should be produced on preflight failure')
+})
+
+test('replaceEffect - preflight refuses out-of-range value', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    const result = replaceEffect(compiled, steps[1].stepIndex, 'grain', { amount: 5 }, { preflight: true })
+
+    assertFalse(result.success, 'Preflight should refuse out-of-range values')
+    assertTrue(result.error.includes('outside range'), 'Error should mention the range')
+})
+
+test('replaceEffect - preflight refuses choice violation', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    const result = replaceEffect(compiled, steps[1].stepIndex, 'grain', { mode: 7 }, { preflight: true })
+
+    assertFalse(result.success, 'Preflight should refuse invalid choice values')
+    assertTrue(result.error.includes('not one of'), 'Error should mention the choices')
+})
+
+test('replaceEffect - preflight refuses type mismatch', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    const result = replaceEffect(compiled, steps[1].stepIndex, 'grain', { amount: 'high' }, { preflight: true })
+
+    assertFalse(result.success, 'Preflight should refuse type mismatches')
+    assertTrue(result.error.includes('expects float'), 'Error should mention the expected type')
+})
+
+test('replaceEffect - preflight passes valid replacement through with prediction', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    const result = replaceEffect(compiled, steps[1].stepIndex, 'grain', { amount: 0.75 }, { preflight: true })
+
+    assertTrue(result.success, 'Valid preflight replacement should succeed')
+    assertEqual(result.program.plans[0].chain[1].op, 'filter.grain', 'Effect should be replaced')
+    assertEqual(result.program.plans[0].chain[1].args.amount, 0.75, 'Args should be applied')
+    assertEqual(result.prediction.available, true, 'Prediction should mark the effect available')
+    assertTrue(result.prediction.samplerTopology.internalTextures.includes('scratch'), 'Prediction should carry sampler topology')
 })
 
 console.log('\nAll transform tests completed!')

@@ -20,8 +20,15 @@ struct VertexOutput {
 
 @fragment
 fn main(input : VertexOutput) -> @location(0) vec4<f32> {
-    let base = textureSample(inputTex, inputSampler, input.texCoord);
-    let edges = textureSample(edgesTexture, edgesSampler, input.texCoord);
+    let dimensions = vec2<i32>(textureDimensions(inputTex, 0));
+    if (dimensions.x == 0 || dimensions.y == 0) {
+        return vec4<f32>(0.0);
+    }
+
+    let uv = input.position.xy / vec2<f32>(dimensions);
+
+    let base = textureSample(inputTex, inputSampler, uv);
+    let edges = textureSample(edgesTexture, edgesSampler, uv);
 
     // Edge strength from luminance
     let strength = clamp(edges.r, 0.0, 1.0);

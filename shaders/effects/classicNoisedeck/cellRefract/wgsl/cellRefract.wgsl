@@ -38,13 +38,15 @@ struct Uniforms {
     direction: f32,
     wrap: i32,
     seed: i32,
+    tileOffset: vec2f,
+    fullResolution: vec2f,
 }
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
 
 fn aspectRatio() -> f32 {
-    return u.resolution.x / u.resolution.y;
+    return u.fullResolution.x / u.fullResolution.y;
 }
 
 // PCG PRNG
@@ -73,7 +75,7 @@ fn hsv2rgb(hsv: vec3f) -> vec3f {
     let s = hsv.y;
     let v = hsv.z;
     let c = v * s;
-    let x = c * (1.0 - abs(fract(h * 6.0) * 2.0 - 1.0));
+    let x = c * (1.0 - abs((h * 6.0) - 2.0 * floor((h * 6.0) / 2.0) - 1.0));
     let m = v - c;
     var rgb: vec3f;
     if (h < 1.0/6.0) { rgb = vec3f(c, x, 0.0); }
@@ -257,7 +259,8 @@ fn pixellate(uv: vec2f, size: f32) -> vec3f {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    var st = fragCoord.xy / u.resolution;
+    let globalCoord = fragCoord.xy + u.tileOffset;
+    var st = globalCoord / u.fullResolution;
 
     let freq = mapRange(u.scale, 1.0, 100.0, 20.0, 1.0);
     let cellSize = mapRange(u.cellScale, 1.0, 100.0, 3.0, 0.75);
@@ -269,21 +272,23 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
 
     if (u.wrap == 0) {
         // mirror
-        st = abs(((st + 1.0) % 2.0 + 2.0) % 2.0 - 1.0);
+        st = abs((st + 1.0) - 2.0 * floor((st + 1.0) / 2.0) - 1.0);
     } else if (u.wrap == 1) {
         // repeat
         st = fract(st);
     }
 
-    var color = textureSample(inputTex, samp, st);
+    // Convert warped global UV to tile-local UV
+    let localUV = (st * u.fullResolution - u.tileOffset) / vec2f(textureDimensions(inputTex, 0));
+    var color = textureSample(inputTex, samp, localUV);
     let ew = f32(u.effectWidth);
     if (ew != 0.0 && KERNEL != 0) {
         if (KERNEL == 100) {
-            color = vec4f(pixellate(st, ew * 4.0), color.a);
+            color = vec4f(pixellate(localUV, ew * 4.0), color.a);
         } else if (KERNEL == 110) {
             color = vec4f(posterize(color.rgb, floor(mapRange(ew, 0.0, 10.0, 0.0, 20.0))), color.a);
         } else {
-            color = vec4f(convolutionKernel(color.rgb, st), color.a);
+            color = vec4f(convolutionKernel(color.rgb, localUV), color.a);
         }
     }
 

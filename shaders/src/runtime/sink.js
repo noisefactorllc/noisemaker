@@ -155,6 +155,44 @@ export class SinkManager {
         }
     }
 
+    /**
+     * Report whether any active sink asks the renderer to skip drawing the
+     * next frame, for example while its encoder works through a backlog.
+     * Sinks opt in with an optional deferRender() method. A throwing sink is
+     * counted as failed, reported, and does not defer rendering. A deferred
+     * frame is not drawn at all, so the on-screen canvas also holds its image.
+     * @returns {boolean}
+     */
+    shouldDeferRender() {
+        if (this._closed) return false
+
+        this._iterationDepth++
+        try {
+            for (let i = 0; i < this._registrations.length; i++) {
+                const registration = this._registrations[i]
+                if (!registration.active || typeof registration.sink.deferRender !== 'function') continue
+                try {
+                    if (registration.sink.deferRender() === true) return true
+                } catch (error) {
+                    registration.stats.failed++
+                    if (typeof this._onError === 'function') {
+                        try {
+                            this._onError(error, registration.sink)
+                        } catch {
+                            // Sink error reporters are isolated from rendering.
+                        }
+                    }
+                }
+            }
+            return false
+        } finally {
+            this._iterationDepth--
+            if (this._iterationDepth === 0) {
+                this._compactRegistrations()
+            }
+        }
+    }
+
     submit(textureId, timestamp) {
         if (this._closed) return
 

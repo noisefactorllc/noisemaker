@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ],
+  "epsilon": 0,
+  "requireColorVariation": true,
+  "effects": [
+    "synth/testPattern",
+    "synth/solid",
+    "mixer/alphaMask",
+    "filter/tint"
+  ],
+  "dsl": "search synth, mixer, filter\n\ntestPattern(pattern: colorBars).alphaMask(tex: solid(color: #808080), maskMode: true).tint(color: #804020, alpha: 0.5, mode: overlay).write(o0)\nrender(o0)"
+}

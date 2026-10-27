@@ -335,7 +335,8 @@ def multires(
         for octave in range(1, octaves + 1):
             multiplier = 2**octave
 
-            freq_list = freq if isinstance(freq, list) else [freq, freq]
+            # A mask shape used as freq also has a channel item; only height and width are frequencies.
+            freq_list = freq[:2] if isinstance(freq, list) else [freq, freq]
             base_freq = [int(f * 0.5 * multiplier) for f in freq_list]
 
             if all(base_freq[i] > shape[i] for i in range(len(base_freq))):

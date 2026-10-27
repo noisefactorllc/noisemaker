@@ -10,6 +10,8 @@ import { getEffect } from './registry.js'
 import { Effect } from './effect.js'
 import { CUBE_FACE_BASES } from '../renderer/cubeCamera.js'
 import { CanvasSink, SinkManager } from './sink.js'
+import { preflightEffect, mrtFormatBytes } from './preflight.js'
+import { DiagnosticCollector } from './backends/diagnostics.js'
 
 /**
  * Oscillator evaluation functions.
@@ -22,6 +24,7 @@ import { CanvasSink, SinkManager } from './sink.js'
  * 3: sawInv  - 1 → 0
  * 4: square  - 0 or 1
  * 5: noise   - periodic 2D noise
+ * 6: noise2d - two-stage periodic noise
  */
 const TAU = Math.PI * 2
 
@@ -49,6 +52,18 @@ function oscSawInv(t) {
 function oscSquare(t) {
     // Square wave: 0 or 1
     return (t - Math.floor(t)) >= 0.5 ? 1.0 : 0.0
+}
+
+// Lifecycle-hook detection: an effect carries a real hook when the
+// config constructor stored a config callback or a subclass (or a plain
+// registered object) defines a function for it. The base-class no-ops and
+// missing keys must never count — plain-object definitions registered via
+// registerEffect() may omit hooks entirely.
+function hasLifecycleHook(effectDef, hook) {
+    if (!effectDef) return false
+    const configKey = '_config' + hook.charAt(0).toUpperCase() + hook.slice(1)
+    if (typeof effectDef[configKey] === 'function') return true
+    return typeof effectDef[hook] === 'function' && effectDef[hook] !== Effect.prototype[hook]
 }
 
 // Simple hash for noise
@@ -90,6 +105,206 @@ function oscNoise(t, seed) {
     return (n1 + n2) / 2
 }
 
+// Two-stage periodic noise (noise2d, kind 6) - mirrors the osc2d effect:
+//   scaledTime = periodicValue(time, timeNoise) * speed
+//   value      = periodicValue(scaledTime, valueNoise)
+// `time` is the normalized loop time plus the phase offset; speed is applied
+// once, after the first periodic wrap, exactly as in the osc2d shader.
+// osc() has no spatial position, so both noise stages are sampled at a fixed
+// position derived from the seed (the osc2d shader salts the second stage with
+// +12345). periodicValue() has period 1 in time, so whole-number speeds loop
+// seamlessly.
+function oscNoise2d(time, speed, seed) {
+    const periodicValue = (x, v) => (Math.sin((x - v) * TAU) + 1) * 0.5
+    const px = (Math.abs(seed % 16) + 0.5) / 16
+    const py = (Math.abs(Math.floor(seed / 16) % 16) + 0.5) / 16
+    const timeNoise = noise2D(px, py, seed + 12345)
+    const valueNoise = noise2D(px, py, seed)
+    const scaledTime = periodicValue(time, timeNoise) * speed
+    return periodicValue(scaledTime, valueNoise)
+}
+
+const AUTOMATION_FIELD_RANGES = {
+    unit: { min: 0, max: 1 },
+    oscillatorSpeed: { min: -20, max: 20 },
+    oscillatorOffset: { min: -1, max: 1 },
+    oscillatorSeed: { min: 1, max: 9999 },
+    midiSensitivity: { min: 0, max: 10 }
+}
+const MAX_AUTOMATION_DEPTH = 8
+
+// 16-point Gauss-Legendre nodes and weights on [-1, 1]. Fixed quadrature keeps
+// noise and deeply nested rate modulation deterministic and seekable.
+const INTEGRATION_NODES = [
+    -0.9894009349916499, -0.9445750230732326, -0.8656312023878318, -0.755404408355003,
+    -0.6178762444026438, -0.4580167776572274, -0.2816035507792589, -0.0950125098376374,
+    0.0950125098376374, 0.2816035507792589, 0.4580167776572274, 0.6178762444026438,
+    0.755404408355003, 0.8656312023878318, 0.9445750230732326, 0.9894009349916499
+]
+const INTEGRATION_WEIGHTS = [
+    0.0271524594117541, 0.0622535239386479, 0.0951585116824928, 0.1246289712555339,
+    0.1495959888165767, 0.1691565193950025, 0.1826034150449236, 0.1894506104550685,
+    0.1894506104550685, 0.1826034150449236, 0.1691565193950025, 0.1495959888165767,
+    0.1246289712555339, 0.0951585116824928, 0.0622535239386479, 0.0271524594117541
+]
+const INTEGRATION_RULES = [
+    { nodes: INTEGRATION_NODES, weights: INTEGRATION_WEIGHTS },
+    {
+        nodes: [
+            -0.9602898564975363, -0.7966664774136267, -0.525532409916329,
+            -0.1834346424956498, 0.1834346424956498, 0.525532409916329,
+            0.7966664774136267, 0.9602898564975363
+        ],
+        weights: [
+            0.1012285362903763, 0.2223810344533745, 0.3137066458778873,
+            0.362683783378362, 0.362683783378362, 0.3137066458778873,
+            0.2223810344533745, 0.1012285362903763
+        ]
+    },
+    {
+        nodes: [-0.8611363115940526, -0.3399810435848563, 0.3399810435848563, 0.8611363115940526],
+        weights: [0.3478548451374538, 0.6521451548625461, 0.6521451548625461, 0.3478548451374538]
+    },
+    {
+        nodes: [-0.5773502691896257, 0.5773502691896257],
+        weights: [1, 1]
+    }
+]
+
+function isAutomationValue(value) {
+    return value && typeof value === 'object' &&
+        (value.type === 'Oscillator' || value.type === 'Midi' || value.type === 'Audio' ||
+         value._ast?.type === 'Oscillator' || value._ast?.type === 'Midi' || value._ast?.type === 'Audio')
+}
+
+function scaleAutomationValue(value, range) {
+    if (!range || !Number.isFinite(range.min) || !Number.isFinite(range.max)) return value
+    return range.min + value * (range.max - range.min)
+}
+
+function resolveAutomationField(value, normalizedTime, range, externalState, depth, stack, fallback, context) {
+    if (isAutomationValue(value)) {
+        return evaluateAutomation(value, normalizedTime, range, externalState, depth + 1, stack, context)
+    }
+    return Number.isFinite(value) ? value : fallback
+}
+
+function hasDynamicAutomationFields(config) {
+    const fields = config.type === 'Midi' || config._ast?.type === 'Midi'
+        ? ['min', 'max', 'sensitivity']
+        : ['min', 'max']
+    return fields.some(field => isAutomationValue(config[field]))
+}
+
+function oscPrimitive(type, x) {
+    const whole = Math.floor(x)
+    const fraction = x - whole
+    switch (type) {
+        case 0:
+            return x * 0.5 - Math.sin(x * TAU) / (2 * TAU)
+        case 1: {
+            const partial = fraction < 0.5
+                ? fraction * fraction
+                : 2 * fraction - fraction * fraction - 0.5
+            return whole * 0.5 + partial
+        }
+        case 2:
+            return whole * 0.5 + fraction * fraction * 0.5
+        case 3:
+            return x - (whole * 0.5 + fraction * fraction * 0.5)
+        case 4:
+            return whole * 0.5 + Math.max(0, fraction - 0.5)
+        default:
+            return null
+    }
+}
+
+function canIntegrateOscillatorExactly(config) {
+    return config.oscType >= 0 && config.oscType <= 4 &&
+        [config.min, config.max, config.speed, config.offset, config.seed].every(Number.isFinite)
+}
+
+function integrateSimpleOscillator(config, normalizedTime) {
+    const { oscType, min, max, speed, offset } = config
+    if (speed === 0) {
+        return evaluateOscillator(config, 0, null, 0, new Set()) * normalizedTime
+    }
+    const start = oscPrimitive(oscType, offset)
+    const end = oscPrimitive(oscType, offset + speed * normalizedTime)
+    const rawIntegral = (end - start) / speed
+    return min * normalizedTime + (max - min) * rawIntegral
+}
+
+function integrateAutomation(config, normalizedTime, range, externalState, depth, stack, context) {
+    let integral
+    if ((config.type === 'Oscillator' || config._ast?.type === 'Oscillator') &&
+        canIntegrateOscillatorExactly(config)) {
+        integral = integrateSimpleOscillator(config, normalizedTime)
+    } else if ((config.type === 'Midi' || config.type === 'Audio' ||
+        config._ast?.type === 'Midi' || config._ast?.type === 'Audio') &&
+        !hasDynamicAutomationFields(config)) {
+        // External inputs expose the current snapshot rather than a history.
+        // Treat that snapshot as constant across the requested interval.
+        integral = evaluateAutomation(
+            config, normalizedTime, null, externalState, depth + 1, stack, context) * normalizedTime
+    } else {
+        // Decrease the quadrature order as rate modulators nest. This bounds an
+        // eight-level graph to thousands, rather than millions, of evaluations
+        // while retaining the highest precision at the user-visible output.
+        const rule = INTEGRATION_RULES[Math.min(depth, INTEGRATION_RULES.length - 1)]
+        const midpoint = normalizedTime * 0.5
+        const halfWidth = normalizedTime * 0.5
+        let sum = 0
+        for (let i = 0; i < rule.nodes.length; i++) {
+            const sampleTime = midpoint + halfWidth * rule.nodes[i]
+            sum += rule.weights[i] * evaluateAutomation(
+                config, sampleTime, null, externalState, depth + 1, stack, context)
+        }
+        integral = halfWidth * sum
+    }
+
+    if (!range || !Number.isFinite(range.min) || !Number.isFinite(range.max)) return integral
+    return range.min * normalizedTime + integral * (range.max - range.min)
+}
+
+function evaluateAutomation(config, normalizedTime, range, externalState, depth = 0, stack = new Set(),
+    context = { wallTime: Date.now() }) {
+    if (!isAutomationValue(config) || depth > MAX_AUTOMATION_DEPTH || stack.has(config)) {
+        return scaleAutomationValue(0, range)
+    }
+
+    stack.add(config)
+    let value
+    try {
+        if (config.type === 'Oscillator' || config._ast?.type === 'Oscillator') {
+            value = evaluateOscillator(config, normalizedTime, externalState, depth, stack, context)
+        } else if (config.type === 'Midi' || config._ast?.type === 'Midi') {
+            const midiState = externalState?.midi?.getPortState
+                ? externalState.midi.getPortState(config)
+                : externalState?.midi
+            const min = resolveAutomationField(
+                config.min, normalizedTime, AUTOMATION_FIELD_RANGES.unit, externalState, depth, stack, 0, context)
+            const max = resolveAutomationField(
+                config.max, normalizedTime, AUTOMATION_FIELD_RANGES.unit, externalState, depth, stack, 1, context)
+            const sensitivity = resolveAutomationField(
+                config.sensitivity, normalizedTime, AUTOMATION_FIELD_RANGES.midiSensitivity,
+                externalState, depth, stack, 1, context)
+            value = evaluateMidi(config, midiState, context.wallTime, min, max, sensitivity)
+        } else if (config._invalid) {
+            value = Number.isFinite(config.min) ? config.min : 0
+        } else {
+            const min = resolveAutomationField(
+                config.min, normalizedTime, AUTOMATION_FIELD_RANGES.unit, externalState, depth, stack, 0, context)
+            const max = resolveAutomationField(
+                config.max, normalizedTime, AUTOMATION_FIELD_RANGES.unit, externalState, depth, stack, 1, context)
+            value = evaluateAudio(config, externalState?.audio, min, max)
+        }
+    } finally {
+        stack.delete(config)
+    }
+    return scaleAutomationValue(value, range)
+}
+
 /**
  * Evaluate an oscillator value based on current time and animation duration.
  *
@@ -103,11 +318,25 @@ function oscNoise(t, seed) {
  * @param {number} normalizedTime - Time normalized to animation duration (0..1)
  * @returns {number} The evaluated oscillator value
  */
-export function evaluateOscillator(osc, normalizedTime) {
-    const { oscType, min, max, speed, offset, seed } = osc
+export function evaluateOscillator(osc, normalizedTime, externalState, depth = 0, stack = new Set(), context) {
+    const { oscType } = osc
+    const min = resolveAutomationField(
+        osc.min, normalizedTime, AUTOMATION_FIELD_RANGES.unit, externalState, depth, stack, 0, context)
+    const max = resolveAutomationField(
+        osc.max, normalizedTime, AUTOMATION_FIELD_RANGES.unit, externalState, depth, stack, 1, context)
+    const offset = resolveAutomationField(
+        osc.offset, normalizedTime, AUTOMATION_FIELD_RANGES.oscillatorOffset, externalState, depth, stack, 0, context)
+    const seed = resolveAutomationField(
+        osc.seed, normalizedTime, AUTOMATION_FIELD_RANGES.oscillatorSeed, externalState, depth, stack, 1, context)
 
-    // Apply speed and offset
-    const t = normalizedTime * speed + offset
+    // A modulated rate is frequency modulation, so phase is the integral of
+    // rate. Literal rates keep the existing closed form exactly.
+    const phase = isAutomationValue(osc.speed)
+        ? integrateAutomation(
+            osc.speed, normalizedTime, AUTOMATION_FIELD_RANGES.oscillatorSpeed,
+            externalState, depth, stack, context)
+        : normalizedTime * (Number.isFinite(osc.speed) ? osc.speed : 1)
+    const t = phase + offset
 
     // Get raw oscillator value (0..1)
     let value
@@ -118,6 +347,13 @@ export function evaluateOscillator(osc, normalizedTime) {
         case 3: value = oscSawInv(t); break
         case 4: value = oscSquare(t); break
         case 5: value = oscNoise(t, seed); break
+        case 6: {
+            const speed = resolveAutomationField(
+                osc.speed, normalizedTime, AUTOMATION_FIELD_RANGES.oscillatorSpeed,
+                externalState, depth, stack, 1, context)
+            value = oscNoise2d(normalizedTime + offset, Number.isFinite(speed) ? speed : 1, seed)
+            break
+        }
         default: value = 0
     }
 
@@ -145,45 +381,75 @@ export function evaluateOscillator(osc, normalizedTime) {
  * @param {number} currentTime - Current time (Date.now())
  * @returns {number} The evaluated value in min..max range
  */
-export function evaluateMidi(config, midiState, currentTime) {
-    if (!midiState) return config.min
+export function evaluateMidi(config, midiState, currentTime, min = config.min, max = config.max,
+    sensitivity = config.sensitivity) {
+    if (config._invalid || !midiState) return min
 
-    const channel = midiState.getChannel(config.channel)
-    const { mode, min, max, sensitivity } = config
+    const { mode } = config
+    const hasZone = config.zone !== undefined
+    if (hasZone && (config.channel !== undefined || (config.zone !== 0 && config.zone !== 1))) return min
+    if (config.members !== undefined && (!hasZone || !Number.isInteger(config.members) ||
+        config.members < 1 || config.members > 15)) return min
+    if (!hasZone && mode >= 5 &&
+        (!Number.isInteger(config.channel) || config.channel < 1 || config.channel > 16)) return min
+    const voice = hasZone ? midiState.getZoneVoice?.(config) : null
+    if (hasZone && !voice) return min
+    const channel = hasZone ? voice.channel : midiState.getChannel(config.channel)
+    const note = voice ? { ...voice, gate: 1 } : channel
 
     let rawValue = 0
 
     switch (mode) {
         case 0: // noteChange - value from note regardless of gate
-            rawValue = channel.key
+            rawValue = note.key
             break
 
         case 1: // gateNote - value from note only while gate on
-            if (channel.gate === 1) {
-                rawValue = channel.key
+            if (note.gate === 1) {
+                rawValue = note.key
             }
             break
 
         case 2: // gateVelocity - value from velocity only while gate on
-            if (channel.gate === 1) {
-                rawValue = channel.velocity
+            if (note.gate === 1) {
+                rawValue = note.velocity
             }
             break
 
         case 3: // triggerNote - note value with falloff
-            if (channel.gate === 1) {
-                rawValue = channel.key
-                const elapsed = currentTime - channel.time
+            if (note.gate === 1) {
+                rawValue = note.key
+                const elapsed = currentTime - note.time
                 const decay = Math.min(1, elapsed * sensitivity * 0.001)
                 rawValue = rawValue * (1 - decay)
             }
             break
 
+        case 5: // 7-bit control change
+        case 6: { // paired 14-bit control change
+            const cc = config.cc ?? 1
+            if (!Number.isInteger(cc) || cc < 0 || cc > (mode === 6 ? 31 : 127)) return min
+            const normalized = mode === 6
+                ? (channel.cc14?.[cc] ?? 0) / 16383
+                : (channel.cc?.[cc] ?? 0) / 127
+            return min + normalized * (max - min)
+        }
+
+        case 7:
+            if (!Number.isInteger(config.nrpn) || config.nrpn < 0 || config.nrpn > 16382) return min
+            return min + (channel.nrpn?.get(config.nrpn) ?? 0) / 16383 * (max - min)
+        case 8:
+            return min + (channel.pitchBend ?? 8192) / 16383 * (max - min)
+        case 9:
+            return min + (channel.pressure ?? 0) / 127 * (max - min)
+        case 10:
+            return min + (channel.polyPressure?.[note.key] ?? 0) / 127 * (max - min)
+
         case 4: // velocity (default) - velocity with falloff
         default:
-            if (channel.gate === 1) {
-                rawValue = channel.velocity
-                const elapsed = currentTime - channel.time
+            if (note.gate === 1) {
+                rawValue = note.velocity
+                const elapsed = currentTime - note.time
                 const decay = Math.min(1, elapsed * sensitivity * 0.001)
                 rawValue = rawValue * (1 - decay)
             }
@@ -195,6 +461,24 @@ export function evaluateMidi(config, midiState, currentTime) {
     return min + normalized * (max - min)
 }
 
+function hasAudioSelectorIntent(config) {
+    const source = config._ast?.type === 'Audio' ? config._ast : config
+    return config.name !== undefined || config.id !== undefined ||
+        config.channel !== undefined ||
+        source.name !== undefined || source.id !== undefined ||
+        source.channel !== undefined
+}
+
+function isValidAudioSelector(config) {
+    const source = config._ast?.type === 'Audio' ? config._ast : config
+    if ((source.name !== undefined && config.name === undefined) ||
+        (source.id !== undefined && config.id === undefined) ||
+        (source.channel !== undefined && config.channel === undefined)) return false
+    if (config.name !== undefined && (typeof config.name !== 'string' || !config.name)) return false
+    if (config.id !== undefined && (typeof config.id !== 'string' || !config.id || !config.name)) return false
+    return Number.isInteger(config.channel) && config.channel >= 1 && config.channel <= 32
+}
+
 /**
  * Evaluate an audio automation value based on frequency band.
  *
@@ -203,34 +487,48 @@ export function evaluateMidi(config, midiState, currentTime) {
  * 1: mid - Mid frequency band
  * 2: high - High frequency band
  * 3: vol - Overall volume
+ * 4: raw - Bipolar time-domain/DC signal
  *
  * @param {object} config - Audio configuration
- * @param {number} config.band - Audio band (0-3)
+ * @param {number} config.band - Audio band or raw signal mode (0-4)
  * @param {number} config.min - Minimum output value
  * @param {number} config.max - Maximum output value
  * @param {import('./external-input.js').AudioState} audioState - Current audio state
  * @returns {number} The evaluated value in min..max range
  */
-export function evaluateAudio(config, audioState) {
-    if (!audioState) return config.min
+export function evaluateAudio(config, audioState, min = config.min, max = config.max) {
+    if (config._invalid) return min
+    if (!audioState) return min
 
-    const { band, min, max } = config
+    const { band } = config
+    const hasSelector = hasAudioSelectorIntent(config)
+    if (hasSelector && !isValidAudioSelector(config)) return min
+    const selectedState = hasSelector
+        ? audioState.getDeviceChannelState?.(config)
+        : audioState
+    if (!selectedState) return min
 
     let rawValue = 0
 
     switch (band) {
         case 0: // low
-            rawValue = audioState.low
+            rawValue = selectedState.low
             break
         case 1: // mid
-            rawValue = audioState.mid
+            rawValue = selectedState.mid
             break
         case 2: // high
-            rawValue = audioState.high
+            rawValue = selectedState.high
+            break
+        case 4: // raw bipolar signal
+            if (selectedState.rawReady !== true) return min
+            rawValue = (Math.max(-1, Math.min(1, selectedState.raw || 0)) + 1) * 0.5
             break
         case 3: // vol
+            rawValue = selectedState.vol
+            break
         default:
-            rawValue = audioState.vol
+            rawValue = 0
             break
     }
 
@@ -240,9 +538,16 @@ export function evaluateAudio(config, audioState) {
 }
 
 export class Pipeline {
-    constructor(graph, backend) {
+    constructor(graph, backend, options = {}) {
         this.graph = graph
         this.backend = backend
+        // Opt-in consumption of the analyzer's physical allocation plan
+        // (graph.allocations): pooled virtual textures share one backend
+        // texture. Default off preserves the historical one-texture-per-virtual
+        // behavior for every existing program.
+        this.texturePooling = options.texturePooling === true
+        // virtualId -> storageId for pooled textures (rebuilt per recreateTextures)
+        this._textureAliases = new Map()
         this.sinkManager = new SinkManager()
         this._sinkDescriptor = {
             width: 0,
@@ -256,9 +561,14 @@ export class Pipeline {
             this.sinkManager.add(new CanvasSink(backend))
         }
         this._disposed = false
+        // Queryable structured diagnostics for the historically-silent
+        // unknown-dimension-form fallback.
+        this.diagnostics = new DiagnosticCollector()
+        this._warnedDimensionFallbacks = new Set()
         this.frameIndex = 0
         this.lastTime = 0
         this.surfaces = new Map()        // Global surfaces (o0-o7)
+        this._mipTargets = []            // Texture ids whose mip chains regenerate each frame
         this.globalUniforms = {}
         this.width = 0
         this.height = 0
@@ -300,6 +610,21 @@ export class Pipeline {
 
         // Track effect instances for asyncInit lifecycle
         this._asyncRenders = new Map()  // nodeId → cancel function
+        this._asyncInitPromises = new Map()  // nodeId → in-flight asyncInit promise
+
+        // Production lifecycle hooks: effects in the current graph
+        // that carry onInit/onUpdate/onDestroy, keyed by effectKey. Rebuilt
+        // whenever the graph is (re)compiled; onInit fires once per pipeline.
+        this._lifecycleEffects = new Map()
+        this._initLifecycleDone = new Set()
+        // Per-frame uniforms returned by onUpdate hooks, bound only for keys
+        // the pass does not already resolve (shipped effects such as
+        // synth/media define onUpdate hooks; their returned defaults must
+        // never clobber DSL/step-provided pass values).
+        this._runtimeUniforms = new Map()
+        this._hasRuntimeUniforms = false
+        // Pre-allocated onUpdate context (avoids per-frame allocation)
+        this._updateContext = { time: 0, delta: 0, uniforms: null }
     }
 
     /**
@@ -309,6 +634,14 @@ export class Pipeline {
      */
     addSink(sink) {
         return this.sinkManager.add(sink)
+    }
+
+    /**
+     * Report whether a registered sink asks to skip drawing the next frame.
+     * @returns {boolean}
+     */
+    shouldDeferRender() {
+        return this.sinkManager.shouldDeferRender()
     }
 
     /**
@@ -431,12 +764,84 @@ export class Pipeline {
 
         // Create/recreate global surfaces
         this.createSurfaces()
+        this.refreshMipTargets()
 
         // Recreate textures with screen-relative dimensions
         // Collect default uniforms from passes for parameter-based texture sizing
         const defaultUniforms = this.collectDefaultUniforms()
         this.recreateTextures(defaultUniforms)
         this.initAsyncEffects()
+        this.initLifecycleEffects()
+    }
+
+    /**
+     * Production lifecycle hooks.
+     * Called after texture allocation, on resize, and on hot recompile (the
+     * same sites as initAsyncEffects()). Rebuilds the managed-effect map from
+     * the current graph and calls onInit() once per effect instance per
+     * pipeline lifetime — effects are registry singletons shared by nodes,
+     * and recompiles must not re-run onInit.
+     */
+    initLifecycleEffects() {
+        if (!this.graph || !this.graph.passes) return
+
+        this._lifecycleEffects.clear()
+        const seen = new Set()
+        for (const pass of this.graph.passes) {
+            if (!pass.effectKey || seen.has(pass.effectKey)) continue
+            seen.add(pass.effectKey)
+
+            const effectDef = getEffect(pass.effectKey)
+            if (!effectDef) continue
+            if (!hasLifecycleHook(effectDef, 'onInit')
+                && !hasLifecycleHook(effectDef, 'onUpdate')
+                && !hasLifecycleHook(effectDef, 'onDestroy')) continue
+
+            this._lifecycleEffects.set(pass.effectKey, effectDef)
+
+            if (hasLifecycleHook(effectDef, 'onInit') && !this._initLifecycleDone.has(pass.effectKey)) {
+                this._initLifecycleDone.add(pass.effectKey)
+                effectDef.onInit()
+            }
+        }
+    }
+
+    /**
+     * Invoke the onUpdate hook of every managed effect once per frame and
+     * collect the uniforms each hook returns. Context mirrors the test
+     * harness: { time, delta, uniforms } with the pipeline's global uniforms.
+     */
+    _invokeUpdateHooks(time, deltaTime) {
+        this._hasRuntimeUniforms = false
+        if (this._runtimeUniforms.size > 0) this._runtimeUniforms.clear()
+
+        for (const [effectKey, effectDef] of this._lifecycleEffects) {
+            if (!hasLifecycleHook(effectDef, 'onUpdate')) continue
+            this._updateContext.time = time
+            this._updateContext.delta = deltaTime
+            this._updateContext.uniforms = this.globalUniforms
+            const runtimeUniforms = effectDef.onUpdate(this._updateContext)
+            if (runtimeUniforms && typeof runtimeUniforms === 'object') {
+                this._runtimeUniforms.set(effectKey, runtimeUniforms)
+                this._hasRuntimeUniforms = true
+            }
+        }
+    }
+
+    /**
+     * Overlay onUpdate-returned uniforms onto a pass's resolved uniforms.
+     * Fallback semantics: a hook's uniform binds only when the pass does not
+     * already resolve that key, so DSL/step-provided values — including
+     * shipped effects' authored defaults (synth/media's imageSize) — keep
+     * priority and existing behavior is preserved. Rare path: only taken
+     * when an effect's onUpdate hook returned uniforms.
+     */
+    _withRuntimeUniforms(pass, runtimeUniforms) {
+        const merged = Object.assign({}, pass.uniforms)
+        for (const key in runtimeUniforms) {
+            if (merged[key] === undefined) merged[key] = runtimeUniforms[key]
+        }
+        return Object.assign({}, pass, { uniforms: merged })
     }
 
     /**
@@ -513,6 +918,33 @@ export class Pipeline {
         }
     }
 
+    /**
+     * Run checkAsyncRegen for every asyncInit node whose effect reads this
+     * uniform, with the node's current param values.
+     * @param {string} uniformName - The uniform setUniform just changed
+     * @private
+     */
+    _regenAsyncForUniform(uniformName) {
+        const seen = new Set()
+        for (const pass of this.graph.passes) {
+            if (!pass.nodeId || !pass.effectKey || seen.has(pass.nodeId)) continue
+            const effectDef = getEffect(pass.effectKey)
+            if (!effectDef?.globals) continue
+            if (!effectDef._configAsyncInit && effectDef.asyncInit === Effect.prototype.asyncInit) continue
+            const params = {}
+            let reads = false
+            for (const [paramName, spec] of Object.entries(effectDef.globals)) {
+                const uniform = spec.uniform || paramName
+                if (uniform === uniformName) reads = true
+                const value = pass.uniforms?.[uniform] ?? this.globalUniforms[uniform]
+                if (value !== undefined) params[paramName] = value
+            }
+            if (!reads) continue
+            seen.add(pass.nodeId)
+            this.checkAsyncRegen(pass.nodeId, pass.effectKey, params)
+        }
+    }
+
     _startAsyncInit(nodeId, effectDef, { debounce = false, params = null } = {}) {
         if (debounce) {
             // Debounce: wait for slider to settle before regenerating
@@ -533,6 +965,25 @@ export class Pipeline {
         let cancelled = false
         this._asyncRenders.set(nodeId, () => { cancelled = true })
 
+        // An automated param (oscillator, MIDI, audio) is a config object, not
+        // a number; an overlay drawn once cannot follow it, so it is drawn at
+        // the param's default rather than from NaN.
+        const drawParams = params ? { ...params } : { ...this.globalUniforms }
+        for (const [paramName, spec] of Object.entries(effectDef.globals || {})) {
+            if (isAutomationValue(drawParams[paramName])) drawParams[paramName] = spec.default
+        }
+
+        // Remember the scalar values this overlay is drawn from: a later
+        // checkAsyncRegen with the same values leaves it alone, and one with
+        // other values (a step value, a stale host value) redraws it.
+        if (!this._asyncParamCache) this._asyncParamCache = new Map()
+        const drawn = {}
+        for (const [paramName, spec] of Object.entries(effectDef.globals || {})) {
+            const value = drawParams[paramName] ?? drawParams[spec.uniform]
+            if (value !== undefined && value !== null && typeof value !== 'object') drawn[paramName] = value
+        }
+        this._asyncParamCache.set(nodeId, drawn)
+
         const context = {
             updateTexture: (texName, canvas) => {
                 if (cancelled) return
@@ -542,13 +993,36 @@ export class Pipeline {
             },
             width: this.width,
             height: this.height,
-            params: params ? { ...params } : { ...this.globalUniforms },
+            params: drawParams,
             isCancelled: () => cancelled
         }
 
-        effectDef.asyncInit(context).catch(err => {
-            console.error(`[Pipeline] asyncInit error for ${nodeId}:`, err)
-        })
+        const run = Promise.resolve(effectDef.asyncInit(context))
+            .catch(err => {
+                console.error(`[Pipeline] asyncInit error for ${nodeId}:`, err)
+            })
+            .finally(() => {
+                if (this._asyncInitPromises.get(nodeId) === run) this._asyncInitPromises.delete(nodeId)
+            })
+        this._asyncInitPromises.set(nodeId, run)
+    }
+
+    /**
+     * Resolve once every asyncInit started so far has settled, including a
+     * debounced regeneration that is already scheduled. Async CPU effects
+     * (fibers, scratches, strayHair, ...) draw their overlay over several
+     * frames; a host or test that captures a frame awaits this instead of
+     * counting frames. Errors are logged by the pipeline and do not reject.
+     * @returns {Promise<void>}
+     */
+    async whenAsyncInitsSettled() {
+        while (this._asyncInitPromises.size > 0 || (this._asyncDebounceTimers?.size ?? 0) > 0) {
+            if (this._asyncInitPromises.size > 0) {
+                await Promise.all([...this._asyncInitPromises.values()])
+            } else {
+                await new Promise(resolve => setTimeout(resolve, 50))
+            }
+        }
     }
 
     /**
@@ -569,6 +1043,77 @@ export class Pipeline {
             }
         }
         return uniforms
+    }
+
+    /**
+     * Describe the browser audio captures required by the compiled graph.
+     * Hosts use this runtime view so inline and multiline DSL forms behave the
+     * same as let-bound automation sources.
+     *
+     * @returns {{needsLegacy: boolean, needsLegacyRaw: boolean, selected: Array<{id: string|null, name: string, channel: number, needsRaw: boolean}>}}
+     */
+    getAudioInputRequirements() {
+        let needsLegacy = false
+        let needsLegacyRaw = false
+        const selected = []
+        const selectedKeys = new Set()
+        const visited = new Set()
+
+        const visit = (value) => {
+            if (!value || typeof value !== 'object' || visited.has(value)) return
+            visited.add(value)
+
+            if (value.type === 'Audio' || value._ast?.type === 'Audio') {
+                const hasSelectorIntent = hasAudioSelectorIntent(value)
+                const hasValidBand = value._invalid !== true &&
+                    Number.isInteger(value.band) && value.band >= 0 && value.band <= 4
+                if (!hasValidBand) return
+
+                // Valid Audio descriptors can delegate their numeric bounds to
+                // other sources, which may introduce additional capture needs.
+                visit(value.min)
+                visit(value.max)
+
+                if (hasSelectorIntent && isValidAudioSelector(value)) {
+                    const requirement = {
+                        id: typeof value.id === 'string' && value.id.length > 0 ? value.id : null,
+                        name: value.name ?? null,
+                        channel: value.channel ?? 1,
+                        needsRaw: value.band === 4
+                    }
+                    const key = JSON.stringify([requirement.id, requirement.name, requirement.channel])
+                    if (selectedKeys.has(key)) {
+                        const existing = selected.find(candidate => (
+                            candidate.id === requirement.id &&
+                            candidate.name === requirement.name &&
+                            candidate.channel === requirement.channel
+                        ))
+                        if (existing && requirement.needsRaw) existing.needsRaw = true
+                    } else {
+                        selectedKeys.add(key)
+                        selected.push(requirement)
+                    }
+                } else if (!hasSelectorIntent) {
+                    needsLegacy = true
+                    if (value.band === 4) needsLegacyRaw = true
+                }
+                return
+            }
+
+            if (Array.isArray(value)) {
+                for (const item of value) visit(item)
+                return
+            }
+            if (ArrayBuffer.isView(value)) return
+            for (const item of Object.values(value)) visit(item)
+        }
+
+        for (const pass of this.graph?.passes || []) {
+            const effectDef = pass.effectKey ? getEffect(pass.effectKey) : null
+            if (effectDef?.tags?.includes('audio')) needsLegacy = true
+            visit(pass.uniforms)
+        }
+        return { needsLegacy, needsLegacyRaw, selected }
     }
 
     /**
@@ -713,23 +1258,40 @@ export class Pipeline {
     /**
      * Byte cost per sample of a color attachment format, for the MRT
      * attachment budget. Unlisted formats (including defaulted rgba16f
-     * surfaces) cost 8.
+     * surfaces) cost 8. Delegates to the shared preflight implementation so
+     * Pipeline.applyMrtFormatBudget() and preflightEffect() stay in lockstep.
      * @param {string|undefined} format - Texture format name
      * @returns {number} Bytes per sample
      */
     mrtFormatBytes(format) {
-        switch (format) {
-            case 'rgba32f':
-            case 'rgba32float':
-                return 16
-            case 'rgba8':
-            case 'rgba8unorm':
-            case 'r32f':
-            case 'r32float':
-                return 4
-            default:
-                return 8
+        return mrtFormatBytes(format)
+    }
+
+    /**
+     * Static preflight of this pipeline's effect graph against device
+     * capabilities. Runs the same analysis as
+     * preflightEffect() — per-backend authorability, predicted MRT
+     * format demotions, and predicted maxTextureSize clamps — before any
+     * program is compiled. Read-only; never mutates the graph.
+     * @param {object} [capabilities] - Defaults to the active backend's
+     *   capabilities (Pipeline.getCapabilities()).
+     * @returns {{ backends: {webgl2: {authorable: boolean, reasons: string[]}, webgpu: {authorable: boolean, reasons: string[]}}, formatChanges: Array, clamps: Array }}
+     */
+    preflight(capabilities) {
+        const caps = capabilities || this.getCapabilities()
+        const shaders = {}
+        for (const pass of this.graph?.passes || []) {
+            if (!pass.program) continue
+            const spec = this.resolveProgramSpec(pass)
+            if (spec) shaders[pass.program] = spec
         }
+        const definition = {
+            passes: this.graph?.passes || [],
+            textures: this.graph?.textures,
+            shaders
+        }
+        // Without program specs, source availability is unknown — don't judge it.
+        return preflightEffect(definition, caps, Object.keys(shaders).length ? shaders : undefined)
     }
 
     /**
@@ -765,6 +1327,59 @@ export class Pipeline {
         }
     }
 
+    /**
+     * Destroy and recreate a 2D texture. When the previous texture record was
+     * marked `persistent` (opt-in via the texture spec), its contents are
+     * resampled into the replacement through backend.copyTexture(), so the
+     * texture survives resize and parameter-driven recreation at its new size.
+     * @param {string} texId - Texture id to recreate
+     * @param {object} spec - New texture spec { width, height, format, usage, ... }
+     */
+    recreateTexturePreserving(texId, spec) {
+        const existingTex = this.backend.textures?.get?.(texId)
+        let preserveId = null
+        if (existingTex && !existingTex.is3D && existingTex.persistent) {
+            preserveId = `${texId}__preserve_tmp`
+            this.backend.createTexture(preserveId, {
+                width: existingTex.width,
+                height: existingTex.height,
+                format: existingTex.format,
+                // A mipmapped source is copied through the WebGPU resample
+                // path even when this temporary has the same dimensions.
+                usage: ['render', 'sample', 'copySrc', 'copyDst']
+            })
+            this.backend.copyTexture(texId, preserveId)
+        }
+        this.backend.destroyTexture(texId)
+        this.backend.createTexture(texId, spec)
+        if (preserveId) {
+            this.backend.copyTexture(preserveId, texId)
+            this.backend.destroyTexture(preserveId)
+        }
+    }
+
+    /**
+     * Recompute the list of texture ids whose mip chains must be regenerated
+     * after each frame. Global surfaces map their single graph spec to both
+     * halves of the double-buffered surface.
+     */
+    refreshMipTargets() {
+        this._mipTargets.length = 0
+        if (!this.graph || !this.graph.textures) return
+        for (const [texId, spec] of this.graph.textures) {
+            if (!spec.mipmaps) continue
+            if (texId.startsWith('global_')) {
+                const surfaceName = this.parseGlobalName(texId)
+                if (surfaceName && this.surfaces.has(surfaceName)) {
+                    const surface = this.surfaces.get(surfaceName)
+                    this._mipTargets.push(surface.read, surface.write)
+                }
+            } else {
+                this._mipTargets.push(texId)
+            }
+        }
+    }
+
     createSurfaces() {
         // Volume atlas sizing reads volumeSize out of pass uniforms — clamp
         // them to the device limit before any dimension is resolved.
@@ -774,13 +1389,11 @@ export class Pipeline {
         // before any texture spec is read for allocation.
         this.applyMrtFormatBudget()
 
-        const surfaceNames = new Set(['o0', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7'])
-
-        // Global geometry buffers (geo0-geo7) - 2D textures with normals + depth
-        const geoBufferNames = new Set(['geo0', 'geo1', 'geo2', 'geo3', 'geo4', 'geo5', 'geo6', 'geo7'])
-
-        // Global 3D volume buffers (vol0-vol7)
-        const volumeNames = new Set(['vol0', 'vol1', 'vol2', 'vol3', 'vol4', 'vol5', 'vol6', 'vol7'])
+        const surfaceNames = new Set(['o0', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7',
+            'geo0', 'geo1', 'geo2', 'geo3', 'geo4', 'geo5', 'geo6', 'geo7',
+            'vol0', 'vol1', 'vol2', 'vol3', 'vol4', 'vol5', 'vol6', 'vol7'])
+        const readBeforeWriteSurfaces = new Set()
+        const writtenSurfaces = new Set()
 
         // Global mesh surfaces (mesh0-mesh7) - each mesh has 3 linked textures
         const meshNames = new Set(['mesh0', 'mesh1', 'mesh2', 'mesh3', 'mesh4', 'mesh5', 'mesh6', 'mesh7'])
@@ -799,19 +1412,29 @@ export class Pipeline {
                         const globalName = this.parseGlobalName(texId)
                         if (globalName && !meshTexturePattern.test(globalName)) {
                             surfaceNames.add(globalName)
+                            if (!writtenSurfaces.has(globalName)) {
+                                readBeforeWriteSurfaces.add(globalName)
+                            }
                         }
                     }
                 }
-                if (pass.outputs) {
-                    for (const texId of Object.values(pass.outputs)) {
+                if (pass.outputs || pass.storageTextures) {
+                    // WebGL2's compute fallback uses storageTextures only when
+                    // the pass has no explicit outputs.
+                    for (const texId of Object.values(pass.outputs || pass.storageTextures)) {
                         const globalName = this.parseGlobalName(texId)
                         if (globalName && !meshTexturePattern.test(globalName)) {
                             surfaceNames.add(globalName)
+                            writtenSurfaces.add(globalName)
                         }
                     }
                 }
             }
         }
+        // A surface first written and then read is frame-local scratch (such
+        // as Lenia's clear/deposit density target), not cross-frame feedback.
+        this._feedbackSurfaces = new Set(
+            [...readBeforeWriteSurfaces].filter(name => writtenSurfaces.has(name)))
 
         // Check if any pass references midiNoteGrid texture
         this._needsMidiNoteGrid = false
@@ -832,8 +1455,11 @@ export class Pipeline {
         // defaultUniforms. There is no pipeline-wide zoom; sizing is owned
         // by each effect via its own textures spec.
         for (const name of surfaceNames) {
-            let surfaceWidth = this.width
-            let surfaceHeight = this.height
+            // Unwritten volume surfaces retain the native default atlas size.
+            // write3d supplies explicit producer specs for both volume and geometry.
+            const isVolume = /^vol[0-7]$/.test(name)
+            let surfaceWidth = isVolume ? 64 : this.width
+            let surfaceHeight = isVolume ? 4096 : this.height
             let surfaceFormat = 'rgba16f'
 
             const underscoreId = `global_${name}`
@@ -844,19 +1470,40 @@ export class Pipeline {
                 if (texSpec.format) surfaceFormat = texSpec.format
             }
 
-            // Check if existing surface can be reused (preserves sim state on recompile)
+            // Reuse only a complete matching surface (preserves sim state on recompile).
             const oldSurface = this.surfaces.get(name)
             if (oldSurface) {
-                const existingTex = this.backend.textures?.get?.(oldSurface.read)
-                if (existingTex &&
-                    existingTex.width === surfaceWidth &&
-                    existingTex.height === surfaceHeight) {
-                    // Surface exists with correct dimensions, preserve it
+                const existingReadTex = this.backend.textures?.get?.(oldSurface.read)
+                const existingWriteTex = this.backend.textures?.get?.(oldSurface.write)
+                if (existingReadTex && existingWriteTex &&
+                    existingReadTex.width === surfaceWidth &&
+                    existingReadTex.height === surfaceHeight &&
+                    existingReadTex.format === surfaceFormat &&
+                    existingWriteTex.width === surfaceWidth &&
+                    existingWriteTex.height === surfaceHeight &&
+                    existingWriteTex.format === surfaceFormat) {
+                    // Surface has a matching allocation, preserve it.
                     continue
                 }
-                // Dimensions changed, destroy old surface
-                this.backend.destroyTexture(`global_${name}_read`)
-                this.backend.destroyTexture(`global_${name}_write`)
+                // Allocation changed, destroy the old surface (preserving contents of
+                // persistent surfaces across the resize).
+                this.recreateTexturePreserving(`global_${name}_read`, {
+                    width: surfaceWidth,
+                    height: surfaceHeight,
+                    format: surfaceFormat,
+                    usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage'],
+                    mipmaps: texSpec?.mipmaps === true,
+                    persistent: texSpec?.persistent === true
+                })
+                this.recreateTexturePreserving(`global_${name}_write`, {
+                    width: surfaceWidth,
+                    height: surfaceHeight,
+                    format: surfaceFormat,
+                    usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage'],
+                    mipmaps: texSpec?.mipmaps === true,
+                    persistent: texSpec?.persistent === true
+                })
+                continue
             }
 
             // Create double-buffered surface
@@ -865,92 +1512,18 @@ export class Pipeline {
                 width: surfaceWidth,
                 height: surfaceHeight,
                 format: surfaceFormat,
-                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
+                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage'],
+                mipmaps: texSpec?.mipmaps === true,
+                persistent: texSpec?.persistent === true
             })
 
             this.backend.createTexture(`global_${name}_write`, {
                 width: surfaceWidth,
                 height: surfaceHeight,
                 format: surfaceFormat,
-                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
-            })
-
-            this.surfaces.set(name, {
-                read: `global_${name}_read`,
-                write: `global_${name}_write`,
-                currentFrame: 0
-            })
-        }
-
-        // Create geometry buffers (geo0-geo7) - 2D textures with normals + depth
-        // These store precomputed raymarching results for post-processing
-        for (const name of geoBufferNames) {
-            const oldSurface = this.surfaces.get(name)
-            if (oldSurface) {
-                const existingTex = this.backend.textures?.get?.(oldSurface.read)
-                if (existingTex &&
-                    existingTex.width === this.width &&
-                    existingTex.height === this.height) {
-                    continue
-                }
-                this.backend.destroyTexture(`global_${name}_read`)
-                this.backend.destroyTexture(`global_${name}_write`)
-            }
-
-            // Geometry buffers are screen-sized, RGBA16F (xyz=normal, w=depth)
-            this.backend.createTexture(`global_${name}_read`, {
-                width: this.width,
-                height: this.height,
-                format: 'rgba16f',
-                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
-            })
-
-            this.backend.createTexture(`global_${name}_write`, {
-                width: this.width,
-                height: this.height,
-                format: 'rgba16f',
-                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
-            })
-
-            this.surfaces.set(name, {
-                read: `global_${name}_read`,
-                write: `global_${name}_write`,
-                currentFrame: 0
-            })
-        }
-
-        // Create 3D volume buffers (vol0-vol7) as 2D atlas textures
-        // Using 64x4096 (64^3 stored as 64 slices of 64x64)
-        // This matches the atlas layout used by effects like cellularAutomata3d,
-        // reactionDiffusion3d, noise3d
-        const volumeSliceSize = 64
-        const volumeAtlasHeight = volumeSliceSize * volumeSliceSize // 64 * 64 = 4096
-        for (const name of volumeNames) {
-            const oldSurface = this.surfaces.get(name)
-            if (oldSurface) {
-                const existingTex = this.backend.textures?.get?.(oldSurface.read)
-                if (existingTex &&
-                    existingTex.width === volumeSliceSize &&
-                    existingTex.height === volumeAtlasHeight) {
-                    continue
-                }
-                this.backend.destroyTexture(`global_${name}_read`)
-                this.backend.destroyTexture(`global_${name}_write`)
-            }
-
-            // Volume atlases are volumeSliceSize x volumeSliceSize^2, RGBA16F
-            this.backend.createTexture(`global_${name}_read`, {
-                width: volumeSliceSize,
-                height: volumeAtlasHeight,
-                format: 'rgba16f',
-                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
-            })
-
-            this.backend.createTexture(`global_${name}_write`, {
-                width: volumeSliceSize,
-                height: volumeAtlasHeight,
-                format: 'rgba16f',
-                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
+                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage'],
+                mipmaps: texSpec?.mipmaps === true,
+                persistent: texSpec?.persistent === true
             })
 
             this.surfaces.set(name, {
@@ -1040,6 +1613,14 @@ export class Pipeline {
     recreateTextures(uniforms = {}) {
         if (!this.graph || !this.graph.textures) return
 
+        // Rebuild the pooling plan from the analyzer's allocation map. Must run
+        // after applyMrtFormatBudget() so demoted formats are seen here.
+        const previousAliases = this._textureAliases
+        this._textureAliases = this.texturePooling
+            ? this.buildTexturePoolingPlan()
+            : new Map()
+        this.releaseRegroupedTextures(previousAliases, this._textureAliases)
+
         for (const [texId, spec] of this.graph.textures.entries()) {
             // Check if this is a global surface (double-buffered)
             // Global surfaces use naming like "global_node_X_caState" in textures map
@@ -1062,24 +1643,9 @@ export class Pipeline {
 
             if (isGlobalSurface) {
                 // Handle double-buffered global surface
-                // Extract the surface name from the texture ID
-                // texId might be "global_node_0_caState" or "globalCaState"
-                let surfaceName = null
-                if (texId.startsWith('global_')) {
-                    // "global_node_0_caState" -> find the surface name after last underscore segment
-                    // Actually, we need to match against our surfaces Map
-                    // Try to find matching surface - could be "caState" or "node_0_caState"
-                    for (const name of this.surfaces.keys()) {
-                        if (texId.includes(name) || texId.endsWith(name)) {
-                            surfaceName = name
-                            break
-                        }
-                    }
-                } else if (texId.startsWith('global')) {
-                    // "globalCaState" -> "caState"
-                    const suffix = texId.slice(6)
-                    surfaceName = suffix.charAt(0).toLowerCase() + suffix.slice(1)
-                }
+                // Match the complete surface name: geo0 contains "o0", but must
+                // never resize the display surface when its atlas changes size.
+                const surfaceName = this.parseGlobalName(texId)
 
                 if (!surfaceName || !this.surfaces.has(surfaceName)) {
                     continue  // Can't find matching surface
@@ -1089,47 +1655,64 @@ export class Pipeline {
                 const readTexId = surface.read
                 const writeTexId = surface.write
 
-                // Check if size changed
-                const existingTex = this.backend.textures?.get?.(readTexId)
-                if (existingTex && existingTex.width === width && existingTex.height === height) {
+                // Reuse only when both halves match the graph allocation.
+                const expectedFormat = spec.format || 'rgba16f'
+                const existingReadTex = this.backend.textures?.get?.(readTexId)
+                const existingWriteTex = this.backend.textures?.get?.(writeTexId)
+                if (existingReadTex && existingWriteTex &&
+                    existingReadTex.width === width &&
+                    existingReadTex.height === height &&
+                    existingReadTex.format === expectedFormat &&
+                    existingWriteTex.width === width &&
+                    existingWriteTex.height === height &&
+                    existingWriteTex.format === expectedFormat) {
                     continue  // No change needed
                 }
 
-                // Destroy old textures
-                this.backend.destroyTexture(readTexId)
-                this.backend.destroyTexture(writeTexId)
-
-                // Recreate double-buffered surface with new dimensions
+                // Destroy old textures (preserving persistent surface contents across
+                // the resize)
                 const format = spec.format || 'rgba16f'
-                this.backend.createTexture(readTexId, {
+                this.recreateTexturePreserving(readTexId, {
                     width,
                     height,
                     format,
-                    usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
+                    usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage'],
+                    mipmaps: spec.mipmaps === true,
+                    persistent: spec.persistent === true
                 })
-                this.backend.createTexture(writeTexId, {
+                this.recreateTexturePreserving(writeTexId, {
                     width,
                     height,
                     format,
-                    usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
+                    usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage'],
+                    mipmaps: spec.mipmaps === true,
+                    persistent: spec.persistent === true
                 })
             } else {
                 // Handle regular (non-global) texture
-                // Check if size changed
+                // Pooled secondary members skip their own allocation: the
+                // storage texture is created once under the group's primary id
+                // and aliased below (applyTextureAliases()).
+                const storageId = this._textureAliases.get(texId)
+                if (storageId && storageId !== texId) continue
+
+                // Reuse only when dimensions, format, and depth all match.
                 const existingTex = this.backend.textures?.get?.(texId)
-                if (existingTex && existingTex.width === width && existingTex.height === height) {
+                if (existingTex &&
+                    existingTex.width === width &&
+                    existingTex.height === height &&
+                    existingTex.format === spec.format) {
                     // For 3D textures, also check depth
                     if (!spec.is3D || existingTex.depth === this.resolveDimension(spec.depth, width, uniforms)) {
                         continue  // No change needed
                     }
                 }
 
-                // Destroy old texture
-                this.backend.destroyTexture(texId)
-
-                // Create texture (2D or 3D based on spec)
+                // Destroy old texture (persistent textures keep their contents through
+                // backend.copyTexture resampling)
                 if (spec.is3D) {
                     const depth = this.resolveDimension(spec.depth, width, uniforms)
+                    this.backend.destroyTexture(texId)
                     this.backend.createTexture3D(texId, {
                         ...spec,
                         width,
@@ -1137,13 +1720,204 @@ export class Pipeline {
                         depth
                     })
                 } else {
-                    this.backend.createTexture(texId, {
+                    this.recreateTexturePreserving(texId, {
                         ...spec,
                         width,
                         height
                     })
                 }
             }
+        }
+        this.applyTextureAliases()
+        this.refreshMipTargets()
+    }
+
+    /**
+     * Build the pooling plan consumed from the analyzer's physical allocation
+     * map (graph.allocations, produced by allocateResources()). Returns a Map
+     * of virtualId -> storageId for every poolable texture; members of a
+     * physical group share one backend texture created under the group's
+     * primary (first) member id.
+     *
+     * A group is poolable only when every member carries an identical plain
+     * 2D spec: persistent textures must keep their cross-frame contents, and
+     * mipmapped/3D textures carry policy state a shared record must not
+     * absorb. Groups with mismatched dimensions or formats fall back to
+     * standalone textures.
+     *
+     * First-read safety: a member whose first touch in the pass list is an
+     * input read (or that is sampled by its own producing pass) expects the
+     * zero-initialized/previous-frame contents a standalone texture would
+     * hold, so it is never pooled into a slot a group-mate writes earlier in
+     * the same frame. The same protection excludes textures written by
+     * partial/non-clearing passes — any explicit `drawMode` (points,
+     * billboards, triangles) scatters geometry without covering the surface,
+     * and `blend` makes the result depend on the destination's previous
+     * contents — because pooled storage would hand them a group-mate's
+     * content instead of their own accumulated state.
+     * @returns {Map} Map<virtualId, storageId>
+     */
+    buildTexturePoolingPlan() {
+        const allocations = this.graph?.allocations
+        const textures = this.graph?.textures
+        const aliases = new Map()
+        if (!(allocations instanceof Map) || !textures) return aliases
+
+        // First-touch classification from the pass list
+        const firstTouchIsWrite = new Map()
+        const selfSampled = new Set()
+        const partiallyWritten = new Set()
+        for (const pass of this.graph.passes || []) {
+            const inputs = new Set(Object.values(pass.inputs || {}))
+            const outputs = Object.values(pass.outputs || {})
+            // A pass that does not fully overwrite its target (scatter draw
+            // modes, blending against the destination) leaves the texture's
+            // previous contents observable, so pooled storage is unsafe.
+            if (pass.drawMode || pass.blend) {
+                for (const texId of outputs) partiallyWritten.add(texId)
+            }
+            // A `viewport` pass that does not declare `clear: true` renders
+            // into a sub-region: WebGPU uses loadOp 'load' by default and
+            // WebGL2 sets a gl.viewport without clearing, so unwritten
+            // regions expose whatever was there before (a group-mate's
+            // content under pooled storage). Full clears (`clear: true`,
+            // no viewport) overwrite the whole texture and stay poolable.
+            else if (pass.viewport && !pass.clear) {
+                for (const texId of outputs) partiallyWritten.add(texId)
+            }
+            for (const texId of outputs) {
+                if (!firstTouchIsWrite.has(texId)) firstTouchIsWrite.set(texId, true)
+                if (inputs.has(texId)) selfSampled.add(texId)
+            }
+            for (const texId of inputs) {
+                if (!firstTouchIsWrite.has(texId)) firstTouchIsWrite.set(texId, false)
+            }
+        }
+
+        const groups = new Map() // physicalId -> [virtualIds]
+        for (const [texId, physicalId] of allocations) {
+            if (!physicalId || !textures.has(texId)) continue
+            // Global surfaces are double-buffered and never pooled
+            if (texId.startsWith('global')) continue
+            if (firstTouchIsWrite.get(texId) === false) continue
+            if (selfSampled.has(texId)) continue
+            if (partiallyWritten.has(texId)) continue
+            if (!groups.has(physicalId)) groups.set(physicalId, [])
+            groups.get(physicalId).push(texId)
+        }
+
+        for (const members of groups.values()) {
+            if (members.length < 2) continue
+            const specs = members.map(id => textures.get(id))
+            if (specs.some(spec => !spec ||
+                spec.persistent === true ||
+                spec.mipmaps === true ||
+                spec.is3D === true)) {
+                continue
+            }
+            const signature = spec => JSON.stringify([spec.width, spec.height, spec.format])
+            const first = signature(specs[0])
+            if (!specs.every(spec => signature(spec) === first)) continue
+
+            const storageId = members[0]
+            for (const member of members) aliases.set(member, storageId)
+        }
+        return aliases
+    }
+
+    /**
+     * Destroy backend textures of pooling groups whose membership changed
+     * since the previous plan, so the recreation loop rebuilds them with the
+     * correct (standalone or re-grouped) sharing.
+     */
+    releaseRegroupedTextures(previousAliases, nextAliases) {
+        if (!(previousAliases instanceof Map) || previousAliases.size === 0) return
+        const groups = new Map()
+        for (const [member, storage] of previousAliases) {
+            if (!groups.has(storage)) groups.set(storage, [])
+            groups.get(storage).push(member)
+        }
+        for (const [storage, members] of groups) {
+            const unchanged = members.every(m => nextAliases.get(m) === storage)
+            if (unchanged) continue
+            for (const member of members) {
+                if (this.backend.textures?.has?.(member)) {
+                    this.backend.destroyTexture(member)
+                }
+            }
+        }
+    }
+
+    /**
+     * Point every pooled secondary member's backend map entry at its group's
+     * shared storage record, so pass execution binds the same texture through
+     * either id.
+     */
+    applyTextureAliases() {
+        for (const [member, storage] of this._textureAliases) {
+            if (member === storage) continue
+            const record = this.backend.textures?.get?.(storage)
+            if (!record) continue
+            const existing = this.backend.textures?.get?.(member)
+            if (existing && existing !== record) {
+                this.backend.destroyTexture(member)
+            }
+            this.backend.textures?.set?.(member, record)
+        }
+    }
+
+    /**
+     * Query the actual runtime texture allocation/reuse plan.
+     *
+     * Reports the analyzer's physical allocation map (graph.allocations) and
+     * the sharing the renderer actually materialized: non-global graph
+     * textures grouped by identical backend texture record. With texture
+     * pooling enabled, members of a `sharedTextures` group are served by one
+     * physical texture; without it every virtual texture owns its own record.
+     * @returns {object} { pooling, allocations, sharedTextures, textures }
+     */
+    getResourcePlan() {
+        const textures = this.graph?.textures
+        if (!textures) {
+            return {
+                pooling: this.texturePooling === true,
+                allocations: new Map(),
+                sharedTextures: [],
+                textures: []
+            }
+        }
+        const allocations = this.graph.allocations instanceof Map
+            ? this.graph.allocations
+            : new Map()
+
+        const records = new Map() // backend record object -> { id, members }
+        for (const [texId] of textures) {
+            if (texId.startsWith('global')) continue
+            const record = this.backend?.textures?.get?.(texId)
+            if (!record) continue
+            if (!records.has(record)) records.set(record, { id: texId, members: [] })
+            records.get(record).members.push(texId)
+        }
+
+        const textureRecords = []
+        const sharedTextures = []
+        for (const { id, members } of records.values()) {
+            const record = this.backend.textures.get(id)
+            textureRecords.push({
+                id,
+                width: record?.width,
+                height: record?.height,
+                format: record?.format,
+                virtualTextures: members
+            })
+            if (members.length > 1) sharedTextures.push(members)
+        }
+
+        return {
+            pooling: this.texturePooling === true,
+            allocations,
+            sharedTextures,
+            textures: textureRecords
         }
     }
 
@@ -1154,6 +1928,7 @@ export class Pipeline {
      */
     updateParameterTextures(uniforms = {}) {
         this.recreateTextures(uniforms)
+        this.refreshMipTargets()
     }
 
     /**
@@ -1163,9 +1938,7 @@ export class Pipeline {
      * @returns {boolean} True if this is an automation config
      */
     isAutomationConfig(value) {
-        return value && typeof value === 'object' &&
-            (value.type === 'Oscillator' || value.type === 'Midi' || value.type === 'Audio' ||
-             value._ast?.type === 'Oscillator' || value._ast?.type === 'Midi' || value._ast?.type === 'Audio')
+        return isAutomationValue(value)
     }
 
     /**
@@ -1310,14 +2083,16 @@ export class Pipeline {
 
         // Legacy classicNoisedeck palette expansion:
         // When the 'palette' uniform is set with an integer, expand the preset
-        // into the dependent vec3/int uniforms the shaders expect.
+        // into the dependent vec3/int uniforms the shaders expect. The palette
+        // uniform itself is written too, as the UI parameter paths write it:
+        // an effect whose `palette` is an ordinary choice (filter/dither)
+        // reads only that.
         if (name === 'palette' && typeof value === 'number') {
             const expanded = expandPalette(value)
             if (expanded) {
                 for (const [uName, uValue] of Object.entries(expanded)) {
                     this.setUniform(uName, uValue)
                 }
-                return  // dependent calls handle pass propagation
             }
         }
 
@@ -1345,6 +2120,15 @@ export class Pipeline {
                         pass.uniforms[name] = value
                     }
                 }
+                // Shader uniforms the pass feeds from this parameter under
+                // another name (uniforms: { mixAmt: "mix" }), as the UI
+                // parameter paths do.
+                if (pass.uniformAliases && pass.uniforms) {
+                    for (const [shaderName, globalName] of Object.entries(pass.uniformAliases)) {
+                        if (globalName !== name || this.isAutomationConfig(pass.uniforms[shaderName])) continue
+                        pass.uniforms[shaderName] = Array.isArray(value) ? value.slice() : value
+                    }
+                }
                 if (!isScopedUniform && pass.uniforms) {
                     for (const key of Object.keys(pass.uniforms)) {
                         if (key.startsWith(name + '_node_') || key.startsWith(name + '_chain_')) {
@@ -1357,6 +2141,15 @@ export class Pipeline {
                     }
                 }
             }
+        }
+
+        // An asyncInit effect (the fibers, scratches and strayHair CPU
+        // overlays) draws its overlay from its params: re-run it when one of
+        // them changes, as the UI parameter paths do through checkAsyncRegen.
+        // checkAsyncRegen compares with the values each node's overlay was
+        // drawn from, so this needs no comparison with the global value.
+        if (this.graph && this.graph.passes) {
+            this._regenAsyncForUniform(name)
         }
 
         // Check if this uniform affects any texture dimensions
@@ -1376,7 +2169,12 @@ export class Pipeline {
             }
 
             if (affectsTextures) {
-                this.updateParameterTextures(this.globalUniforms)
+                // Chain- and node-scoped sizing values live only in pass
+                // uniforms. Resolving from globalUniforms alone shrinks every
+                // other scoped texture to its fallback size.
+                // Pass values also take precedence in the backends: UI updates
+                // can leave older sizing values cached in globalUniforms.
+                this.updateParameterTextures({ ...this.globalUniforms, ...this.collectDefaultUniforms() })
             }
         }
     }
@@ -1471,7 +2269,11 @@ export class Pipeline {
             return Math.max(1, Math.floor(spec))
         }
 
-        if (spec === 'screen' || spec === 'auto') {
+        // 'input' and 'resolution' are validator-accepted dimension keywords
+        // (DIM_KEYWORDS in effect-validator.js) whose historical resolution
+        // is the screen dimension; they are recognized forms, not unknown
+        // fallbacks, so they add no diagnostic.
+        if (spec === 'screen' || spec === 'auto' || spec === 'input' || spec === 'resolution') {
             return screenSize
         }
 
@@ -1510,13 +2312,27 @@ export class Pipeline {
                     value = spec.default
                 }
 
+                // Func wrappers and other nonnumeric authored values are not
+                // evaluated by the runtime. Use the texture spec's existing
+                // numeric default so backends never allocate a NaN size.
+                if (!Number.isFinite(Number(value))) {
+                    if (spec.default !== undefined) {
+                        value = spec.default
+                    } else {
+                        value = paramDefault
+                        if (spec.multiply !== undefined) value *= spec.multiply
+                        if (spec.power !== undefined) value = Math.pow(value, spec.power)
+                    }
+                }
+
                 return Math.max(1, Math.floor(value))
             }
 
             // Handle screen-divide spec: { screenDivide: 'zoom' }
             // Resolves to screenSize / uniforms[param], for per-effect zoom scaling
             if (spec.screenDivide !== undefined) {
-                const divisor = uniforms[spec.screenDivide] ?? spec.default ?? 1
+                let divisor = uniforms[spec.screenDivide] ?? spec.default ?? 1
+                if (!Number.isFinite(Number(divisor))) divisor = spec.default ?? 1
                 return Math.max(1, Math.round(screenSize / divisor))
             }
 
@@ -1532,6 +2348,34 @@ export class Pipeline {
                     }
                 }
                 return Math.max(1, computed)
+            }
+        }
+
+        // Unknown dimension forms keep the historical screen-size fallback
+        // (no new rejection of previously accepted input), but surface it as
+        // a structured diagnostic instead of pure silence. An
+        // absent spec is a default, not an unknown form.
+        if (spec !== undefined && spec !== null) {
+            let key = typeof spec === 'object' ? null : String(spec)
+            if (key === null) {
+                try {
+                    key = JSON.stringify(spec)
+                } catch {
+                    key = '[unserializable]'
+                }
+            }
+            if (!this._warnedDimensionFallbacks.has(key)) {
+                this._warnedDimensionFallbacks.add(key)
+                console.warn(`[Pipeline] Unknown dimension spec ${key}; falling back to screen size (${screenSize})`)
+                this.diagnostics.add({
+                    code: 'ERR_DIMENSION_FALLBACK',
+                    backend: this.backend && typeof this.backend.getName === 'function'
+                        ? this.backend.getName()
+                        : 'unknown',
+                    stage: 'dimension',
+                    spec: key,
+                    fallback: 'screen'
+                })
             }
         }
 
@@ -1572,6 +2416,10 @@ export class Pipeline {
         // Update global uniforms
         this.updateGlobalUniforms(time, deltaTime)
 
+        // Production lifecycle hooks: per-effect onUpdate, and the
+        // uniforms each hook returns are bound over the pass uniforms below.
+        this._invokeUpdateHooks(time, deltaTime)
+
         // Initialize per-frame surface bindings so within-frame reads see fresh writes
         // Clear and reuse Maps to avoid per-frame allocation
         this.frameReadTextures.clear()
@@ -1592,13 +2440,33 @@ export class Pipeline {
             try {
                 for (let i = 0; i < this.graph.passes.length; i++) {
                     const originalPass = this.graph.passes[i]
+                    // Resolve authored viewport specs before the
+                    // oscillator proxy is built so the proxy can carry the
+                    // cached resolved box; re-resolve after uniform
+                    // resolution so param-driven viewports track the
+                    // frame's uniform values.
+                    if (originalPass.viewport !== undefined) {
+                        this.resolvePassViewport(originalPass)
+                    }
+                    let pass = this.resolvePassUniforms(originalPass, time)
+                    if (originalPass.viewport !== undefined) {
+                        this.resolvePassViewport(pass, originalPass)
+                    }
+                    // Bind onUpdate-returned uniforms. Fallback
+                    // semantics: a returned uniform binds only when the pass
+                    // does not already resolve that key, so authored and
+                    // step-provided values keep priority. Rare: only effects
+                    // with an onUpdate hook that returned uniforms contribute.
+                    if (this._hasRuntimeUniforms && pass.effectKey !== undefined) {
+                        const runtimeUniforms = this._runtimeUniforms.get(pass.effectKey)
+                        if (runtimeUniforms) {
+                            pass = this._withRuntimeUniforms(pass, runtimeUniforms)
+                        }
+                    }
                     // Check pass conditions
-                    if (this.shouldSkipPass(originalPass)) {
+                    if (this.shouldSkipPass(pass)) {
                         continue
                     }
-
-                    // Resolve oscillators in pass uniforms for this frame
-                    const pass = this.resolvePassUniforms(originalPass, time)
 
                     // Determine iteration count (repeat N times per frame)
                     const repeatCount = this.resolveRepeatCount(pass)
@@ -1627,6 +2495,12 @@ export class Pipeline {
                 console.error(`[Pipeline.render] LOOP ERROR: ${loopErr.detail || loopErr.message || JSON.stringify(loopErr)}`)
                 throw loopErr
             }
+        }
+
+        // Regenerate mip chains of mipmapped textures from their level-0
+        // contents written by this frame's passes.
+        if (this._mipTargets.length > 0 && typeof this.backend.generateMipmaps === 'function') {
+            this.backend.generateMipmaps(this._mipTargets)
         }
 
         // End frame
@@ -1697,11 +2571,27 @@ export class Pipeline {
             const fullAspect = this._fullResolution[0] / this._fullResolution[1]
             g.aspect = fullAspect
             g.aspectRatio = fullAspect
+            // Correctly-rounded reciprocal of the aspect, used by rotate2D's
+            // final rescale so neither backend evaluates an in-shader
+            // division there (Dawn lowers divisions to approximate
+            // reciprocal multiplies; ANGLE divides correctly).
+            g.aspectInv = 1.0 / fullAspect
+            // Correctly-rounded per-component reciprocals. Both shader mains
+            // multiply by this instead of dividing: Dawn's relaxed math lowers
+            // a vec2 division to an approximate reciprocal multiply while
+            // ANGLE divides correctly, and the 1-2 ulp uv difference flips
+            // sampler taps. A multiply of identical values is deterministic.
+            g.invFullResolution = [
+                1.0 / this._fullResolution[0],
+                1.0 / this._fullResolution[1],
+            ]
         } else {
             g.fullResolution[0] = this.width
             g.fullResolution[1] = this.height
             g.aspect = aspectValue
             g.aspectRatio = aspectValue
+            g.aspectInv = 1.0 / aspectValue
+            g.invFullResolution = [1.0 / this.width, 1.0 / this.height]
         }
         g.renderScale = this._renderScale || 1.0
 
@@ -1734,31 +2624,12 @@ export class Pipeline {
      * @returns {any} The resolved value
      */
     resolveUniformValue(value, time, paramSpec) {
-        if (!value || typeof value !== 'object') return value
-
-        let pct
-
-        // Check if this is an oscillator configuration
-        // Note: `time` is already normalized 0-1 from CanvasRenderer
-        if (value.type === 'Oscillator' || value._ast?.type === 'Oscillator') {
-            pct = evaluateOscillator(value, time)
-        } else if (value.type === 'Midi' || value._ast?.type === 'Midi') {
-            // Uses Date.now() for trigger falloff timing (real-time evaluation)
-            const midiState = this.externalState.midi?.getPortState
-                ? this.externalState.midi.getPortState(value)
-                : this.externalState.midi
-            pct = evaluateMidi(value, midiState, Date.now())
-        } else if (value.type === 'Audio' || value._ast?.type === 'Audio') {
-            pct = evaluateAudio(value, this.externalState.audio)
-        } else {
-            return value
-        }
-
-        // Scale percentage by consumer parameter range
-        if (paramSpec) {
-            return paramSpec.min + pct * (paramSpec.max - paramSpec.min)
-        }
-        return pct
+        if (!isAutomationValue(value)) return value
+        // `time` is already normalized 0..1 by CanvasRenderer. Recursive
+        // evaluation uses the same absolute time, so seeking and export remain
+        // independent of frame order.
+        const resolved = evaluateAutomation(value, time, paramSpec, this.externalState)
+        return paramSpec?.type === 'int' ? Math.round(resolved) : resolved
     }
 
     /**
@@ -1808,6 +2679,7 @@ export class Pipeline {
         proxy.repeat = pass.repeat
         proxy.conditions = pass.conditions
         proxy.viewport = pass.viewport
+        proxy.viewportResolved = pass.viewportResolved
         proxy.drawBuffers = pass.drawBuffers
         proxy.storageTextures = pass.storageTextures
         proxy.samplerTypes = pass.samplerTypes
@@ -1832,7 +2704,7 @@ export class Pipeline {
         // Check skipIf conditions - skip if ANY condition matches
         if (skipIf) {
             for (const condition of skipIf) {
-                const value = this.globalUniforms[condition.uniform] ?? pass.uniforms?.[condition.uniform]
+                const value = pass.uniforms?.[condition.uniform] ?? this.globalUniforms[condition.uniform]
                 if (value === condition.equals) {
                     return true
                 }
@@ -1843,7 +2715,7 @@ export class Pipeline {
         if (runIf) {
             let shouldRun = true
             for (const condition of runIf) {
-                const value = this.globalUniforms[condition.uniform] ?? pass.uniforms?.[condition.uniform]
+                const value = pass.uniforms?.[condition.uniform] ?? this.globalUniforms[condition.uniform]
                 if (value !== condition.equals) {
                     shouldRun = false
                     break
@@ -1883,6 +2755,58 @@ export class Pipeline {
     }
 
     /**
+     * Resolve an authored pass viewport spec to backend {x, y, w, h} numbers.
+     * The authored spec accepts the same dimension grammar as
+     * texture sizes (numbers, 'screen', percentages, {param}/{screenDivide}/
+     * {scale, clamp} forms) on the x/y/w/h/width/height keys. Resolution is
+     * cached per pass: the reusable box is mutated in place each frame so
+     * param-driven viewports track uniform changes without per-frame
+     * allocation. The authored spec stays queryable on `pass.viewport`; the
+     * resolved numbers land on `pass.viewportResolved`, which the backends
+     * prefer over the raw spec.
+     * @param {Object} pass - Pass providing the uniforms for resolution (the
+     *   oscillator-resolved proxy when applicable)
+     * @param {Object} [cacheHolder] - Object carrying the cached resolution
+     *   (the original compiled pass; defaults to `pass`)
+     */
+    resolvePassViewport(pass, cacheHolder = pass) {
+        const spec = cacheHolder.viewport
+        if (!spec || typeof spec !== 'object') return
+
+        if (cacheHolder._viewportSpecSource !== spec) {
+            Object.defineProperty(cacheHolder, '_viewportSpecSource', { value: spec, enumerable: false, configurable: true, writable: true })
+            const isNumericBox = typeof spec.x === 'number' && typeof spec.y === 'number' &&
+                typeof spec.w === 'number' && typeof spec.h === 'number'
+            if (isNumericBox) {
+                // Legacy contract: an already-numeric viewport passes through
+                // unchanged, exactly like a manually constructed graph pass.
+                Object.defineProperty(cacheHolder, '_viewportBox', { value: null, enumerable: false, configurable: true, writable: true })
+                cacheHolder.viewportResolved = spec
+                if (pass !== cacheHolder) pass.viewportResolved = spec
+                return
+            }
+            const box = { x: 0, y: 0, w: 0, h: 0 }
+            Object.defineProperty(cacheHolder, '_viewportBox', { value: box, enumerable: false, configurable: true, writable: true })
+        }
+
+        if (cacheHolder.viewportResolved === spec) {
+            if (pass !== cacheHolder) pass.viewportResolved = spec
+            return
+        }
+
+        const box = cacheHolder._viewportBox
+        const uniforms = pass.uniforms || {}
+        box.x = this.resolveDimension(spec.x ?? 0, this.width, uniforms)
+        box.y = this.resolveDimension(spec.y ?? 0, this.height, uniforms)
+        const widthSpec = spec.w ?? spec.width
+        const heightSpec = spec.h ?? spec.height
+        box.w = widthSpec !== undefined ? this.resolveDimension(widthSpec, this.width, uniforms) : this.width
+        box.h = heightSpec !== undefined ? this.resolveDimension(heightSpec, this.height, uniforms) : this.height
+        cacheHolder.viewportResolved = box
+        if (pass !== cacheHolder) pass.viewportResolved = box
+    }
+
+    /**
      * Adopt a repeated pass's frame-local ping-pong bindings into the
      * cross-frame surface record. Frame-local maps (frameReadTextures/
      * frameWriteTextures) are the source of truth -- updateFrameSurfaceBindings()
@@ -1896,9 +2820,10 @@ export class Pipeline {
      * @param {Object} pass - The pass that just executed
      */
     adoptIterationBindings(pass) {
-        if (!pass.outputs) return
+        const outputs = pass.outputs || pass.storageTextures
+        if (!outputs) return
 
-        for (const outputName of Object.values(pass.outputs)) {
+        for (const outputName of Object.values(outputs)) {
             if (typeof outputName !== 'string') continue
 
             // Only affects global surfaces (not feedback surfaces)
@@ -1927,8 +2852,10 @@ export class Pipeline {
     /**
      * Swap double-buffered surfaces at end of frame.
      *
-     * For state surfaces (xyz, vel, rgba, trail), we DON'T swap - we persist
-     * the frame's final read/write bindings so particles continue from where they left off.
+     * For state surfaces (xyz, vel, rgba, trail), graph feedback surfaces, and
+     * surfaces explicitly marked persistent,
+     * persist the frame's final read/write bindings so the next frame reads
+     * the latest write even when an intervening update pass was skipped.
      *
      * For display surfaces (o0-o7), we swap so the next frame renders fresh.
      */
@@ -1959,7 +2886,8 @@ export class Pipeline {
         for (const [name, surface] of this.surfaces.entries()) {
             surface.currentFrame = this.frameIndex
 
-            if (isStateSurface(name)) {
+            if (isStateSurface(name) || this._feedbackSurfaces?.has(name) ||
+                this.graph?.textures?.get?.(`global_${name}`)?.persistent === true) {
                 // State surfaces: persist the frame's final bindings
                 const finalRead = this.frameReadTextures?.get(name)
                 const finalWrite = this.frameWriteTextures?.get(name)
@@ -2063,9 +2991,10 @@ export class Pipeline {
      * subsequent passes will read from that write buffer, and write to the other buffer.
      */
     updateFrameSurfaceBindings(pass, state) {
-        if (!pass.outputs) return
+        const outputs = pass.outputs || pass.storageTextures
+        if (!outputs) return
 
-        for (const outputName of Object.values(pass.outputs)) {
+        for (const outputName of Object.values(outputs)) {
             if (typeof outputName !== 'string') continue
 
             // Handle global surface writes (both global_ and globalName patterns)
@@ -2105,6 +3034,21 @@ export class Pipeline {
 
         const captureError = (error) => {
             if (!firstError) firstError = error
+        }
+
+        // Production lifecycle hooks: every managed effect's
+        // onDestroy runs before backend teardown; hook errors join the
+        // existing dispose error path instead of masking cleanup.
+        if (this._lifecycleEffects && this._lifecycleEffects.size > 0) {
+            for (const effectDef of this._lifecycleEffects.values()) {
+                if (!hasLifecycleHook(effectDef, 'onDestroy')) continue
+                try {
+                    effectDef.onDestroy()
+                } catch (error) {
+                    captureError(error)
+                }
+            }
+            this._lifecycleEffects.clear()
         }
 
         // Cancel all async renders
@@ -2189,6 +3133,9 @@ export async function createPipeline(graph, options = {}) {
         // Request higher limits for MRT with high-precision textures
         // Default maxColorAttachmentBytesPerSample is 32, but we need 40+
         // for 2x RGBA32Float (16 bytes each) + RGBA8Unorm (4 bytes) = 40 bytes
+        // Request the adapter's full 2D texture size: the default 8192 would
+        // cap a 128^3 volume atlas (128 x 16384) to 64^3, which WebGL2 keeps
+        // at 128^3 wherever MAX_TEXTURE_SIZE allows it.
         // Also request float32-filterable for mesh data textures (rgba32float)
         const requiredFeatures = []
         if (adapter.features.has('float32-filterable')) {
@@ -2200,7 +3147,8 @@ export async function createPipeline(graph, options = {}) {
                 maxColorAttachmentBytesPerSample: Math.min(
                     adapter.limits.maxColorAttachmentBytesPerSample,
                     128  // Request up to 128 bytes for flexibility
-                )
+                ),
+                maxTextureDimension2D: adapter.limits.maxTextureDimension2D
             }
         })
         let context = null
@@ -2226,7 +3174,7 @@ export async function createPipeline(graph, options = {}) {
         throw new Error('No backend available or canvas not provided')
     }
 
-    const pipeline = new Pipeline(graph, backend)
+    const pipeline = new Pipeline(graph, backend, options)
     await pipeline.init(options.width || 800, options.height || 600)
 
     return pipeline

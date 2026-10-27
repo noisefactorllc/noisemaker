@@ -4,26 +4,18 @@
 
 import argparse
 import json
-import math
 import subprocess
 from pathlib import Path
 
 import numpy as np
-from opensimplex import OpenSimplex
 from PIL import Image
+
+from noisemaker.simplex import simplex
 
 
 def python_simplex(width: int, height: int, seed: int, time: float = 0.25, speed: float = 1.0) -> np.ndarray:
     """Return a height x width array of simplex noise values in [0,1]."""
-    angle = math.tau * time
-    z = math.cos(angle) * speed
-    simp = OpenSimplex(seed)
-    arr = np.zeros((height, width), dtype=np.float32)
-    for y in range(height):
-        for x in range(width):
-            val = simp.noise3d(x, y, z)
-            arr[y, x] = (val + 1.0) / 2.0
-    return arr
+    return simplex([height, width], time=time, seed=seed, speed=speed, as_np=True)[:, :, 0]
 
 
 def js_simplex(width: int, height: int, seed: int, time: float = 0.25, speed: float = 1.0) -> np.ndarray:
@@ -53,8 +45,8 @@ def compare(py: np.ndarray, js: np.ndarray) -> float:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--seeds', nargs='*', type=int, default=[0, 1], help='Seeds to test')
-    parser.add_argument('--width', type=int, default=2, help='Image width')
-    parser.add_argument('--height', type=int, default=2, help='Image height')
+    parser.add_argument('--width', type=int, default=16, help='Image width')
+    parser.add_argument('--height', type=int, default=16, help='Image height')
     parser.add_argument('--time', type=float, default=0.25, help='Time value for 3D noise')
     parser.add_argument('--fixtures', type=Path, default=Path('test/image-fixtures'), help='Directory for baseline images')
     parser.add_argument('--threshold', type=float, default=1e-6, help='Max allowed pixel diff')

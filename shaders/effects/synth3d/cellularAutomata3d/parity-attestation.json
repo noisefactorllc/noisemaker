@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "synth3d/cellularAutomata3d",
+  "sourceHash": "50da9abc7d2481b63c4c3be6b72e1a5316ecdc2cec5ecbbd07e8cc4967f66dbc",
+  "caseHash": "b04841e8e826ef1c7e4f2b6c93039c14e66ebcaef50df74945d6ce4e97fd13ea",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 724
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 724
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

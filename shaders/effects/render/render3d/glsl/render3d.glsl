@@ -39,6 +39,8 @@ const float PI = 3.141592653589793;
 const int MAX_STEPS = 256;
 const float MAX_DIST = 10.0;
 
+const float MARCHER_LIGHT_X = -1.0;
+
 // Helper to convert 3D texel coords to 2D atlas texel coords
 ivec2 atlasTexel(ivec3 p, int volSize) {
     return ivec2(p.x, p.y + p.z * volSize);
@@ -333,7 +335,7 @@ IsoHit isosurfaceTrace(vec3 ro, vec3 rd) {
 // Shading for smooth isosurface - uses RGB from volume for coloring
 vec3 shade(vec3 p, vec3 rd) {
     vec3 n = calcNormal(p);
-    vec3 lightDir = normalize(vec3(1.0, 1.0, -1.0));
+    vec3 lightDir = normalize(vec3(MARCHER_LIGHT_X, 1.0, -1.0));
 
     // Diffuse lighting
     float diff = max(dot(n, lightDir), 0.0);
@@ -361,7 +363,7 @@ vec3 shade(vec3 p, vec3 rd) {
 
 // Voxel shading with flat face normals
 vec3 shadeVoxel(vec3 p, vec3 rd, vec3 n, ivec3 voxel) {
-    vec3 lightDir = normalize(vec3(1.0, 1.0, -1.0));
+    vec3 lightDir = normalize(vec3(MARCHER_LIGHT_X, 1.0, -1.0));
 
     float diff = max(dot(n, lightDir), 0.0);
     float amb = 0.3;  // Higher ambient for voxel look
@@ -390,13 +392,13 @@ void main() {
 
     // Camera setup - orbiting view
     float camDist = 3.5;
-    float angle = time * TAU * float(orbitSpeed);
+    float angle = -time * TAU * float(orbitSpeed);
     vec3 ro = vec3(sin(angle) * camDist, 0.5, cos(angle) * camDist);
     vec3 lookAt = vec3(0.0);
 
     vec3 forward = normalize(lookAt - ro);
-    vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), forward));
-    vec3 up = cross(forward, right);
+    vec3 right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
+    vec3 up = cross(right, forward);
 
     vec3 rd = normalize(forward + uv.x * right + uv.y * up);
 

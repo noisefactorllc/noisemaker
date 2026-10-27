@@ -1,0 +1,16 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/noise",
+        "classicNoisedeck/coalesce"
+    ],
+    "dsl": "search synth, classicNoisedeck\n\nnoise(seed: 1, speed: 0).write(o1)\nnoise(seed: 7, speed: 0).write(o2)\nread(o1).coalesce(tex: read(o2), blendMode: cloak, mix: 60, refractAAmt: 40, refractBAmt: 40).coalesce(tex: read(o2), mix: 0, refractAAmt: 40, refractADir: 30, refractBAmt: 20, refractBDir: -45).write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "settleMs": 2000,
+    "epsilon": 0,
+    "requireColorVariation": true
+}

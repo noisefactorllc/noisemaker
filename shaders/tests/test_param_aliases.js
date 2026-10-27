@@ -1,139 +1,85 @@
-/**
- * Tests for shaders/src/lang/paramAliases.js
- *
- * Run:  node shaders/tests/test_param_aliases.js
- */
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { CanvasRenderer, compile, registerStarterOps, predictReplacement, replaceEffect, listSteps } from '../src/index.js'
+import { ops } from '../src/lang/ops.js'
+import noise from '../effects/synth/noise/definition.js'
+import blendMode from '../effects/mixer/blendMode/definition.js'
+import flow from '../effects/points/flow/definition.js'
+import dla from '../effects/points/dla/definition.js'
+import physarum from '../effects/points/physarum/definition.js'
 
-import {
-    ALIAS_EOL_DATE,
-    registerParamAliases,
-    resolveParamAliases
-} from '../src/lang/paramAliases.js'
+const renderer = new CanvasRenderer()
+renderer.registerEffectWithRuntime({ namespace: 'synth', name: 'Noise', instance: noise })
+renderer.registerEffectWithRuntime({ namespace: 'mixer', name: 'BlendMode', instance: blendMode })
+for (const [name, instance] of [['Flow', flow], ['Dla', dla], ['Physarum', physarum]]) {
+    renderer.registerEffectWithRuntime({ namespace: 'points', name, instance })
+}
+registerStarterOps(['synth.noise'])
 
-let passed = 0
-let failed = 0
+test('retired parameter names fail validation while canonical names compile', () => {
+    const retired = compile('search synth\nnoise(xScale: 4).write(o0)')
+    assert.ok(retired.diagnostics.some(d => d.code === 'S001' && d.message.includes("Unknown argument 'xScale'")),
+        JSON.stringify(retired.diagnostics))
+    assert.ok(!retired.diagnostics.some(d => d.code === 'S007'))
 
-function test(name, fn) {
-    try {
-        fn()
-        console.log(`PASS: ${name}`)
-        passed++
-    } catch (e) {
-        console.error(`FAIL: ${name}`)
-        console.error(e)
-        failed++
+    const canonical = compile('search synth\nnoise(scaleX: 4).write(o0)')
+    assert.ok(!canonical.diagnostics.some(d => d.severity === 'error'), JSON.stringify(canonical.diagnostics))
+    assert.equal(canonical.plans[0].chain[0].args.scaleX, 4)
+})
+
+test('retired mixer parameter names fail validation while canonical names compile', () => {
+    const retired = compile('search synth, mixer\nnoise().write(o0)\nread(o0).blendMode(mixAmt: 4).write(o1)')
+    assert.ok(retired.diagnostics.some(d => d.code === 'S001' && d.message.includes("Unknown argument 'mixAmt'")),
+        JSON.stringify(retired.diagnostics))
+    assert.ok(!retired.diagnostics.some(d => d.code === 'S007'))
+
+    const canonical = compile('search synth, mixer\nnoise().write(o0)\nread(o0).blendMode(mix: 4).write(o1)')
+    assert.ok(!canonical.diagnostics.some(d => d.severity === 'error'), JSON.stringify(canonical.diagnostics))
+    assert.equal(canonical.plans[1].chain[1].args.mix, 4)
+})
+
+test('replacement preflight reports retired names as unknown', () => {
+    const spec = ops['synth.noise']
+    const retired = predictReplacement('synth.noise', spec, { xScale: 4 }, null, { preflight: true })
+    assert.deepEqual(retired.arguments.unknown, ['xScale'])
+    const canonical = predictReplacement('synth.noise', spec, { scaleX: 4 }, null, { preflight: true })
+    assert.deepEqual(canonical.arguments.unknown, [])
+})
+
+test('replacement preflight rejects retired names and accepts canonical names', () => {
+    const compiled = compile('search synth\nnoise().write(o0)')
+    const stepIndex = listSteps(compiled)[0].stepIndex
+    const retired = replaceEffect(compiled, stepIndex, 'noise', { xScale: 4 }, { preflight: true })
+    assert.equal(retired.success, false)
+    assert.match(retired.error, /Unknown argument\(s\).*xScale/)
+    assert.equal(retired.program, undefined)
+
+    const canonical = replaceEffect(compiled, stepIndex, 'noise', { scaleX: 4 }, { preflight: true })
+    assert.equal(canonical.success, true)
+    assert.equal(canonical.program.plans[0].chain[0].args.scaleX, 4)
+})
+
+test('portable effects reject parameter alias metadata', async () => {
+    const raw = {
+        namespace: 'user', name: 'retiredAliasProbe', func: 'retiredAliasProbe',
+        globals: { scaleX: { type: 'float', default: 1 } },
+        paramAliases: { xScale: 'scaleX' },
+        passes: [{ name: 'main', program: 'main', inputs: {}, outputs: { fragColor: 'outputTex' } }],
+        shaders: { main: { glsl: '#version 300 es\nvoid main() {}' } }
     }
-}
-
-function assert(condition, msg) {
-    if (!condition) throw new Error(msg || 'Assertion failed')
-}
-
-function assertEqual(actual, expected, label) {
-    if (actual !== expected) {
-        throw new Error(`${label || 'assertEqual'}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`)
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Setup: register aliases for a test op
-// ---------------------------------------------------------------------------
-registerParamAliases('synth.noise', {
-    freq: 'frequency',
-    amt: 'amount'
+    await assert.rejects(() => new CanvasRenderer().registerPortableEffect(raw), /paramAliases/)
 })
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
-test('ALIAS_EOL_DATE is 2026-09-01', () => {
-    assertEqual(ALIAS_EOL_DATE, '2026-09-01', 'ALIAS_EOL_DATE')
-})
-
-test('Basic alias resolution: old key remapped to new key', () => {
-    const kwargs = { freq: 42 }
-    const warnings = resolveParamAliases('synth.noise', kwargs)
-
-    assertEqual(kwargs.frequency, 42, 'new key should have the old value')
-    assert(!('freq' in kwargs), 'old key should be deleted')
-    assertEqual(warnings.length, 1, 'should produce one warning')
-    assert(warnings[0].includes("'freq'"), 'warning should mention old name')
-    assert(warnings[0].includes("'frequency'"), 'warning should mention new name')
-    assert(warnings[0].includes('2026-09-01'), 'warning should include EOL date')
-})
-
-test('New name takes priority when both old and new are present', () => {
-    const kwargs = { freq: 10, frequency: 99 }
-    const warnings = resolveParamAliases('synth.noise', kwargs)
-
-    assertEqual(kwargs.frequency, 99, 'new key value should be preserved')
-    assert(!('freq' in kwargs), 'old key should still be deleted')
-    assertEqual(warnings.length, 1, 'should still produce a warning')
-})
-
-test('Multiple aliases resolved in one call', () => {
-    const kwargs = { freq: 1, amt: 2, other: 3 }
-    const warnings = resolveParamAliases('synth.noise', kwargs)
-
-    assertEqual(kwargs.frequency, 1, 'freq -> frequency')
-    assertEqual(kwargs.amount, 2, 'amt -> amount')
-    assertEqual(kwargs.other, 3, 'non-aliased key untouched')
-    assert(!('freq' in kwargs), 'old key freq deleted')
-    assert(!('amt' in kwargs), 'old key amt deleted')
-    assertEqual(warnings.length, 2, 'two warnings expected')
-})
-
-test('No warnings for unknown op', () => {
-    const kwargs = { freq: 5 }
-    const warnings = resolveParamAliases('unknown.op', kwargs)
-
-    assertEqual(warnings.length, 0, 'no warnings for unknown op')
-    assertEqual(kwargs.freq, 5, 'kwargs unchanged')
-})
-
-test('No warnings when no aliases match', () => {
-    const kwargs = { unrelated: 7 }
-    const warnings = resolveParamAliases('synth.noise', kwargs)
-
-    assertEqual(warnings.length, 0, 'no warnings when no aliases match')
-    assertEqual(kwargs.unrelated, 7, 'kwargs unchanged')
-})
-
-test('registerParamAliases merges with existing aliases', () => {
-    // 'synth.noise' already has freq->frequency and amt->amount
-    registerParamAliases('synth.noise', {
-        spd: 'speed'
+for (const effect of ['flow', 'dla', 'physarum']) {
+    test(`${effect} accepts fieldTex as a deprecated alias for heightTex until 2027-06-01`, () => {
+        const program = `search synth, points\nnoise().write(o1)\nnoise().${effect}(%s: read(o1)).write(o0)`
+        const aliased = compile(program.replace('%s', 'fieldTex'))
+        assert.ok(!aliased.diagnostics.some(d => d.severity === 'error'), JSON.stringify(aliased.diagnostics))
+        const warning = aliased.diagnostics.find(d => d.code === 'S007')
+        assert.match(warning?.message || '', /param 'fieldTex' is deprecated, use 'heightTex' instead\. Aliases will be removed on 2027-06-01\./)
+        const canonical = compile(program.replace('%s', 'heightTex'))
+        assert.ok(!canonical.diagnostics.some(d => d.code === 'S007'))
+        assert.deepEqual(aliased.plans[1].chain[1].args, canonical.plans[1].chain[1].args)
+        assert.equal('fieldTex' in aliased.plans[1].chain[1].args, false)
     })
-
-    // Old aliases should still work
-    const kwargs1 = { freq: 1 }
-    const w1 = resolveParamAliases('synth.noise', kwargs1)
-    assertEqual(kwargs1.frequency, 1, 'original alias still works after merge')
-    assertEqual(w1.length, 1, 'original alias still warns')
-
-    // New alias should also work
-    const kwargs2 = { spd: 5 }
-    const w2 = resolveParamAliases('synth.noise', kwargs2)
-    assertEqual(kwargs2.speed, 5, 'newly merged alias works')
-    assertEqual(w2.length, 1, 'newly merged alias warns')
-})
-
-test('registerParamAliases can override an existing alias mapping', () => {
-    registerParamAliases('synth.noise', {
-        spd: 'velocity'   // override spd -> speed  to  spd -> velocity
-    })
-
-    const kwargs = { spd: 3 }
-    const warnings = resolveParamAliases('synth.noise', kwargs)
-    assertEqual(kwargs.velocity, 3, 'override alias maps to new target')
-    assert(!('speed' in kwargs), 'old target not set')
-    assertEqual(warnings.length, 1, 'one warning produced')
-    assert(warnings[0].includes("'velocity'"), 'warning mentions updated target')
-})
-
-// ---------------------------------------------------------------------------
-// Summary
-// ---------------------------------------------------------------------------
-console.log(`\n${passed} passed, ${failed} failed`)
-if (failed > 0) process.exit(1)
+}

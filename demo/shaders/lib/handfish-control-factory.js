@@ -94,6 +94,7 @@ export class HandfishControlFactory extends ControlFactory {
 
     createColorPicker(options) {
         const picker = document.createElement('color-picker')
+        picker.dataset.alphaSupported = String(Boolean(options.hasAlpha))
 
         // Convert 0-1 RGB array to hex
         const toHex = (arr) => {

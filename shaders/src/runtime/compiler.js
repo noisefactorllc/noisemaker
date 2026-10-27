@@ -39,7 +39,7 @@ export function compileGraph(source, options = {}) {
     const sceneIR = compileScene(compilationResult)
 
     // Stage 2: Expand logical graph into render passes
-    const { passes, errors: expandErrors, programs, textureSpecs, renderSurface } = expand(
+    const { passes, errors: expandErrors, programs, textureSpecs, renderSurface, mediaSteps } = expand(
         compilationResult,
         { shaderOverrides: options.shaderOverrides }
     )
@@ -78,6 +78,7 @@ export function compileGraph(source, options = {}) {
         // The same constraint the check above enforced, in the form the runtime
         // needs it: which volumeSize uniform scopes are pinned, and to what.
         sceneVolumeAtlasScopes: collectSceneVolumeAtlasScopes(volumeProducers),
+        mediaSteps, // Per-step external texture bindings (e.g. imageTex_step_0)
         compiledAt: Date.now()
     }
 
@@ -255,6 +256,23 @@ function extractTextureSpecs(passes, options, textureSpecs = {}) {
             spec.depth = effectSpec.depth || effectSpec.width || 64
             spec.is3D = true
             spec.usage = ['storage', 'sample', 'copySrc', 'copyDst']
+            // Definition-level filtering policy for 3D textures ('nearest' or
+            // 'linear'). The backends read this when creating the 3D texture
+            // and when selecting the sampling mode.
+            if (effectSpec.filter) {
+                spec.filter = effectSpec.filter
+            }
+        } else {
+            // 2D-only allocation policies. `mipmaps` allocates a full mip chain
+            // that the pipeline regenerates after each frame that renders to the
+            // texture. `persistent` preserves contents when the texture is
+            // recreated at a new size (resize / parameter-driven recreation).
+            if (effectSpec.mipmaps !== undefined) {
+                spec.mipmaps = effectSpec.mipmaps
+            }
+            if (effectSpec.persistent !== undefined) {
+                spec.persistent = effectSpec.persistent
+            }
         }
         textures.set(texId, spec)
     }
@@ -343,7 +361,7 @@ export function recompile(pipeline, newSource, options = {}) {
         // belongs to the graph being replaced: kept, it would silence every
         // later refusal of a value already refused under the old program.
         pipeline.graph = newGraph
-        pipeline.resetSceneVolumeAtlasWarnings()
+        pipeline.resetSceneVolumeAtlasWarnings?.()
 
         // Recreate global surfaces and textures to reflect new graph requirements
         pipeline.createSurfaces()
@@ -360,6 +378,9 @@ export function recompile(pipeline, newSource, options = {}) {
         // containing an asyncInit effect rendered a blank overlay (the effect
         // silently passed its input through unchanged).
         pipeline.initAsyncEffects()
+        // A stub pipeline in tests may implement initAsyncEffects without the
+        // production lifecycle hooks; skip them instead of failing recompile.
+        pipeline.initLifecycleEffects?.()
 
         return newGraph
     } catch (error) {

@@ -1,0 +1,22 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "filter/lighting",
+        "synth/noise"
+    ],
+    "dsl": "search filter, synth\n\nnoise(ridges: true)\n.lighting(normalStrength: 2)\n.write(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true,
+    "tiles": {
+        "size": [
+            32,
+            32
+        ],
+        "renderScale": 2
+    }
+}

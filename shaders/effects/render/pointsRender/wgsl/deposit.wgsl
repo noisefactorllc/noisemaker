@@ -3,13 +3,14 @@
 struct Uniforms {
     resolution: vec2<f32>,
     density: f32,
-    viewMode: i32,
     rotateX: f32,
     rotateY: f32,
     rotateZ: f32,
     viewScale: f32,
     posX: f32,
     posY: f32,
+    posZ: f32,
+    fieldOfView: f32,
 };
 
 struct VertexOutput {
@@ -63,16 +64,16 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     
     var clipPos: vec2<f32>;
     
-    if (u.viewMode == 0) {
+    if (VIEW_MODE == 0) {
         // 2D mode: positions are normalized 0..1
         clipPos = vec2<f32>(pos.x * 2.0 - 1.0, 1.0 - pos.y * 2.0);
     } else {
-        // 3D mode: apply rotation and orthographic projection
+        // 3D mode: rotate world coordinates before camera projection
         var p = pos.xyz;
         
         // Detect if this is a 2D system (coords in 0-1) or 3D attractor (coords ±40)
         // 2D systems have Z near 0 and XY in 0-1 range
-        let is2DSystem = abs(p.z) < 1.0 && p.x >= 0.0 && p.x <= 1.0 && p.y >= 0.0 && p.y <= 1.0;
+        let is2DSystem = VIEW_MODE == 1 && abs(p.z) < 1.0 && p.x >= 0.0 && p.x <= 1.0 && p.y >= 0.0 && p.y <= 1.0;
         
         if (is2DSystem) {
             // Center 2D coords around origin: 0-1 -> -0.5 to 0.5
@@ -98,8 +99,18 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
         p.x = p.x + u.posX;
         p.y = p.y + u.posY;
         
-        // Orthographic projection with scale
-        if (is2DSystem) {
+        if (VIEW_MODE == 2) {
+            // Match the billboard camera at Z=80, looking down negative Z.
+            let cameraDepth = 80.0 - (p.z + u.posZ);
+            if (cameraDepth <= 0.1) {
+                out.position = vec4<f32>(2.0, 2.0, 0.0, 1.0);
+                out.color = vec4<f32>(0.0);
+                return out;
+            }
+            let focalLength = 1.0 / tan(clamp(u.fieldOfView, 10.0, 150.0) * 0.00872664626);
+            clipPos = p.xy * focalLength * u.viewScale / cameraDepth;
+            clipPos.x = clipPos.x * u.resolution.y / u.resolution.x;
+        } else if (is2DSystem) {
             // 2D systems: coords are now ±0.5, scale to fill viewport
             // Use 3.5x multiplier for close-up view that's nice to pan around
             clipPos = p.xy * 3.5 * u.viewScale;

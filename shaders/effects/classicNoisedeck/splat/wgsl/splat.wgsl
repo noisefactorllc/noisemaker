@@ -21,6 +21,8 @@ struct Uniforms {
     speckSeed: f32,
     speckColor: vec3<f32>,
     speckMode: i32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(2) var<uniform> u : Uniforms;
@@ -29,8 +31,7 @@ const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
 
 fn getAspectRatio() -> f32 {
-    let dims = vec2<f32>(textureDimensions(inputTex, 0));
-    return dims.x / dims.y;
+    return u.fullResolution.x / u.fullResolution.y;
 }
 
 fn mapRange(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
@@ -112,10 +113,11 @@ fn speckle(st: vec2<f32>, scale: vec2<f32>) -> f32 {
 @fragment
 fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     let dims = vec2<f32>(textureDimensions(inputTex, 0));
-    let aspectRatio = dims.x / dims.y;
-    var uv = fragCoord.xy / dims;
+    let aspectRatio = u.fullResolution.x / u.fullResolution.y;
+    let globalCoord = fragCoord.xy + u.tileOffset;
+    var uv = globalCoord / u.fullResolution;
 
-    var color = textureSample(inputTex, samp, uv);
+    var color = textureSample(inputTex, samp, fragCoord.xy / dims);
     
     let noiseCoord = uv * vec2<f32>(aspectRatio, 1.0);
     
@@ -125,7 +127,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
         if (u.speckMode == 0) {
             color = vec4<f32>(mix(color.rgb, u.speckColor, speckMask), color.a); // color
         } else if (u.speckMode == 1) {
-            color = textureSample(inputTex, samp, uv + speckMask * 0.1); // displace
+            color = textureSample(inputTex, samp, ((uv + speckMask * 0.1) * u.fullResolution - u.tileOffset) / dims); // displace
         } else if (u.speckMode == 2) {
             color = vec4<f32>(mix(color.rgb, 1.0 - color.rgb, speckMask), color.a); // invert
         } else if (u.speckMode == 3) {
@@ -139,7 +141,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
         if (u.mode == 0) {
             color = vec4<f32>(mix(color.rgb, u.color, splatMask), color.a); // color
         } else if (u.mode == 1) {
-            let texColor = textureSample(inputTex, samp, uv + splatMask * 0.1); // displace
+            let texColor = textureSample(inputTex, samp, ((uv + splatMask * 0.1) * u.fullResolution - u.tileOffset) / dims); // displace
             color = mix(color, texColor, splatMask);
         } else if (u.mode == 2) {
             color = vec4<f32>(mix(color.rgb, 1.0 - color.rgb, splatMask), color.a); // invert

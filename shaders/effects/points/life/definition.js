@@ -48,6 +48,10 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "types" }
+    },
     // State size param - inherited from upstream pointsEmit
     stateSize: {
       type: "int",
@@ -230,9 +234,11 @@ export default new Effect({
         rgbaTex: "global_rgba",
         dataTex: "global_life_data",
         forceMatrix: "forceMatrix",
-        inputTex: "inputTex"
+        inputTex: "inputTex",
+        diffuseTex: "diffuseTex"
       },
       uniforms: {
+        diffuseActive: "diffuseActive",
         typeCount: "typeCount",
         attractionScale: "attractionScale",
         repulsionScale: "repulsionScale",

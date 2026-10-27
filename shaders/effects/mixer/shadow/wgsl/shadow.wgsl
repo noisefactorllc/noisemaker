@@ -18,6 +18,9 @@
 @group(0) @binding(9) var<uniform> blur: f32;
 @group(0) @binding(10) var<uniform> spread: f32;
 @group(0) @binding(11) var<uniform> wrap: i32;
+@group(0) @binding(12) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(13) var<uniform> fullResolution: vec2<f32>;
+@group(0) @binding(14) var<uniform> renderScale: f32;
 
 // Extract a single channel from a color
 fn getChannel(color: vec4<f32>, channel: i32) -> f32 {
@@ -30,7 +33,9 @@ fn getChannel(color: vec4<f32>, channel: i32) -> f32 {
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let dims = vec2<f32>(textureDimensions(inputTex, 0));
-    let uv = position.xy / dims;
+    let st = position.xy / dims;
+    let globalCoord = position.xy + tileOffset;
+    let uv = globalCoord / fullResolution;
 
     // Base image is the non-mask source. Use textureSampleLevel throughout
     // because the blur loop below depends on per-pixel out-of-bounds checks
@@ -38,50 +43,55 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     // (it would require uniform control flow for implicit derivatives).
     var baseColor: vec4<f32>;
     if (maskSource == 0) {
-        baseColor = textureSampleLevel(tex, samp, uv, 0.0);
+        baseColor = textureSampleLevel(tex, samp, st, 0.0);
     } else {
-        baseColor = textureSampleLevel(inputTex, samp, uv, 0.0);
+        baseColor = textureSampleLevel(inputTex, samp, st, 0.0);
     }
 
-    // Mask UV shifted by shadow offset
-    let maskUV = uv - vec2<f32>(offsetX, offsetY) * 0.1;
+    // Mask UV shifted by shadow offset, scaled for print resolution
+    let maskUV = uv - vec2<f32>(offsetX, offsetY) * 0.1 * renderScale;
 
     // Gaussian blur of thresholded mask
     var shadowMask: f32 = 0.0;
     var totalWeight: f32 = 0.0;
 
-    let sigma = max(blur, 0.001);
+    // Scale blur by renderScale and cap at overlap
+    let blurPixels = min(blur * renderScale, 256.0);
+    let sigma = max(blurPixels, 0.001);
     let sigma2 = 2.0 * sigma * sigma;
 
     for (var x: i32 = -5; x <= 5; x = x + 1) {
         for (var y: i32 = -5; y <= 5; y = y + 1) {
-            let offset = vec2<f32>(f32(x), f32(y)) * blur / dims;
+            let offset = vec2<f32>(f32(x), f32(y)) * blurPixels / dims;
             let sampleUV = maskUV + offset;
+
+            // Convert global UV to local UV for tile-local texture sampling
+            let localUV = (sampleUV * fullResolution - tileOffset) / dims;
 
             // Apply wrap mode to sample UVs
             var thresholded: f32 = 0.0;
             if (wrap == 0) {
                 // hide: treat out-of-bounds as empty
-                if (sampleUV.x >= 0.0 && sampleUV.x <= 1.0 && sampleUV.y >= 0.0 && sampleUV.y <= 1.0) {
+                if (localUV.x >= 0.0 && localUV.x <= 1.0 && localUV.y >= 0.0 && localUV.y <= 1.0) {
                     var maskSample: vec4<f32>;
                     if (maskSource == 0) {
-                        maskSample = textureSampleLevel(inputTex, samp, sampleUV, 0.0);
+                        maskSample = textureSampleLevel(inputTex, samp, localUV, 0.0);
                     } else {
-                        maskSample = textureSampleLevel(tex, samp, sampleUV, 0.0);
+                        maskSample = textureSampleLevel(tex, samp, localUV, 0.0);
                     }
                     thresholded = step(threshold, getChannel(maskSample, sourceChannel));
                 }
             } else {
-                var wrappedUV = sampleUV;
+                var wrappedUV = localUV;
                 if (wrap == 1) {
                     // mirror
-                    wrappedUV = abs(((sampleUV + 1.0) % 2.0 + 2.0) % 2.0 - 1.0);
+                    wrappedUV = abs((localUV + 1.0) - 2.0 * floor((localUV + 1.0) / 2.0) - 1.0);
                 } else if (wrap == 2) {
                     // repeat
-                    wrappedUV = (sampleUV % 1.0 + 1.0) % 1.0;
+                    wrappedUV = fract(localUV);
                 } else {
                     // clamp
-                    wrappedUV = clamp(sampleUV, vec2<f32>(0.0), vec2<f32>(1.0));
+                    wrappedUV = clamp(localUV, vec2<f32>(0.0), vec2<f32>(1.0));
                 }
                 var maskSample: vec4<f32>;
                 if (maskSource == 0) {
@@ -110,9 +120,9 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     // Composite mask source (foreground) on top of the shadow
     var fgSample: vec4<f32>;
     if (maskSource == 0) {
-        fgSample = textureSampleLevel(inputTex, samp, uv, 0.0);
+        fgSample = textureSampleLevel(inputTex, samp, st, 0.0);
     } else {
-        fgSample = textureSampleLevel(tex, samp, uv, 0.0);
+        fgSample = textureSampleLevel(tex, samp, st, 0.0);
     }
     let fgMask = step(threshold, getChannel(fgSample, sourceChannel));
     let result = mix(withShadow, fgSample.rgb, fgMask);

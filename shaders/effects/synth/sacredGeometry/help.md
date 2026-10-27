@@ -58,42 +58,42 @@ render(o0)
 
 ```
 // Classic Flower of Life
-sacredGeometry({ geometry: 0, rings: 3 })
+sacredGeometry(geometry: flower, rings: 3)
   .write(o0)
 
 // Metatron's Cube
-sacredGeometry({ geometry: 3, fgColor: [1, 0.8, 0.4] })
+sacredGeometry(geometry: metatron, fgColor: [1, 0.8, 0.4])
   .write(o0)
 
 // Hexagram via star polygon (n=6)
-sacredGeometry({ geometry: 7, starPoints: 6, animation: 1, speed: 1 })
+sacredGeometry(geometry: starPolygon, starPoints: 6, animation: rotate, speed: 1)
   .write(o0)
 
 // Seed of Life, breathing
-sacredGeometry({ geometry: 4, animation: 2, speed: 1, pulseDepth: 0.3 })
+sacredGeometry(geometry: seed, animation: pulse, speed: 1, pulseDepth: 0.3)
   .write(o0)
 
 // Pentagram
-sacredGeometry({ geometry: 7, starPoints: 5 })
+sacredGeometry(geometry: starPolygon, starPoints: 5)
   .write(o0)
 
 // 9-pointed enneagram
-sacredGeometry({ geometry: 7, starPoints: 9 })
+sacredGeometry(geometry: starPolygon, starPoints: 9)
   .write(o0)
 
 // Triquetra in warm tones
-sacredGeometry({ geometry: 8, fgColor: [1, 0.7, 0.3], thickness: 0.3 })
+sacredGeometry(geometry: triquetra, fgColor: [1, 0.7, 0.3], thickness: 0.3)
   .write(o0)
 
 // Flower of life rippling outward
-sacredGeometry({ geometry: 0, rings: 4, animation: 4, speed: 1, pulseDepth: 0.3 })
+sacredGeometry(geometry: flower, rings: 4, animation: ripple, speed: 1, pulseDepth: 0.3)
   .write(o0)
 
 // Metatron unfolding from center
-sacredGeometry({ geometry: 3, animation: 5, speed: 1 })
+sacredGeometry(geometry: metatron, animation: unfold, speed: 1)
   .write(o0)
 
 // Heptagram with slow rotation
-sacredGeometry({ geometry: 7, starPoints: 7, animation: 1, speed: 1 })
+sacredGeometry(geometry: starPolygon, starPoints: 7, animation: rotate, speed: 1)
   .write(o0)
 ```

@@ -6,7 +6,7 @@
  */
 
 // Language & Compiler
-export { lex, parse, validate, compile, unparse, applyParameterUpdates, formatValue, unparseCall, replaceEffect, listSteps, getCompatibleReplacements } from './lang/index.js'
+export { lex, parse, validate, compile, unparse, applyParameterUpdates, formatValue, unparseCall, replaceEffect, listSteps, getCompatibleReplacements, predictReplacement } from './lang/index.js'
 export { registerOp } from './lang/ops.js'
 export { registerStarterOps, registerValidatorHook } from './lang/validator.js'
 export { mergeIntoEnums } from './lang/enums.js'
@@ -67,6 +67,7 @@ export {
     is3dProcessor,
     isStarterEffect
 } from './renderer/canvas.js'
+export { detectSoftwareRendering, classifySoftwareRendering } from './renderer/software-rendering.js'
 
 // ProgramState & UI Utilities
 // Re-export for downstream use (noisedeck, shade, etc.)

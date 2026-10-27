@@ -17,6 +17,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel build
 # Copy only files needed for installation
 COPY pyproject.toml README.md LICENSE ./
 COPY noisemaker ./noisemaker
+COPY share/__init__.py share/*.json ./share/
 COPY share/dsl ./share/dsl
 
 # Build and install the package
@@ -36,7 +37,6 @@ RUN apt-get update && \
 # Copy Python packages from builder
 COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
 COPY --from=builder /usr/local/bin/noisemaker /usr/local/bin/noisemaker
-COPY --from=builder /usr/local/bin/magic-mashup /usr/local/bin/magic-mashup
 COPY --from=builder /usr/local/bin/mood /usr/local/bin/mood
 
 # Create non-root user
@@ -45,7 +45,7 @@ RUN useradd -m -u 1000 noisemaker && \
     chown -R noisemaker:noisemaker /output
 
 USER noisemaker
-WORKDIR /output
+WORKDIR /
 
 # Verify installation
 RUN noisemaker --help > /dev/null

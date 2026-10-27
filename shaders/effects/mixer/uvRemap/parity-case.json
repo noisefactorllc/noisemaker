@@ -1,0 +1,16 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/noise",
+        "synth/gradient",
+        "mixer/uvRemap"
+    ],
+    "dsl": "search synth, mixer\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\ngradient(seed: 1).uvRemap(tex: o0).write(o1)\nrender(o1)",
+    "surface": "o1",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true
+}

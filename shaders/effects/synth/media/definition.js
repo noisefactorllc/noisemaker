@@ -30,7 +30,9 @@ export default class Media extends Effect {
     flip: { slot: 2, components: 'z' },
     bgAlpha: { slot: 2, components: 'w' },
     bgColor: { slot: 3, components: 'xyz' },
-    imageSize: { slot: 4, components: 'xy' }
+    imageSize: { slot: 4, components: 'xy' },
+    tileOffset: { slot: 5, components: 'xy' },
+    fullResolution: { slot: 5, components: 'zw' }
   }
 
   globals = {
@@ -175,7 +177,6 @@ export default class Media extends Effect {
     }
   }
 
-  paramAliases = { backgroundColor: 'bgColor', backgroundOpacity: 'bgAlpha' }
 
 
   passes = [

@@ -67,7 +67,7 @@ render(o0)
 
 ```
 modPattern(scale1: 6.0, repeat1: 10.0)
-  .palette(preset: "rainbow")
+  .palette(index: vaporwave)
   .write(o0)
 
 render(o0)

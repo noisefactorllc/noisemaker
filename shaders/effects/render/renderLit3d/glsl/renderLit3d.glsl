@@ -339,7 +339,7 @@ void main() {
     
     // Camera setup - fixed position, volume rotates
     // Scale camera position from 0-1 UI range to world coords
-    vec3 ro = cameraPosition * vec3(-1.0, 1.0, 1.0) * 3.5;
+    vec3 ro = cameraPosition * 3.5;
     
     // Camera looks at origin; handle case when at origin
     vec3 forward;
@@ -349,20 +349,23 @@ void main() {
         forward = normalize(-ro);  // Look toward origin
     }
     vec3 worldUp = vec3(0.0, 1.0, 0.0);
-    // Handle looking straight up/down
+    // Looking straight down, screen up is -Z, as it is just short of straight
+    // down, so a top-down view shows the volume's far side at the top.
     if (abs(dot(forward, worldUp)) > 0.999) {
-        worldUp = vec3(0.0, 0.0, 1.0);
+        worldUp = vec3(0.0, 0.0, sign(forward.y));
     }
-    vec3 right = normalize(cross(worldUp, forward));
-    vec3 up = cross(forward, right);
+    // (right, up, -forward) is right-handed, so the volume is never mirrored.
+    vec3 right = normalize(cross(forward, worldUp));
+    vec3 up = cross(right, forward);
     
     vec3 rd = normalize(forward + uv.x * right + uv.y * up);
     
     // Light direction is fixed in world space (not view space)
-    vec3 worldLightDir = normalize(lightDirection * vec3(-1.0, 1.0, 1.0));
+    vec3 worldLightDir = normalize(lightDirection);
     
-    // Rotate ray into volume space
-    float angle = time * TAU * float(orbitSpeed);
+    // Rotate ray into volume space. The angle is negated so the volume spins
+    // on screen in the same direction as in earlier releases.
+    float angle = -time * TAU * float(orbitSpeed);
     float c = cos(angle);
     float s = sin(angle);
     // Rotation around Y axis

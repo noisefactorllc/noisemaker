@@ -25,7 +25,7 @@ fn main(input : VertexOutput) -> @location(0) vec4<f32> {
     
     // Normalize RGB channels, preserve alpha
     var normalized : vec4<f32>;
-    if (range > 0.0001) {
+    if (!(range < 0.00001)) {
         normalized = vec4<f32>(
             (texel.r - global_min) / range,
             (texel.g - global_min) / range,

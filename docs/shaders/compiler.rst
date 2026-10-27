@@ -3,7 +3,9 @@
 Compiler Spec
 =============
 
-The Noisemaker Rendering Pipeline compiler is responsible for transforming high-level Polymorphic DSL code into an executable GPU Render Graph. It bridges the gap between the user's intent (DSL) and the machine's execution model (Pipeline).
+The Noisemaker Rendering Pipeline compiler transforms high-level Polymorphic
+DSL code into a compiled render graph. The runtime then creates a Pipeline from
+that graph and asks the selected backend to compile its shader programs.
 
 Compilation Pipeline
 --------------------
@@ -12,17 +14,17 @@ The compilation process occurs in four distinct stages:
 
 
 #. **Parsing:** Source Code → Abstract Syntax Tree (AST)
-#. **Analysis:** AST → Logical Graph (Effect Chain)
-#. **Expansion:** Logical Graph → Render Graph (Passes)
-#. **Assembly:** Render Graph → Execution Plan (Linear Pass Schedule)
+#. **Analysis:** AST → Validated Planned Chains
+#. **Expansion:** Planned Chains → Ordered Render Passes and Program Specs
+#. **Allocation and Assembly:** Passes → Compiled Render Graph
 
 .. code-block:: text
 
    graph TD
        A[Source Code] -->|Lexer/Parser| B[AST]
-       B -->|Semantic Analyzer| C[Logical Graph]
-       C -->|Effect Expander| D[Render Graph]
-       D -->|Resource Allocator| E[Execution Plan]
+       B -->|Semantic Analyzer| C[Planned Chains]
+       C -->|Effect Expander| D[Passes and Program Specs]
+       D -->|Resource Allocator| E[Compiled Render Graph]
 
 ----
 
@@ -32,7 +34,8 @@ Stage 1: Parsing
 The parser converts the raw string input into a structured tree representation.
 
 
-* **Input:** ``string`` (e.g., ``osc(10).write(o0)``)
+* **Input:** ``string`` (e.g., ``search synth`` followed by
+  ``noise(scaleX: 10).write(o0)``)
 * **Output:** ``ProgramNode`` (AST Root)
 
 1.1 Lexical Analysis
@@ -41,64 +44,81 @@ The parser converts the raw string input into a structured tree representation.
 The lexer tokenizes the input, handling:
 
 
-* Identifiers (``osc``, ``o0``)
+* Identifiers (``synth``, ``noise``, ``scaleX``, ``o0``)
 * Literals (``10``, ``#ff0000``, ``"string"``)
 * Operators (``.``, ``(``, ``)``)
 * Comments (``//``, ``/* ... */``)
 * **Special Tokens:** ``OUTPUT_REF`` (``o0``), ``HEX`` (``#ff0000``).
-* **Keywords:** ``out``, ``render``, ``let``, ``if``, etc.
+* **Keywords:** ``render``, ``write``, ``write3d``, ``let``, ``if``,
+  ``search``, ``subchain``, etc.
 
 1.2 Syntax Analysis
 ^^^^^^^^^^^^^^^^^^^
 
 The parser constructs the AST based on the grammar defined in :ref:`Polymorphic DSL <shader-language>`. Unlike traditional ESTree-like structures, the Polymorphic parser produces a specialized AST optimized for the pipeline's needs.
 
-**Example AST for ``osc(10).write(o0)``:**
+**Abridged AST for ``search synth`` followed by
+``noise(scaleX: 10).write(o0)``:**
 
 .. code-block:: json
 
    {
      "type": "Program",
-     "plans": [ // Corresponds to ChainStmt in grammar
+     "plans": [
        {
          "chain": [
            {
              "type": "Call",
-             "name": "osc",
-             "args": [{ "type": "Number", "value": 10 }]
+             "name": "noise",
+             "args": [],
+             "kwargs": {
+               "scaleX": { "type": "Number", "value": 10 }
+             }
+           },
+           {
+             "type": "Write",
+             "surface": { "type": "OutputRef", "name": "o0" }
            }
          ],
-         "out": { "type": "OutputRef", "name": "o0" }
+         "write": { "type": "OutputRef", "name": "o0" },
+         "write3d": null
        }
      ],
-     "vars": [],
-     "render": null
+     "render": null,
+     "namespace": { "searchOrder": ["synth"] }
    }
 
 **Key Structural Differences:**
 
 
-* **Flat Chains:** Chains are represented as a flat array of ``Call`` nodes, not nested ``CallExpression`` objects.
-* **Explicit Output:** The ``.write()`` directive is parsed separately from the chain and stored in the ``out`` property of the statement.
-* **Separated State:** Variable assignments (``vars``) and render instructions (``plans``) are segregated at the root level. ``plans`` is an array of ``ChainStmt`` nodes.
+* **Flat Chains:** The parser represents chains as a flat array of operation
+  nodes, not nested ``CallExpression`` objects.
+* **Explicit Output:** A ``.write()`` directive is a ``Write`` node in the
+  chain. The parser also summarizes the terminal write target in the statement's
+  ``write`` property for downstream validation.
+* **Separated State:** The parser tracks variable assignments, render
+  instructions, and chain plans separately at the root. ``plans`` is an array of
+  ``ChainStmt`` nodes.
 
 ----
 
-Stage 2: Analysis (AST → Logical Graph)
----------------------------------------
+Stage 2: Analysis (AST → Planned Chains)
+-----------------------------------------
 
-This stage resolves symbols, validates types, and constructs a high-level graph of Effect instances.
+This stage resolves symbols, validates types, and constructs namespaced planned
+chains for expansion.
 
 
 * **Input:** ``ProgramNode``
-* **Output:** ``LogicalGraph`` (Nodes = Effects, Edges = Data Flow)
+* **Output:** validated planned chains (operations linked by temporary values)
 
 2.1 Symbol Resolution
 ^^^^^^^^^^^^^^^^^^^^^
 
 
-* **Search Order Resolution:** The ``search`` directive (if present) defines the namespace search order for the program. If omitted, the default order ``['synth', 'filter']`` is used.
-* **Namespace Lookup:** Resolves function names (e.g., ``osc``) to Effect Definitions by walking the search order until a match is found.
+* **Search Order Resolution:** The required ``search`` directive defines the
+  namespace search order for the program. The parser rejects programs without it.
+* **Namespace Lookup:** Resolves function names (e.g., ``noise``) to Effect Definitions by searching namespaces in order until it finds a match.
 * **Variable Scope:** Tracks ``let`` assignments and resolves variable references.
 
 2.2 Chain Analysis
@@ -107,140 +127,129 @@ This stage resolves symbols, validates types, and constructs a high-level graph 
 Since the AST already represents chains as flat arrays, the analyzer iterates sequentially through the ``chain`` list.
 
 
-#. **Root Identification:** The first element of the ``chain`` array is identified as the generator or source.
-#. **Instance Creation:** Instantiates the ``Effect`` class for each ``Call`` node.
+#. **Root Identification:** Identifies the first element of the ``chain`` array as the generator or source.
+#. **Operation Creation:** Resolves each ``Call`` node to a namespaced effect
+   operation.
 #. **Parameter Binding:**
 
    * Validates arguments against the Effect's ``globals`` schema.
-   * Resolves named arguments (``freq: 10``) vs positional (``10``).
-   * Coerces types (e.g., ``int`` → ``float``).
+   * Resolves named arguments (``scaleX: 10``) vs positional (``10``).
+   * Resolves numeric and boolean literal values and clamps declared ranges.
 
-2.3 Logical Graph Construction
+2.3 Planned Chain Construction
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Nodes are created for each effect instance. Edges are created to represent the flow of the ``outputColor`` from one effect to the ``inputColor`` of the next.
+Each effect call becomes a planned step. Its ``from`` and ``temp`` fields
+represent data flow between operations before the expander lowers them to
+render passes.
 
-**Logical Node Structure:**
+**Abridged planned step (defaulted arguments omitted):**
 
 .. code-block:: js
 
    {
-     id: "node_1",
-     effect: "Oscillator", // Reference to Definition
-     params: { freq: 10 },
-     inputs: { inputColor: null }, // Generator has no input
-     outputs: { outputColor: "node_1_out" }
+     op: "synth.noise",
+     args: { scaleX: 10 },
+     from: null, // Generator has no input
+     temp: 0
    }
 
 ----
 
-Stage 3: Expansion (Logical Graph → Render Graph)
--------------------------------------------------
+Stage 3: Expansion (Planned Chains → Ordered Passes)
+-----------------------------------------------------
 
 This stage lowers the high-level Effects into their constituent GPU Passes.
 
 
-* **Input:** ``LogicalGraph``
-* **Output:** ``RenderGraph`` (Nodes = Passes, Edges = Texture Dependencies)
+* **Input:** validated planned chains
+* **Output:** ordered passes, program specs, texture specs, and render surface
 
 3.1 Pass Expansion
 ^^^^^^^^^^^^^^^^^^
 
-For each Logical Node, the compiler looks up the ``passes`` array in the Effect Definition.
+For each planned effect operation, the compiler looks up the ``passes`` array
+in the Effect Definition.
 
 
 #. 
-   **Texture Allocation:**
+   **Texture Mapping:**
 
 
-   * Resolves internal textures (e.g., ``downsampled``).
-   * Creates implicit ``inputColor`` and ``outputColor`` textures if not explicitly defined.
-   * Calculates dimensions based on screen size and relative specifiers (e.g., ``50%``).
+   * Maps pipeline references such as ``inputTex`` and ``outputTex`` to virtual
+     texture IDs.
+   * Prefixes node-local texture names and scopes shared state textures to the
+     relevant chain or particle pipeline.
+   * Preserves effect texture specifications for runtime dimension resolution.
 
 #. 
    **Pass Generation:**
 
 
-   * Creates a Render Pass Node for each entry in ``passes``.
-   * Maps logical texture names to unique resource IDs (e.g., ``tex_node1_downsampled``).
-   * Injects ``defines`` based on static parameters.
+   * Creates an expanded pass for each entry in ``passes``.
+   * Adds passes in planned-chain order and records their virtual texture
+     dependencies.
+   * Attaches uniforms and compile-time ``defines`` derived from effect globals.
 
-3.2 Shader Program Compilation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-This is where the "Single Effect → GPU Program" transformation happens.
-
-
-#. **Source Resolution:** Locates the shader file (``.glsl`` or ``.wgsl``) based on the ``program`` key.
-#. **Define Injection:** Prepend ``#define`` statements for static configuration.
-#. **Backend Transpilation (WebGL only):**
-
-   * For Compute passes, wraps the logic in a full-screen quad vertex shader.
-   * Generates the fragment shader boilerplate (uniform declarations).
-
-**Example: Compute Pass Expansion (WebGL)**
-
-
-* **Input:** User GLSL snippet.
-* **Output:** Full Fragment Shader.
-
-  .. code-block:: glsl
-
-     #version 300 es
-     precision highp float;
-     uniform float u_time;
-     // ... injected uniforms ...
-     out vec4 fragColor;
-     void main() {
-       // ... user code ...
-     }
-
-----
-
-Stage 4: Assembly (Render Graph → Executable Pipeline)
-------------------------------------------------------
-
-The final stage prepares the graph for execution by the runtime.
-
-
-* **Input:** ``RenderGraph``
-* **Output:** ``ExecutionPlan`` (Sorted List of Commands)
-
-4.1 Topological Sort
-^^^^^^^^^^^^^^^^^^^^
-
-Orders the passes so that all dependencies are satisfied before a pass is executed.
-
-
-* **Algorithm:** Kahn's Algorithm.
-* **Cycle Detection:** Identifies feedback loops. If a loop is found, it must be broken by a ``persistent`` texture (reading from the previous frame).
-
-4.2 Resource Optimization
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Performs liveness analysis to minimize VRAM usage.
-
-
-* **Liveness Interval:** Calculates ``[first_write, last_read]`` for each texture.
-* **Pooling:** Assigns physical GPU textures from a shared pool to virtual texture IDs. Two virtual textures with non-overlapping intervals can share the same physical texture.
-
-4.3 Command Generation
+3.2 Program Collection
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Generates the linear list of commands for the GPU driver.
+Expansion also collects the GLSL or WGSL source specifications referenced by
+each pass. The expander scopes program names to the effect instance. Compile-time
+define values form part of the program key so distinct variants do not collide.
 
-
-* ``SetGlobal(time)``
-* ``BindTexture(unit=0, tex=pool_A)``
-* ``BindProgram(prog_Bloom)``
-* ``Draw()``
+The compiler does not compile GPU programs. During Pipeline initialization,
+the runtime walks the graph's pass list, resolves each program specification,
+and calls the selected backend's ``compileProgram()`` implementation.
 
 ----
 
-Error Codes & Stages
---------------------
+Stage 4: Allocation and Graph Assembly
+--------------------------------------
 
-The following table maps error codes to the compilation stage where they are raised.
+The final compiler stage assigns reusable logical texture-slot IDs and packages
+the ordered pass data for the runtime.
+
+
+* **Input:** ordered render passes, program specs, and texture specs
+* **Output:** compiled render graph
+
+4.1 Resource Allocation
+^^^^^^^^^^^^^^^^^^^^^^^
+
+The resource allocator computes each virtual texture's first and last use, then
+applies linear-scan allocation to assign ``phys_N`` identifiers. The allocator can reuse a logical slot ID if its prior virtual texture's
+lifetime ended in an earlier pass. This produces only a virtual-to-slot map.
+It does not create GPU textures or a runtime texture pool.
+
+The allocator omits texture IDs beginning with ``global_`` from the allocation map.
+
+4.2 Graph Assembly
+^^^^^^^^^^^^^^^^^^
+
+``compileGraph()`` returns an object with these fields:
+
+- Source hash and original source
+- Ordered ``passes`` and collected ``programs``
+- Virtual-to-physical ``allocations`` and resolved texture specs
+- Selected render surface and compilation timestamp
+
+It does not topologically sort passes or generate a separate GPU command
+list. The Pipeline executes passes in the compiler-produced order.
+
+----
+
+Failures and Diagnostics
+------------------------
+
+The front end reports semantic issues with the ``S001``–``S008`` diagnostics
+documented in :ref:`Polymorphic DSL <shader-language>`. Lexer and parser
+failures are JavaScript ``SyntaxError`` instances. The parser rejects a missing
+mandatory ``search`` directive. Validation also checks for this directive.
+
+The following structured codes cross the compiler/runtime boundary. This is a
+focused list rather than an inventory of every backend-specific capability
+error.
 
 .. list-table::
    :header-rows: 1
@@ -248,79 +257,30 @@ The following table maps error codes to the compilation stage where they are rai
    * - Code
      - Stage
      - Description
-   * - ``ERR_SYNTAX``
-     - Parser
-     - Malformed DSL syntax (unexpected token, missing brace)
-   * - ``ERR_UNKNOWN_IDENT``
-     - Analysis
-     - Identifier not found in scope
-   * - ``ERR_ARG_TYPE``
-     - Analysis
-     - Argument type mismatch (e.g. string passed to float)
-   * - ``ERR_SCHEMA``
+   * - ``ERR_COMPILATION_FAILED``
      - Validation
-     - Effect definition violates JSON schema
-   * - ``ERR_DUP_PASS_NAME``
-     - Validation
-     - Duplicate pass name in Effect definition
-   * - ``ERR_BAD_TEX_REF``
-     - Validation
-     - Input/output references unknown texture/surface
-   * - ``ERR_PINGPONG_UNDECL``
-     - Validation
-     - Ping-pong texture undeclared
-   * - ``ERR_ITER_NO_PINGPONG``
-     - Validation
-     - Iterative pass missing pingpong or self-read unsafe
-   * - ``ERR_CYCLE``
-     - Assembly
-     - Cyclic dependency detected in Render Graph
-   * - ``ERR_COMPUTE_UNSUPPORTED_FEATURE``
-     - Validation
-     - Compute feature not emulatable on WebGL
-   * - ``ERR_VIEWPORT_BOUNDS``
-     - Assembly
-     - Viewport out of target bounds
-   * - ``ERR_WORKGROUP_LIMIT``
-     - Assembly
-     - Workgroup size exceeds device limits
-   * - ``ERR_UNIFORM_COERCE``
-     - Assembly
-     - Uniform value invalid/coercion failed
-   * - ``ERR_SURFACE_MULTIWRITE``
-     - Assembly
-     - Multiple writes to same surface without extension
-   * - ``ERR_COMPUTE_MRT_UNSUPPORTED``
-     - Validation
-     - Multi-render-target compute emulation unsupported
-   * - ``ERR_READBACK_FORBIDDEN``
-     - Runtime
-     - Attempted GPU-to-CPU readback within frame
-   * - ``ERR_TOO_MANY_TEXTURES``
-     - Assembly
-     - Exceeded maximum texture units for backend
-   * - ``ERR_DIMENSION_INVALID``
-     - Assembly
-     - Texture dimension spec invalid
-   * - ``ERR_FORMAT_UNSUPPORTED``
-     - Assembly
-     - Texture format not supported by backend
+     - One or more semantic diagnostics have error severity
+   * - ``ERR_EXPANSION_FAILED``
+     - Expansion
+     - Planned chains could not be lowered into passes
+   * - ``ERR_PROGRAM_SPEC_MISSING``
+     - Pipeline initialization
+     - A pass references a program absent from the compiled graph
    * - ``ERR_SHADER_COMPILE``
      - Backend
-     - Shader compilation failed (driver error)
+     - A WebGL or WebGPU shader failed to compile
    * - ``ERR_SHADER_LINK``
-     - Backend
-     - Shader program linking failed (driver error)
-   * - ``ERR_NO_INPUT``
-     - Expansion
-     - Non-generator effect missing input
-   * - ``ERR_ENUM_INVALID``
-     - Validation
-     - Unknown enum string provided
-   * - ``ERR_CONDITION_SYNTAX``
-     - Validation
-     - Invalid pass condition entry
-   * - ``ERR_CONTROL_FLOW_INVALID``
-     - Analysis
-     - Break/continue in invalid context
+     - WebGL backend
+     - Compiled WebGL shaders failed to link into a program
+   * - ``ERR_SHADER_MISSING``
+     - WebGL backend
+     - A pass references a shader source the backend cannot resolve
 
+Backend shader compile, link, and missing-source failures are normalized to
+one structured ``ShaderDiagnostic`` union with the machine ``code``, the
+``backend`` and ``stage``, a parsed per-message ``messages`` array, and the
+byte-identical legacy ``detail`` string. See :ref:`the Pipeline error-code
+table <pipeline-error-codes>` for the full shape.
+
+The allocator itself still only computes the map. The runtime consumes it
+behind the ``texturePooling: true`` opt-in; see :doc:`pipeline`.

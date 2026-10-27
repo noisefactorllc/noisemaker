@@ -896,27 +896,6 @@ with ``code``, ``message``, ``severity`` and ``location``), or with a
 ``SyntaxError`` whose message ends ``at line N col M`` for a scene error; the
 canvas stays blank until a later compile succeeds.
 
-**gl-matrix.** The scene modules depend on ``gl-matrix``, imported as a bare
-module specifier. The distributed ``noisemaker-shaders-core`` bundles carry it,
-so a page that loads the bundle needs nothing more. A page that imports the
-engine from source must make the specifier resolvable, typically with an
-import map whose path leads to the package from the page's own location:
-
-.. code-block:: html
-
-   <script type="importmap">
-   {
-     "imports": {
-       "gl-matrix": "/node_modules/gl-matrix/esm/index.js"
-     }
-   }
-   </script>
-
-The scene modules are loaded only when a program containing ``scene()``
-compiles, so without the map a 2D program still renders normally and the
-failure — ``Failed to resolve module specifier "gl-matrix"`` — appears only
-when a scene program is compiled.
-
 Limits in this preview
 ----------------------
 

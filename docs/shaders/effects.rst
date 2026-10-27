@@ -8,7 +8,7 @@ An "Effect" is a self-contained unit that transforms inputs to outputs using one
 1. Schema
 ---------
 
-Effect definitions are created using the ``Effect`` constructor with a configuration object. This is the primary and recommended approach.
+Create effect definitions with the ``Effect`` constructor and a configuration object. This is the primary and recommended approach.
 
 .. code-block:: javascript
 
@@ -43,7 +43,6 @@ Effect definitions are created using the ``Effect`` constructor with a configura
      passes: [
        {
          name: "downsample",
-         type: "render",
          program: "downsample",
          inputs: {
            scene: "inputTex"
@@ -54,14 +53,13 @@ Effect definitions are created using the ``Effect`` constructor with a configura
        },
        {
          name: "composite",
-         type: "render",
          program: "composite",
          inputs: {
            scene: "inputTex",
            bloom: "downsampled"
          },
          outputs: {
-           color: "outputColor"
+           color: "outputTex"
          }
        }
      ]
@@ -75,17 +73,19 @@ Effect definitions are created using the ``Effect`` constructor with a configura
 * ``textures``: Defines the internal render targets. Dimensions can be absolute, relative to screen (``"screen"``, ``"50%"``), or fixed.
 * ``passes``:
 
-  * ``type``: ``render`` (fragment shader) or ``compute`` (compute shader).
   * ``program``: Key to look up the shader code (GLSL/WGSL).
   * ``inputs``: Maps shader uniform samplers to texture names.
   * ``outputs``: Maps shader output locations (or write buffers) to texture names.
-  * ``iterations``: Number of times to run this pass.
-  * ``pingpong``: Array of two texture names to swap input/output roles during iterations.
+  * ``uniforms``: Maps shader uniform names to effect-global parameter names.
+  * ``repeat``: A fixed repeat count or the name of a uniform that supplies it.
+  * Backend fields include ``entryPoint``, ``drawMode``, ``drawBuffers``,
+    ``count``, ``countUniform``, ``blend``, ``workgroups``, ``storageBuffers``,
+    and ``storageTextures``.
 
 2b. Tags and Namespaces
 -----------------------
 
-Effects can be categorized using **tags** and **namespaces** to help users discover and reason about available effects.
+**Tags** and **namespaces** categorize effects to help users find and understand them.
 
 **Namespaces**
 
@@ -98,7 +98,7 @@ Namespace is the primary categorization and acts as an implicit tag. Each effect
    * - Namespace
      - Description
    * - ``io``
-     - Pipeline I/O functions (built-in, no search required)
+     - Built-in pipeline I/O operations. The required search directive needs no ``io`` entry.
    * - ``classicNoisedeck``
      - Complex shaders ported from the original noisedeck.app pipeline
    * - ``synth``
@@ -120,7 +120,7 @@ Namespace is the primary categorization and acts as an implicit tag. Each effect
 
 **Tags**
 
-Tags are curated labels for additional categorization. An effect may have multiple tags. Tags are optional and defined globally in ``shaders/src/runtime/tags.js``.
+Tags are curated labels for additional categorization. An effect may have multiple tags. Tags are optional. The ``shaders/src/runtime/tags.js`` file defines them globally.
 
 .. list-table::
    :header-rows: 1
@@ -177,7 +177,7 @@ Tags are curated labels for additional categorization. An effect may have multip
    * - ``tiling``
      - Seamless tiling
    * - ``transform``
-     - Moves stuff around
+     - Transforms positions
    * - ``util``
      - Utility function
    * - ``video``
@@ -201,7 +201,7 @@ Tags are curated labels for additional categorization. An effect may have multip
 
 **Tag Validation:**
 
-Tags are validated against the curated list in ``shaders/src/runtime/tags.js``. Invalid tags will be flagged during development. The ``validateTags()`` function can be used for programmatic validation:
+Validation checks tags against the curated list in ``shaders/src/runtime/tags.js``. Development checks flag invalid tags. Use ``validateTags()`` to check tags programmatically:
 
 .. code-block:: javascript
 
@@ -217,7 +217,7 @@ Tags are validated against the curated list in ``shaders/src/runtime/tags.js``. 
 
 **UI Rendering:**
 
-In the demo UI, tags are rendered to the right of the namespace badge. Namespace appears prominently (as the "important tag"), with additional tags displayed in a lighter style.
+The demo UI renders tags to the right of the namespace badge. It emphasizes the namespace and displays additional tags in a lighter style.
 
 3. On-Disk Layout
 -----------------
@@ -235,18 +235,18 @@ Effects are typically authored as a directory containing a definition file, shad
    └── help.md             # User documentation (markdown)
 
 **Shader References:**
-The ``program`` field in a pass can specify a relative path (e.g., ``"./my-shader"``). The runtime resolves this path relative to the definition file, injecting the backend-specific directory (``glsl/`` or ``wgsl/``) and appending the appropriate extension (``.glsl`` or ``.wgsl``).
+The ``program`` field in a pass can specify a relative path (e.g., ``"./my-shader"``). The runtime resolves this path relative to the definition file. It inserts the backend directory (``glsl/`` or ``wgsl/``) and appends the corresponding extension (``.glsl`` or ``.wgsl``).
 
 **Documentation:**
 The ``help.md`` file is optional but recommended for library effects. It provides context for the editor UI.
 
 **Example DSL:**
-Example DSL snippets are auto-generated by the demo UI based on the effect type (starter, filter, or mixer). There is no need to maintain ``example.dsl`` files manually.
+The demo UI generates example DSL snippets from the effect type (starter, filter, or mixer). You do not need to maintain ``example.dsl`` files manually.
 
 4. Global Enums
 ---------------
 
-To promote consistency and reduce duplication, common enumerations are defined in a global registry. Effects reference these enums by name instead of redefining the choices.
+A global registry defines common enumerations for consistency and reduced duplication. Effects reference these enums by name instead of redefining the choices.
 
 **Global Registry Example:**
 
@@ -280,10 +280,30 @@ To promote consistency and reduce duplication, common enumerations are defined i
 
 The runtime resolves the string value (e.g., ``"linear"``) to its integer counterpart (``1``) before binding to the shader.
 
+**Exact vector formatting:**
+
+For ``vec4`` parameters that store coordinates, set ``ui.format: 'vector'``
+to preserve their numeric values when generating DSL:
+
+.. code-block:: javascript
+
+   vertices: {
+     type: 'vec4',
+     default: [0, 0, 1, 1],
+     ui: { format: 'vector' }
+   }
+
+When the unparser receives this parameter definition and an array or typed
+array of four finite numbers, it emits an array literal without rounding,
+color clamping, or exponent notation. Remap uses this for its packed vertex
+pairs. Hosts that call ``unparse()`` must supply effect definitions through
+``getEffectDef`` so the formatter can read the metadata. This property does
+not change the parameter's shader type or reject legacy hexadecimal input.
+
 4b. UI Categories
 -----------------
 
-Uniform controls can be visually grouped in the demo UI using the ``ui.category`` property. Categories allow complex effects with many parameters to organize their controls into logical sections.
+Use ``ui.category`` to group uniform controls visually in the demo UI. Categories organize controls into sections for complex effects with many parameters.
 
 **Category Requirements:**
 
@@ -323,11 +343,15 @@ Uniform controls can be visually grouped in the demo UI using the ``ui.category`
 4c. Conditional Control Visibility (enabledBy)
 -----------------------------------------------
 
-The ``enabledBy`` property controls when a parameter's UI control is enabled or disabled based on the value of other parameters. This supports both simple truthy checks and complex conditional expressions.
+The ``enabledBy`` property enables or disables a parameter's UI control according to other parameter values. It supports simple truthy checks and complex conditional expressions.
 
 **Simple String Format (Legacy):**
 
-The simplest form takes a parameter name as a string. The control is enabled when the referenced parameter is "truthy" (non-zero for numbers, true for booleans, non-empty for strings).
+The simplest form takes a parameter name as a string. A "truthy" value enables the control:
+
+- A non-zero number
+- A true boolean
+- A non-empty string
 
 .. code-block:: javascript
 
@@ -358,7 +382,7 @@ Check if a value is a member of (or excluded from) a set of values:
 
 **Multiple Conditions (AND):**
 
-Multiple operators in a single object are AND'd together:
+Multiple operators in a single object use AND logic:
 
 .. code-block:: javascript
 
@@ -437,10 +461,38 @@ For complex conditions, use ``or``, ``and``, and ``not``:
 - ``category: "HSL Secondary"`` — spaces forbidden
 - ``category: "hsl_secondary"`` — underscores forbidden
 
+4d. Reseed-Gated Parameters (resetOnChange)
+--------------------------------------------
+
+Some parameters are only read when an effect reseeds its state: a spawn
+layout or seed read when an agent respawns, a density read while a volume
+is seeded. Changing such a parameter live has no visible effect until the
+effect's ``resetState`` fires. Mark
+those parameters with ``ui.resetOnChange: true`` so hosts can distinguish
+them and pulse the effect's ``resetState`` when one changes, instead of
+restarting the effect on every choice.
+
+.. code-block:: javascript
+
+   layout: {
+     type: 'int',
+     default: 0,
+     uniform: 'layout',
+     ui: {
+       label: 'layout',
+       control: 'dropdown',
+       resetOnChange: true   // read only when an agent respawns
+     }
+   }
+
+The value must be a boolean; the definition validator diagnoses any other
+type. The flag is a UI hint only: it does not change the parameter's shader
+type or its uniform name.
+
 5. Lifecycle Methods (Class-Based Effects)
 -------------------------------------------
 
-Most effects are purely declarative and use the ``new Effect({...})`` pattern shown above. However, for effects requiring CPU-side state management (e.g., simulation steps, complex time-keeping, or audio analysis), you can either:
+Most effects are purely declarative and use the ``new Effect({...})`` pattern above. Some effects require CPU-side state, such as simulation steps, complex time-keeping, or audio analysis. For these effects, choose one of these approaches:
 
 1. **Pass lifecycle functions in the config** (simpler):
 
@@ -517,9 +569,18 @@ Most effects are purely declarative and use the ``new Effect({...})`` pattern sh
 
 The runtime invokes these methods at specific stages:
 
-- ``onInit()``: Called once when the effect is loaded. Initialize state here.
-- ``onUpdate({ time, delta, uniforms })``: Called every frame before rendering. Return an object of computed uniforms.
-- ``onDestroy()``: Called when the effect is removed. Clean up resources here.
+- ``onInit()``: The runtime calls this once when it loads the effect. Initialize state here.
+- ``onUpdate({ time, delta, uniforms })``: The runtime calls this every frame before rendering. Return an object of computed uniforms.
+- ``onDestroy()``: The runtime calls this when it removes the effect. Release resources here.
+
+Uniforms returned from ``onUpdate`` bind under fallback semantics: a returned
+key binds only when the pass does not already resolve that uniform, so
+DSL-provided, step-provided, and authored values keep priority. The hooks run
+in the production ``Pipeline`` (not only the test harness): ``onInit()`` once
+per effect instance per pipeline lifetime (idempotent across resize and hot
+recompile), ``onUpdate()`` once per frame before pass execution, and
+``onDestroy()`` at dispose with hook errors joining the existing dispose
+error path.
 
 .. code-block:: javascript
 
@@ -551,7 +612,8 @@ The runtime invokes these methods at specific stages:
 6. Effect Constructor Reference
 -------------------------------
 
-The ``Effect`` constructor accepts a configuration object with the following properties:
+The ``Effect`` constructor accepts a configuration object. The list below describes common properties. Section 7 summarizes the remaining
+fields that the current constructor copies.
 
 **Required:**
 
@@ -561,7 +623,7 @@ The ``Effect`` constructor accepts a configuration object with the following pro
 **Optional:**
 
 - ``namespace`` (string): Logical grouping (e.g., ``"filter"``, ``"synth"``, ``"mixer"``)
-- ``func`` (string): DSL function name (defaults to lowercase ``name``)
+- ``func`` (string): DSL function name used by runtime registration
 - ``tags`` (array): Curated tags for categorization (see section 2b)
 - ``globals`` (object): Uniform parameters exposed to shaders and UI
 - ``textures`` (object): Internal render targets
@@ -606,7 +668,7 @@ The ``Effect`` constructor accepts a configuration object with the following pro
      },
 
      textures: {
-       _blurTemp: { width: "input", height: "input", format: "rgba8unorm" }
+       _blurTemp: { width: "screen", height: "screen", format: "rgba8unorm" }
      },
 
      passes: [
@@ -625,42 +687,55 @@ The ``Effect`` constructor accepts a configuration object with the following pro
      ]
    });
 
-7. Formal JSON Schema (Informative)
------------------------------------
+7. Configuration Shape and Validation
+-------------------------------------
 
-The following normative shape defines the Effect configuration object. Validation MUST apply before graph compilation. Regular expressions shown in ``/.../`` form.
+Effect definitions are validated at development and load time by
+``validateEffectDefinition()`` in ``shaders/src/runtime/effect-validator.js``.
+The validator is a deterministic, side-effect-free function that returns an array of
+descriptive error strings (empty if valid) without throwing or mutating definitions.
+It validates the full definition grammar consumed across ``effect.js``, ``expander.js``,
+``compiler.js``, and ``pipeline.js``.
+
+The following schema summarizes the consumed authoring shape. Regular expressions use
+``/.../`` form.
 
 .. code-block:: javascript
 
-   // Pseudocode JSON Schema (non exhaustive formatting for brevity)
+   // Deliberately abridged shape; validation is described above.
    {
-     "$id": "noisemaker.shader-effect.v1",
      "type": "object",
      "required": ["name", "passes"],
      "properties": {
-       "name": { "type": "string", "pattern": "^[A-Za-z0-9_\-]{1,64}$" },
-       "namespace": { "type": "string", "pattern": "^[a-zA-Z0-9]+$", "default": "synth" },
+       "name": { "type": "string", "description": "Non-empty display name; spaces are allowed" },
+       "namespace": { "type": "string", "description": "Logical namespace" },
        "func": { "type": "string", "description": "DSL function name for this effect" },
-       "tags": { 
-         "type": "array", 
-         "items": { "type": "string", "enum": ["color", "distort", "geometric", "math", "noise", "transform", "util"] },
-         "description": "Curated tags for effect categorization"
-       },
-       "version": { "type": "string", "pattern": "^\d+\.\d+\.\d+$", "default": "1.0.0" },
+       "description": { "type": "string" },
+       "tags": { "type": "array", "items": { "type": "string" } },
        "globals": { "type": "object", "additionalProperties": { "$ref": "#/definitions/uniformSpec" } },
        "textures": { "type": "object", "additionalProperties": { "$ref": "#/definitions/textureSpec" } },
        "passes": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/passSpec" } },
        "outputTex3d": { "type": "string", "description": "Internal texture name to expose as 3D volume output" },
        "outputGeo": { "type": "string", "description": "Internal texture name to expose as geometry buffer output" },
-       "meta": { "type": "object" }
+       "uniformLayout": { "type": "object" },
+       "uniformLayouts": { "type": "object" },
+       "paramAliases": { "type": "object" },
+       "openCategories": { "type": "array", "items": { "type": "string" } },
+       "defaultProgram": { "type": "string" },
+       "hidden": { "type": "boolean" },
+       "deprecatedBy": { "type": "string" },
+       "onInit": { "type": "function" },
+       "onUpdate": { "type": "function" },
+       "onDestroy": { "type": "function" },
+       "asyncInit": { "type": "function" }
      },
      "definitions": {
        "uniformSpec": {
          "type": "object",
          "required": ["type"],
          "properties": {
-           "type": { "type": "string", "enum": ["float","int","uint","bool","vec2","vec3","vec4","mat3","mat4"] },
-           "default": { "description": "Optional. Fallback: 0, false, or identity matrix." },
+           "type": { "type": "string", "enum": ["boolean","color","float","geometry","int","mat3","member","palette","string","surface","vec2","vec3","vec4","volume"] },
+           "default": { "description": "Optional effect-defined default." },
            "min": { "type": "number" },
            "max": { "type": "number" },
            "step": { "type": "number" },
@@ -674,7 +749,7 @@ The following normative shape defines the Effect configuration object. Validatio
              "type": "object",
              "properties": {
                "label": { "type": "string" },
-               "control": { "type": "string", "enum": ["slider", "dropdown", "color", "checkbox"] },
+               "control": { "type": ["string", "boolean"] },
                "category": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]*$", "description": "UI grouping category (MUST be camelCase)" },
                "hint": { "type": "string", "description": "Tooltip text for the control" },
                "enabledBy": { 
@@ -694,11 +769,11 @@ The following normative shape defines the Effect configuration object. Validatio
        },
        "dimensionSpec": {
          "oneOf": [
-           {"type": "number", "minimum": 1},
-           {"type": "string", "enum": ["screen","auto","input"]},
-           {"type": "string", "pattern": "^(?:100|[1-9]?[0-9])%$"},
+           {"type": "number"},
+           {"type": "string", "description": "screen, auto, input, resolution, or a percentage parsed with parseFloat (the string keywords all resolve to screen size)"},
            {"type": "object", "required": ["scale"], "properties": {"scale": {"type":"number"}, "clamp": {"type":"object", "properties": {"min": {"type":"number"}, "max": {"type":"number"}}}}},
-           {"type": "object", "required": ["param"], "properties": {"param": {"type":"string"}, "default": {"type":"number"}, "multiply": {"type":"number"}, "power": {"type":"number"}, "inputOverride": {"type":"string"}}}
+           {"type": "object", "required": ["param"], "properties": {"param": {"type":"string"}, "paramDefault": {"type":"number"}, "default": {"type":"number"}, "multiply": {"type":"number"}, "power": {"type":"number"}, "inherit": {"type":"boolean"}}},
+           {"type": "object", "required": ["screenDivide"], "properties": {"screenDivide": {"type":"string"}, "default": {"type":"number"}}}
          ]
        },
        "textureSpec": {
@@ -706,14 +781,13 @@ The following normative shape defines the Effect configuration object. Validatio
          "properties": {
            "width": { "$ref": "#/definitions/dimensionSpec" },
            "height": { "$ref": "#/definitions/dimensionSpec" },
+           "depth": { "$ref": "#/definitions/dimensionSpec" },
            "format": { "type": "string" },
-           "usage": { "type": "array", "items": {"type":"string", "enum":["sample","storage","render","copySrc","copyDst"]} },
-           "clear": { "type": "array", "minItems": 4, "maxItems": 4 },
-           "persistent": { "type": "boolean", "default": false }
+           "mipmaps": { "type": "boolean", "description": "2D only: allocate a full mip chain and regenerate it from level-0 writes each frame" },
+           "persistent": { "type": "boolean", "description": "2D only: the pipeline resamples contents after an allocation-size change. Global surface specs also retain their final bindings across frames." },
+           "filter": { "type": "string", "enum": ["nearest", "linear"], "description": "3D (\"textures3d\") only: sampler filtering; unauthored 3D defaults are linear on both backends" }
          },
-         "required": ["format"],
-         "additionalProperties": false,
-         "description": "User-defined textures. Reserved names (inputTex, outputTex, inputTex3d, inputGeo) are synthesized by the runtime."
+         "description": "User-defined textures. Width and height default to screen; format defaults to rgba16f. Unknown or misplaced policy fields are rejected with per-field diagnostics."
        },
        "enableCondition": {
          "type": "object",
@@ -735,65 +809,56 @@ The following normative shape defines the Effect configuration object. Validatio
        },
        "passSpec": {
          "type": "object",
-         "required": ["name","program"],
+         "required": ["program"],
          "properties": {
-           "name": { "type": "string", "pattern": "^[A-Za-z0-9_\-]{1,64}$" },
-           "type": { "type": "string", "enum": ["render","compute","transfer"], "default": "render" },
+           "name": { "type": "string", "description": "Pass label; preserved verbatim on expanded passes" },
            "program": { "type": "string" },
+           "type": { "type": "string", "description": "Pass type label (e.g. render, compute). Backend shader-kind dispatch remains source-derived." },
            "inputs": { "type": "object", "additionalProperties": {"type":"string"} },
            "outputs": { "type": "object", "additionalProperties": {"type":"string"} },
-           "iterations": { "type": "integer", "minimum": 1, "default": 1 },
-           "pingpong": { "type": "array", "items": {"type":"string"}, "minItems": 2, "maxItems": 2 },
-           "defines": { "type": "object", "additionalProperties": {"type":["string","number","boolean"]} },
+           "entryPoint": { "type": "string" },
+           "drawMode": { "type": "string" },
+           "drawBuffers": { "type": "integer", "minimum": 1 },
+           "count": { "type": ["integer", "string"] },
+           "countUniform": { "type": "string" },
+           "repeat": { "type": ["integer", "string"] },
+           "blend": {},
+           "clear": { "type": "boolean", "description": "Whether to clear output attachments before pass execution (WebGPU render-pass loadOp)" },
+           "samplerTypes": { "type": "object", "additionalProperties": { "type": "string", "enum": ["nearest", "linear"] }, "description": "Per-binding sampler filtering selection (WebGPU)" },
+           "viewport": {
+             "type": "object",
+             "properties": {
+               "x": { "type": "number" },
+               "y": { "type": "number" },
+               "w": { "type": "number" },
+               "h": { "type": "number" },
+               "width": { "$ref": "#/definitions/dimensionSpec" },
+               "height": { "$ref": "#/definitions/dimensionSpec" }
+             },
+             "description": "Per-pass viewport box. Dimension specifications resolve against current uniforms and screen dimensions per frame."
+           },
+           "conditions": {
+             "type": "object",
+             "properties": {
+               "runIf": { "type": "array" },
+               "skipIf": { "type": "array" }
+             },
+             "description": "Conditional execution predicates evaluated per frame before dispatch"
+           },
            "uniforms": { 
              "type": "object", 
-             "additionalProperties": { "$ref": "#/definitions/uniformSpec" },
-             "description": "Pass-specific uniforms. Merged with globals; pass-specific values take precedence."
+             "additionalProperties": { "type": "string" },
+             "description": "Shader uniform name to effect-global parameter name."
            },
            "workgroups": { "type": "array", "items": {"type":"integer","minimum":1}, "minItems":1, "maxItems":3 },
-           "viewport": { "type": "object", "properties": {"x":{"type":"integer"},"y":{"type":"integer"},"w":{"type":"integer"},"h":{"type":"integer"}} },
-           "conditions": { 
-             "type": "object", 
-             "properties": { 
-               "skipIf": { 
-                 "type": "array",
-                 "items": {
-                   "type": "object",
-                   "required": ["uniform", "equals"],
-                   "properties": { "uniform": {"type":"string"}, "equals": {} }
-                 }
-               }, 
-               "runIf": { 
-                 "type": "array",
-                 "items": {
-                   "type": "object",
-                   "required": ["uniform", "equals"],
-                   "properties": { "uniform": {"type":"string"}, "equals": {} }
-                 }
-               } 
-             } 
-           },
-           "barriers": { 
-             "type": "array",
-             "items": { "type": "string", "pattern": "^texture:[a-zA-Z0-9_]+:(fragment|compute)->(fragment|compute)$" },
-             "description": "Explicit memory barriers. Format: 'texture:<name>:<stage>-><stage>'"
-           },
-           "readAfterWriteHazards": { 
-             "type": "string", 
-             "enum": ["allow","forbid"], 
-             "default": "forbid",
-             "description": "If 'allow', the runtime inserts a barrier between write and read within the same pass (if supported) or developer guarantees safety."
-           }
+           "storageBuffers": { "type": "object" },
+           "storageTextures": { "type": "object" }
          }
        }
      }
    }
 
-Formats MUST map to backend-supported subsets:
-
-
-* WebGL required: ``rgba8``, ``rgba16f``, ``rgba32f (if EXT_color_buffer_float)``, ``r8``.
-* WebGPU required subset: ``rgba8unorm``, ``rgba16float``, ``rgba32float``, ``bgra8unorm``, depth formats as available.
+Section 7.3 describes how backends handle format names.
 
 7.1 Reserved Texture Names
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -840,8 +905,10 @@ For each texture dimension (``width`` or ``height``), resolve to integer pixels:
 
    function resolveDimension(spec, screenSize, uniforms = {}) {
      if (typeof spec === 'number') return Math.max(1, Math.floor(spec))
-     if (spec === 'screen' || spec === 'auto') return screenSize
-     if (spec === 'input') return screenSize  // Match input texture dimensions
+
+     // 'screen', 'auto', 'input', and 'resolution' are all validator-accepted
+     // keywords whose resolution is the screen dimension; no fallback diagnostic.
+     if (['screen', 'auto', 'input', 'resolution'].includes(spec)) return screenSize
 
      if (typeof spec === 'string' && spec.endsWith('%')) {
        const percent = parseFloat(spec)
@@ -849,12 +916,23 @@ For each texture dimension (``width`` or ``height``), resolve to integer pixels:
      }
 
      if (typeof spec === 'object') {
-       // Param-based: { param: 'volumeSize', default: 64, multiply: 2, power: 2 }
+       // Param-based; `default` is the final fallback after transforms.
        if (spec.param !== undefined) {
-         let value = uniforms[spec.param] ?? spec.default ?? 64
+         const hasTransform = spec.power !== undefined || spec.multiply !== undefined
+         const paramDefault = spec.paramDefault ?? 64
+         let value = uniforms[spec.param] ?? paramDefault
          if (spec.multiply !== undefined) value *= spec.multiply
          if (spec.power !== undefined) value = Math.pow(value, spec.power)
+         if (hasTransform && uniforms[spec.param] === undefined && spec.default !== undefined) {
+           value = spec.default
+         }
          return Math.max(1, Math.floor(value))
+       }
+
+       // Screen-divide: { screenDivide: 'zoom', default: 1 }
+       if (spec.screenDivide !== undefined) {
+         const divisor = uniforms[spec.screenDivide] ?? spec.default ?? 1
+         return Math.max(1, Math.round(screenSize / divisor))
        }
 
        // Scale-based: { scale: 0.5, clamp: { min: 64, max: 512 } }
@@ -871,26 +949,27 @@ For each texture dimension (``width`` or ``height``), resolve to integer pixels:
      return screenSize  // Fallback
    }
 
-All dimensions MUST be positive integers. Fractional results round down; minimum 1px enforced.
+All dimensions MUST be positive integers. Numeric, percentage, parameter, and
+scale results round down. The ``screenDivide`` form rounds to the nearest
+integer. Dimension resolution enforces a minimum of 1px.
 
-7.3 Format Negotiation
-^^^^^^^^^^^^^^^^^^^^^^
+A parameter dimension with ``inherit: true`` reads the value its scope already
+has and never writes the effect's own value over it. A particle behavior sizes
+its per-agent textures with ``{ param: 'stateSize', inherit: true }`` so they
+follow the ``pointsEmit`` state size.
 
-When an effect requests a format unsupported by the active backend:
+7.3 Backend Format Resolution
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Each backend resolves format names independently. There is no capability
+negotiation or precision-downgrade policy.
 
-#. **Exact Match:** Use if available.
-#. **Fallback Table:** Apply backend-specific mapping:
+* WebGL recognizes ``rgba8``, ``rgba16f``, ``rgba32f``, ``r8``, ``r16f``,
+  and ``r32f``. Any other name falls back to the ``rgba8`` descriptor.
+* WebGPU maps those compact names to their WebGPU equivalents. It recognizes
+  the corresponding WebGPU-format spellings plus ``bgra8unorm``. It passes
+  any other non-empty format string through unchanged. An omitted format
+  resolves to ``rgba8unorm``.
 
-  .. code-block:: js
-
-      const webglFallbacks = {
-        'rgba16float': 'rgba16f',
-        'rgba32float': hasExtension('EXT_color_buffer_float') ? 'rgba32f' : 'rgba16f',
-        'rgba8unorm': 'rgba8'
-      }
-
-#. **Precision Downgrade:** If no mapping exists, select highest precision supported format with same channel count.
-#. **Fail:** If no compatible format, emit ``ERR_FORMAT_UNSUPPORTED``.
-
-Format selection MUST be deterministic and cached per backend context.
+Unsupported resolved formats or usages fail when the backend creates or uses
+the texture. The resolver does not check device capabilities in advance.

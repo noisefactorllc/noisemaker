@@ -2,6 +2,7 @@
 // Updates particle positions based on attractor dynamics
 
 struct Uniforms {
+    diffuseActive: f32,
     time: f32,
     resolution: vec2<f32>,
     seed: i32,
@@ -13,11 +14,32 @@ struct Uniforms {
 @group(0) @binding(1) var xyzTex: texture_2d<f32>;
 @group(0) @binding(3) var velTex: texture_2d<f32>;
 @group(0) @binding(5) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(6) var diffuseTex: texture_2d<f32>;
+@group(0) @binding(7) var baseColorTex: texture_2d<f32>;
+
+fn selectedDiffuse(uv: vec2f) -> vec4f {
+    let size = textureDimensions(diffuseTex, 0);
+    let pixel = clamp(vec2i(clamp(uv, vec2f(0.0), vec2f(0.999999)) * vec2f(size)), vec2i(0), vec2i(size) - vec2i(1));
+    return textureLoad(diffuseTex, pixel, 0);
+}
+
+// The agent's color without a diffuse map. baseColorTex keeps it (alpha > 0)
+// while a diffuse map is active and is cleared otherwise.
+fn baseColor(coord: vec2i, col: vec4f) -> vec4f {
+    let kept = textureLoad(baseColorTex, coord, 0);
+    return select(kept, col, kept.a == 0.0);
+}
+
+fn keptBaseColor(base: vec4f) -> vec4f {
+    return select(vec4f(0.0), vec4f(base.rgb, max(base.a, 1.0 / 255.0)), u.diffuseActive > 0.5);
+}
+
 
 struct Outputs {
     @location(0) outXYZ: vec4<f32>,
     @location(1) outVel: vec4<f32>,
     @location(2) outRGBA: vec4<f32>,
+    @location(3) baseColor: vec4<f32>,
 };
 
 // Integer-based hash for cross-platform determinism
@@ -157,13 +179,14 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> Outputs {
         return Outputs(
             vec4<f32>(newX, newY, newZ, 1.0),
             vel,
-            col
+            select(col, selectedDiffuse(fract(vec2f(newX, newY))), u.diffuseActive > 0.5),
+            keptBaseColor(col)
         );
     }
     
     // Skip dead agents
     if (pos.w < 0.5) {
-        return Outputs(pos, vel, col);
+        return Outputs(pos, vel, col, keptBaseColor(baseColor(coord, col)));
     }
     
     // Step the attractor
@@ -182,9 +205,11 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> Outputs {
         );
     }
     
+    let base = baseColor(coord, col);
     return Outputs(
         vec4<f32>(newPos, 1.0),
         vel,
-        col
+        select(base, selectedDiffuse(fract(newPos.xy)), u.diffuseActive > 0.5),
+        keptBaseColor(base)
     );
 }

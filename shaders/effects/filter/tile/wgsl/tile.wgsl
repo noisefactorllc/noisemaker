@@ -9,6 +9,8 @@
 @group(0) @binding(8) var<uniform> angle: f32;
 @group(0) @binding(9) var<uniform> repeat: f32;
 @group(0) @binding(10) var<uniform> aspectLens: i32;
+@group(0) @binding(11) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(12) var<uniform> fullResolution: vec2<f32>;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -53,7 +55,9 @@ fn rotationalFold(uv: vec2<f32>, n: i32) -> vec2<f32> {
     var a = atan2(p.y, p.x);
     let r = length(p);
 
-    a = ((a + TAU) % TAU) % sectorAngle;
+    // GLSL mod(mod(a + TAU, TAU), sectorAngle), with mod(x, y) = x - y * floor(x / y)
+    let wrapped = (a + TAU) - TAU * floor((a + TAU) / TAU);
+    a = wrapped - sectorAngle * floor(wrapped / sectorAngle);
     if (a > sectorAngle * 0.5) {
         a = sectorAngle - a;
     }
@@ -63,13 +67,13 @@ fn rotationalFold(uv: vec2<f32>, n: i32) -> vec2<f32> {
 
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    let texSize = vec2<f32>(textureDimensions(inputTex));
-    let uv = position.xy / texSize;
-    let asp = texSize.x / texSize.y;
+    let globalCoord = position.xy + tileOffset;
+    let globalUV = globalCoord / fullResolution;
+    let asp = fullResolution.x / fullResolution.y;
     let doAspect = aspectLens != 0;
 
     // Rotate in aspect-corrected space to avoid shearing on non-square canvases
-    var st = uv - 0.5;
+    var st = globalUV - 0.5;
     if (doAspect) { st.x *= asp; }
     st = rot(st, angle * PI / 180.0);
     if (doAspect) { st.x /= asp; }
@@ -86,7 +90,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         st = rotationalFold(local_scaled + 0.5, 6);
     } else {
         // Square tiling
-        st = fract2(st * rep);
+        st = fract(st * rep);
 
         // Apply source region transforms (before fold — fold handles any input range)
         // mirrorXY needs half the range so edges match at default scale
@@ -102,15 +106,15 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             st.y = mirrorFold(st.y);
         } else if (symmetry == 1) {
             // rotate2
-            st = rotationalFold(fract2(st), 2);
+            st = rotationalFold(fract(st), 2);
         } else {
             // rotate4
-            st = rotationalFold(fract2(st), 4);
+            st = rotationalFold(fract(st), 4);
         }
     }
 
-    // Clamp to valid texture range
-    st = clamp(st, vec2<f32>(0.0), vec2<f32>(1.0));
+    // Wrap for seamless tiling across tile boundaries
+    let localUV = fract(st);
 
-    return vec4<f32>(textureSampleLevel(inputTex, samp, st, 0.0).rgb, 1.0);
+    return vec4<f32>(textureSampleLevel(inputTex, samp, localUV, 0.0).rgb, 1.0);
 }

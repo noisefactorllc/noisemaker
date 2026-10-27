@@ -6,6 +6,7 @@
 @group(0) @binding(3) var<uniform> alpha : f32;
 @group(0) @binding(4) var<uniform> rows : i32;
 @group(0) @binding(5) var<uniform> seed : i32;
+@group(0) @binding(6) var<uniform> renderScale : f32;
 
 // Bank OCR bitmaps: 10 digits, 7 wide x 8 tall each
 // Index as GLYPHS[digit * 8 + row], test bit (val >> (6 - col)) & 1
@@ -34,10 +35,8 @@ const GLYPHS = array<i32, 80>(
 
 const GLYPH_W : i32 = 7;
 const GLYPH_H : i32 = 8;
-const SCALE : i32 = 3;
-const CELL_W : i32 = 21;  // GLYPH_W * SCALE
-const CELL_H : i32 = 24;  // GLYPH_H * SCALE
-const ROW_GAP : i32 = 4;
+const BASE_SCALE : i32 = 3;
+const BASE_ROW_GAP : i32 = 4;
 
 fn hash_mix(v : u32) -> u32 {
     var r = v;
@@ -49,9 +48,9 @@ fn hash_mix(v : u32) -> u32 {
     return r;
 }
 
-fn sample_glyph(digit : i32, localX : i32, localY : i32) -> f32 {
-    let gx = localX / SCALE;
-    let gy = localY / SCALE;
+fn sample_glyph(digit : i32, localX : i32, localY : i32, iScale : i32) -> f32 {
+    let gx = localX / iScale;
+    let gy = localY / iScale;
     if (gx < 0 || gx >= GLYPH_W || gy < 0 || gy >= GLYPH_H) {
         return 0.0;
     }
@@ -60,7 +59,7 @@ fn sample_glyph(digit : i32, localX : i32, localY : i32) -> f32 {
     return f32((row >> u32(6 - gx)) & 1);
 }
 
-fn ticker_row_mask(pixelX : i32, pixelY : i32, rowSeed : i32, t : f32) -> f32 {
+fn ticker_row_mask(pixelX : i32, pixelY : i32, rowSeed : i32, t : f32, CELL_W : i32, iScale : i32) -> f32 {
     let scrollSpeed = 0.5 + f32(hash_mix(u32(rowSeed) ^ 17u) & 0xFFFFu) / 65535.0 * 1.5;
     let offset = i32(floor(t * scrollSpeed * 120.0));
 
@@ -77,11 +76,17 @@ fn ticker_row_mask(pixelX : i32, pixelY : i32, rowSeed : i32, t : f32) -> f32 {
     let h = hash_mix(u32(cellX) ^ (u32(rowSeed) * 997u));
     let digit = i32(h % 10u);
 
-    return sample_glyph(digit, localX, pixelY);
+    return sample_glyph(digit, localX, pixelY, iScale);
 }
 
 @fragment
 fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
+    // Scale pixel-space sizes by renderScale for high-res export
+    let iScale = max(i32(f32(BASE_SCALE) * renderScale), 1);
+    let CELL_W = GLYPH_W * iScale;
+    let CELL_H = GLYPH_H * iScale;
+    let ROW_GAP = max(i32(f32(BASE_ROW_GAP) * renderScale), 1);
+
     let dims = vec2<f32>(textureDimensions(inputTex, 0));
     let uv = position.xy / dims;
     let src = textureLoad(inputTex, vec2<i32>(position.xy), 0);
@@ -108,12 +113,13 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
 
     let rowSeed = i32(hash_mix(u32(rowIdx) + baseSeed));
 
-    let mask = ticker_row_mask(px, localY, rowSeed, t);
+    let mask = ticker_row_mask(px, localY, rowSeed, t, CELL_W, iScale);
 
     var shadow = 0.0;
-    let shadowLocalY = localY + 2;
+    let shadowOff = max(i32(2.0 * renderScale), 1);
+    let shadowLocalY = localY + shadowOff;
     if (shadowLocalY < CELL_H) {
-        shadow = ticker_row_mask(px + 2, shadowLocalY, rowSeed, t);
+        shadow = ticker_row_mask(px + shadowOff, shadowLocalY, rowSeed, t, CELL_W, iScale);
     }
 
     var result = src.rgb;

@@ -1,7 +1,7 @@
 // Cellular automata display pass (WGSL).
 
 struct Uniforms {
-    data : array<vec4<f32>, 6>,
+    data : array<vec4<f32>, 7>,
 };
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -29,15 +29,14 @@ fn bicubic4(p0: vec4<f32>, p1: vec4<f32>, p2: vec4<f32>, p3: vec4<f32>, t: f32) 
 }
 
 fn catmullRom3(p0: vec4<f32>, p1: vec4<f32>, p2: vec4<f32>, t: f32) -> vec4<f32> {
+    // Catmull-Rom-esque cubic through 3 points
+    // Interpolating (passes through control points)
     let t2 = t * t;
     let t3 = t2 * t;
 
-    let m = 0.5 * (p2 - p0);
-
-    return (2.0*t3 - 3.0*t2 + 1.0) * p1 +
-           (t3 - 2.0*t2 + t) * m +
-           (-2.0*t3 + 3.0*t2) * p2 +
-           (t3 - t2) * m;
+    return p1 + 0.5 * t * (p2 - p0) +
+           0.5 * t2 * (2.0*p0 - 5.0*p1 + 4.0*p2 - p0) +
+           0.5 * t3 * (-p0 + 3.0*p1 - 3.0*p2 + p0);
 }
 
 fn catmullRom4(p0: vec4<f32>, p1: vec4<f32>, p2: vec4<f32>, p3: vec4<f32>, t: f32) -> vec4<f32> {
@@ -192,46 +191,49 @@ fn cosineMix(a: f32, b: f32, t: f32) -> f32 {
 @fragment fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     let resolution = uniforms.data[0].xy;
     let smoothing = i32(uniforms.data[1].y);
+    let tileOffset = uniforms.data[6].xy;
+    let fullResolution = uniforms.data[6].zw;
+    let globalCoord = fragCoord.xy + tileOffset;
 
     var state: f32 = 0.0;
     if (smoothing == 0) {
         // constant - use textureLoad for exact nearest-neighbor sampling
         let texSizeI = vec2<i32>(textureDimensions(fbTex, 0));
         let texSizeF = vec2<f32>(f32(texSizeI.x), f32(texSizeI.y));
-        let pixelCoord = vec2<i32>(floor(fragCoord.xy * texSizeF / resolution));
+        let pixelCoord = vec2<i32>(floor(globalCoord * texSizeF / fullResolution));
         state = textureLoad(fbTex, clamp(pixelCoord, vec2<i32>(0), texSizeI - vec2<i32>(1)), 0).g;
     } else if (smoothing == 3) {
         // catmull-rom 3x3 (9 taps)
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
         let texelSize = 1.0 / texSize;
-        let scaling = resolution / texSize;
-        let uv = (fragCoord.xy - scaling * 0.5) / resolution;
+        let scaling = fullResolution / texSize;
+        let uv = (globalCoord - scaling * 0.5) / fullResolution;
         state = catmullRom3x3Sample(fbTex, mySampler, uv, texelSize).g;
     } else if (smoothing == 4) {
         // catmull-rom 4x4 (16 taps)
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
         let texelSize = 1.0 / texSize;
-        let scaling = resolution / texSize;
-        let uv = (fragCoord.xy - scaling * 0.5) / resolution;
+        let scaling = fullResolution / texSize;
+        let uv = (globalCoord - scaling * 0.5) / fullResolution;
         state = catmullRom4x4Sample(fbTex, mySampler, uv, texelSize).g;
     } else if (smoothing == 5) {
         // b-spline 3x3 (9 taps)
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
         let texelSize = 1.0 / texSize;
-        let scaling = resolution / texSize;
-        let uv = (fragCoord.xy - scaling * 0.5) / resolution;
+        let scaling = fullResolution / texSize;
+        let uv = (globalCoord - scaling * 0.5) / fullResolution;
         state = quadraticSample(fbTex, mySampler, uv, texelSize).g;
     } else if (smoothing == 6) {
         // b-spline 4x4 (16 taps)
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
         let texelSize = 1.0 / texSize;
-        let scaling = resolution / texSize;
-        let uv = (fragCoord.xy - scaling * 0.5) / resolution;
+        let scaling = fullResolution / texSize;
+        let uv = (globalCoord - scaling * 0.5) / fullResolution;
         state = bicubicSample(fbTex, mySampler, uv, texelSize).g;
     } else {
         // linear-style smoothing — sample texel centres explicitly to avoid seams.
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
-        let texelPos = (fragCoord.xy * texSize / resolution) - vec2<f32>(0.5, 0.5);
+        let texelPos = (globalCoord * texSize / fullResolution) - vec2<f32>(0.5, 0.5);
         let base = floor(texelPos);
         let weights = fract(texelPos);
         let next = base + vec2<f32>(1.0, 1.0);

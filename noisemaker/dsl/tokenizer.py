@@ -94,14 +94,17 @@ def tokenize(source):
         if is_digit(ch) or (ch == "." and is_digit(peek(1))):
             num_str = ""
             if ch == ".":
-                num_str = "0"
-                advance()
-            while is_digit(peek()):
-                num_str += advance()
-            if peek() == ".":
-                num_str += advance()
+                # Keep the dot: ".5" is 0.5
+                num_str = "0" + advance()
                 while is_digit(peek()):
                     num_str += advance()
+            else:
+                while is_digit(peek()):
+                    num_str += advance()
+                if peek() == ".":
+                    num_str += advance()
+                    while is_digit(peek()):
+                        num_str += advance()
             tokens.append({"type": "number", "value": float(num_str), "line": token_line, "column": token_column})
             continue
         if ch in ('"', "'"):

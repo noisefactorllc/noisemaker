@@ -10,7 +10,9 @@ export default new Effect({
     ca: {
       resolution: { slot: 0, components: 'xy' },
       time: { slot: 0, components: 'z' },
-      smoothing: { slot: 1, components: 'y' }
+      smoothing: { slot: 1, components: 'y' },
+      tileOffset: { slot: 2, components: 'xy' },
+      fullResolution: { slot: 2, components: 'zw' }
     },
     caFb: {
       deltaTime: { slot: 0, components: 'y' },

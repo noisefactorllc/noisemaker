@@ -167,12 +167,11 @@ export function allocateResources(passes) {
             })
         }
 
-        // 2. Release Inputs (Last Uses)
+        // 2. Release Inputs (Last Uses). A pass may read one texture under
+        // several names (lighting's inputTex and heightMap); release it once,
+        // or its slot is handed to two textures that are live together.
         if (pass.inputs) {
-            Object.values(pass.inputs).forEach(inputId => {
-                // Same alias resolution liveness used, so a read through an
-                // alias releases the texture the alias stands for.
-                const texId = aliases.get(inputId) ?? inputId
+            new Set(Object.values(pass.inputs).map(inputId => aliases.get(inputId) ?? inputId)).forEach(texId => {
                 if (texId.startsWith('global_')) return
 
                 const l = lifetime.get(texId)

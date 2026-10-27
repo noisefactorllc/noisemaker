@@ -2,6 +2,7 @@
 // Reads xyz/vel/rgba from pipeline, applies sensor-based steering
 
 struct Uniforms {
+    diffuseActive: f32,
     resolution: vec2f,
     time: f32,
     moveSpeed: f32,
@@ -9,21 +10,55 @@ struct Uniforms {
     sensorAngle: f32,
     sensorDistance: f32,
     inputWeight: f32,
+    fieldActive: f32,
 }
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var xyzTex: texture_2d<f32>;
 @group(0) @binding(3) var velTex: texture_2d<f32>;
 @group(0) @binding(5) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(11) var diffuseTex: texture_2d<f32>;
+@group(0) @binding(14) var baseColorTex: texture_2d<f32>;
+
+fn selectedDiffuse(uv: vec2f) -> vec4f {
+    let size = textureDimensions(diffuseTex, 0);
+    let pixel = clamp(vec2i(clamp(uv, vec2f(0.0), vec2f(0.999999)) * vec2f(size)), vec2i(0), vec2i(size) - vec2i(1));
+    return textureLoad(diffuseTex, pixel, 0);
+}
+
+// Color render/pointsEmit gives an agent spawned at pos.
+fn spawnColor(pos: vec2f) -> vec4f {
+    let dims = textureDimensions(inputTex);
+    let sampled = textureLoad(inputTex, vec2<i32>(pos * vec2<f32>(dims)), 0);
+    return select(vec4f(1.0), sampled, sampled.a > 0.0);
+}
+
+// The agent's color without a diffuse map. baseColorTex keeps it (alpha > 0)
+// while a diffuse map is active and is cleared otherwise, so this is rgba
+// unless the agent still carries a diffuse color and has not respawned.
+fn baseColor(coord: vec2i, rgba: vec4f, pos: vec2f) -> vec4f {
+    let kept = textureLoad(baseColorTex, coord, 0);
+    if (kept.a == 0.0) { return rgba; }
+    let spawnDelta = abs(round(rgba * 255.0) - round(clamp(spawnColor(pos), vec4f(0.0), vec4f(1.0)) * 255.0));
+    return select(kept, rgba, all(spawnDelta <= vec4f(1.0)));
+}
+
+fn keptBaseColor(base: vec4f) -> vec4f {
+    return select(vec4f(0.0), vec4f(base.rgb, max(base.a, 1.0 / 255.0)), u.diffuseActive > 0.5);
+}
+
 @group(0) @binding(7) var trailTex: texture_2d<f32>;
 @group(0) @binding(8) var trailSampler: sampler;
 @group(0) @binding(9) var inputTex: texture_2d<f32>;
+@group(0) @binding(12) var heightTex: texture_2d<f32>;
 @group(0) @binding(10) var inputSampler: sampler;
+@group(0) @binding(13) var heightSampler: sampler;
 
 struct Outputs {
     @location(0) outXYZ: vec4f,
     @location(1) outVel: vec4f,
     @location(2) outRGBA: vec4f,
+    @location(3) baseColor: vec4f,
 }
 
 const TAU: f32 = 6.28318530718;
@@ -61,7 +96,8 @@ fn sampleTrail(uv: vec2f) -> f32 {
 fn sampleExternalField(uv: vec2f, weight: f32) -> f32 {
     if (weight <= 0.0) { return 0.0; }
     let blend = clamp(weight * 0.01, 0.0, 1.0);
-    return luminance(textureSampleLevel(inputTex, inputSampler, uv, 0.0).rgb) * blend * 0.05;
+    let field = select(textureSampleLevel(inputTex, inputSampler, uv, 0.0).rgb, textureSampleLevel(heightTex, heightSampler, uv, 0.0).rgb, u.fieldActive > 0.5);
+    return luminance(field) * blend * 0.05;
 }
 
 @fragment
@@ -73,6 +109,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     let xyz = textureLoad(xyzTex, coord, 0);
     let vel = textureLoad(velTex, coord, 0);
     let rgba = textureLoad(rgbaTex, coord, 0);
+    let base = baseColor(coord, rgba, xyz.xy);
     
     var pos = xyz.xy;           // Normalized [0,1]
     var heading = xyz.z;        // Radians
@@ -87,7 +124,8 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
         return Outputs(
             vec4f(pos, hash(u32(seed * 1000.0)) * TAU, 0.0),
             vel,
-            rgba
+            rgba,
+            keptBaseColor(base)
         );
     }
     
@@ -129,7 +167,8 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     var speedScale = 1.0;
     let blend = clamp(u.inputWeight * 0.01, 0.0, 1.0);
     if (blend > 0.0) {
-        let localInput = luminance(textureSampleLevel(inputTex, inputSampler, pos, 0.0).rgb);
+        let field = select(textureSampleLevel(inputTex, inputSampler, pos, 0.0).rgb, textureSampleLevel(heightTex, heightSampler, pos, 0.0).rgb, u.fieldActive > 0.5);
+        let localInput = luminance(field);
         // Invert: slow in bright, fast in dark
         speedScale = mix(1.0, mix(1.8, 0.35, localInput), blend);
     }
@@ -145,6 +184,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     return Outputs(
         vec4f(newPos, newHeading, 1.0),  // alive = 1
         vec4f(0.0, 0.0, newAge, seed),
-        rgba  // Color unchanged
+        select(base, selectedDiffuse(newPos), u.diffuseActive > 0.5),
+        keptBaseColor(base)
     );
 }

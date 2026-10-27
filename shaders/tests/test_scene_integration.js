@@ -114,6 +114,65 @@ await test('a failing scene render is reported once and never rejects its caller
         `the pipeline must still present on both frames, got ${count(order, 'pipeline')}`)
 })
 
+await test('sink backpressure defers the scene and the pipeline together', async () => {
+    const { renderer, order } = harness()
+    const previousRAF = globalThis.requestAnimationFrame
+    globalThis.requestAnimationFrame = () => 0
+    renderer._isRunning = true
+    renderer._loopStartTime = 0
+    renderer._pipeline.shouldDeferRender = () => true
+    try {
+        await renderer._renderLoop(0)
+        assert.deepStrictEqual(order, [], 'backpressure must defer all scene and pipeline GPU work')
+    } finally {
+        renderer._isRunning = false
+        globalThis.requestAnimationFrame = previousRAF
+    }
+})
+
+await test('a manually stepped scene reports its completed frame', async () => {
+    const { renderer, order } = harness()
+    const reported = []
+    renderer._onFrame = frame => reported.push(frame)
+    renderer.stepFrame(0)
+    for (let i = 0; i < 8; i++) await tick()
+    assert.strictEqual(count(order, 'pipeline'), 1, 'one scene step must draw one frame')
+    assert.deepStrictEqual(reported, [1], 'the frame callback must run after the scene completes')
+})
+
+await test('consecutive scene steps advance once each in order', async () => {
+    const { renderer, order } = harness()
+    renderer.setLoopDuration(10)
+    renderer._pipeline.lastTime = 0
+    const times = []
+    renderer._pipeline.render = time => { times.push(time); renderer._pipeline.lastTime = time }
+    const requested = [renderer.stepFrame(), renderer.stepFrame(), renderer.stepFrame()]
+    assert.deepStrictEqual(requested, [1 / 600, 2 / 600, 3 / 600])
+    for (let i = 0; i < 30; i++) await tick()
+    assert.deepStrictEqual(times, requested, 'each scene step must render its own requested time')
+    assert.strictEqual(count(order, 'scene-start'), 3)
+})
+
+await test('a failed recompile retains the active scene', async () => {
+    const { renderer } = harness()
+    const tree = renderer._sceneTree
+    const sceneRenderer = renderer._sceneRenderer
+    let disposals = 0
+    sceneRenderer.dispose = () => { disposals++ }
+    renderer._createRuntime = async () => { throw new Error('replacement failed') }
+    const originalWarn = console.warn
+    console.warn = () => {}
+    try {
+        await assert.rejects(renderer.compile('search synth\nrender(o0)'), /replacement failed/)
+    } finally {
+        console.warn = originalWarn
+    }
+    assert.strictEqual(renderer._isScene, true)
+    assert.strictEqual(renderer._sceneTree, tree)
+    assert.strictEqual(renderer._sceneRenderer, sceneRenderer)
+    assert.strictEqual(disposals, 0, 'the retained scene must not be disposed')
+})
+
 await test('the render loop keeps presenting while a scene render is in flight', async () => {
     // A light-count change recompiles shaders inside SceneRenderer.render().
     // Blocking every rAF frame on that promise freezes the canvas for its whole

@@ -6,6 +6,8 @@
  */
 
 import { stdEnums } from './std_enums.js'
+import { decodeJsonStringLiteralContent } from './stringLiterals.js'
+import { ops } from './ops.js'
 
 /**
  * Map oscillator type number to oscKind enum name
@@ -15,12 +17,12 @@ const oscKindNames = ['sine', 'tri', 'saw', 'sawInv', 'square', 'noise1d', 'nois
 /**
  * Map MIDI mode number to midiMode enum name
  */
-const midiModeNames = ['noteChange', 'gateNote', 'gateVelocity', 'triggerNote', 'velocity']
+const midiModeNames = ['noteChange', 'gateNote', 'gateVelocity', 'triggerNote', 'velocity', 'cc', 'cc14', 'nrpn', 'pitchBend', 'pressure', 'polyPressure']
 
 /**
  * Map audio band number to audioBand enum name
  */
-const audioBandNames = ['low', 'mid', 'high', 'vol']
+const audioBandNames = ['low', 'mid', 'high', 'vol', 'raw']
 
 /**
  * Format an AST expression node back to DSL
@@ -59,24 +61,27 @@ const audioBandNames = ['low', 'mid', 'high', 'vol']
  * @returns {string} DSL representation of the oscillator
  */
 function formatOscillator(osc) {
+    if (osc._ast?.type === 'Oscillator') {
+        return formatLetExpr(osc._ast)
+    }
     const typeName = oscKindNames[osc.oscType] || 'sine'
     const parts = [`type: oscKind.${typeName}`]
 
     // Only include non-default values
     if (osc.min !== 0) {
-        parts.push(`min: ${osc.min}`)
+        parts.push(`min: ${formatNumberText(osc.min)}`)
     }
     if (osc.max !== 1) {
-        parts.push(`max: ${osc.max}`)
+        parts.push(`max: ${formatNumberText(osc.max)}`)
     }
     if (osc.speed !== 1) {
-        parts.push(`speed: ${osc.speed}`)
+        parts.push(`speed: ${formatNumberText(osc.speed)}`)
     }
     if (osc.offset !== 0) {
-        parts.push(`offset: ${osc.offset}`)
+        parts.push(`offset: ${formatNumberText(osc.offset)}`)
     }
-    if (osc.seed !== 1 && osc.oscType === 5) {  // Only include seed for noise type
-        parts.push(`seed: ${osc.seed}`)
+    if (osc.seed !== 1 && (osc.oscType === 5 || osc.oscType === 6)) {  // Only the noise kinds read the seed
+        parts.push(`seed: ${formatNumberText(osc.seed)}`)
     }
 
     return `osc(${parts.join(', ')})`
@@ -161,19 +166,15 @@ function formatSceneAst(node, indent = null) {
             return `osc(${parts.join(', ')})`
         }
         case 'Audio': {
-            // Field order matches the parser's parameter order (band, min,
-            // max) so the emitted call reparses to the same node.
             const parts = []
-            for (const key of ['band', 'min', 'max']) {
+            for (const key of ['band', 'min', 'max', 'channel', 'name', 'id']) {
                 if (node[key] !== undefined) parts.push(`${key}: ${formatSceneAst(node[key])}`)
             }
             return `audio(${parts.join(', ')})`
         }
         case 'Midi': {
-            // Parser parameter order: channel, mode, min, max, sensitivity;
-            // name and id are keyword-only identity fields.
             const parts = []
-            for (const key of ['channel', 'mode', 'min', 'max', 'sensitivity', 'name', 'id']) {
+            for (const key of ['channel', 'mode', 'min', 'max', 'sensitivity', 'cc', 'nrpn', 'zone', 'members', 'name', 'id']) {
                 if (node[key] !== undefined) parts.push(`${key}: ${formatSceneAst(node[key])}`)
             }
             return `midi(${parts.join(', ')})`
@@ -257,21 +258,31 @@ function formatColorLiteral(components) {
 }
 
 function formatMidi(midi) {
-    const parts = [`channel: ${midi.channel}`]
+    if ((midi.channel && typeof midi.channel === 'object') ||
+        (midi.zone && typeof midi.zone === 'object')) return formatLetExpr(midi)
+    if (midi._ast?.type === 'Midi') {
+        return formatLetExpr(midi._ast)
+    }
+    const parts = midi.zone !== undefined
+        ? [`zone: midiZone.${midi.zone === 0 ? 'lower' : 'upper'}`]
+        : [`channel: ${midi.channel}`]
+    if (midi.members !== undefined) parts.push(`members: ${midi.members}`)
 
     // Only include non-default values
     const modeName = midiModeNames[midi.mode] || 'velocity'
     if (modeName !== 'velocity') {
         parts.push(`mode: midiMode.${modeName}`)
     }
+    if (midi.cc !== undefined) parts.push(`cc: ${midi.cc}`)
+    if (midi.nrpn !== undefined) parts.push(`nrpn: ${midi.nrpn}`)
     if (midi.min !== 0) {
-        parts.push(`min: ${midi.min}`)
+        parts.push(`min: ${formatNumberText(midi.min)}`)
     }
     if (midi.max !== 1) {
-        parts.push(`max: ${midi.max}`)
+        parts.push(`max: ${formatNumberText(midi.max)}`)
     }
     if (midi.sensitivity !== 1) {
-        parts.push(`sensitivity: ${midi.sensitivity}`)
+        parts.push(`sensitivity: ${formatNumberText(midi.sensitivity)}`)
     }
     if (typeof midi.name === 'string' && midi.name.length > 0) {
         parts.push(`name: ${JSON.stringify(midi.name)}`)
@@ -289,15 +300,28 @@ function formatMidi(midi) {
  * @returns {string} DSL representation of the audio() call
  */
 function formatAudio(audio) {
+    if (audio.band && typeof audio.band === 'object') return formatLetExpr(audio)
+    if (audio._ast?.type === 'Audio') {
+        return formatLetExpr(audio._ast)
+    }
     const bandName = audioBandNames[audio.band] || 'low'
     const parts = [`band: audioBand.${bandName}`]
 
     // Only include non-default values
     if (audio.min !== 0) {
-        parts.push(`min: ${audio.min}`)
+        parts.push(`min: ${formatNumberText(audio.min)}`)
     }
     if (audio.max !== 1) {
-        parts.push(`max: ${audio.max}`)
+        parts.push(`max: ${formatNumberText(audio.max)}`)
+    }
+    if (Number.isInteger(audio.channel) && audio.channel >= 1) {
+        parts.push(`channel: ${audio.channel}`)
+    }
+    if (typeof audio.name === 'string' && audio.name.length > 0) {
+        parts.push(`name: ${JSON.stringify(audio.name)}`)
+    }
+    if (typeof audio.id === 'string' && audio.id.length > 0) {
+        parts.push(`id: ${JSON.stringify(audio.id)}`)
     }
 
     return `audio(${parts.join(', ')})`
@@ -316,6 +340,97 @@ function formatEnumName(name) {
 }
 
 /**
+ * Format a number without rounding and without exponent notation, which is
+ * not part of the DSL's numeric literal grammar. A value that is not finite
+ * has no literal, so it is written as the division that the parser folds
+ * back to the same value.
+ */
+function formatLosslessNumber(value) {
+    if (Number.isNaN(value)) return '0 / 0'
+    if (value === Infinity) return '1 / 0'
+    if (value === -Infinity) return '-1 / 0'
+    const text = String(value)
+    if (!/[eE]/.test(text)) return text
+
+    const [coefficient, exponentText] = text.toLowerCase().split('e')
+    const exponent = Number(exponentText)
+    const negative = coefficient.startsWith('-')
+    const unsigned = negative ? coefficient.slice(1) : coefficient
+    const [integerPart, fractionPart = ''] = unsigned.split('.')
+    const digits = integerPart + fractionPart
+    const decimalIndex = integerPart.length + exponent
+    const sign = negative ? '-' : ''
+
+    if (decimalIndex <= 0) {
+        return `${sign}0.${'0'.repeat(-decimalIndex)}${digits}`
+    }
+    if (decimalIndex >= digits.length) {
+        return `${sign}${digits}${'0'.repeat(decimalIndex - digits.length)}`
+    }
+    return `${sign}${digits.slice(0, decimalIndex)}.${digits.slice(decimalIndex)}`
+}
+
+/**
+ * Format a numeric field of an automation descriptor (osc, midi, audio).
+ * Numbers use the lossless form; other values keep their String() text.
+ */
+function formatNumberText(value) {
+    return typeof value === 'number' ? formatLosslessNumber(value) : String(value)
+}
+
+/**
+ * True when the lexer scan of `"value"` or `'value'` stops at the closing
+ * quote. The scan stops at an unescaped quote or newline, and a backslash
+ * always takes the next character with it.
+ */
+function quotedScanEndsAtClose(value, quote) {
+    const text = value + quote
+    let i = 0
+    while (i < text.length && text[i] !== quote && text[i] !== '\n') {
+        i += text[i] === '\\' && i + 1 < text.length ? 2 : 1
+    }
+    return i === value.length
+}
+
+/**
+ * The first quote form whose literal the lexer reads back as `value`, or
+ * null. Triple quotes come first for multi-line values.
+ */
+function stringQuoteFor(value) {
+    const forms = value.includes('\n') ? ['"""', '"', "'"] : ['"', "'", '"""']
+    return forms.find(form => form === '"""'
+        ? (value + '"""').indexOf('"""') === value.length
+        : quotedScanEndsAtClose(value, form)) ?? null
+}
+
+/**
+ * Format a string value as a DSL string literal.
+ *
+ * The lexer keeps the content of a string literal as written and does not
+ * decode escapes, so `"a\"b"` gives the value a, \, ", b. The value is
+ * written back with that same content, which compiles to the same value.
+ * A value that no quote form holds (for example it's "hi") gets a backslash
+ * before each double quote and newline that would end a double-quoted
+ * string, and before a last lone backslash. That text then stays the same.
+ */
+function formatStringLiteral(value) {
+    let content = value
+    if (!stringQuoteFor(content)) {
+        content = ''
+        for (let i = 0; i < value.length; i++) {
+            const char = value[i]
+            if (char === '\\') {
+                content += i + 1 < value.length ? char + value[++i] : '\\\\'
+            } else {
+                content += char === '"' || char === '\n' ? `\\${char}` : char
+            }
+        }
+    }
+    const quote = stringQuoteFor(content)
+    return `${quote}${content}${quote}`
+}
+
+/**
  * Format a value for DSL output
  * @param {any} value - The value to format
  * @param {object} spec - Optional parameter spec for type hints
@@ -323,6 +438,10 @@ function formatEnumName(name) {
  * @returns {string} Formatted string representation
  */
 function formatValue(value, spec, options = {}, sourceForm) {
+    // Temporary surfaces represent nested effect chains, not named surfaces.
+    if (value?.kind === 'temp' && options.formatTemp) {
+        return options.formatTemp(value.index)
+    }
     const { customFormatter, enums = {} } = typeof options === 'function'
         ? { customFormatter: options } // Legacy: 3rd arg was customFormatter
         : options
@@ -339,6 +458,15 @@ function formatValue(value, spec, options = {}, sourceForm) {
         return 'null'
     }
 
+    const isLosslessVector = spec?.type === 'vec4'
+        && spec?.ui?.format === 'vector'
+        && (Array.isArray(value) || ArrayBuffer.isView(value))
+        && value.length === 4
+        && Array.from(value).every(Number.isFinite)
+    if (isLosslessVector) {
+        return `[${Array.from(value).map(formatLosslessNumber).join(', ')}]`
+    }
+
     // Round-trip array literal source form: when the validator tagged an
     // arg as having come from a `[…]` source, emit it back as `[…]`.
     // Existing programs never tag args this way, so this branch is
@@ -353,6 +481,16 @@ function formatValue(value, spec, options = {}, sourceForm) {
     // Handle variable reference marker - output just the variable name
     if (value && typeof value === 'object' && value._varRef) {
         return value._varRef
+    }
+
+    if (value?._ast?.type === 'Ident') {
+        return value._ast.name
+    }
+
+    // Arrow-function arguments compile to {fn} objects that keep their
+    // parser Func node, which carries the let name when one was used.
+    if (value?._ast?.type === 'Func') {
+        return formatLetExpr(value._ast, options)
     }
 
     if (typeof value === 'boolean') {
@@ -473,13 +611,11 @@ function formatValue(value, spec, options = {}, sourceForm) {
     }
 
     if (typeof value === 'number') {
-        // Format numbers nicely - limit to 3 decimal places
-        if (Number.isInteger(value)) {
-            return String(value)
-        }
-        // Round to 3 decimal places
-        const rounded = Math.round(value * 1000) / 1000
-        return String(rounded)
+        // Emit the shortest representation that reparses to the same
+        // value. Rounding here changed programs on every save/regenerate
+        // round trip (noisemaker issue #304) — literals must survive
+        // compile → unparse → compile exactly.
+        return formatLosslessNumber(value)
     }
 
     if (typeof value === 'string') {
@@ -502,13 +638,7 @@ function formatValue(value, spec, options = {}, sourceForm) {
         const needsQuoting = type === 'string' || (!isValidIdentifier && !isEnumPath)
 
         if (needsQuoting) {
-            // Use triple-quotes for multi-line strings
-            if (value.includes('\n')) {
-                return `"""${value}"""`
-            }
-            // Escape any quotes in the string
-            const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-            return `"${escaped}"`
+            return formatStringLiteral(value)
         }
         return value
     }
@@ -574,8 +704,7 @@ function formatValue(value, spec, options = {}, sourceForm) {
     if (typeof value === 'object') {
         // Handle String AST node
         if (value.type === 'String') {
-            const escaped = value.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-            return `"${escaped}"`
+            return formatStringLiteral(value.value)
         }
         // Handle oscillator configuration
         if (value.type === 'Oscillator') {
@@ -586,7 +715,7 @@ function formatValue(value, spec, options = {}, sourceForm) {
             return formatOscillator(value)
         }
         // Handle MIDI configuration
-        if (value.type === 'Midi' && typeof value.channel === 'number') {
+        if (value.type === 'Midi' && (typeof value.channel === 'number' || typeof value.zone === 'number')) {
             return formatMidi(value)
         }
         // Handle MIDI AST from _ast property
@@ -613,19 +742,19 @@ function formatValue(value, spec, options = {}, sourceForm) {
             }
             const parts = [`type: oscKind.${typeName}`]
             if (value.min && value.min.type === 'Number' && value.min.value !== 0) {
-                parts.push(`min: ${value.min.value}`)
+                parts.push(`min: ${formatLosslessNumber(value.min.value)}`)
             }
             if (value.max && value.max.type === 'Number' && value.max.value !== 1) {
-                parts.push(`max: ${value.max.value}`)
+                parts.push(`max: ${formatLosslessNumber(value.max.value)}`)
             }
             if (value.speed && value.speed.type === 'Number' && value.speed.value !== 1) {
-                parts.push(`speed: ${value.speed.value}`)
+                parts.push(`speed: ${formatLosslessNumber(value.speed.value)}`)
             }
             if (value.offset && value.offset.type === 'Number' && value.offset.value !== 0) {
-                parts.push(`offset: ${value.offset.value}`)
+                parts.push(`offset: ${formatLosslessNumber(value.offset.value)}`)
             }
             if (value.seed && value.seed.type === 'Number' && value.seed.value !== 1) {
-                parts.push(`seed: ${value.seed.value}`)
+                parts.push(`seed: ${formatLosslessNumber(value.seed.value)}`)
             }
             return `osc(${parts.join(', ')})`
         }
@@ -645,32 +774,45 @@ function formatValue(value, spec, options = {}, sourceForm) {
             if (modeName !== 'velocity') {
                 parts.push(`mode: midiMode.${modeName}`)
             }
+            if (value.cc !== undefined) parts.push(`cc: ${formatLetExpr(value.cc, options)}`)
+            for (const field of ['nrpn', 'zone', 'members']) {
+                if (value[field] !== undefined) parts.push(`${field}: ${formatLetExpr(value[field], options)}`)
+            }
             if (value.min && value.min.type === 'Number' && value.min.value !== 0) {
-                parts.push(`min: ${value.min.value}`)
+                parts.push(`min: ${formatLosslessNumber(value.min.value)}`)
             }
             if (value.max && value.max.type === 'Number' && value.max.value !== 1) {
-                parts.push(`max: ${value.max.value}`)
+                parts.push(`max: ${formatLosslessNumber(value.max.value)}`)
             }
             if (value.sensitivity && value.sensitivity.type === 'Number' && value.sensitivity.value !== 1) {
-                parts.push(`sensitivity: ${value.sensitivity.value}`)
+                parts.push(`sensitivity: ${formatLosslessNumber(value.sensitivity.value)}`)
             }
             return `midi(${parts.join(', ')})`
         }
         // Handle raw Audio AST node
         if (value.type === 'Audio') {
             const bandPath = value.band
-            let bandName = 'low'
+            let bandStr = 'audioBand.low'
             if (bandPath && bandPath.type === 'Member' && bandPath.path) {
-                bandName = bandPath.path[bandPath.path.length - 1]
+                bandStr = `audioBand.${bandPath.path[bandPath.path.length - 1]}`
             } else if (bandPath && bandPath.type === 'Ident') {
-                bandName = bandPath.name
+                bandStr = bandPath.name
+            } else if (bandPath && bandPath.type === 'Number') {
+                bandStr = String(bandPath.value)
             }
-            const parts = [`band: audioBand.${bandName}`]
+            const parts = [`band: ${bandStr}`]
             if (value.min && value.min.type === 'Number' && value.min.value !== 0) {
-                parts.push(`min: ${value.min.value}`)
+                parts.push(`min: ${formatLosslessNumber(value.min.value)}`)
             }
             if (value.max && value.max.type === 'Number' && value.max.value !== 1) {
-                parts.push(`max: ${value.max.value}`)
+                parts.push(`max: ${formatLosslessNumber(value.max.value)}`)
+            }
+            if (value.channel?.type === 'Number') parts.push(`channel: ${value.channel.value}`)
+            if (value.name?.type === 'String') {
+                parts.push(`name: ${JSON.stringify(decodeJsonStringLiteralContent(value.name.value))}`)
+            }
+            if (value.id?.type === 'String') {
+                parts.push(`id: ${JSON.stringify(decodeJsonStringLiteralContent(value.id.value))}`)
             }
             return `audio(${parts.join(', ')})`
         }
@@ -768,6 +910,13 @@ function unparseCall(call, options = {}) {
 
             // Get spec from options if available
             const spec = specs[key] || null
+            // When no effect definition is available (playground-style
+            // `unparse(compile(src))` calls), fall back to the op schema the
+            // validator itself used to fill defaults. This only feeds the
+            // default-equality check below — formatting stays spec-less — so
+            // kwargs that merely repeat an effect default stay suppressed and
+            // inherited values don't leak into emitted text.
+            const defaultSpec = spec || options.schemaSpecs?.[key] || null
             // Round-trip the source form for this key when the compiled
             // step carries a sidecar `argSources` (added when the source
             // contained a literal `[…]`). Absent for every existing
@@ -775,13 +924,13 @@ function unparseCall(call, options = {}) {
             const sourceForm = call.argSources?.[key]
 
             // Check against default value
-            if (spec && spec.default !== undefined) {
+            if (defaultSpec && defaultSpec.default !== undefined) {
                 const formattedValue = formatValue(value, spec, options, sourceForm)
-                const formattedDefault = formatValue(spec.default, spec, options)
+                const formattedDefault = formatValue(defaultSpec.default, spec, options)
 
                 // For surface params, 'none' must always be explicit when set
                 // (so the expander binds the blank texture) — unless the default IS 'none'
-                const isExplicitNone = spec.type === 'surface' && formattedValue === 'none' && formattedDefault !== 'none'
+                const isExplicitNone = spec?.type === 'surface' && formattedValue === 'none' && formattedDefault !== 'none'
 
                 if (formattedValue === formattedDefault && !isExplicitNone) {
                     continue
@@ -830,17 +979,16 @@ function unparseChain(chain, options = {}) {
  */
 function formatLetExpr(expr, options = {}) {
     if (!expr) return 'null'
+    if (expr._varRef) return expr._varRef
 
     // Helper: extract numeric value from an AST Number node
     const numVal = (node) => (node && node.type === 'Number') ? node.value : undefined
 
     switch (expr.type) {
         case 'Number':
-            // Plain decimals only: String() switches to exponent notation
-            // outside [1e-6, 1e21), which the number lexer cannot read.
-            return toPlainDecimal(expr.value)
+            return formatLosslessNumber(expr.value)
         case 'String':
-            return JSON.stringify(expr.value)
+            return formatStringLiteral(expr.value)
         case 'Boolean':
             return expr.value ? 'true' : 'false'
         case 'Ident':
@@ -860,14 +1008,26 @@ function formatLetExpr(expr, options = {}) {
             // Raw AST Oscillator: sub-fields are AST nodes
             let typeStr = 'oscKind.sine'
             if (expr.oscType?.type === 'Member' && expr.oscType.path) {
-                typeStr = `oscKind.${expr.oscType.path[expr.oscType.path.length - 1]}`
+                // Rewrite the namespace to oscKind only where oscKind has the
+                // same name (oscType.linear has no oscKind.linear); otherwise
+                // keep the path as written so it resolves to the same kind.
+                const name = expr.oscType.path[expr.oscType.path.length - 1]
+                typeStr = Object.prototype.hasOwnProperty.call(stdEnums.oscKind, name)
+                    ? `oscKind.${name}`
+                    : expr.oscType.path.join('.')
             } else if (expr.oscType?.type === 'Ident') {
                 typeStr = expr.oscType.name  // variable reference, no prefix
+            } else if (expr.oscType?.type === 'Number' &&
+                Number.isInteger(expr.oscType.value) && expr.oscType.value >= 0 &&
+                expr.oscType.value < oscKindNames.length) {
+                typeStr = `oscKind.${oscKindNames[expr.oscType.value]}`
             }
             const parts = [`type: ${typeStr}`]
             const pushIfNonDefault = (name, node, def) => {
+                if (!node) return
                 const v = numVal(node)
-                if (v !== undefined && v !== def) parts.push(`${name}: ${v}`)
+                if (v !== undefined && v === def) return
+                parts.push(`${name}: ${formatLetExpr(node, options)}`)
             }
             pushIfNonDefault('min', expr.min, 0)
             pushIfNonDefault('max', expr.max, 1)
@@ -879,41 +1039,62 @@ function formatLetExpr(expr, options = {}) {
         case 'Midi': {
             // Raw AST Midi: sub-fields are AST nodes
             const parts = []
-            const ch = numVal(expr.channel)
-            if (ch !== undefined) parts.push(`channel: ${ch}`)
+            if (expr.channel) parts.push(`channel: ${formatLetExpr(expr.channel, options)}`)
             let modeStr = null
             if (expr.mode?.type === 'Member' && expr.mode.path) {
                 const name = expr.mode.path[expr.mode.path.length - 1]
                 if (name !== 'velocity') modeStr = `midiMode.${name}`
             } else if (expr.mode?.type === 'Ident') {
                 modeStr = expr.mode.name  // variable reference, no prefix
+            } else if (expr.mode?.type === 'Number' && expr.mode.value !== 4) {
+                modeStr = String(expr.mode.value)
             }
             if (modeStr) parts.push(`mode: ${modeStr}`)
             const pushMidiField = (name, node, def) => {
+                if (!node) return
                 const v = numVal(node)
-                if (v !== undefined && v !== def) parts.push(`${name}: ${v}`)
+                if (v !== undefined && v === def) return
+                parts.push(`${name}: ${formatLetExpr(node, options)}`)
             }
             pushMidiField('min', expr.min, 0)
             pushMidiField('max', expr.max, 1)
             pushMidiField('sensitivity', expr.sensitivity, 1)
-            // Lexer String nodes retain their original escape sequences. Emit
-            // those raw slices so repeated compile/unparse cycles stay stable.
-            if (expr.name?.type === 'String') parts.push(`name: "${expr.name.value}"`)
-            if (expr.id?.type === 'String') parts.push(`id: "${expr.id.value}"`)
+            pushMidiField('cc', expr.cc, undefined)
+            pushMidiField('nrpn', expr.nrpn, undefined)
+            pushMidiField('zone', expr.zone, undefined)
+            pushMidiField('members', expr.members, undefined)
+            // MIDI identity accepts either DSL quote style. Normalize the
+            // decoded value through JSON escaping so every result reparses.
+            if (expr.name?.type === 'String') {
+                parts.push(`name: ${JSON.stringify(decodeJsonStringLiteralContent(expr.name.value))}`)
+            }
+            if (expr.id?.type === 'String') {
+                parts.push(`id: ${JSON.stringify(decodeJsonStringLiteralContent(expr.id.value))}`)
+            }
             return `midi(${parts.join(', ')})`
         }
         case 'Audio': {
             // Raw AST Audio: sub-fields are AST nodes
-            let bandStr = 'audioBand.low'
-            if (expr.band?.type === 'Member' && expr.band.path) {
-                bandStr = `audioBand.${expr.band.path[expr.band.path.length - 1]}`
-            } else if (expr.band?.type === 'Ident') {
-                bandStr = expr.band.name  // variable reference, no prefix
-            }
+            const formatAudioField = (node) => node?.type === 'String'
+                ? JSON.stringify(decodeJsonStringLiteralContent(node.value))
+                : formatLetExpr(node, options)
+            const bandStr = expr.band ? formatAudioField(expr.band) : 'audioBand.low'
             const parts = [`band: ${bandStr}`]
-            const minVal = numVal(expr.min), maxVal = numVal(expr.max)
-            if (minVal !== undefined && minVal !== 0) parts.push(`min: ${minVal}`)
-            if (maxVal !== undefined && maxVal !== 1) parts.push(`max: ${maxVal}`)
+            const pushAudioField = (name, node, defaultValue) => {
+                if (!node) return
+                const numeric = numVal(node)
+                if (numeric !== undefined && numeric === defaultValue) return
+                parts.push(`${name}: ${formatAudioField(node)}`)
+            }
+            pushAudioField('min', expr.min, 0)
+            pushAudioField('max', expr.max, 1)
+            pushAudioField('channel', expr.channel, undefined)
+            if (expr.name?.type === 'String') {
+                parts.push(`name: ${formatAudioField(expr.name)}`)
+            }
+            if (expr.id?.type === 'String') {
+                parts.push(`id: ${formatAudioField(expr.id)}`)
+            }
             return `audio(${parts.join(', ')})`
         }
         case 'Call':
@@ -921,10 +1102,60 @@ function formatLetExpr(expr, options = {}) {
         case 'Chain':
             return unparseChain(expr.chain, options)
         case 'Func':
-            return `() => ${formatLetExpr(expr.body, options)}`
+            // The parser keeps the arrow-function body as source text.
+            return `() => ${expr.src}`
         default:
             return formatValue(expr, null, options)
     }
+}
+
+/**
+ * Unparse a compiled control-flow plan (Branch, Break, Continue or Return),
+ * or a `let` (VarAssign) inside a block body.
+ * Conditions and return values come from the parser statement that the
+ * validator keeps as `plan.source`. Block bodies are unparsed as programs.
+ * Their lines are not indented, so string literals in them keep their content.
+ * @param {object} plan - Compiled plan without a chain
+ * @param {string[]} searchNamespaces - Program search order
+ * @param {object} options - Unparse options
+ * @returns {string|null} DSL source, or null for an unknown plan type
+ */
+function unparseControlFlow(plan, searchNamespaces, options) {
+    const source = plan.source
+    // `body` is the parser block, which keeps the comments before its '}'
+    const block = (plans, body) => {
+        const text = unparse({ searchNamespaces, plans, trailingComments: body?.trailingComments }, {},
+            { ...options, omitSearchDirective: true })
+        return text ? `${text}\n` : ''
+    }
+    let text
+    if (plan.type === 'Branch') {
+        const condition = node => node ? formatLetExpr(node, options) : formatValue(plan.cond, null, options)
+        text = `if (${condition(source?.condition)}) {\n${block(plan.then || [], source?.then)}}`
+        const elif = plan.elif || []
+        for (let index = 0; index < elif.length; index++) {
+            const elifSource = source?.elif?.[index]
+            const elifCondition = elifSource ? formatLetExpr(elifSource.condition, options) : formatValue(elif[index].cond, null, options)
+            text += ` elif (${elifCondition}) {\n${block(elif[index].then || [], elifSource?.then)}}`
+        }
+        if (source ? source.else : plan.else?.length > 0) {
+            text += ` else {\n${block(plan.else || [], source?.else)}}`
+        }
+    } else if (plan.type === 'Break') {
+        text = 'break'
+    } else if (plan.type === 'Continue') {
+        text = 'continue'
+    } else if (plan.type === 'Return') {
+        const value = source ? source.value : plan.value
+        text = value ? `return ${formatLetExpr(value, options)}` : 'return'
+    } else if (plan.type === 'VarAssign') {
+        // A `let` inside a block body
+        text = `let ${plan.name} = ${formatLetExpr(plan.expr, options)}`
+    } else {
+        return null
+    }
+    // A block-level VarAssign is the parser node itself
+    return [...((source || plan).leadingComments || []), text].join('\n')
 }
 
 /**
@@ -944,14 +1175,36 @@ export function unparse(compiled, overrides = {}, options = {}) {
     const searchNamespaces = compiled.searchNamespaces || []
 
     // Add search directive if present (with two line breaks after)
-    if (searchNamespaces.length > 0) {
+    if (searchNamespaces.length > 0 && !options.omitSearchDirective) {
         lines.push(`search ${searchNamespaces.join(', ')}`)
         lines.push('') // First blank line after search
     }
 
-    // Emit let declarations
-    if (compiled.vars && compiled.vars.length > 0) {
-        for (const v of compiled.vars) {
+    // Keep statement order: each let is written before the first remaining
+    // plan that followed it in the source. A let's `planIndex` points into
+    // `compiled.planOrder`, the plans in source order. Without them, every
+    // let comes before the plans.
+    const plans = compiled.plans || []
+    const planOrder = compiled.planOrder || plans
+    const remaining = new Set(plans)
+    const varsBefore = new Map()
+    for (const v of compiled.vars || []) {
+        let at = plans.length
+        for (let k = v.planIndex ?? 0; k < planOrder.length; k++) {
+            if (remaining.has(planOrder[k])) {
+                at = plans.indexOf(planOrder[k])
+                break
+            }
+        }
+        if (plans.length === 0) at = 0
+        if (!varsBefore.has(at)) varsBefore.set(at, [])
+        varsBefore.get(at).push(v)
+    }
+    const emitVars = (at) => {
+        const group = varsBefore.get(at)
+        if (!group) return
+        if (lines.length > 0 && lines[lines.length - 1] !== '') lines.push('')
+        for (const v of group) {
             if (v.leadingComments && v.leadingComments.length > 0) {
                 for (const c of v.leadingComments) {
                     lines.push(c)
@@ -960,17 +1213,70 @@ export function unparse(compiled, overrides = {}, options = {}) {
             const exprStr = formatLetExpr(v.expr, options)
             lines.push(`let ${v.name} = ${exprStr}`)
         }
-        lines.push('') // blank line separator after let block
+        // Blank line separator after a let block that comes before a plan
+        if (at < plans.length || plans.length === 0) lines.push('')
     }
+
+    // Emit the let declarations written before the first plan
+    emitVars(0)
 
     // Track global step index across all plans
     let globalStepIndex = 0
 
     // Process each plan
-    const plans = compiled.plans || []
     for (let planIndex = 0; planIndex < plans.length; planIndex++) {
         const plan = plans[planIndex]
-        if (!plan.chain || plan.chain.length === 0) continue
+        if (planIndex > 0) emitVars(planIndex)
+        if (!plan.chain) {
+            const statement = unparseControlFlow(plan, searchNamespaces, options)
+            if (statement !== null) {
+                lines.push(statement)
+                if (planIndex < plans.length - 1) lines.push('')
+            }
+            continue
+        }
+        if (plan.chain.length === 0) continue
+
+        // The compiler flattens inline surface producers into the plan. Rebuild
+        // those dependency chains as arguments, retaining each producer's edits.
+        const stepsByTemp = new Map(plan.chain.map((step, index) => [step.temp, {
+            step, override: overrides[globalStepIndex + index] || {}
+        }]))
+        const collectDependencies = (index, collected) => {
+            if (collected.has(index)) return
+            const entry = stepsByTemp.get(index)
+            if (!entry) return
+            collected.add(index)
+            if (entry.step.from !== null && entry.step.from !== undefined) {
+                collectDependencies(entry.step.from, collected)
+            }
+            for (const value of Object.values({ ...entry.step.args, ...entry.override })) {
+                if (value?.kind === 'temp') collectDependencies(value.index, collected)
+            }
+        }
+        const inlineTemps = new Set()
+        for (const { step, override } of stepsByTemp.values()) {
+            for (const value of [...Object.values(step.args || {}), ...Object.values(override)]) {
+                if (value?.kind === 'temp') collectDependencies(value.index, inlineTemps)
+            }
+        }
+        const inlineCode = new Map()
+        const planOptions = { ...options, formatTemp: index => {
+            if (!inlineCode.has(index)) {
+                const dependencies = new Set()
+                collectDependencies(index, dependencies)
+                const chain = []
+                const nestedOverrides = {}
+                for (const [temp, entry] of stepsByTemp) {
+                    if (!dependencies.has(temp)) continue
+                    nestedOverrides[chain.length] = entry.override
+                    chain.push(entry.step)
+                }
+                inlineCode.set(index, unparse({ searchNamespaces, plans: [{ chain }] }, nestedOverrides,
+                    { ...options, multilineKwargs: false, omitSearchDirective: true }))
+            }
+            return inlineCode.get(index)
+        } }
 
         // Emit plan-level leading comments
         if (plan.leadingComments && plan.leadingComments.length > 0) {
@@ -986,6 +1292,10 @@ export function unparse(compiled, overrides = {}, options = {}) {
         let inSubchain = false  // Track subchain context for proper indentation
 
         for (const step of plan.chain) {
+            if (inlineTemps.has(step.temp)) {
+                globalStepIndex++
+                continue
+            }
             // Helper to build a chain element with optional comments
             const makeChainElement = (code) => {
                 const elem = { code }
@@ -1071,8 +1381,8 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 const name = step.args?.name
                 const id = step.args?.id
                 const parts = []
-                if (name) parts.push(`name: "${name}"`)
-                if (id) parts.push(`id: "${id}"`)
+                if (name) parts.push(`name: ${formatStringLiteral(name)}`)
+                if (id) parts.push(`id: ${formatStringLiteral(id)}`)
                 const argsStr = parts.length > 0 ? parts.join(', ') : ''
                 const elem = { code: `subchain(${argsStr}) {`, isSubchainBegin: true }
                 if (step.leadingComments && step.leadingComments.length > 0) {
@@ -1143,7 +1453,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
                     if (key === '_skip' && value !== true) continue
 
                     // Handle surface references
-                    if (value && typeof value === 'object' && value.kind) {
+                    if (value && typeof value === 'object' && value.kind && value.kind !== 'temp') {
                         call.kwargs[key] = value.name
                     } else {
                         call.kwargs[key] = value
@@ -1153,6 +1463,21 @@ export function unparse(compiled, overrides = {}, options = {}) {
 
             // Build specs map from effect definition
             const specs = effectDef?.globals || {}
+            // Without an effect definition, recover the op schema the
+            // validator used to fill default values into step args, so the
+            // unparser can still suppress kwargs that merely repeat a
+            // default (including the consumer's inherited volumeSize).
+            const schemaSpecs = {}
+            if (!effectDef) {
+                const opSpec = ops[step.op]
+                if (opSpec?.args) {
+                    for (const arg of opSpec.args) {
+                        if (arg?.name && specs[arg.name] === undefined) {
+                            schemaSpecs[arg.name] = arg
+                        }
+                    }
+                }
+            }
 
             // Apply overrides - filter to only include valid DSL parameters
             // When we have an effect definition, only include keys defined in globals
@@ -1175,9 +1500,18 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 }
             }
 
+            // volumeSize on render*3d consumers is inherited from the
+            // upstream 3D producer and the runtime ignores an explicit value
+            // there (1.x contract). Writing the consumer's own copy misstates
+            // the effective volume size, so never emit it.
+            if (call.kwargs.volumeSize !== undefined &&
+                specs.volumeSize?.ui?.control === false) {
+                delete call.kwargs.volumeSize
+            }
+
             // Calculate indent: 4 spaces inside subchain, 2 outside; 0 for first element
             const callIndent = currentChain.length === 0 ? 0 : (inSubchain ? 4 : 2)
-            let callCode = unparseCall(call, { ...options, specs, indent: callIndent })
+            let callCode = unparseCall(call, { ...planOptions, specs, schemaSpecs, indent: callIndent })
             // Wrap in from(namespace, call) for cross-namespace references
             if (isFromOverride && fromNamespace) {
                 callCode = `from(${fromNamespace}, ${callCode})`
@@ -1272,6 +1606,9 @@ export function unparse(compiled, overrides = {}, options = {}) {
             lines.push('')
         }
     }
+
+    // Emit the let declarations written after the last plan
+    if (plans.length > 0) emitVars(plans.length)
 
     // Add render directive if present (surface name: o0-o7)
     if (compiled.render) {

@@ -3,7 +3,6 @@ import enums from './enums.js'
 import { stdEnums } from './std_enums.js'
 import { ops } from './ops.js'
 import { normalizeMemberPath, pathStartsWith, applyEnumPrefix } from './enumPaths.js'
-import { resolveDescriptorEnum } from './descriptorEnums.js'
 import { resolveParamAliases } from './paramAliases.js'
 import { checkEffectAlias } from './effectAliases.js'
 import { decodeJsonStringLiteralContent } from './stringLiterals.js'
@@ -31,6 +30,10 @@ const ALLOWED_STRING_PARAMS = new Set([
     // every accepted free-form string has one auditable allowlist.
     'midi.name',
     'midi.id',
+    // Audio input identity mirrors MediaDeviceInfo. As with MIDI, these are
+    // descriptor fields and the only audio strings permitted through the DSL.
+    'audio.name',
+    'audio.id',
 ])
 
 const stateSurfaces = new Set(['time','frame','mouse','resolution','seed','a'])
@@ -52,6 +55,13 @@ const SCENE_FUNCTIONS = new Set([
 ])
 
 const validatorHooks = {}
+
+const AUTOMATION_FIELDS = {
+    Oscillator: ['oscType', 'min', 'max', 'speed', 'offset', 'seed'],
+    Midi: ['channel', 'mode', 'min', 'max', 'sensitivity', 'name', 'id', 'cc', 'nrpn', 'zone', 'members'],
+    Audio: ['band', 'min', 'max', 'channel', 'name', 'id']
+}
+const MAX_AUTOMATION_DEPTH = 8
 
 export function registerValidatorHook(name, hook) {
     if (typeof name === 'string' && typeof hook === 'function') {
@@ -144,7 +154,10 @@ function callToSurface(node) {
  */
 export function validate(ast) {
     const diagnosticsList = []
+    // Identifier nodes that already have their S003 for a read before the let
+    const readsBeforeLet = new WeakSet()
     function pushDiag(code, node, message = diagnostics[code].message) {
+        if (node && typeof node === 'object' && readsBeforeLet.has(node)) return
         // Enrich message with identifier/location context when available
         let enrichedMessage = message
         const identName = extractIdentifierName(node)
@@ -155,11 +168,7 @@ export function validate(ast) {
         // Add source location if available
         let location = null
         if (node?.loc) {
-            // The parser writes `col`; reading `column` here made every
-            // diagnostic carry `column: undefined`, which the demo UI printed
-            // verbatim as "col undefined". The external field name stays
-            // `column` — consumers interpolate it.
-            location = { line: node.loc.line, column: node.loc.col }
+            location = { line: node.loc.line, column: node.loc.column ?? node.loc.col }
         }
         diagnosticsList.push({
             code,
@@ -218,6 +227,18 @@ export function validate(ast) {
         }
         if (cur && (cur.type === 'Number' || cur.type === 'Boolean')) return cur.value
         return cur
+    }
+
+    // A bare name the parameter defines itself, as an inline choice or a
+    // member of its enum, means that value even where it shadows a state
+    // value such as `seed` or `a`. The unparser writes choices by bare name,
+    // so `geometry: seed` and `channel: a` must read back as written.
+    function isOwnChoice(def, name) {
+        if (def.choices && typeof def.choices[name] === 'number') return true
+        const enumPath = def.enumPath || def.enum
+        if (!enumPath) return false
+        const resolved = resolveEnum(applyEnumPrefix([name], normalizeMemberPath(enumPath)))
+        return typeof resolved === 'number'
     }
 
     function clone(node) {
@@ -319,18 +340,39 @@ export function validate(ast) {
         return !!(starter && starter.index === 0)
     }
 
-    function substitute(node) {
+    const reportedAutomationCycles = new Set()
+
+    function substitute(node, resolving = []) {
         if (!node) return node
+        if (node.type === 'Ident' && resolving.includes(node.name)) {
+            const cycleStart = resolving.indexOf(node.name)
+            const cycle = [...resolving.slice(cycleStart), node.name]
+            const cycleKey = cycle.join(' -> ')
+            if (!reportedAutomationCycles.has(cycleKey)) {
+                reportedAutomationCycles.add(cycleKey)
+                pushDiag('S001', node, `Automation cycle detected: ${cycleKey}`)
+            }
+            return {type:'Number', value:0, _automationInvalid:true}
+        }
         if (node.type === 'Ident' && symbols.has(node.name)) {
-            const result = substitute(clone(symbols.get(node.name)))
+            const result = substitute(clone(symbols.get(node.name)), [...resolving, node.name])
             if (result && typeof result === 'object') {
                 result._varRef = node.name
             }
             return result
         }
+        if (AUTOMATION_FIELDS[node.type]) {
+            const mapped = {...node}
+            for (const field of AUTOMATION_FIELDS[node.type]) {
+                if (node[field] !== undefined) {
+                    mapped[field] = substitute(node[field], resolving)
+                }
+            }
+            return mapped
+        }
         if (node.type === 'Chain') {
             const mapped = node.chain.map(c => {
-                const mappedArgs = c.args.map(a => substitute(a))
+                const mappedArgs = c.args.map(a => substitute(a, resolving))
                 let mappedCall = {type:'Call', name:c.name, args:mappedArgs}
                 // Carry the source location across the rebuild. Scene nodes are
                 // handed to the scene compiler as raw AST, and it reports errors
@@ -338,7 +380,7 @@ export function validate(ast) {
                 if (c.loc) mappedCall.loc = c.loc
                 if (c.kwargs) {
                     const kw = {}
-                    for (const [k,v] of Object.entries(c.kwargs)) kw[k] = substitute(v)
+                    for (const [k,v] of Object.entries(c.kwargs)) kw[k] = substitute(v, resolving)
                     mappedCall.kwargs = kw
                 }
                 return resolveCall(mappedCall)
@@ -346,12 +388,12 @@ export function validate(ast) {
             return {type:'Chain', chain:mapped}
         }
         if (node.type === 'Call') {
-            const mappedArgs = node.args.map(a => substitute(a))
+            const mappedArgs = node.args.map(a => substitute(a, resolving))
             let mappedCall = {type:'Call', name:node.name, args:mappedArgs}
             if (node.loc) mappedCall.loc = node.loc
             if (node.kwargs) {
                 const kw = {}
-                for (const [k,v] of Object.entries(node.kwargs)) kw[k] = substitute(v)
+                for (const [k,v] of Object.entries(node.kwargs)) kw[k] = substitute(v, resolving)
                 mappedCall.kwargs = kw
             }
             return resolveCall(mappedCall)
@@ -410,36 +452,69 @@ export function validate(ast) {
         return node
     }
 
-    if (Array.isArray(ast.vars)) {
-        for (const v of ast.vars) {
-            const expr = substitute(clone(v.expr))
-            if (expr && isStarterChain(expr)) {
-                const head = firstChainCall(expr)
-                if (head) pushDiag('S006', head)
-            }
-            if (expr == null || (expr.type === 'Ident' && (expr.name === 'null' || expr.name === 'undefined'))) {
-                pushDiag('S004', v)
-                continue
-            }
-            if (expr.type === 'Ident' && !symbols.has(expr.name) && !stateValues.has(expr.name) && !ops[expr.name] && !canResolveOpName(expr.name)) {
-                pushDiag('S003', expr)
-                continue
-            }
-            if (expr.type === 'Chain' && expr.chain.length === 1) {
-                symbols.set(v.name, expr.chain[0])
-            } else if (expr.type === 'Member') {
-                const resolved = resolveEnum(expr.path)
-                if (typeof resolved === 'number') {
-                    symbols.set(v.name, {type:'Number', value: resolved})
-                } else if (resolved !== undefined) {
-                    symbols.set(v.name, resolved)
-                } else {
-                    symbols.set(v.name, expr)
-                }
+    function declareVar(v) {
+        const expr = substitute(clone(v.expr), [v.name])
+        if (expr && isStarterChain(expr)) {
+            const head = firstChainCall(expr)
+            if (head) pushDiag('S006', head)
+        }
+        if (expr == null || (expr.type === 'Ident' && (expr.name === 'null' || expr.name === 'undefined'))) {
+            pushDiag('S004', v)
+            return
+        }
+        if (expr.type === 'Ident' && !symbols.has(expr.name) && !stateValues.has(expr.name) && !ops[expr.name] && !canResolveOpName(expr.name)) {
+            pushDiag('S003', expr)
+            return
+        }
+        if (expr.type === 'Chain' && expr.chain.length === 1) {
+            symbols.set(v.name, expr.chain[0])
+        } else if (expr.type === 'Member') {
+            const resolved = resolveEnum(expr.path)
+            if (typeof resolved === 'number') {
+                symbols.set(v.name, {type:'Number', value: resolved})
+            } else if (resolved !== undefined) {
+                symbols.set(v.name, resolved)
             } else {
                 symbols.set(v.name, expr)
             }
+        } else {
+            symbols.set(v.name, expr)
         }
+    }
+
+    // Top-level lets are declared in statement order (see the plan loop).
+    // `pendingLets` holds the names of the lets that come after the current
+    // statement.
+    const topLevelVars = Array.isArray(ast.vars) ? ast.vars : []
+    let nextVar = 0
+    let pendingLets = new Set()
+    function declareVarsBefore(planIndex) {
+        while (nextVar < topLevelVars.length && (topLevelVars[nextVar].planIndex ?? 0) <= planIndex) {
+            declareVar(topLevelVars[nextVar++])
+        }
+        pendingLets = new Set(topLevelVars.slice(nextVar).map(v => v.name))
+    }
+
+    // A statement that reads a variable before any let assigns it gets
+    // S003 "Variable used before assignment" at the identifier. Other
+    // diagnostics for that identifier node are not added.
+    function reportReadsBeforeLet(node) {
+        if (pendingLets.size === 0 || !node || typeof node !== 'object') return
+        if (Array.isArray(node)) {
+            for (const item of node) reportReadsBeforeLet(item)
+            return
+        }
+        if (node.type === 'Ident' && pendingLets.has(node.name) && !symbols.has(node.name)) {
+            if (!readsBeforeLet.has(node)) {
+                const position = node.position
+                pushDiag('S003', position
+                    ? { type: 'Ident', name: node.name, loc: { line: position.line, column: position.column } }
+                    : { type: 'Ident', name: node.name })
+                readsBeforeLet.add(node)
+            }
+            return
+        }
+        for (const value of Object.values(node)) reportReadsBeforeLet(value)
     }
 
     function evalExpr(node) {
@@ -454,6 +529,231 @@ export function validate(ast) {
             if (resolved !== undefined) return resolved
         }
         return expr
+    }
+
+    function resolveAutomationEnum(node, enumName, fallback, validValues, descriptorName, fieldName) {
+        let resolved
+        if (node?.type === 'Number') {
+            resolved = node.value
+        } else if (node?.type === 'Member') {
+            resolved = resolveEnum(node.path)
+        } else if (node?.type === 'Ident') {
+            resolved = resolveEnum([enumName, node.name])
+        }
+        if (resolved && resolved.type === 'Number') resolved = resolved.value
+        if (typeof resolved === 'number' && validValues.has(resolved)) return resolved
+
+        if (node?.type === 'String') {
+            pushDiag('S001', node,
+                `String literal not allowed for ${descriptorName}() ${fieldName}`)
+        } else {
+            const message = descriptorName === 'audio' && fieldName === 'band'
+                ? `audio() band must resolve to an integer from 0 to 4 (got ${resolved})`
+                : `${descriptorName}() ${fieldName} must resolve to a supported enum value`
+            pushDiag('S002', node, message)
+        }
+        return fallback
+    }
+
+    function resolveAutomationString(node, descriptorName, fieldName) {
+        if (!node) return undefined
+        const allowlistKey = `${descriptorName}.${fieldName}`
+        if (!ALLOWED_STRING_PARAMS.has(allowlistKey)) {
+            pushDiag('S001', node, `String parameter '${allowlistKey}' is not allowlisted`)
+            return undefined
+        }
+        if (node.type !== 'String') {
+            pushDiag('S001', node, `${descriptorName}() ${fieldName} requires a quoted string`)
+            return undefined
+        }
+        if (node.value.length === 0) {
+            pushDiag('S001', node, `${descriptorName}() ${fieldName} must not be empty`)
+            return undefined
+        }
+        return decodeJsonStringLiteralContent(node.value)
+    }
+
+    function resolveAutomationNumber(node, descriptorName, fieldName, fallback, options = {}, depth = 0) {
+        if (!node) return fallback
+        const reject = (code, message) => {
+            options.onInvalid?.()
+            pushDiag(code, node, message)
+            return fallback
+        }
+        let value
+        if (node.type === 'Number') {
+            value = node.value
+        } else if (options.allowBoolean && node.type === 'Boolean') {
+            value = node.value ? 1 : 0
+        } else if (node.type === 'Member' && options.allowMember !== false) {
+            const resolved = resolveEnum(node.path)
+            value = resolved && resolved.type === 'Number' ? resolved.value : resolved
+        } else if (AUTOMATION_FIELDS[node.type] && options.allowAutomation) {
+            const compiled = compileAutomationDescriptor(node, depth + 1)
+            if (compiled?._invalid) options.onInvalid?.()
+            return compiled
+        } else if (node.type === 'String') {
+            return reject('S001', `String literal not allowed for ${descriptorName}() ${fieldName}`)
+        } else if (node.type === 'Ident') {
+            return reject('S003',
+                `Undefined automation source '${node.name}' for ${descriptorName}() ${fieldName}`)
+        } else {
+            return reject('S002',
+                `${descriptorName}() ${fieldName} must be a number${options.allowAutomation ? ' or automation source' : ''}`)
+        }
+
+        if (typeof value !== 'number' || !Number.isFinite(value)) {
+            return reject('S002', `${descriptorName}() ${fieldName} must resolve to a finite number`)
+        }
+        if (options.integer && !Number.isInteger(value)) {
+            return reject('S002', `${descriptorName}() ${fieldName} must be an integer`)
+        }
+        if (options.min !== undefined && value < options.min) {
+            return reject('S002',
+                `${descriptorName}() ${fieldName} must be at least ${options.min} (got ${value})`)
+        }
+        if (options.max !== undefined && value > options.max) {
+            return reject('S002',
+                `${descriptorName}() ${fieldName} must be at most ${options.max} (got ${value})`)
+        }
+        if (options.clamp01) return Math.max(0, Math.min(1, value))
+        return value
+    }
+
+    function compileAutomationDescriptor(node, depth = 0) {
+        if (depth > MAX_AUTOMATION_DEPTH) {
+            pushDiag('S001', node,
+                `Automation nesting exceeds the maximum depth of ${MAX_AUTOMATION_DEPTH}`)
+            return 0
+        }
+
+        if (node.type === 'Oscillator') {
+            const value = {
+                type: 'Oscillator',
+                oscType: resolveAutomationEnum(
+                    node.oscType, 'oscKind', 0, new Set([0, 1, 2, 3, 4, 5, 6]), 'osc', 'type'),
+                min: resolveAutomationNumber(node.min, 'osc', 'min', 0,
+                    {allowBoolean:true, allowAutomation:true, clamp01:true}, depth),
+                max: resolveAutomationNumber(node.max, 'osc', 'max', 1,
+                    {allowBoolean:true, allowAutomation:true, clamp01:true}, depth),
+                speed: resolveAutomationNumber(node.speed, 'osc', 'speed', 1,
+                    {allowBoolean:true, allowAutomation:true}, depth),
+                offset: resolveAutomationNumber(node.offset, 'osc', 'offset', 0,
+                    {allowBoolean:true, allowAutomation:true}, depth),
+                seed: resolveAutomationNumber(node.seed, 'osc', 'seed', 1,
+                    {allowBoolean:true, allowAutomation:true}, depth),
+                _ast: node,
+                ...(node._varRef && { _varRef: node._varRef })
+            }
+            return value
+        }
+
+        if (node.type === 'Midi') {
+            const mode = resolveAutomationEnum(
+                node.mode, 'midiMode', 4, new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]), 'midi', 'mode')
+            const hasZone = node.zone !== undefined
+            const zone = hasZone
+                ? resolveAutomationEnum(node.zone, 'midiZone', undefined, new Set([0, 1]), 'midi', 'zone')
+                : undefined
+            let validSelection = !hasZone || zone !== undefined
+            let members
+            if (node.members !== undefined) {
+                members = resolveAutomationNumber(node.members, 'midi', 'members', undefined,
+                    {integer:true, min:1, max:15, allowMember:false,
+                        onInvalid:() => { validSelection = false }}, depth)
+                if (!hasZone) validSelection = false
+            }
+            if (hasZone && node.channel !== undefined) validSelection = false
+            let validChannel = true
+            const channel = hasZone ? undefined : resolveAutomationNumber(node.channel, 'midi', 'channel', 1,
+                {integer:true, min:1, max:16, allowMember:false,
+                    onInvalid:() => { validChannel = false }}, depth)
+            let validCc = true
+            const cc = node.cc !== undefined || mode === 5 || mode === 6
+                ? resolveAutomationNumber(node.cc, 'midi', 'cc', 1,
+                    {integer:true, min:0, max:mode === 6 ? 31 : 127, allowMember:false,
+                        onInvalid:() => { validCc = false }}, depth)
+                : undefined
+            let nrpn
+            if (node.nrpn !== undefined || mode === 7) {
+                if (node.nrpn === undefined) {
+                    pushDiag('S002', node, 'midi() nrpn mode requires a parameter number')
+                    validSelection = false
+                }
+                nrpn = resolveAutomationNumber(node.nrpn, 'midi', 'nrpn', undefined,
+                    {integer:true, min:0, max:16382, allowMember:false,
+                        onInvalid:() => { validSelection = false }}, depth)
+            }
+            return {
+                type: 'Midi',
+                channel,
+                mode,
+                ...(cc !== undefined && { cc }),
+                ...(nrpn !== undefined && { nrpn }),
+                ...(hasZone && { zone }),
+                ...(node.members !== undefined && { members }),
+                ...((!validCc || !validChannel || !validSelection) && { _invalid: true }),
+                min: resolveAutomationNumber(node.min, 'midi', 'min', 0,
+                    {allowBoolean:true, allowAutomation:true, clamp01:true}, depth),
+                max: resolveAutomationNumber(node.max, 'midi', 'max', 1,
+                    {allowBoolean:true, allowAutomation:true, clamp01:true}, depth),
+                sensitivity: resolveAutomationNumber(node.sensitivity, 'midi', 'sensitivity', 1,
+                    {allowBoolean:true, allowAutomation:true}, depth),
+                name: resolveAutomationString(node.name, 'midi', 'name'),
+                id: resolveAutomationString(node.id, 'midi', 'id'),
+                _ast: node,
+                ...(node._varRef && { _varRef: node._varRef })
+            }
+        }
+
+        if (node.type === 'Audio') {
+            const band = resolveAutomationEnum(
+                node.band, 'audioBand', undefined, new Set([0, 1, 2, 3, 4]), 'audio', 'band')
+            let validMin = true
+            let validMax = true
+            const min = resolveAutomationNumber(node.min, 'audio', 'min', 0,
+                {allowAutomation:true, allowMember:false, clamp01:true,
+                    onInvalid:() => { validMin = false }}, depth)
+            const max = resolveAutomationNumber(node.max, 'audio', 'max', 1,
+                {allowAutomation:true, allowMember:false, clamp01:true,
+                    onInvalid:() => { validMax = false }}, depth)
+            let channel
+            let validChannel = true
+            if (node.channel !== undefined) {
+                if (node.channel.type === 'Number' &&
+                    Number.isInteger(node.channel.value) && node.channel.value >= 1 && node.channel.value <= 32) {
+                    channel = node.channel.value
+                } else {
+                    validChannel = false
+                    if (node.channel.type === 'String') {
+                        pushDiag('S001', node.channel,
+                            'String literal not allowed for audio() channel')
+                    } else {
+                        pushDiag('S002', node.channel,
+                            `audio() channel must be a positive integer from 1 to 32 (got ${node.channel.value ?? node.channel.name ?? node.channel.type})`)
+                    }
+                }
+            }
+            const name = resolveAutomationString(node.name, 'audio', 'name')
+            const id = resolveAutomationString(node.id, 'audio', 'id')
+            const validName = node.name === undefined || name !== undefined
+            const validId = node.id === undefined || id !== undefined
+            return {
+                type: 'Audio',
+                band,
+                min,
+                max,
+                channel,
+                name,
+                id,
+                _invalid: band === undefined || !validMin || !validMax ||
+                    !validName || !validId || !validChannel,
+                _ast: node,
+                ...(node._varRef && { _varRef: node._varRef })
+            }
+        }
+
+        return 0
     }
 
     function evalCondition(node) {
@@ -514,6 +814,7 @@ export function validate(ast) {
 
     function compileChainStatement(stmt) {
         const chain = []
+        reportReadsBeforeLet(stmt.chain)
 
         // Check for S006: Starter chain missing write() or write3d()
         const chainNode = { type: 'Chain', chain: stmt.chain }
@@ -679,6 +980,20 @@ export function validate(ast) {
 
                 // Handle Subchain node (first-class grouping of contiguous effects)
                 if (original.type === 'Subchain') {
+                    // Surface parser-attached subchain-argument reports
+                    // once per subchain node, in source order.
+                    const argDiagnostics = original.subchainArgumentDiagnostics
+                    if (Array.isArray(argDiagnostics)) {
+                        for (const report of argDiagnostics) {
+                            diagnosticsList.push({
+                                code: report.code,
+                                message: report.message,
+                                severity: report.severity,
+                                nodeId: original?.id,
+                                ...(report.location && { location: report.location })
+                            })
+                        }
+                    }
                     if (current === null) {
                         pushDiag('S005', original, 'subchain() requires an input - cannot be first in chain')
                         continue
@@ -955,6 +1270,19 @@ export function validate(ast) {
                             }
                         }
                         args[argKey] = surf
+                    } else if (node && node.type === 'Call' && node.args?.length === (node.name === 'vec2' ? 2 : 4) && (
+                        (def.type === 'vec2' && node.name === 'vec2') ||
+                        (def.type === 'color' && node.name === 'vec4' && Array.isArray(def.default) && def.default.length === 4))) {
+                        // vec2(x, y) on a vec2 parameter, and vec4(x, y, z, w) on a
+                        // vec4 parameter. The loader registers vec4 parameters as
+                        // `color`; their default keeps its four components. Any
+                        // other form, including a wrong component count, takes
+                        // the branches below.
+                        args[argKey] = node.args.map(arg => {
+                            if (arg.type === 'Number') return arg.value
+                            pushDiag('S002', arg, `Argument out of range for '${def.name}' in ${call.name}()`)
+                            return 0
+                        })
                     } else if (def.type === 'color') {
                         if (node && node.type === 'String') {
                             pushDiag('S001', node, `String literal not allowed for color parameter '${def.name}'`)
@@ -1039,7 +1367,8 @@ export function validate(ast) {
                         } else if (node && node.type === 'Func') {
                             try {
                                 const fn = new Function('state', `with(state){ return ${node.src}; }`)
-                                value = {fn: (state) => !!fn(state)}
+                                // _ast keeps the source text for the unparser.
+                                value = {fn: (state) => !!fn(state), _ast: node}
                             } catch {
                                 pushDiag('S001', node, `Invalid function for '${def.name}': '${node.src?.slice(0, 50) || 'unknown'}'`)
                                 value = def.default !== undefined ? !!def.default : false
@@ -1069,7 +1398,7 @@ export function validate(ast) {
                         } else if (node && (node.type === 'Number' || node.type === 'Boolean')) {
                             args[argKey] = node.type === 'Boolean' ? (node.value ? 1 : 0) : node.value
                             continue
-                        } else if (node && node.type === 'Ident' && stateValues.has(node.name)) {
+                        } else if (node && node.type === 'Ident' && stateValues.has(node.name) && !isOwnChoice(def, node.name)) {
                             const key = node.name
                             args[argKey] = {fn: (state) => state[key]}
                             continue
@@ -1228,120 +1557,18 @@ export function validate(ast) {
                         } else if (node && node.type === 'Func') {
                             try {
                                 const fn = new Function('state', `with(state){ return ${node.src}; }`)
-                                value = {fn, min:def.min, max:def.max}
+                                // _ast keeps the source text for the unparser.
+                                value = {fn, min:def.min, max:def.max, _ast: node}
                             } catch {
                                 pushDiag('S001', node, `Invalid function for '${def.name}': '${node.src?.slice(0, 50) || 'unknown'}'`)
                                 value = def.default
                             }
                         } else if (node && node.type === 'Oscillator') {
-                            // Oscillator node - resolve the oscType enum value and pass through
-                            // The oscillator will be evaluated at runtime by the pipeline.
-                            // The three spellings (oscKind.saw / saw / 2) are defined once, in
-                            // descriptorEnums.js, and read from there by the scene compiler too.
-                            const oscTypeValue = resolveDescriptorEnum(node.oscType, 'oscKind', resolveEnum) ?? 0
-                            // Resolve min, max, speed, offset, seed from the oscillator node
-                            const resolveOscParam = (param) => {
-                                if (!param) return undefined
-                                if (param.type === 'Number') return param.value
-                                if (param.type === 'Boolean') return param.value ? 1 : 0
-                                if (param.type === 'Member') {
-                                    const r = resolveEnum(param.path)
-                                    if (typeof r === 'number') return r
-                                    if (r && r.type === 'Number') return r.value
-                                }
-                                return undefined
-                            }
-                            value = {
-                                type: 'Oscillator',
-                                oscType: oscTypeValue,
-                                min: Math.max(0, Math.min(1, resolveOscParam(node.min) ?? 0)),
-                                max: Math.max(0, Math.min(1, resolveOscParam(node.max) ?? 1)),
-                                speed: resolveOscParam(node.speed) ?? 1,
-                                offset: resolveOscParam(node.offset) ?? 0,
-                                seed: resolveOscParam(node.seed) ?? 1,
-                                // Keep original AST for unparsing
-                                _ast: node,
-                                // Preserve variable reference marker for unparser round-trip
-                                ...(node._varRef && { _varRef: node._varRef })
-                            }
+                            value = compileAutomationDescriptor(node)
                         } else if (node && node.type === 'Midi') {
-                            // MIDI node - resolve the mode enum value and pass through
-                            // The MIDI value will be evaluated at runtime by the pipeline.
-                            // 4 (velocity) is the default the parser also writes in.
-                            const modeValue = resolveDescriptorEnum(node.mode, 'midiMode', resolveEnum) ?? 4
-                            // Resolve channel, min, max, sensitivity from the MIDI node
-                            const resolveMidiParam = (param) => {
-                                if (!param) return undefined
-                                if (param.type === 'Number') return param.value
-                                if (param.type === 'Boolean') return param.value ? 1 : 0
-                                if (param.type === 'Member') {
-                                    const r = resolveEnum(param.path)
-                                    if (typeof r === 'number') return r
-                                    if (r && r.type === 'Number') return r.value
-                                }
-                                return undefined
-                            }
-                            const resolveMidiStringParam = (param, paramName) => {
-                                if (!param) return undefined
-                                const allowlistKey = `midi.${paramName}`
-                                if (!ALLOWED_STRING_PARAMS.has(allowlistKey)) {
-                                    pushDiag('S001', param, `String parameter '${allowlistKey}' is not allowlisted`)
-                                    return undefined
-                                }
-                                if (param.type !== 'String') {
-                                    pushDiag('S001', param, `midi() ${paramName} requires a quoted string`)
-                                    return undefined
-                                }
-                                if (param.value.length === 0) {
-                                    pushDiag('S001', param, `midi() ${paramName} must not be empty`)
-                                    return undefined
-                                }
-                                // The lexer intentionally retains escape sequences for
-                                // general DSL strings. MIDI identity is populated from
-                                // host API strings and emitted with JSON escaping, so
-                                // decode only these two explicitly allowlisted fields.
-                                return decodeJsonStringLiteralContent(param.value)
-                            }
-                            value = {
-                                type: 'Midi',
-                                channel: resolveMidiParam(node.channel) ?? 1,
-                                mode: modeValue,
-                                min: Math.max(0, Math.min(1, resolveMidiParam(node.min) ?? 0)),
-                                max: Math.max(0, Math.min(1, resolveMidiParam(node.max) ?? 1)),
-                                sensitivity: resolveMidiParam(node.sensitivity) ?? 1,
-                                name: resolveMidiStringParam(node.name, 'name'),
-                                id: resolveMidiStringParam(node.id, 'id'),
-                                // Keep original AST for unparsing
-                                _ast: node,
-                                // Preserve variable reference marker for unparser round-trip
-                                ...(node._varRef && { _varRef: node._varRef })
-                            }
+                            value = compileAutomationDescriptor(node)
                         } else if (node && node.type === 'Audio') {
-                            // Audio node - resolve the band enum value and pass through
-                            // The audio value will be evaluated at runtime by the pipeline.
-                            const bandValue = resolveDescriptorEnum(node.band, 'audioBand', resolveEnum) ?? 0
-                            // Resolve min, max from the Audio node
-                            const resolveAudioParam = (param) => {
-                                if (!param) return undefined
-                                if (param.type === 'Number') return param.value
-                                if (param.type === 'Boolean') return param.value ? 1 : 0
-                                if (param.type === 'Member') {
-                                    const r = resolveEnum(param.path)
-                                    if (typeof r === 'number') return r
-                                    if (r && r.type === 'Number') return r.value
-                                }
-                                return undefined
-                            }
-                            value = {
-                                type: 'Audio',
-                                band: bandValue,
-                                min: Math.max(0, Math.min(1, resolveAudioParam(node.min) ?? 0)),
-                                max: Math.max(0, Math.min(1, resolveAudioParam(node.max) ?? 1)),
-                                // Keep original AST for unparsing
-                                _ast: node,
-                                // Preserve variable reference marker for unparser round-trip
-                                ...(node._varRef && { _varRef: node._varRef })
-                            }
+                            value = compileAutomationDescriptor(node)
                         } else if (node && node.type === 'Member') {
                             const cur = resolveEnum(node.path)
                             if (typeof cur === 'number') {
@@ -1359,9 +1586,9 @@ export function validate(ast) {
                                 pushDiag('S001', node, `Cannot resolve enum value for '${def.name}': '${node?.path?.join('.') || node?.name || 'unknown'}'`)
                                 value = def.default
                             }
-                        } else if (node && node.type === 'Ident' && stateValues.has(node.name)) {
+                        } else if (node && node.type === 'Ident' && stateValues.has(node.name) && !isOwnChoice(def, node.name)) {
                             const key = node.name
-                            value = {fn: (state) => state[key], min:def.min, max:def.max}
+                            value = {fn: (state) => state[key], min:def.min, max:def.max, _ast: node}
                         } else if (node && node.type === 'Ident' && def.enum) {
                             // Try to resolve bare identifier as enum value within the param's enum path
                             const prefix = normalizeMemberPath(def.enum)
@@ -1497,42 +1724,77 @@ export function validate(ast) {
 
     function compileBlock(body) {
         const result = []
+        // A `let` inside a block applies to the rest of that block only, so a
+        // block cannot change how statements outside it compile.
+        const shadowed = new Map()
         for (const s of body || []) {
+            if (s.type === 'VarAssign') {
+                if (!shadowed.has(s.name)) {
+                    shadowed.set(s.name, symbols.has(s.name) ? { value: symbols.get(s.name) } : null)
+                }
+                declareVar(s)
+                // Kept as the parser node, like the top-level `vars` entries
+                result.push(s)
+                continue
+            }
             const compiled = compileStmt(s)
             if (compiled) result.push(compiled)
+        }
+        for (const [name, previous] of shadowed) {
+            if (previous) symbols.set(name, previous.value)
+            else symbols.delete(name)
         }
         return result
     }
 
+    // Control-flow plans keep their parser statement as a non-enumerable
+    // `source`, so the unparser can write conditions and return values as
+    // written. The public compiled plan shape is unchanged.
+    function withSource(plan, stmt) {
+        Object.defineProperty(plan, 'source', { value: stmt, enumerable: false })
+        return plan
+    }
+
     function compileStmt(stmt) {
         if (stmt.type === 'IfStmt') {
+            reportReadsBeforeLet(stmt.condition)
             const cond = evalCondition(stmt.condition)
             const thenBranch = compileBlock(stmt.then)
             const elif = []
             for (const e of stmt.elif || []) {
+                reportReadsBeforeLet(e.condition)
                 elif.push({cond: evalCondition(e.condition), then: compileBlock(e.then)})
             }
             const elseBranch = compileBlock(stmt.else)
-            return {type:'Branch', cond, then: thenBranch, elif, else: elseBranch}
+            return withSource({type:'Branch', cond, then: thenBranch, elif, else: elseBranch}, stmt)
         }
         if (stmt.type === 'Break') {
-            return {type:'Break'}
+            return withSource({type:'Break'}, stmt)
         }
         if (stmt.type === 'Continue') {
-            return {type:'Continue'}
+            return withSource({type:'Continue'}, stmt)
         }
         if (stmt.type === 'Return') {
             const node = {type:'Return'}
-            if (stmt.value) node.value = evalExpr(stmt.value)
-            return node
+            if (stmt.value) {
+                reportReadsBeforeLet(stmt.value)
+                node.value = evalExpr(stmt.value)
+            }
+            return withSource(node, stmt)
         }
         return compileChainStatement(stmt)
     }
 
-    for (const stmt of ast.plans || []) {
-        const compiled = compileStmt(stmt)
+    // Statements compile in order. Each one sees the lets written before it,
+    // and the latest assignment of a name wins. Lets that come after the
+    // last statement are still declared, so their own checks run.
+    const statements = ast.plans || []
+    for (let index = 0; index < statements.length; index++) {
+        declareVarsBefore(index)
+        const compiled = compileStmt(statements[index])
         if (compiled) plans.push(compiled)
     }
+    declareVarsBefore(Infinity)
 
     // Include original variable declarations for unparsing
     const vars = ast.vars || []
@@ -1543,5 +1805,8 @@ export function validate(ast) {
     // Preserve trailing comments from program
     const result = {plans, diagnostics: diagnosticsList, render, vars, searchNamespaces}
     if (ast.trailingComments) { result.trailingComments = ast.trailingComments }
+    // The plans in source order. A let's `planIndex` points into this list,
+    // so the unparser can keep statement order after hosts remove plans.
+    Object.defineProperty(result, 'planOrder', { value: plans.slice(), enumerable: false })
     return result
 }

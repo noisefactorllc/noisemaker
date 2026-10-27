@@ -23,6 +23,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
 import { PNG } from 'pngjs'
+import { shaderTestBrowserOptions } from '../../scripts/lib/shader-test-browser.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '../..')
@@ -38,6 +39,10 @@ const { acquireServer, releaseServer } = await import(path.join(repoRoot, 'vendo
 const RENDER_SIZE = 128
 const SOURCE_WIDTH = 128
 const SOURCE_HEIGHT = 64
+const args = process.argv.slice(2)
+assert.ok(args.length === 0 || (args.length === 2 && args[0] === '--backend' && ['webgl2', 'webgpu'].includes(args[1])),
+    'usage: test_external_texture_upload.mjs [--backend webgl2|webgpu]')
+const requestedBackends = args.length ? [args[1]] : ['webgl2', 'webgpu']
 
 const MEDIA_DSL = `search synth
 
@@ -161,12 +166,11 @@ async function runBackend(browser, baseUrl, { preferWebGPU, expectedName }) {
     page.on('pageerror', (error) => consoleMessages.push(`[pageerror] ${error.message}`))
 
     try {
+        // about:blank has no trustworthy origin and silently denies WebGPU.
+        await page.goto(`${baseUrl}/shaders/effects/manifest.json`)
         await installHarness(page, baseUrl, preferWebGPU)
         const backend = await page.evaluate((dsl) => window.compileDsl(dsl), MEDIA_DSL)
-        if (backend !== expectedName) {
-            console.log(`SKIP ${expectedName}: backend resolved to ${backend}`)
-            return null
-        }
+        assert.equal(backend, expectedName, 'requested upload backend must execute')
 
         // --- Case 1: the API contract.
         const upload = await page.evaluate(() => window.uploadMedia())
@@ -216,27 +220,15 @@ async function main() {
     await assertSyncSignatures()
 
     const baseUrl = await acquireServer(undefined, repoRoot, effectsDir)
-    const browser = await chromium.launch({
-        headless: true,
-        args: [
-            '--disable-gpu-sandbox',
-            '--enable-unsafe-webgpu',
-            '--enable-webgpu-developer-features',
-            process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=egl',
-        ],
-    })
+    const browser = await chromium.launch(shaderTestBrowserOptions())
 
     try {
         const ran = []
-        const gl = await runBackend(browser, baseUrl, { preferWebGPU: false, expectedName: 'WebGL2' })
-        if (gl) ran.push(gl)
-        const gpu = await runBackend(browser, baseUrl, { preferWebGPU: true, expectedName: 'WebGPU' })
-        if (gpu) ran.push(gpu)
-
-        assert.ok(ran.includes('WebGL2'), 'WebGL2 backend did not run')
-        if (!ran.includes('WebGPU')) {
-            console.log('NOTE: WebGPU unavailable in this environment; only WebGL2 was asserted')
+        for (const backend of requestedBackends) {
+            const expectedName = backend === 'webgpu' ? 'WebGPU' : 'WebGL2'
+            ran.push(await runBackend(browser, baseUrl, { preferWebGPU: backend === 'webgpu', expectedName }))
         }
+        assert.equal(ran.length, requestedBackends.length, 'every requested backend must execute')
         console.log(`PASS test_external_texture_upload (${ran.join(', ')})`)
     } finally {
         await browser.close()

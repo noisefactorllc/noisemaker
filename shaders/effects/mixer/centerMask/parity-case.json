@@ -1,0 +1,22 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "mixer/centerMask",
+        "synth/noise"
+    ],
+    "dsl": "search mixer, synth\n\nnoise(ridges: true, colorMode: mono)\n.write(o0)\n\nnoise(ridges: true)\n.centerMask(tex: read(o0), mix: -75)\n.write(o1)",
+    "surface": "o1",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true,
+    "tiles": {
+        "size": [
+            32,
+            32
+        ],
+        "renderScale": 2
+    }
+}

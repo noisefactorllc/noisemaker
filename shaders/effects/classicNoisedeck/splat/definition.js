@@ -192,7 +192,6 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { splatColor: 'color', splatCutoff: 'cutoff', splatMode: 'mode', splatScale: 'scale', splatSeed: 'seed', splatSpeed: 'speed', useSplats: 'enabled' },
   passes: [
     {
       name: "render",

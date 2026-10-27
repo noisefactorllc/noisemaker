@@ -2159,9 +2159,9 @@ function collectObjects(value, into, depth = 0) {
 }
 
 /**
- * Count the gl-matrix constructors the scene path calls.
+ * Count the scene math constructors the scene path calls.
  *
- * `mat4` and `vec3` are the CommonJS namespace objects gl-matrix exports, and
+ * `mat4` and `vec3` are the shared scene math objects, and
  * every call this codebase makes goes through them by property lookup, so
  * wrapping the two allocating entry points measures exactly the matrices and
  * vectors a frame mints. Restored in a finally.
@@ -2224,7 +2224,7 @@ function recordingBackend() {
 // the sky/ground/background default arrays, and — through
 // camera.getViewMatrix()/getProjectionMatrix() — a mat4 plus three vec3s for
 // every pass group, every tick. Measured on this scene before the fix: 36 new
-// descriptor objects and 30 gl-matrix typed arrays per frame, 66 allocations a
+// descriptor objects and 30 scene math typed arrays per frame, 66 allocations a
 // frame, ~3960/s at 60fps.
 {
   const backend = recordingBackend()
@@ -2269,7 +2269,7 @@ function recordingBackend() {
   }
 
   assert.strictEqual(allocations, 0,
-    `a steady frame must allocate no gl-matrix vectors or matrices, got ${allocations}`)
+    `a steady frame must allocate no scene math vectors or matrices, got ${allocations}`)
 
   // The frame state is reused too — it carries the global uniforms every pass
   // reads, and used to be rebuilt with a fresh u_resolution array each tick.
@@ -2289,7 +2289,7 @@ function recordingBackend() {
 // The probe amortizes to one cube face per frame, so each face's descriptors
 // are new relative to the frame before it and only settle once the rotation has
 // been all the way round. Counted cumulatively across a full cycle. Before the
-// fix this scene minted 44 descriptor objects and 40 gl-matrix typed arrays on
+// fix this scene minted 44 descriptor objects and 40 scene math typed arrays on
 // every settled frame.
 {
   const backend = recordingBackend()
@@ -2321,7 +2321,7 @@ function recordingBackend() {
     assert.strictEqual(seen.size, settled,
       `frame ${frame} handed the backend ${seen.size - settled} object(s) it had never seen`)
     assert.strictEqual(allocations, 0,
-      `frame ${frame} allocated ${allocations} gl-matrix typed array(s)`)
+      `frame ${frame} allocated ${allocations} scene math typed array(s)`)
   }
 }
 

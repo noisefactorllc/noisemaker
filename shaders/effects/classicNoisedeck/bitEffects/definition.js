@@ -279,7 +279,6 @@ export default new Effect({
       }
     },
   },
-  paramAliases: { loopAmp: 'speed' },
   passes: [
     {
       name: "render",

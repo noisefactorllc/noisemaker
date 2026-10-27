@@ -327,13 +327,12 @@ fn shape_material(raw: f32) -> f32 {
 
 @fragment
 fn main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // Modes 0..4 retain their established sampling contract. The material
-    // modes were added later and normalize the source UV so their presented
-    // image matches the GLSL backend instead of inheriting that old flip.
-    var sourceUV = in.uv;
-    if (MODE >= 5) { sourceUV.y = 1.0 - sourceUV.y; }
-    let base_color: vec4<f32> = textureSample(inputTex, u_sampler, sourceUV);
+    // The output-normalized coordinate, as the GLSL's v_texCoord against its
+    // textures; the default vertex uv has a bottom-left origin, so it is
+    // flipped vertically.
     let dims: vec2<f32> = vec2<f32>(textureDimensions(inputTex, 0));
+    let uv: vec2<f32> = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
+    let base_color: vec4<f32> = textureSample(inputTex, u_sampler, uv);
     let pixel_step: vec2<f32> = 1.0 / dims;
 
     let a: f32 = clamp(alpha, 0.0, 1.0);
@@ -346,11 +345,11 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
         if (fullResolution.x > 0.0) { globalDims = fullResolution; }
         let globalPixel: vec2<f32> = in.position.xy + tileOffset;
         let materialMotion: f32 = time * f32(Z_LOOP);
-        let r: f32 = shape_material(material_value(globalPixel, globalDims, sourceUV, materialMotion, 0x1234abcdu));
+        let r: f32 = shape_material(material_value(globalPixel, globalDims, uv, materialMotion, 0x1234abcdu));
         var material: vec3<f32> = vec3<f32>(r);
         if (mono == 0) {
-            material.g = shape_material(material_value(globalPixel, globalDims, sourceUV, materialMotion, 0x68bc21ebu));
-            material.b = shape_material(material_value(globalPixel, globalDims, sourceUV, materialMotion, 0x02e5be93u));
+            material.g = shape_material(material_value(globalPixel, globalDims, uv, materialMotion, 0x68bc21ebu));
+            material.b = shape_material(material_value(globalPixel, globalDims, uv, materialMotion, 0x02e5be93u));
         }
         return vec4<f32>(clamp(mix(base_color.xyz, material, a), vec3<f32>(0.0), vec3<f32>(1.0)), base_color.w);
     }
@@ -362,11 +361,11 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
     let motion: f32 = time * f32(Z_LOOP);
 
     // Sample height field at center and 4 neighbors for gradient
-    let h_center: f32 = height_field(in.uv, base_freq, motion);
-    let h_right: f32 = height_field(in.uv + vec2<f32>(pixel_step.x, 0.0), base_freq, motion);
-    let h_left: f32 = height_field(in.uv - vec2<f32>(pixel_step.x, 0.0), base_freq, motion);
-    let h_up: f32 = height_field(in.uv + vec2<f32>(0.0, pixel_step.y), base_freq, motion);
-    let h_down: f32 = height_field(in.uv - vec2<f32>(0.0, pixel_step.y), base_freq, motion);
+    let h_center: f32 = height_field(uv, base_freq, motion);
+    let h_right: f32 = height_field(uv + vec2<f32>(pixel_step.x, 0.0), base_freq, motion);
+    let h_left: f32 = height_field(uv - vec2<f32>(pixel_step.x, 0.0), base_freq, motion);
+    let h_up: f32 = height_field(uv + vec2<f32>(0.0, pixel_step.y), base_freq, motion);
+    let h_down: f32 = height_field(uv - vec2<f32>(0.0, pixel_step.y), base_freq, motion);
 
     let gx: f32 = h_right - h_left;
     let gy: f32 = h_down - h_up;

@@ -106,16 +106,20 @@ export function tokenize(source) {
     if (isDigit(ch) || (ch === '.' && isDigit(peek(1)))) {
       let numStr = ''
       if (ch === '.') {
-        numStr = '0'
-        advance()
-      }
-      while (isDigit(peek())) {
-        numStr += advance()
-      }
-      if (peek() === '.') {
-        numStr += advance()
+        // Keep the dot: ".5" is 0.5
+        numStr = '0' + advance()
         while (isDigit(peek())) {
           numStr += advance()
+        }
+      } else {
+        while (isDigit(peek())) {
+          numStr += advance()
+        }
+        if (peek() === '.') {
+          numStr += advance()
+          while (isDigit(peek())) {
+            numStr += advance()
+          }
         }
       }
       tokens.push({

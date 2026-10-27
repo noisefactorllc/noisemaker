@@ -6,6 +6,7 @@ export default new Effect({
   func: "unsharpMask",
   tags: ["edges", "artist"],
   description: "Classic unsharp mask sharpening with radius and threshold",
+  defaultProgram: "search filter, synth\n\nnoise(scaleX: 20, scaleY: 20, octaves: 4)\n  .unsharpMask()\n  .write(o0)",
   globals: {
     amount: {
       type: "float", default: 220, uniform: "amount",

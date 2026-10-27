@@ -106,7 +106,6 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { cellVariation: 'variation', loopAmp: 'speed' },
   passes: [
     {
       name: "render",

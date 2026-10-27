@@ -27,6 +27,11 @@ export default new Effect({
 
   // Internal simulation grid for anchor detection (NOT rendered by pointsRender)
   textures: {
+    global_dla_base_color: {
+      width: { param: 'stateSize', inherit: true, default: 256 },
+      height: { param: 'stateSize', inherit: true, default: 256 },
+      format: "rgba8"
+    },
     global_dla_grid: { width: "100%", height: "100%", format: "rgba16f" }
   },
 
@@ -36,6 +41,14 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    heightTex: {
+      type: "surface", default: "none", colorModeUniform: "fieldActive",
+      ui: { label: "height map", category: "chemistry" }
+    },
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "chemistry" }
+    },
     // stateSize must match pointsEmit (inherited, not displayed)
     stateSize: {
       type: "int",
@@ -136,6 +149,8 @@ export default new Effect({
     }
   },
 
+  paramAliases: { fieldTex: 'heightTex' },
+
   passes: [
     // Pass 1: Initialize/decay anchor grid (seeds anchors on frame 1)
     {
@@ -172,15 +187,20 @@ export default new Effect({
     {
       name: "agent",
       program: "agent",
-      drawBuffers: 3,
+      drawBuffers: 4,
       inputs: {
         xyzTex: "global_xyz",
         velTex: "global_vel",
         rgbaTex: "global_rgba",
         gridTex: "global_dla_grid",
-        inputTex: "inputTex"
+        inputTex: "inputTex",
+        heightTex: "heightTex",
+        diffuseTex: "diffuseTex",
+        baseColorTex: "global_dla_base_color"
       },
       uniforms: {
+        diffuseActive: "diffuseActive",
+        fieldActive: "fieldActive",
         stride: "stride",
         inputWeight: "inputWeight",
         attrition: "attrition",
@@ -189,7 +209,8 @@ export default new Effect({
       outputs: {
         outXYZ: "global_xyz",
         outVel: "global_vel",
-        outRGBA: "global_rgba"
+        outRGBA: "global_rgba",
+        outBaseColor: "global_dla_base_color"
       }
     },
 

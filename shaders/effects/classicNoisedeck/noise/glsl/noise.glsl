@@ -82,9 +82,9 @@ uvec3 pcg(uvec3 v) {
 }
 
 vec3 prng (vec3 p) {
-    p.x = p.x >= 0.0 ? p.x * 2.0 : -p.x * 2.0 + 1.0;
-    p.y = p.y >= 0.0 ? p.y * 2.0 : -p.y * 2.0 + 1.0;
-    p.z = p.z >= 0.0 ? p.z * 2.0 : -p.z * 2.0 + 1.0;
+    // Select per component, like the WGSL select(): a software rasterizer
+    // builds each float ternary as a branch, and loops of them build for minutes.
+    p = mix(-p * 2.0 + 1.0, p * 2.0, greaterThanEqual(p, vec3(0.0)));
     return vec3(pcg(uvec3(p))) / float(uint(0xffffffff));
 }
 // end PCG PRNG
@@ -412,9 +412,11 @@ float simplexValue(vec2 st, vec2 freq, float s, float blend) {
     vec2 uv = st * freq;
     uv.x += s;
 
-    // First corner
-    vec2 i  = floor(uv + dot(uv, C.yy) );
-    vec2 x0 = uv -   i + dot(i, C.xx);
+    // First corner. The dot feeds an add, so clamp it: without the barrier one
+    // backend can contract the dot's last product into the outer add (fma)
+    // while the other double-rounds.
+    vec2 i  = floor(uv + min(max(dot(uv, C.yy), -1e38), 1e38) );
+    vec2 x0 = uv -   i + min(max(dot(i, C.xx), -1e38), 1e38);
 
     // Other corners
     vec2 i1 = vec2(0.0);
@@ -432,7 +434,7 @@ float simplexValue(vec2 st, vec2 freq, float s, float blend) {
     vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
 		  + i.x + vec3(0.0, i1.x, 1.0 ));
 
-    vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+    vec3 m = max(0.5 - min(max(vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), vec3(-1e38)), vec3(1e38)), 0.0);
     m = m*m ;
     m = m*m ;
 
@@ -446,12 +448,12 @@ float simplexValue(vec2 st, vec2 freq, float s, float blend) {
 
     // Normalise gradients implicitly by scaling m
     // Approximation of: m *= inversesqrt( a0*a0 + h*h );
-    m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+    m *= 1.79284291400159 - min(max(0.85373472095314 * ( min(max(a0*a0, -1e38), 1e38) + min(max(h*h, -1e38), 1e38) ), -1e38), 1e38);
 
     // Compute final noise value at P
     vec3 g;
-    g.x  = a0.x  * x0.x  + h.x  * x0.y;
-    g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+    g.x  = min(max(a0.x  * x0.x, -1e38), 1e38)  + min(max(h.x  * x0.y, -1e38), 1e38);
+    g.yz = min(max(a0.yz * x12.xz, -1e38), 1e38) + min(max(h.yz * x12.yw, -1e38), 1e38);
 
     float v = 130.0 * dot(m, g);
 
@@ -808,7 +810,8 @@ vec3 multires(vec2 st, vec2 freq, int octaves, float s, float blend) {
         multiplicand += 1.0 / multiplier;
 
 #if REFRACT_MODE == 1 || REFRACT_MODE == 2
-        {
+        // A zero refract amount leaves st unchanged; skip the two noise lookups.
+        if (refractAmt != 0.0) {
             vec2 xRefractFreq = vec2(baseFreq.x, nominalBase);
             vec2 yRefractFreq = vec2(nominalBase, baseFreq.y);
             float xRef = value(st, xRefractFreq, s + 10.0 * float(i), blend) - 0.5;
@@ -821,7 +824,8 @@ vec3 multires(vec2 st, vec2 freq, int octaves, float s, float blend) {
         vec3 layer = generate_octave(st, baseFreq, s + 10.0 * float(i), blend, float(i));
 
 #if REFRACT_MODE == 0 || REFRACT_MODE == 2
-        {
+        // mix() with a zero amount returns layer; skip the second octave.
+        if (refractAmt != 0.0) {
             float xOff = cos(layer.b) * 0.5 + 0.5;
             float yOff = sin(layer.b) * 0.5 + 0.5;
             vec3 ref = generate_octave(vec2(st.x + xOff, st.y + yOff), baseFreq, s + 15.0 * float(i), blend, float(i));
@@ -832,7 +836,16 @@ vec3 multires(vec2 st, vec2 freq, int octaves, float s, float blend) {
         color.rgb += layer / multiplier;
     }
 
-    color.rgb /= multiplicand;
+    // The normalization divides by a runtime-accumulated value (e.g. 1.25 for
+    // two octaves). Dawn lowers the division to an approximate reciprocal
+    // multiply while ANGLE divides, so the two differ by ~1 ulp at knife-edge
+    // texels and the noise field is not bit-identical across backends. One
+    // Newton-Raphson step pins the reciprocal: both backends then compute the
+    // identical refined reciprocal and the identical quotient. The clamp keeps
+    // the multiplicand*rmul multiply from fusing into the (2.0 - ...) subtract.
+    float rmul = 1.0 / multiplicand;
+    float mc = min(max(multiplicand * rmul, -1e38), 1e38);
+    color.rgb *= rmul * (2.0 - mc);
 
 #if COLOR_MODE == 0
     // grayscale

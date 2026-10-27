@@ -6,6 +6,7 @@ Buddhabrot fractal via progressive orbit accumulation — agents test random c v
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
+| diffuseTex | surface | none | - | Particle color map; none preserves the existing particle color |
 | stateSize | int | 512 | - | Particle state texture size (no UI control) |
 | mode | int | standard | anti/standard | Standard or anti-buddhabrot |
 | maxIter | int | 200 | 20–2000 | Max orbit iterations |

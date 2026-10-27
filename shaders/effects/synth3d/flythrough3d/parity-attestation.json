@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "synth3d/flythrough3d",
+  "sourceHash": "f0b6b19e4e3bcb5d7b1d339eea3d44daf89b9b85bf3bc8e2dcc24a56d8771435",
+  "caseHash": "b76693cac2cdc17168e5893ac8831c169cd5fa416c6a2e41d5c63573cf32af00",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 1355,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 1217
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 1355,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 1217
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

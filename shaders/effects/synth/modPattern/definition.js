@@ -23,7 +23,9 @@ export default new Effect({
 		blend: { slot: 3, components: "y" },
 		speed: { slot: 3, components: "z" },
 		smoothing: { slot: 3, components: "w" },
-		animMode: { slot: 4, components: "x" }
+		animMode: { slot: 4, components: "x" },
+		tileOffset: { slot: 5, components: "xy" },
+		fullResolution: { slot: 5, components: "zw" }
 	},
 
 	globals: {

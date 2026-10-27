@@ -13,6 +13,7 @@ Agents follow classic flocking rules:
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
+| diffuseTex | surface | none | - | Particle color map; none preserves the existing particle color |
 | separation | float | 2 | 0-5 | Separation |
 | alignment | float | 1 | 0-5 | Alignment |
 | cohesion | float | 1 | 0-5 | Cohesion |

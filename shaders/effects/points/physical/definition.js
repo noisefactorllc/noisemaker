@@ -23,9 +23,15 @@ export default new Effect({
 
   description: "Physics-based particle simulation with wind and gravity forces",
 
-  // No local textures - we use shared global_xyz/vel/rgba textures
-  // These are created by pointsEmit and shared across the particle pipeline
-  textures: {},
+  // global_xyz/vel/rgba are shared from pointsEmit. global_physical_base_color
+  // keeps each agent's own color while a diffuse map recolors it.
+  textures: {
+    global_physical_base_color: {
+      width: { param: 'stateSize', inherit: true, default: 256 },
+      height: { param: 'stateSize', inherit: true, default: 256 },
+      format: "rgba8"
+    }
+  },
 
   // Expose outputs to pipeline for downstream effects
   // Using underscore convention for SHARED global textures (not node-prefixed)
@@ -34,6 +40,10 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "physics" }
+    },
     // stateSize parameter for texture sizing (must match pointsEmit)
     stateSize: {
       type: "int",
@@ -128,15 +138,19 @@ export default new Effect({
     {
       name: "agent",
       program: "agent",
-      drawBuffers: 3,
+      drawBuffers: 4,
       inputs: {
         // Read from shared global textures
         // Within-frame: updateFrameSurfaceBindings makes pointsEmit's writes visible
         xyzTex: "global_xyz",
         velTex: "global_vel",
-        rgbaTex: "global_rgba"
+        rgbaTex: "global_rgba",
+        diffuseTex: "diffuseTex",
+        baseColorTex: "global_physical_base_color",
+        inputTex: "inputTex"
       },
       uniforms: {
+        diffuseActive: "diffuseActive",
         gravity: "gravity",
         wind: "wind",
         energy: "energy",
@@ -148,7 +162,8 @@ export default new Effect({
         // Write to shared global textures (ping-pong for next frame)
         outXYZ: "global_xyz",
         outVel: "global_vel",
-        outRGBA: "global_rgba"
+        outRGBA: "global_rgba",
+        outBaseColor: "global_physical_base_color"
       }
     },
 

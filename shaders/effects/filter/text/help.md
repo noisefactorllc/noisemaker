@@ -16,6 +16,7 @@ Overlay text onto the image
 | matteColor | color | #000000 | - | - |
 | matteOpacity | float | 0 | 0-1 | - |
 | justify | string | center | left/center/right | - |
+| style | string | "" | - | - |
 
 ## Notes
 

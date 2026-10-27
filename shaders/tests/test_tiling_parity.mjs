@@ -92,6 +92,23 @@ testPattern(pattern: uvMap)
 
 render(o0)`
 
+const REMAP_DSL = `search synth
+
+testPattern(pattern: uvMap).write(o1)
+remap(zoneCount: 1, zone0_count: 4,
+  zone0_v0: [0.08, 0.12, 0.85, 0.12], zone0_v1: [0.85, 0.72, 0.08, 0.72],
+  zone0_alpha: 1, zone0_tex: read(o1), smoothEdge: 0,
+  bgColor: #102030, bgAlpha: 1).write(o0)
+render(o0)`
+
+const TEXT_DSL = `search synth, filter
+
+testPattern(pattern: uvMap)
+  .text(matteOpacity: 0)
+  .write(o0)
+
+render(o0)`
+
 async function install(preferWebGPU, width, height) {
     const page = await browser.newPage({ viewport: { width, height } })
     if (preferWebGPU) await page.goto(`${baseUrl}/shaders/effects/manifest.json`, { waitUntil: 'load' })
@@ -104,8 +121,27 @@ async function install(preferWebGPU, width, height) {
 import { CanvasRenderer } from '${baseUrl}/shaders/src/index.js';
 const r = new CanvasRenderer({canvas:document.getElementById('canvas'),width:${width},height:${height},basePath:'${baseUrl}/shaders',preferWebGPU:${preferWebGPU}});
 await r.loadManifest();
-await r.loadEffects(['synth/testPattern','filter/scatter','filter/relief','filter/spinBlur','filter/craquelure','filter/extrude','filter/hatch','filter/lensFlare','filter/oilPaint','filter/patchwork','filter/pondRipples','filter/stamp','filter/stipple','filter/strokes','filter/watercolor','filter/emboss']);
+await r.loadEffects(['synth/testPattern','filter/scatter','filter/relief','filter/spinBlur','filter/craquelure','filter/extrude','filter/hatch','filter/lensFlare','filter/oilPaint','filter/patchwork','filter/pondRipples','filter/stamp','filter/stipple','filter/strokes','filter/watercolor','filter/emboss','filter/text','synth/remap']);
 window.renderDsl=async(dsl,region)=>{await r.compile(dsl);if(region)r.setTileRegion(region);else r.clearTileRegion();r.render(0);r.render(0);const q=r.pipeline?.backend?.device?.queue;if(q?.onSubmittedWorkDone)await q.onSubmittedWorkDone();return r.pipeline.backend.getName();};
+window.renderTextDsl=async(dsl,region)=>{
+  await r.compile(dsl);
+  const pass=r.pipeline?.graph?.passes?.find(p=>p.effectFunc==='text');
+  if(!pass)throw new Error('text pass missing');
+  const texId=pass.inputs?.textTex;
+  if(!/^textTex_step_\\d+$/.test(texId))throw new Error('invalid text texture id: '+texId);
+  if(region)r.setTileRegion(region);else r.clearTileRegion();
+  r.render(0);
+  const source=document.createElement('canvas');source.width=${FULL};source.height=${FULL};
+  const ctx=source.getContext('2d');
+  ctx.fillStyle='#ff0000';ctx.fillRect(0,0,${FULL / 4},source.height);
+  ctx.fillStyle='#00ff00';ctx.fillRect(${FULL / 4},0,${FULL / 2},source.height);
+  ctx.fillStyle='#0000ff';ctx.fillRect(${FULL * 3 / 4},0,${FULL / 4},source.height);
+  const upload=r.updateTextureFromSource(texId,source,{flipY:true});
+  if(upload?.width!==source.width||upload?.height!==source.height)throw new Error('text texture upload failed');
+  r.render(0);r.render(0);
+  const q=r.pipeline?.backend?.device?.queue;if(q?.onSubmittedWorkDone)await q.onSubmittedWorkDone();
+  return {backend:r.pipeline.backend.getName(),upload,texId};
+};
 </script>`, { waitUntil: 'load' })
     await page.waitForFunction(() => typeof window.renderDsl === 'function')
     return { page, errors }
@@ -184,6 +220,68 @@ try {
                 results.push({ name, label, max: -1, ok: false })
                 console.log(`ERR  ${label.padEnd(7)} ${name.padEnd(12)} ${String(err.message || err).slice(0, 90).replace(/\s+/g, ' ')}`)
             }
+        }
+
+        // Active polygon routing must sample the current tile's source slice.
+        // A default Remap has no zones and cannot expose a sampling seam.
+        try {
+            const offset = [15, 27]
+            const full = await install(preferWebGPU, FULL, FULL)
+            assert.equal(await full.page.evaluate(d => window.renderDsl(d), REMAP_DSL), label)
+            const fullImg = await capture(full.page)
+            assert.deepEqual(full.errors, [], `${label}: full Remap browser errors`)
+            await full.page.close()
+            const tile = await install(preferWebGPU, TILE, TILE)
+            assert.equal(await tile.page.evaluate(({ d, region }) => window.renderDsl(d, region),
+                { d: REMAP_DSL, region: { offset, fullResolution: [FULL, FULL] } }), label)
+            const tileImg = await capture(tile.page)
+            assert.deepEqual(tile.errors, [], `${label}: tile Remap browser errors`)
+            await tile.page.close()
+            const colors = new Set()
+            for (let i = 0; i < tileImg.data.length; i += 4) colors.add(tileImg.data.readUInt32BE(i))
+            assert.ok(colors.size > 100, `${label}: active Remap must contain a patterned source`)
+            const { max, worst } = interiorMaxDiff(tileImg, cropFromBottomLeft(fullImg, offset, TILE, TILE), 0)
+            const ok = max === 0
+            results.push({ name: 'remap', label, max, ok })
+            console.log(`${ok ? 'PASS' : 'FAIL'} ${label.padEnd(7)} ${'remap'.padEnd(12)} active zone maxDiff=${max}${worst ? ` @${worst}` : ''}`)
+        } catch (err) {
+            results.push({ name: 'remap', label, max: -1, ok: false })
+            console.log(`ERR  ${label.padEnd(7)} ${'remap'.padEnd(12)} ${String(err.message || err).slice(0, 90).replace(/\s+/g, ' ')}`)
+        }
+
+        // The regression fixed here is WGSL-specific; the GLSL shader path is
+        // unchanged. Prove WebGPU binding and nonzero-offset sampling directly.
+        if (!preferWebGPU) continue
+        try {
+            const full = await install(preferWebGPU, FULL, FULL)
+            const fullRender = await full.page.evaluate(d => window.renderTextDsl(d), TEXT_DSL)
+            assert.equal(fullRender.backend, label, `text: expected ${label}, got ${fullRender.backend}`)
+            assert.deepEqual(fullRender.upload, { width: FULL, height: FULL }, `${label}: full text upload`)
+            assert.match(fullRender.texId, /^textTex_step_\d+$/)
+            const fullImg = await capture(full.page)
+            assert.deepEqual(full.errors, [], `${label}: full text render browser errors`)
+            await full.page.close()
+
+            const tile = await install(preferWebGPU, TILE, TILE)
+            const tileRender = await tile.page.evaluate(({ d, region }) => window.renderTextDsl(d, region),
+                { d: TEXT_DSL, region: { offset: OFFSET, fullResolution: [FULL, FULL] } })
+            assert.equal(tileRender.backend, label, `text tile: expected ${label}, got ${tileRender.backend}`)
+            assert.deepEqual(tileRender.upload, { width: FULL, height: FULL }, `${label}: tile text upload`)
+            const tileImg = await capture(tile.page)
+            assert.deepEqual(tile.errors, [], `${label}: tile text render browser errors`)
+            await tile.page.close()
+
+            const center = (Math.floor(TILE / 2) * TILE + Math.floor(TILE / 2)) * 4
+            const centerPixel = [...tileImg.data.subarray(center, center + 4)]
+            assert.ok(centerPixel[0] <= 2 && centerPixel[1] >= 180 && centerPixel[2] <= 2 && centerPixel[3] === 255,
+                `${label}: text output must contain the known green external-texture pixel, got ${centerPixel}`)
+            const { max, worst } = interiorMaxDiff(tileImg, cropFromBottomLeft(fullImg, OFFSET, TILE, TILE), 0)
+            const ok = max <= TOL
+            results.push({ name: 'text', label, max, ok })
+            console.log(`${ok ? 'PASS' : 'FAIL'} ${label.padEnd(7)} ${'text'.padEnd(12)} external texture maxDiff=${max}${worst ? ` @${worst}` : ''}`)
+        } catch (err) {
+            results.push({ name: 'text', label, max: -1, ok: false })
+            console.log(`ERR  ${label.padEnd(7)} ${'text'.padEnd(12)} ${String(err.message || err).slice(0, 90).replace(/\s+/g, ' ')}`)
         }
     }
     const failed = results.filter(r => !r.ok)

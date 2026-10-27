@@ -4,6 +4,12 @@ import path from 'node:path'
 
 export const PARITY_ATTESTATION_SCHEMA_VERSION = 1
 
+export function isReadbackPerformanceWarning(type, message) {
+    // Pixel certification deliberately performs synchronous GPU readback.
+    // Chrome's driver reports that synchronization as a performance warning.
+    return type === 'warning' && /^\[\.WebGL-[^\]]+\]GL Driver Message \(OpenGL, Performance, [^)]+\): GPU stall due to ReadPixels(?: \(this message will no longer repeat\))?$/.test(message)
+}
+
 function assertEffectId(effectId) {
     if (!/^[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/.test(effectId)) {
         throw new Error(`Invalid effect ID: ${effectId}`)
@@ -67,6 +73,14 @@ export function computeParitySourceHash(repoRoot, parityCase) {
         hash.update(computeEffectSourceHash(repoRoot, effectId))
         hash.update('\0')
     }
+    // A mesh fixture is rendered input like the effect sources: editing the
+    // OBJ must make the evidence stale. Cases without meshes hash as before.
+    for (const mesh of parityCase.meshInputs || []) {
+        hash.update(`mesh:${mesh.path}`)
+        hash.update('\0')
+        hash.update(computeFileHash(path.join(repoRoot, mesh.path)))
+        hash.update('\0')
+    }
     return hash.digest('hex')
 }
 
@@ -128,13 +142,16 @@ export function changedEffectIds(files) {
 export function affectedParityEffectIds(repoRoot, files) {
     const changed = changedEffectIds(files)
     const affected = new Set(changed)
-    if (changed.length === 0) return []
+    const changedMeshes = new Set(files.map((file) => file.split(path.sep).join('/'))
+        .filter((file) => /^share\/meshes\/[^/]+\.obj$/.test(file)))
+    if (changed.length === 0 && changedMeshes.size === 0) return []
 
     const effectsRoot = path.join(repoRoot, 'shaders/effects')
     for (const casePath of filesRecursively(effectsRoot).filter((file) => path.basename(file) === 'parity-case.json')) {
         const parityCase = JSON.parse(fs.readFileSync(casePath, 'utf8'))
-        if (!Array.isArray(parityCase.effects) ||
-            !parityCase.effects.some((effectId) => affected.has(effectId))) continue
+        const usesChangedMesh = (parityCase.meshInputs || []).some((mesh) => changedMeshes.has(mesh.path))
+        if (!usesChangedMesh && (!Array.isArray(parityCase.effects) ||
+            !parityCase.effects.some((effectId) => affected.has(effectId)))) continue
 
         const relative = path.relative(effectsRoot, casePath).split(path.sep)
         if (relative.length === 3) affected.add(`${relative[0]}/${relative[1]}`)
@@ -179,6 +196,53 @@ export function validateParityCase(parityCase, effectId) {
     if (parityCase?.epsilon !== 0) errors.push('parity case epsilon must be zero')
     if (parityCase?.requireColorVariation !== true) {
         errors.push('parity case must require color variation')
+    }
+    if (parityCase?.settleMs !== undefined &&
+        (!Number.isInteger(parityCase.settleMs) || !integerInRange(parityCase.settleMs, 0, 60000))) {
+        errors.push('parity case settleMs must be an integer between 0 and 60000')
+    }
+    if (parityCase?.textureInputs !== undefined) {
+        if (!Array.isArray(parityCase.textureInputs)) {
+            errors.push('parity case texture inputs must be an array')
+        } else {
+            for (const texture of parityCase.textureInputs) {
+                if (!texture || !parityCase.effects?.includes(texture.effect) ||
+                    typeof texture.uniform !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(texture.uniform) ||
+                    !integerInRange(texture.width, 1, 64) || !integerInRange(texture.height, 1, 64) ||
+                    !Array.isArray(texture.data) || texture.data.length !== texture.width * texture.height * 4 ||
+                    !texture.data.every((value) => integerInRange(value, 0, 255))) {
+                    errors.push('parity case texture input must name a loaded effect and uniform, with valid dimensions and RGBA bytes')
+                }
+            }
+        }
+    }
+    if (parityCase?.meshInputs !== undefined) {
+        if (!Array.isArray(parityCase.meshInputs)) {
+            errors.push('parity case mesh inputs must be an array')
+        } else {
+            for (const mesh of parityCase.meshInputs) {
+                if (!mesh || typeof mesh.mesh !== 'string' || !/^mesh[0-7]$/.test(mesh.mesh) ||
+                    typeof mesh.path !== 'string' || !/^share\/meshes\/[A-Za-z0-9_-]+\.obj$/.test(mesh.path)) {
+                    errors.push('parity case mesh input must name mesh0-mesh7 and a share/meshes OBJ file')
+                }
+            }
+        }
+    }
+    if (parityCase?.tiles !== undefined) {
+        const tiles = parityCase.tiles
+        const size = tiles?.size
+        const resolution = parityCase?.resolution
+        if (!tiles || typeof tiles !== 'object' || !Array.isArray(size) || size.length !== 2 ||
+            !size.every((value) => integerInRange(value, 1, Number.MAX_SAFE_INTEGER)) ||
+            !Array.isArray(resolution) || resolution.length !== 2 ||
+            resolution[0] % size[0] !== 0 || resolution[1] % size[1] !== 0 ||
+            (resolution[0] / size[0]) * (resolution[1] / size[1]) < 2) {
+            errors.push('parity case tiles must give a tile size that divides the resolution into at least two tiles')
+        }
+        if (tiles?.renderScale !== undefined &&
+            (typeof tiles.renderScale !== 'number' || !Number.isFinite(tiles.renderScale) || tiles.renderScale <= 0)) {
+            errors.push('parity case tiles renderScale must be a positive number')
+        }
     }
     return errors
 }

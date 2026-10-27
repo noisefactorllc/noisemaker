@@ -135,7 +135,7 @@ fn luminance(color: vec3<f32>) -> f32 {
 fn pal(t0: f32, paletteOffset: vec3<f32>, paletteAmp: vec3<f32>, paletteFreq: vec3<f32>, palettePhase: vec3<f32>, paletteMode: i32, repeatPalette: f32, rotatePalette: f32) -> vec3<f32> {
     var t = abs(t0);
     t = t * repeatPalette + rotatePalette * 0.01;
-    var color = paletteOffset + paletteAmp * cos(TAU * (paletteFreq * t + palettePhase));
+    var color = paletteOffset + paletteAmp * cos(6.28318 * (paletteFreq * t + palettePhase));
     if (paletteMode == 1) {
         color = hsv2rgb(color);
     } else if (paletteMode == 2) {
@@ -147,11 +147,8 @@ fn pal(t0: f32, paletteOffset: vec3<f32>, paletteAmp: vec3<f32>, paletteFreq: ve
     return color;
 }
 
-fn rotate2D(st: vec2<f32>, rot: f32) -> vec2<f32> {
-    let angle = rot * PI;
-    let s = sin(angle);
-    let c = cos(angle);
-    return mat2x2<f32>(c, -s, s, c) * st;
+fn rotate2D(st: vec2<f32>, cs: vec2<f32>) -> vec2<f32> {
+    return vec2<f32>(st.x * cs.x - st.y * cs.y, st.x * cs.y + st.y * cs.x);
 }
 
 fn smin(a: f32, b: f32, k: f32) -> f32 {
@@ -274,19 +271,23 @@ fn applyTransform(p0: vec3<f32>) -> vec3<f32> {
     if (repetition && animation != 0 && flythroughSpeed != 0.0) {
         p.z = p.z + time * flythroughSpeed;
     }
-    var rotXZ = rotate2D(p.xz, spin / 180.0);
+    let staticSpinAngle = radians(spin);
+    let staticFlipAngle = radians(flip);
+    let dynamicSpinAngle = time * (spinSpeed * 0.1) * PI;
+    let dynamicFlipAngle = time * (flipSpeed * 0.1) * PI;
+    var rotXZ = rotate2D(p.xz, vec2<f32>(cos(staticSpinAngle), sin(staticSpinAngle)));
     p.x = rotXZ.x;
     p.z = rotXZ.y;
-    var rotYZ = rotate2D(p.yz, flip / 180.0);
+    var rotYZ = rotate2D(p.yz, vec2<f32>(cos(staticFlipAngle), sin(staticFlipAngle)));
     p.y = rotYZ.x;
     p.z = rotYZ.y;
     if (repetition && animation == 1) {
         p = p - spacing * round(p / spacing);
     }
-    rotXZ = rotate2D(p.xz, time * (spinSpeed * 0.1));
+    rotXZ = rotate2D(p.xz, vec2<f32>(cos(dynamicSpinAngle), sin(dynamicSpinAngle)));
     p.x = rotXZ.x;
     p.z = rotXZ.y;
-    rotYZ = rotate2D(p.yz, time * (flipSpeed * 0.1));
+    rotYZ = rotate2D(p.yz, vec2<f32>(cos(dynamicFlipAngle), sin(dynamicFlipAngle)));
     p.y = rotYZ.x;
     p.z = rotYZ.y;
     if (repetition && animation == 0) {

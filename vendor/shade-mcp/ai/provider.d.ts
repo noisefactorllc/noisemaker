@@ -29,5 +29,5 @@ export declare function getAIProvider(options: {
     projectRoot: string;
 }): AIProvider | null;
 export declare function callAI(options: CallAIOptions): Promise<string | null>;
-export declare const NO_AI_KEY_MESSAGE = "No AI API key found. Set ANTHROPIC_API_KEY or OPENAI_API_KEY, or create .anthropic/.openai file in project root.";
+export declare const NO_AI_KEY_MESSAGE = "No AI API key found. Set ANTHROPIC_API_KEY or OPENAI_API_KEY. Alternatively, create a .anthropic or .openai file in the project root.";
 //# sourceMappingURL=provider.d.ts.map

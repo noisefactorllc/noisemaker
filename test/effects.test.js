@@ -919,9 +919,11 @@ const texOut = await readTensorData(texture(edgeTensor, [4, 4, 1], 0, 1))
 const texExpected = loadFixture("texture.json")
 arraysClose(Array.from(texOut), texExpected)
 
-// glyphMap shape test
+// glyphMap: in Node no font draws the default truetype glyphs, so it stops as
+// the Python reference does with no .ttf font; a bitmap mask keeps the shape.
 const gmTensor = Tensor.fromArray(null, edgeData, [4, 4, 1])
-const gmOut = await readTensorData(glyphMap(gmTensor, [4, 4, 1], 0, 1))
+await assert.rejects(() => glyphMap(gmTensor, [4, 4, 1], 0, 1), /^Error: glyph_map found no font to draw glyphs with$/)
+const gmOut = await readTensorData(glyphMap(gmTensor, [4, 4, 1], 0, 1, ValueMask.waffle))
 assert.strictEqual(gmOut.length, 16)
 
 // vhs regression

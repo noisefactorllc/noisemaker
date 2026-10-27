@@ -209,8 +209,13 @@ def mask_values(
     return mask_values, total
 
 
+def uv_value(uv_noise: np.ndarray, uv_x: int, uv_y: int) -> Any:
+    # uv_noise has a channel axis, so each cell is a 1-item array. Return its scalar.
+    return np.asarray(uv_noise[uv_y][uv_x]).reshape(-1)[0]
+
+
 def uv_random(uv_noise: np.ndarray, uv_x: int, uv_y: int) -> float:
-    value = np.asarray(uv_noise[uv_y][uv_x]).reshape(-1)[0]
+    value = uv_value(uv_noise, uv_x, uv_y)
     return float((value + rng.random()) % 1.0)
 
 
@@ -237,7 +242,7 @@ def square_masks() -> list[ValueMask]:
 
 
 def _glyph_from_atlas_range(x: int, y: int, shape: list[int], uv_x: int, uv_y: int, uv_noise: np.ndarray, atlas: np.ndarray, **kwargs: Any) -> Any:
-    glyph_index = int(uv_noise[uv_y][uv_x] * (len(atlas)))
+    glyph_index = int(uv_value(uv_noise, uv_x, uv_y) * (len(atlas)))
 
     glyph_index = min(max(glyph_index, 0), len(atlas) - 1)
 
@@ -413,12 +418,12 @@ def tromino(
     tex_x = x % shape[1]
     tex_y = y % shape[0]
 
-    uv_value = uv_noise[uv_y][uv_x] * (len(atlas) - 1)
-    uv_floor = int(uv_value)
-    uv_fract = uv_value - uv_floor
+    glyph_value = uv_value(uv_noise, uv_x, uv_y) * (len(atlas) - 1)
+    uv_floor = int(glyph_value)
+    uv_fract = glyph_value - uv_floor
 
-    float2 = uv_noise[(uv_y + int(shape[0] * 0.5)) % uv_shape[0]][uv_x]
-    float3 = uv_noise[uv_y][(uv_x + int(shape[1] * 0.5)) % uv_shape[1]]
+    float2 = uv_value(uv_noise, uv_x, (uv_y + int(shape[0] * 0.5)) % uv_shape[0])
+    float3 = uv_value(uv_noise, (uv_x + int(shape[1] * 0.5)) % uv_shape[1], uv_y)
 
     if uv_fract < 0.5:
         _x = tex_x
@@ -451,7 +456,10 @@ def alphanum_hex(**kwargs: Any) -> Any:
 
 @mask([15, 15, 1])
 def truetype(x: int, y: int, row: int, shape: list[int], uv_x: int, uv_y: int, uv_noise: np.ndarray, atlas: np.ndarray, **kwargs: Any) -> Any:
-    value = max(0, min(1, uv_noise[uv_y][uv_x]))
+    if atlas is None or len(atlas) == 0:  # No TrueType fonts were found
+        return 0
+
+    value = max(0, min(1, uv_value(uv_noise, uv_x, uv_y)))
 
     glyph = atlas[int(value * (len(atlas) - 1))]
 
@@ -604,7 +612,7 @@ def emoji(**kwargs: Any) -> Any:
 
 @mask([24, 1, 1])
 def bar_code(x: int, y: int, row: int, shape: list[int], uv_x: int, uv_y: int, uv_noise: np.ndarray, **kwargs: Any) -> Any:
-    return uv_noise[0][uv_x] < 0.5
+    return uv_value(uv_noise, uv_x, 0) < 0.5
 
 
 @mask([10, 1, 1])

@@ -15,6 +15,8 @@ struct Uniforms {
     skew: f32,
     fgColor: vec3<f32>,
     bgColor: vec3<f32>,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 @group(0) @binding(0) var<uniform> u: Uniforms;
 
@@ -59,7 +61,7 @@ fn checkerboard(p: vec2<f32>, sm: f32) -> f32 {
     let d = min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y));
     // Determine which cell we're in
     let cell = floor(p);
-    let check = ((cell.x + cell.y) % 2.0 + 2.0) % 2.0;
+    let check = (cell.x + cell.y) - 2.0 * floor((cell.x + cell.y) / 2.0);
     // Apply smoothness at edges
     let edge = smoothstep(0.0, sm * 0.5, d);
     return mix(1.0 - check, check, edge);
@@ -203,7 +205,8 @@ fn zigzag(p: vec2<f32>, t: f32, sm: f32) -> f32 {
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     // Normalize coordinates
-    var st = position.xy / u.resolution;
+    let globalCoord = position.xy + u.tileOffset;
+    var st = globalCoord / u.fullResolution;
     st = (st - vec2<f32>(0.5, 0.5)) * 2.0;
     st.x = st.x * u.aspect;
 

@@ -15,6 +15,7 @@ uniform int neighborMode;
 uniform float speed;
 uniform float density;
 uniform float weight;
+uniform int colorMode;
 uniform bool resetState;
 uniform sampler2D stateTex;
 uniform sampler2D seedTex;  // 3D input volume atlas (inputTex3d)
@@ -48,6 +49,15 @@ vec4 sampleState(ivec3 voxel, int volSize) {
 // Sample seed texture at voxel coordinate (for inputTex3d seeding)
 vec4 sampleSeed(ivec3 voxel, int volSize) {
     return texelFetch(seedTex, atlasTexel(voxel, volSize), 0);
+}
+
+// The state keeps alive in red and age in green. render3d reads density from
+// red and shades with the RGB color unless it is gray, so mono writes alive to
+// every channel, and age keeps the age in green and shades young cells red and
+// older cells toward yellow.
+vec4 packState(float alive, float age) {
+    if (colorMode == 1) return vec4(alive, age, 0.0, 1.0);
+    return vec4(alive, alive, alive, 1.0);
 }
 
 // Count alive neighbors using Moore neighborhood (26 neighbors)
@@ -188,7 +198,7 @@ void main() {
             }
         }
         
-        fragColor = vec4(alive, alive, alive, 1.0);
+        fragColor = packState(alive, age);
         return;
     }
     
@@ -236,5 +246,5 @@ void main() {
         finalAlive = mix(finalAlive, seedLum, weight * 0.01);
     }
     
-    fragColor = vec4(finalAlive, finalAlive, finalAlive, 1.0);
+    fragColor = packState(finalAlive, finalAge);
 }

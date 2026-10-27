@@ -12,6 +12,7 @@ import noisemaker.ai as ai
 import noisemaker.cli as cli
 import noisemaker.effects as effects
 import noisemaker.generators as generators
+import noisemaker.strobe as strobe
 import noisemaker.util as util
 import noisemaker.value as value
 from noisemaker.composer import EFFECT_PRESETS, GENERATOR_PRESETS, reload_presets
@@ -24,7 +25,7 @@ MASHUP_MIN_INPUTS = 4
 MASHUP_MAX_INPUTS = 6
 
 # Version string - keep in sync with pyproject.toml
-__version__ = "0.8.0"
+__version__ = "1.5"
 
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -104,6 +105,13 @@ def _show_effect_presets(ctx: click.Context, param: click.Parameter, value: bool
     ctx.exit(0)
 
 
+def _check_watermark_font(watermark: str | None) -> None:
+    """Stop before rendering when --watermark is set and its font is missing."""
+
+    if watermark and not os.path.exists(os.path.join(util.fonts_dir(), f"{util.WATERMARK_FONT}.ttf")):
+        raise click.BadParameter(f"the font {util.WATERMARK_FONT}.ttf is not in {util.fonts_dir()}", param_hint="'--watermark'")
+
+
 @main.command(help="Generate a .png or .jpg from preset")
 @presets_path_option
 @cli.option(
@@ -141,7 +149,7 @@ def generate(
     debug_out,
     preset_name,
 ):
-    if not seed:
+    if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)
@@ -306,10 +314,10 @@ def _debug_print(seed, preset, with_alpha, with_supersample, with_fxaa, with_ups
 @cli.time_option()
 @click.option("--speed", help="Animation speed", type=float, default=0.25)
 @click.argument("preset_name")
-@click.argument("input_filename")
+@click.argument("input_filename", type=click.Path(exists=True, dir_okay=False))
 @click.pass_context
 def apply(ctx, seed, filename, no_resize, with_fxaa, time, speed, preset_name, input_filename):
-    if not seed:
+    if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
     value.set_seed(seed)
@@ -329,7 +337,10 @@ def apply(ctx, seed, filename, no_resize, with_fxaa, time, speed, preset_name, i
             param_hint="PRESET_NAME",
         )
 
-    input_shape = util.shape_from_file(input_filename)
+    try:
+        input_shape = util.shape_from_file(input_filename)
+    except OSError:
+        raise click.BadParameter(f"{input_filename} is not a .png or .jpg image", param_hint="INPUT_FILENAME") from None
 
     input_shape[2] = min(input_shape[2], 3)
 
@@ -392,6 +403,8 @@ def animate(
     preset_name,
     target_duration,
 ):
+    _check_watermark_font(watermark)
+
     if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -411,6 +424,8 @@ def animate(
 
     generator = GENERATOR_PRESETS[preset_name]
     effect = EFFECT_PRESETS.get(effect_preset) if effect_preset else None
+
+    luminance_grids = []
 
     with tempfile.TemporaryDirectory() as tmp:
         for i in range(frame_count):
@@ -457,6 +472,9 @@ def animate(
                     util.logger.error(f"Effect render failed: {e}\nSeed: {seed}\nArgs: {effect.__dict__}")
                     raise
 
+            # Sampled before the watermark, for the stroboscopic check below.
+            luminance_grids.append(_sample_luminance(frame_path))
+
             if save_frames:
                 shutil.copy(frame_path, save_frames)
 
@@ -465,6 +483,11 @@ def animate(
 
             if preview_filename and i == 0:
                 shutil.copy(frame_path, preview_filename)
+
+        # WCAG 2.3.1 general flash threshold. Printed after the frame loop so
+        # it lands below the preset and alt-text lines that callers read by
+        # position, and cannot shift them.
+        print(strobe.verdict_line(luminance_grids, frame_count, target_duration))
 
         if filename.endswith(".mp4"):
             if target_duration is not None:
@@ -546,6 +569,8 @@ def animate(
 @cli.option("--target-duration", type=float, default=None, help="Stretch output to this duration (seconds) using motion-compensated interpolation")
 @click.pass_context
 def magic_mashup(ctx, input_dir, width, height, seed, effect_preset, filename, save_frames, frame_count, watermark, preview_filename, target_duration):
+    _check_watermark_font(watermark)
+
     if seed is None:
         seed = random.randint(1, MAX_SEED_VALUE)
 
@@ -563,14 +588,13 @@ def magic_mashup(ctx, input_dir, width, height, seed, effect_preset, filename, s
 
     dirnames = _usable_mashup_dirs(input_dir, frame_count)
     if len(dirnames) < MASHUP_MIN_INPUTS:
-        click.echo(
-            f"Need at least {MASHUP_MIN_INPUTS} input dirs holding {frame_count}+ frames "
-            f"in {input_dir}, found {len(dirnames)}"
-        )
+        click.echo(f"Need at least {MASHUP_MIN_INPUTS} input dirs holding {frame_count}+ frames " f"in {input_dir}, found {len(dirnames)}")
         sys.exit(1)
 
     collage_count = min(random.randint(MASHUP_MIN_INPUTS, MASHUP_MAX_INPUTS), len(dirnames))
     selected_dirs = random.sample(dirnames, collage_count)
+
+    luminance_grids = []
 
     with tempfile.TemporaryDirectory() as tmp:
         for i in range(frame_count):
@@ -584,6 +608,12 @@ def magic_mashup(ctx, input_dir, width, height, seed, effect_preset, filename, s
                     continue
                 src = os.path.join(src_dir, files[i])
                 img = tf.image.convert_image_dtype(util.load(src, channels=3), dtype=tf.float32)
+
+                # convolve() and blend_layers() index into the output shape, so a
+                # frame smaller than the output must grow to it.
+                if img.shape[0] < height or img.shape[1] < width:
+                    img = value.resample(img, [height, width, 3])
+
                 collage_images.append(img)
 
             value.set_seed(seed)
@@ -595,7 +625,12 @@ def magic_mashup(ctx, input_dir, width, height, seed, effect_preset, filename, s
             control = value.value_map(control_img, shape, keepdims=True)
             control = value.convolve(kernel=effects.ValueMask.conv2d_blur, tensor=control, shape=[shape[0], shape[1], 1])
 
-            tensor = effects.blend_layers(control, shape, random.random() * 0.5, *collage_images)
+            # blend_layers() reads only the top-left output-sized region of each
+            # layer. Crop larger layers to that region so they stack with frames
+            # that grew to the output size.
+            layers = [img[:height, :width] for img in collage_images]
+
+            tensor = effects.blend_layers(control, shape, random.random() * 0.5, *layers)
             tensor = value.blend(tensor, base, 0.125 + random.random() * 0.125)
             tensor = effects.bloom(tensor, shape, alpha=0.25 + random.random() * 0.125)
             tensor = effects.shadow(tensor, shape, alpha=0.25 + random.random() * 0.125, reference=control)
@@ -619,6 +654,9 @@ def magic_mashup(ctx, input_dir, width, height, seed, effect_preset, filename, s
             else:
                 util.save(tensor, frame_path)
 
+            # Sampled before the watermark, for the stroboscopic check below.
+            luminance_grids.append(_sample_luminance(frame_path))
+
             if save_frames:
                 shutil.copy(frame_path, save_frames)
 
@@ -627,6 +665,11 @@ def magic_mashup(ctx, input_dir, width, height, seed, effect_preset, filename, s
 
             if preview_filename and i == 0:
                 shutil.copy(frame_path, preview_filename)
+
+        # WCAG 2.3.1 general flash threshold. Printed after the frame loop so
+        # it lands below the preset and alt-text lines that callers read by
+        # position, and cannot shift them.
+        print(strobe.verdict_line(luminance_grids, frame_count, target_duration))
 
         if filename.endswith(".mp4"):
             if target_duration is not None:
@@ -734,6 +777,9 @@ def mashup(ctx, input_dir, filename, control_filename, time, speed, seed):
             if f.endswith((".png", ".jpg")):
                 filenames_list.append(os.path.join(root, f))
 
+    if not filenames_list:
+        raise click.BadParameter(f"{input_dir} holds no .png or .jpg image", param_hint="'--input-dir'")
+
     collage_count = min(random.randint(4, 6), len(filenames_list))
     collage_images = []
 
@@ -790,6 +836,12 @@ def _usable_mashup_dirs(input_dir, frame_count):
             usable.append(dirname)
 
     return usable
+
+
+def _sample_luminance(frame_path):
+    """Block luminance of a finished frame, for the stroboscopic check."""
+
+    return strobe.luminance_grid(tf.image.convert_image_dtype(util.load(frame_path, channels=3), dtype=tf.float32).numpy())
 
 
 def _use_reasonable_speed(preset, frame_count):

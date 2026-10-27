@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ],
+  "epsilon": 0,
+  "requireColorVariation": true,
+  "effects": [
+    "synth3d/cell3d",
+    "render/render3d"
+  ],
+  "dsl": "search synth3d, render\ncell3d(volumeSize: x16).render3d().write(o0)\nrender(o0)"
+}

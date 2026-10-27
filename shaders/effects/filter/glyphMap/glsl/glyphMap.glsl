@@ -304,7 +304,10 @@ void main() {
     // Cell-size cap and the edge clamp below apply only when tiling, so
     // normal-size output is byte-identical to the pre-tile-aware shader
     // (zero baseline regression for all parameters).
-    bool isTileRendering = length(tileOffset) > 0.0;
+    // Tiling is detected from the full-image size differing from the local
+    // render size. tileOffset alone cannot detect tiling: the origin tile's
+    // offset is (0, 0), the same value the runtime writes when not tiling.
+    bool isTileRendering = any(notEqual(fullResolution, resolution));
     if (isTileRendering) { cs = min(cs, 512); }
     float csf = float(cs);
 
@@ -312,9 +315,9 @@ void main() {
 
     vec2 localPos = fract(pixelCoord / csf);
     int gx = int(floor(localPos.x * 5.0));
-    int gy = int(floor(localPos.y * 7.0));
+    // Glyph row 0 is the top row, while localPos.y runs up the cell.
+    int gy = 6 - clamp(int(floor(localPos.y * 7.0)), 0, 6);
     gx = clamp(gx, 0, 4);
-    gy = clamp(gy, 0, 6);
 
     vec2 cellCenter = (cellIndex + 0.5) * csf;
     vec2 sampleUV = (cellCenter - tileOffset) / resolution;

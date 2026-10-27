@@ -92,7 +92,7 @@ function transformJsDemoHtml() {
             `<script src="../../lib/noisemaker.min.js"></script>
     <script>
     (async () => {
-    await import('https://handfish.noisefactor.io/0.9.0/handfish.esm.js');
+    await import('https://handfish.noisefactor.io/0/handfish.esm.js');
     const { Context, render, Preset, ColorSpace, PRESETS, random, setSeed, yieldToMain, getPresetsSource } = Noisemaker;`
         )
 
@@ -136,7 +136,7 @@ function transformShadersDemoHtml() {
     {
         "imports": {
             "noisemaker/shader-effects": "../../lib/shaders/noisemaker-shaders-core.esm.min.js",
-            "handfish": "https://handfish.noisefactor.io/0.9.0/handfish.esm.js"
+            "handfish": "https://handfish.noisefactor.io/0/handfish.esm.js"
         }
     }
     </script>`
@@ -336,11 +336,13 @@ function copyShaderDemoImages() {
  * Copy logo image for landing page
  */
 function copyLogoImage() {
-    const src = path.join(repoRoot, 'noisemaker.png')
-    const dest = path.join(siteDir, 'noisemaker.png')
-    if (fs.existsSync(src)) {
-        copyFile(src, dest)
-        console.log('  ✓ noisemaker.png')
+    for (const logo of ['noisemaker.png', 'noisemaker.svg']) {
+        const src = path.join(repoRoot, logo)
+        const dest = path.join(siteDir, logo)
+        if (fs.existsSync(src)) {
+            copyFile(src, dest)
+            console.log(`  ✓ ${logo}`)
+        }
     }
 
     // Copy OG image
@@ -350,6 +352,9 @@ function copyLogoImage() {
         copyFile(ogSrc, ogDest)
         console.log('  ✓ og-image.png')
     }
+
+    // Copy the raster favicon used by the site pages.
+    copyFile(path.join(repoRoot, 'favicon.png'), path.join(siteDir, 'favicon.png'))
 
     // Copy favicon
     const faviconSrc = path.join(repoRoot, 'favicon.ico')
@@ -459,13 +464,6 @@ function copySceneDemos() {
     const viewerSrc = path.join(scenesSrcDir, 'viewer.html')
     if (fs.existsSync(viewerSrc)) {
         let html = fs.readFileSync(viewerSrc, 'utf8')
-
-        // gl-matrix is inlined in the bundle, so the source-tree importmap has
-        // nothing left to resolve.
-        html = html.replace(
-            /<script type="importmap">[\s\S]*?<\/script>/,
-            ''
-        )
 
         html = html.replace(
             "import { CanvasRenderer } from '../../../shaders/src/renderer/canvas.js'",

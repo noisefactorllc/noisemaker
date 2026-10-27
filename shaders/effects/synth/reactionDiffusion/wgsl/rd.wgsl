@@ -6,7 +6,7 @@
 struct Uniforms {
     // data[0] = (resolution.x, resolution.y, time, unused)
     // data[1] = (inputIntensity, unused, unused, unused)
-    // data[2] = (unused, unused, unused, unused)
+    // data[2] = (tileOffset.x, tileOffset.y, fullResolution.x, fullResolution.y)
     // data[3] = (unused, unused, unused, smoothing)
     data : array<vec4<f32>, 4>,
 };
@@ -205,19 +205,22 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     let resolution = uniforms.data[0].xy;
     let smoothing = i32(uniforms.data[3].w);
     let inputIntensity = uniforms.data[1].x * 0.01;
+    let tileOffset = uniforms.data[2].xy;
+    let fullResolution = uniforms.data[2].zw;
+    let globalCoord = pos.xy + tileOffset;
 
     var intensity = 1.0;
 
     if (smoothing == 0) {
         let texSizeI = vec2<i32>(textureDimensions(fbTex, 0));
         let texSizeF = vec2<f32>(f32(texSizeI.x), f32(texSizeI.y));
-        let coord = vec2<i32>(floor(pos.xy * texSizeF / resolution));
+        let coord = vec2<i32>(floor(globalCoord * texSizeF / fullResolution));
         let clamped = clamp(coord, vec2<i32>(0), texSizeI - vec2<i32>(1));
         intensity = clamp(textureLoad(fbTex, clamped, 0).g, 0.0, 1.0);
     } else if (smoothing == 2) {
         // hermite (smoothstep)
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
-        let texelPos = (pos.xy * texSize / resolution) - vec2<f32>(0.5);
+        let texelPos = (globalCoord * texSize / fullResolution) - vec2<f32>(0.5);
         let base = floor(texelPos);
         let weights = fract(texelPos);
         let next = base + vec2<f32>(1.0);
@@ -242,37 +245,37 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
         // catmull-rom 3x3 (9 taps)
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
         let texelSize = 1.0 / texSize;
-        let scaling = resolution / texSize;
-        let uv = (pos.xy - scaling * 0.5) / resolution;
+        let scaling = fullResolution / texSize;
+        let uv = (globalCoord - scaling * 0.5) / fullResolution;
         let sample = catmullRom3x3(fbTex, uv, texelSize);
         intensity = clamp(sample.g, 0.0, 1.0);
     } else if (smoothing == 4) {
         // catmull-rom 4x4 (16 taps)
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
         let texelSize = 1.0 / texSize;
-        let scaling = resolution / texSize;
-        let uv = (pos.xy - scaling * 0.5) / resolution;
+        let scaling = fullResolution / texSize;
+        let uv = (globalCoord - scaling * 0.5) / fullResolution;
         let sample = catmullRom4x4(fbTex, uv, texelSize);
         intensity = clamp(sample.g, 0.0, 1.0);
     } else if (smoothing == 5) {
         // b-spline 3x3 (9 taps)
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
         let texelSize = 1.0 / texSize;
-        let scaling = resolution / texSize;
-        let uv = (pos.xy - scaling * 0.5) / resolution;
+        let scaling = fullResolution / texSize;
+        let uv = (globalCoord - scaling * 0.5) / fullResolution;
         let sample = quadratic(fbTex, uv, texelSize);
         intensity = clamp(sample.g, 0.0, 1.0);
     } else if (smoothing == 6) {
         // b-spline 4x4 (16 taps)
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
         let texelSize = 1.0 / texSize;
-        let scaling = resolution / texSize;
-        let uv = (pos.xy - scaling * 0.5) / resolution;
+        let scaling = fullResolution / texSize;
+        let uv = (globalCoord - scaling * 0.5) / fullResolution;
         let sample = bicubic(fbTex, uv, texelSize);
         intensity = clamp(sample.g, 0.0, 1.0);
     } else {
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
-        let texelPos = (pos.xy * texSize / resolution) - vec2<f32>(0.5, 0.5);
+        let texelPos = (globalCoord * texSize / fullResolution) - vec2<f32>(0.5, 0.5);
         let base = floor(texelPos);
         let weights = fract(texelPos);
         let next = base + vec2<f32>(1.0, 1.0);
@@ -303,7 +306,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
 
     // Blend with input texture
     if (inputIntensity > 0.0) {
-        var inputUv = pos.xy / resolution;
+        var inputUv = globalCoord / fullResolution;
         let inputColor = textureSampleLevel(inputTex, samp, inputUv, 0.0).rgb;
         rdColor = mix(rdColor, inputColor, inputIntensity);
     }

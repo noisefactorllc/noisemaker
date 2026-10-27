@@ -1,3 +1,4 @@
+import type { ImageMetrics } from './pixel-reader.js';
 import type { Backend } from '../config.js';
 export interface ViewerGlobals {
     canvasRenderer: string;
@@ -7,11 +8,38 @@ export interface ViewerGlobals {
     setPaused: string;
     setPausedTime: string;
     frameCount: string;
+    /**
+     * Optional compile generation counter (`${prefix}PipelineGeneration`, e.g.
+     * `__noisemakerPipelineGeneration`): viewers that publish it bump the number
+     * after every successful compile. Used to bind readiness to a selection —
+     * absent, the selection wait falls back to graph-swap / isCompiling signals.
+     */
+    pipelineGeneration?: string;
+    /**
+     * Optional selection entry point (`${prefix}SelectEffect`). Viewers without
+     * an effect-select element publish it: the harness calls
+     * `selectEffect(id, { url })`, where `url` is where its viewer server serves
+     * the effect's directory, and the viewer loads and compiles that effect. It
+     * may resolve to `{ error }` to report a compile failure for the selection.
+     */
+    selectEffect?: string;
+    /**
+     * Optional backend switch (`${prefix}SetBackend`). Viewers that must
+     * recompile after a backend change publish it: the harness calls
+     * `setBackend('glsl' | 'wgsl')` instead of the renderer's switchBackend.
+     */
+    setBackend?: string;
 }
 export declare const DEFAULT_GLOBALS: ViewerGlobals;
 export declare function globalsFromPrefix(prefix: string): ViewerGlobals;
 export interface BrowserSessionOptions {
     backend: Backend;
+    /** Launch the browser with the WebGPU flags even though `backend` is
+     *  `webgl2`. Verbs that switch backends mid-session (pixel parity) need a
+     *  browser that can obtain a WebGPU adapter; the flags decide capability,
+     *  the backend option still decides what the viewer renders first. */
+    webgpuCapable?: boolean;
+    blankPage?: boolean;
     headless?: boolean;
     viewerPort?: number;
     viewerRoot?: string;
@@ -20,17 +48,7 @@ export interface BrowserSessionOptions {
     globals?: ViewerGlobals;
     timeoutMs?: number;
 }
-export interface ImageMetrics {
-    mean_rgb: [number, number, number];
-    mean_alpha: number;
-    std_rgb: [number, number, number];
-    luma_variance: number;
-    unique_sampled_colors: number;
-    is_all_zero: boolean;
-    is_all_transparent: boolean;
-    is_essentially_blank: boolean;
-    is_monochrome: boolean;
-}
+export type { ImageMetrics } from './pixel-reader.js';
 export interface CompileResult {
     status: 'ok' | 'error';
     backend: string;
@@ -41,10 +59,17 @@ export interface CompileResult {
     }>;
     message: string;
     console_errors?: string[];
+    effect_id: string;
+    page_effect_id: string | null;
 }
 export interface RenderResult {
     status: 'ok' | 'error';
     backend: string;
+    error?: string;
+    effect_id: string;
+    page_effect_id: string | null;
+    requested_resolution?: [number, number];
+    warning?: string;
     frame?: {
         image_uri?: string;
         width: number;
@@ -57,7 +82,16 @@ export interface BenchmarkResult {
     status: 'ok' | 'error';
     backend: string;
     achieved_fps: number;
+    effect_id: string;
+    page_effect_id: string | null;
     meets_target: boolean;
+    requested_resolution?: [number, number];
+    warning?: string;
+    frame?: {
+        width: number;
+        height: number;
+    };
+    error?: string;
     stats: {
         frame_count: number;
         avg_frame_time_ms: number;
@@ -76,6 +110,9 @@ export interface ParityResult {
     resolution: [number, number];
     details: string;
     console_errors?: string[];
+    effect_id: string;
+    page_effect_id: string | null;
+    backend?: string;
     glslSolid?: boolean;
     wgslSolid?: boolean;
     glslVariance?: number[];
@@ -86,5 +123,31 @@ export interface ParityResult {
     yFlipMeanDiff?: number;
     yFlipRatio?: number;
     issues?: string[];
+}
+/**
+ * Outcome of a bound effect selection (`BrowserSession.selectEffect`): the
+ * wait resolves only when the page finished building the requested effect
+ * after the selection (issue #34) — never on viewer status text alone, which
+ * still describes the previous effect right after a selection.
+ */
+export interface EffectSelectionResult {
+    status: 'ok' | 'error';
+    /** Viewer status text; on 'error' this is the failure message. */
+    message?: string;
+    /**
+     * Effect id the page reports as current (from the `currentEffect` viewer
+     * global) once the wait resolved; null when the viewer does not expose it.
+     */
+    effectId: string | null;
+    /** Backend reported by `pipeline.backend.getName()`, or 'unknown'. */
+    backend: string;
+    /**
+     * Passes of the graph that finished building; error entries when the
+     * viewer reported a compile failure; null when no graph was readable.
+     */
+    passes: Array<{
+        id: string;
+        status: 'ok' | 'error';
+    }> | null;
 }
 //# sourceMappingURL=types.d.ts.map

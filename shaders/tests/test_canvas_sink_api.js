@@ -3,6 +3,8 @@
  */
 
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 import {
     CanvasRenderer,
@@ -13,6 +15,59 @@ import {
 import { CanvasSink as DirectCanvasSink, SinkManager as DirectSinkManager } from '../src/runtime/sink.js'
 import { FrameExportQueue as DirectFrameExportQueue } from '../src/runtime/frame-export.js'
 import { Pipeline } from '../src/runtime/pipeline.js'
+
+/**
+ * Minimal stand-in for HTMLCanvasElement, mirroring the DOM's width/height
+ * attribute reflection: the properties read the attributes (with the 300x150
+ * default) and writing a property updates the attribute.
+ */
+class FakeCanvasElement {
+    constructor() {
+        this._attributes = new Map()
+        this._width = 300
+        this._height = 150
+        this._listeners = new Map()
+    }
+
+    getAttribute(name) {
+        return this._attributes.has(name) ? this._attributes.get(name) : null
+    }
+
+    setAttribute(name, value) {
+        const text = String(value)
+        this._attributes.set(String(name), text)
+        if (name === 'width') this._width = Number(text)
+        if (name === 'height') this._height = Number(text)
+    }
+
+    addEventListener(type, listener) {
+        if (!this._listeners.has(type)) this._listeners.set(type, new Set())
+        this._listeners.get(type).add(listener)
+    }
+
+    removeEventListener(type, listener) {
+        this._listeners.get(type)?.delete(listener)
+    }
+
+    getContext() { return null }
+}
+
+for (const dimension of ['width', 'height']) {
+    Object.defineProperty(FakeCanvasElement.prototype, dimension, {
+        get() { return this[`_${dimension}`] },
+        set(value) {
+            const next = Number(value)
+            this[`_${dimension}`] = next
+            this._attributes.set(dimension, String(next))
+        },
+        configurable: true,
+        enumerable: true
+    })
+}
+
+// CanvasRenderer's constructor consults HTMLCanvasElement.prototype to
+// install its dimension observer.
+globalThis.HTMLCanvasElement = FakeCanvasElement
 
 const tests = []
 
@@ -51,9 +106,22 @@ async function flushMicrotasks(turns = 3) {
     for (let turn = 0; turn < turns; turn++) await Promise.resolve()
 }
 
+function captureWarnings(fn) {
+    const warnings = []
+    const previousWarn = console.warn
+    console.warn = (...args) => warnings.push(args.join(' '))
+    try {
+        fn()
+    } finally {
+        console.warn = previousWarn
+    }
+    return warnings
+}
+
 function stalePipeline(events, name) {
     return {
         backend: {},
+        resetSceneVolumeAtlasWarnings() {},
         setMidiState() {},
         setAudioState() {},
         dispose(options) { events.push([`${name} dispose`, options]) }
@@ -197,6 +265,114 @@ test('backend switching closes the old pipeline sink once and resets the canvas'
     assert.equal(fixture.closes, 1)
     assert.equal(resets, 1)
     assert.equal(renderer.pipeline, null)
+})
+
+/** Parent node with the DOM's replaceChild() contract. */
+class FakeParentNode {
+    constructor() { this.children = [] }
+
+    appendChild(child) {
+        child.parentNode = this
+        this.children.push(child)
+        return child
+    }
+
+    replaceChild(next, old) {
+        const index = this.children.indexOf(old)
+        if (index === -1) throw new Error('NotFoundError: the old child is not a child of this node')
+        this.children[index] = next
+        next.parentNode = this
+        old.parentNode = null
+        return old
+    }
+}
+
+/** Canvas element that cloneNode(false) copies with its id and attributes. */
+class ReplaceableCanvasElement extends FakeCanvasElement {
+    constructor() {
+        super()
+        this.id = ''
+        this.parentNode = null
+    }
+
+    cloneNode() {
+        const copy = new ReplaceableCanvasElement()
+        copy.id = this.id
+        for (const [name, value] of this._attributes) copy.setAttribute(name, value)
+        return copy
+    }
+}
+
+test('preferredBackend reports the requested backend while WebGL2 renders in its place', () => {
+    const renderer = bareRenderer({ backend: { getName: () => 'WebGL2' } })
+    assert.equal(renderer.preferredBackend, 'glsl')
+    renderer._preferWebGPU = true
+    assert.equal(renderer.preferredBackend, 'wgsl', 'a WebGPU request that fell back to WebGL2 stays wgsl')
+    assert.equal(renderer.backend, 'glsl', 'backend names the backend that renders')
+})
+
+test('backend names the pipeline backend, and the request when there is no pipeline', () => {
+    const webgpu = bareRenderer({ backend: { getName: () => 'WebGPU' } })
+    assert.equal(webgpu.backend, 'wgsl')
+    const none = bareRenderer(null)
+    assert.equal(none.backend, 'glsl')
+    none._preferWebGPU = true
+    assert.equal(none.backend, 'wgsl', 'before a compile, backend is the request')
+})
+
+function rendererOnCanvas({ withContainer }) {
+    const parent = new FakeParentNode()
+    const canvas = parent.appendChild(new ReplaceableCanvasElement())
+    canvas.id = 'c'
+    canvas.width = 64
+    canvas.height = 32
+    const renderer = bareRenderer(closeCountingPipeline().pipeline)
+    renderer._canvas = canvas
+    renderer._canvasContainer = withContainer ? parent : null
+    renderer._setupContextLossHandlers()
+    return { renderer, parent, canvas }
+}
+
+for (const withContainer of [false, true]) {
+    const setup = withContainer ? 'with canvasContainer' : 'with only the documented options'
+    test(`switchBackend ${setup} presents the new backend on a fresh canvas in the same place`, async () => {
+        const { renderer, parent, canvas } = rendererOnCanvas({ withContainer })
+
+        await renderer.switchBackend('wgsl')
+
+        const fresh = renderer.canvas
+        assert.notEqual(fresh, canvas, 'the old canvas keeps its WebGL2 context type, so it is replaced')
+        assert.deepEqual(parent.children, [fresh], 'the fresh canvas is the only child, in the old place')
+        assert.equal(canvas.parentNode, null)
+        assert.equal(fresh.id, 'c')
+        assert.equal(fresh.width, 64)
+        assert.equal(fresh.height, 32)
+        assert.equal(canvas._listeners.get('webglcontextlost')?.size ?? 0, 0, 'listeners leave the old canvas')
+        assert.equal(fresh._listeners.get('webglcontextlost').size, 1, 'listeners move to the fresh canvas')
+        assert.equal(renderer.backend, 'wgsl')
+        assert.equal(renderer.preferredBackend, 'wgsl')
+        assert.equal(renderer.pipeline, null, 'the host compiles again on the new backend')
+
+        await renderer.switchBackend('glsl')
+        assert.equal(renderer.preferredBackend, 'glsl')
+        assert.notEqual(renderer.canvas, fresh, 'the switch back replaces the WebGPU canvas too')
+        assert.deepEqual(parent.children, [renderer.canvas])
+
+        const beforeNoop = renderer.canvas
+        await renderer.switchBackend('glsl')
+        assert.equal(renderer.canvas, beforeNoop, 'a switch to the active backend keeps the canvas')
+    })
+}
+
+test('dispose with resetCanvas and no canvasContainer keeps the host canvas', async () => {
+    // Hosts without a canvasContainer reuse their canvas element for the next
+    // renderer, so dispose() must not detach it.
+    const { renderer, parent, canvas } = rendererOnCanvas({ withContainer: false })
+
+    await renderer.dispose({ loseContext: true, resetCanvas: true })
+
+    assert.equal(renderer.canvas, canvas)
+    assert.deepEqual(parent.children, [canvas])
 })
 
 test('successful fallback recreation installs a fresh pipeline then disposes the terminal old pipeline', async () => {
@@ -487,6 +663,378 @@ test('backend switch during restoration loss-safely cancels the stale result wit
         ['dead dispose', { backendLost: true }],
         ['stale dispose', { backendLost: true }]
     ])
+})
+
+test('overlapping initial compiles share one canvas initialization and apply in order', async () => {
+    const renderer = bareRenderer()
+    const creation = deferred()
+    let creations = 0
+    renderer._createRuntime = () => { creations++; return creation.promise }
+    const first = renderer.compile('search synth\nrender(o0)')
+    const second = renderer.compile('search synth\nrender(o1)')
+    await flushMicrotasks()
+    assert.equal(creations, 1, 'two initializations must not reconfigure the same canvas concurrently')
+    const pipeline = {
+        ...stalePipeline([], 'initial'), width: 16, height: 16,
+        createSurfaces() {}, collectDefaultUniforms() { return {} },
+        recreateTextures() {}, initAsyncEffects() {}, async compilePrograms() {}
+    }
+    creation.resolve(pipeline)
+    assert.equal(await first, pipeline)
+    assert.equal(await second, pipeline)
+    assert.equal(creations, 1)
+    assert.equal(renderer.pipeline.graph.renderSurface, 'o1')
+    assert.equal(renderer.currentDsl, 'search synth\nrender(o1)')
+})
+
+test('a failed compile does not block the next queued compile', async () => {
+    const renderer = bareRenderer()
+    const creation = deferred()
+    const pipeline = stalePipeline([], 'recovered')
+    let creations = 0
+    renderer._createRuntime = () => ++creations === 1 ? creation.promise : Promise.resolve(pipeline)
+    const first = renderer.compile('search synth\nrender(o0)')
+    const second = renderer.compile('search synth\nrender(o1)')
+    const settled = Promise.allSettled([first, second])
+    creation.reject(new Error('initial compile failed'))
+    const results = await settled
+    assert.equal(results[0].status, 'rejected')
+    assert.equal(results[1].status, 'fulfilled')
+    assert.equal(results[1].value, pipeline)
+    assert.equal(renderer.pipeline, pipeline)
+})
+
+const ACCEPTED_DSL = 'search synth\nrender(o0)'
+const REJECTED_DSL = 'search synth\nnoise(notAParam: 1).write(o0)\nrender(o0)'
+
+function rejectedCompileError() {
+    return {
+        code: 'ERR_COMPILATION_FAILED',
+        diagnostics: [{ code: 'S001', severity: 'error', message: "Unknown argument 'notAParam' for noise()" }]
+    }
+}
+
+function retainedStubPipeline(events, name) {
+    return {
+        backend: {},
+        width: 16,
+        height: 16,
+        graph: { id: name },
+        isCompiling: false,
+        setMidiState() {},
+        setAudioState() {},
+        // Forces recompile() to return null, so _compile() takes the full
+        // recreation path, as it does when compileGraph() rejects the source.
+        createSurfaces() { throw new Error('force full recreation') },
+        dispose(options) { events.push([`${name} dispose`, options]) }
+    }
+}
+
+async function withSilencedConsole(fn) {
+    const saved = { error: console.error, warn: console.warn, log: console.log }
+    console.error = () => {}
+    console.warn = () => {}
+    console.log = () => {}
+    try {
+        return await fn()
+    } finally {
+        Object.assign(console, saved)
+    }
+}
+
+test('a rejected recompile keeps currentDsl on the source of the retained pipeline', async () => {
+    const events = []
+    const accepted = retainedStubPipeline(events, 'accepted')
+    const renderer = bareRenderer()
+    renderer._currentDsl = ''
+    const created = []
+    renderer._createRuntime = async (dsl) => {
+        created.push(dsl)
+        if (dsl === REJECTED_DSL) throw rejectedCompileError()
+        return accepted
+    }
+
+    assert.equal(await renderer.compile(ACCEPTED_DSL), accepted)
+    assert.equal(renderer.currentDsl, ACCEPTED_DSL)
+
+    await withSilencedConsole(() => assert.rejects(
+        renderer.compile(REJECTED_DSL),
+        (err) => err.code === 'ERR_COMPILATION_FAILED'
+    ))
+
+    assert.deepEqual(created, [ACCEPTED_DSL])
+    assert.equal(renderer.pipeline, accepted, 'the rejected compile keeps the previous pipeline')
+    assert.equal(renderer.currentDsl, ACCEPTED_DSL, 'currentDsl names the source of the retained pipeline')
+    assert.deepEqual(events, [], 'the retained pipeline is not disposed')
+})
+
+test('a rejected first compile keeps the previous currentDsl', async () => {
+    const renderer = bareRenderer()
+    renderer._currentDsl = ACCEPTED_DSL
+    renderer._createRuntime = async () => { throw rejectedCompileError() }
+
+    await assert.rejects(renderer.compile(REJECTED_DSL), (err) => err.code === 'ERR_COMPILATION_FAILED')
+
+    assert.equal(renderer.pipeline, null)
+    assert.equal(renderer.currentDsl, ACCEPTED_DSL)
+})
+
+test('context restore after a rejected compile rebuilds the last accepted source', async () => {
+    const events = []
+    const accepted = retainedStubPipeline(events, 'accepted')
+    const restored = retainedStubPipeline(events, 'restored')
+    const listeners = new Map()
+    const renderer = bareRenderer()
+    renderer._canvas = {
+        addEventListener(name, listener) { listeners.set(name, listener) },
+        removeEventListener() {}
+    }
+    renderer._currentDsl = ''
+    renderer._onContextLost = null
+    renderer._onContextRestored = () => { events.push(['restored callback']) }
+    renderer._onError = (error) => { events.push(['error', error.code]) }
+    renderer.stop = () => { renderer._isRunning = false }
+    renderer.start = () => { renderer._isRunning = true }
+    renderer._setupContextLossHandlers()
+
+    const created = []
+    renderer._createRuntime = async (dsl) => {
+        created.push(dsl)
+        if (dsl === REJECTED_DSL) throw rejectedCompileError()
+        return created.length === 1 ? accepted : restored
+    }
+
+    await renderer.compile(ACCEPTED_DSL)
+    renderer.start()
+    await withSilencedConsole(async () => {
+        await assert.rejects(renderer.compile(REJECTED_DSL), (err) => err.code === 'ERR_COMPILATION_FAILED')
+        listeners.get('webglcontextlost')({ preventDefault() {} })
+        await listeners.get('webglcontextrestored')()
+    })
+
+    assert.deepEqual(created, [ACCEPTED_DSL, ACCEPTED_DSL])
+    assert.equal(renderer.pipeline, restored)
+    assert.equal(renderer.currentDsl, ACCEPTED_DSL)
+    assert.equal(renderer._isRunning, true, 'the render loop resumes after the restore')
+    assert.deepEqual(events, [
+        ['accepted dispose', { backendLost: true }],
+        ['restored callback']
+    ], 'the restore reports no error')
+})
+
+test('disposal invalidates queued compiles before they can configure a canvas', async () => {
+    const renderer = bareRenderer()
+    const creation = deferred()
+    let creations = 0
+    renderer._createRuntime = () => { creations++; return creation.promise }
+    const first = renderer.compile('search synth\nrender(o0)')
+    const second = renderer.compile('search synth\nrender(o1)')
+    await renderer.dispose()
+    creation.resolve(stalePipeline([], 'stale'))
+    assert.deepEqual(await Promise.all([first, second]), [null, null])
+    assert.equal(creations, 1)
+    assert.equal(renderer.pipeline, null)
+})
+
+test('render loop skips the draw while a sink defers and resumes afterward', () => {
+    let deferNext = true
+    const renders = []
+    const pipeline = {
+        shouldDeferRender: () => deferNext,
+        render: (time) => renders.push(time),
+        lastPassCount: 1
+    }
+    const renderer = bareRenderer(pipeline)
+    Object.assign(renderer, {
+        _isRunning: true, _deferredFrameCount: 0, _loopStartTime: 0, _loopDuration: 10,
+        _frameTimeBuffer: new Float64Array(4), _frameTimeIndex: 0, _frameTimeCount: 0,
+        _frameTimeBufferSize: 4, _fpsFrameCount: 0, _fpsLastUpdateTime: 0, _boundRenderLoop: () => {}
+    })
+    const previousRaf = globalThis.requestAnimationFrame
+    globalThis.requestAnimationFrame = () => 1
+    try {
+        renderer._renderLoop(16)
+        assert.equal(renders.length, 0)
+        assert.equal(renderer.deferredFrameCount, 1)
+        assert.equal(renderer.frameCount, 0)
+        deferNext = false
+        renderer._renderLoop(33)
+        assert.equal(renders.length, 1)
+        assert.equal(renderer.deferredFrameCount, 1)
+        assert.equal(renderer.frameCount, 1)
+    } finally {
+        globalThis.requestAnimationFrame = previousRaf
+    }
+})
+
+test('constructor sizes an unsized canvas element from the render options', async () => {
+    const canvas = new FakeCanvasElement()
+    new CanvasRenderer({ canvas, width: 640, height: 360 })
+    await flushMicrotasks()
+    assert.equal(canvas.width, 640)
+    assert.equal(canvas.height, 360)
+    assert.equal(canvas.getAttribute('width'), '640')
+    assert.equal(canvas.getAttribute('height'), '360')
+})
+
+test('constructor applies the default render size to an unsized canvas element', async () => {
+    const canvas = new FakeCanvasElement()
+    new CanvasRenderer({ canvas })
+    await flushMicrotasks()
+    assert.equal(canvas.width, 1024)
+    assert.equal(canvas.height, 1024)
+})
+
+test('constructor keeps a canvas element sized by attribute and reports the disagreement', async () => {
+    const canvas = new FakeCanvasElement()
+    canvas.setAttribute('width', '320')
+    canvas.setAttribute('height', '240')
+    const warnings = captureWarnings(() => {
+        new CanvasRenderer({ canvas, width: 640, height: 360 })
+    })
+    await flushMicrotasks()
+    assert.equal(canvas.width, 320)
+    assert.equal(canvas.height, 240)
+    assert.equal(warnings.length, 1)
+    assert.ok(warnings[0].includes('320x240'), `diagnostic names the canvas size: ${warnings[0]}`)
+    assert.ok(warnings[0].includes('640x360'), `diagnostic names the option size: ${warnings[0]}`)
+})
+
+test('constructor keeps a canvas element sized by property before construction', async () => {
+    const canvas = new FakeCanvasElement()
+    canvas.width = 320
+    canvas.height = 240
+    const warnings = captureWarnings(() => {
+        new CanvasRenderer({ canvas, width: 640, height: 360 })
+    })
+    await flushMicrotasks()
+    assert.equal(canvas.width, 320)
+    assert.equal(canvas.height, 240)
+    assert.equal(warnings.length, 1)
+})
+
+test('constructor stays silent when the host-sized canvas matches the options', () => {
+    const canvas = new FakeCanvasElement()
+    canvas.setAttribute('width', '640')
+    canvas.setAttribute('height', '360')
+    const warnings = captureWarnings(() => {
+        new CanvasRenderer({ canvas, width: 640, height: 360 })
+    })
+    assert.equal(canvas.width, 640)
+    assert.equal(canvas.height, 360)
+    assert.equal(warnings.length, 0)
+})
+
+const SHADERS_URL = new URL('../', import.meta.url).href.replace(/\/$/, '')
+
+/** Run fn with globalThis.fetch replaced, then put the original back. */
+async function withFetch(fetchImpl, fn) {
+    const previousFetch = globalThis.fetch
+    globalThis.fetch = fetchImpl
+    try {
+        return await fn()
+    } finally {
+        globalThis.fetch = previousFetch
+    }
+}
+
+/** fetch() that serves file: URLs from disk and answers 404 for a missing file. */
+async function fileFetch(url) {
+    const filePath = fileURLToPath(url)
+    if (!fs.existsSync(filePath)) return { ok: false, status: 404 }
+    const text = fs.readFileSync(filePath, 'utf8')
+    return { ok: true, status: 200, text: async () => text, json: async () => JSON.parse(text) }
+}
+
+test('loadManifest rejects with the manifest URL and the HTTP status when the response is not OK', async () => {
+    const requested = []
+    const renderer = new CanvasRenderer({ basePath: '/no-such-dir' })
+    await withFetch(async (url) => { requested.push(url); return { ok: false, status: 404 } }, async () => {
+        await assert.rejects(renderer.loadManifest(),
+            { message: 'Could not load shader manifest /no-such-dir/effects/manifest.json: HTTP 404' })
+    })
+    assert.deepEqual(requested, ['/no-such-dir/effects/manifest.json'])
+    assert.deepEqual(renderer.manifest, {}, 'a failed load keeps no manifest entries')
+})
+
+test('loadManifest rejects with the fetch error when the request itself fails', async () => {
+    const networkError = new TypeError('Failed to fetch')
+    const renderer = new CanvasRenderer({ basePath: 'https://cdn.invalid/shaders' })
+    await withFetch(async () => { throw networkError }, async () => {
+        await assert.rejects(renderer.loadManifest(), (err) => {
+            assert.equal(err.message, 'Could not load shader manifest https://cdn.invalid/shaders/effects/manifest.json: Failed to fetch')
+            assert.equal(err.cause, networkError)
+            return true
+        })
+    })
+})
+
+test('loadManifest rejects when the manifest is not JSON', async () => {
+    const renderer = new CanvasRenderer({ basePath: '/shaders' })
+    const response = { ok: true, status: 200, json: async () => JSON.parse('<!doctype html>') }
+    await withFetch(async () => response, async () => {
+        await assert.rejects(renderer.loadManifest(),
+            (err) => err.message.startsWith('Could not read shader manifest /shaders/effects/manifest.json: ') &&
+                err.cause instanceof SyntaxError)
+    })
+})
+
+test('loadEffects attempts every effect and lists each failed effect ID with its load error in failed', async () => {
+    const events = []
+    const renderer = new CanvasRenderer({
+        basePath: SHADERS_URL,
+        onLoadingStart: (ids) => events.push(['start', ids]),
+        onLoadingEnd: () => events.push(['end'])
+    })
+    const effects = await withFetch(fileFetch, async () => {
+        await renderer.loadManifest()
+        return withSilencedConsole(() =>
+            renderer.loadEffects(['synth/noise', 'synth/noSuchEffect', 'filter/noSuchFilter']))
+    })
+    assert.deepEqual(effects.map((effect) => `${effect.namespace}/${effect.name}`), ['synth/noise'])
+    assert.deepEqual(effects.failed.map((entry) => entry.effectId), ['synth/noSuchEffect', 'filter/noSuchFilter'])
+    for (const entry of effects.failed) {
+        assert.ok(entry.error instanceof Error, `${entry.effectId}: the load error is kept`)
+    }
+    assert.deepEqual(events, [['start', ['synth/noise', 'synth/noSuchEffect', 'filter/noSuchFilter']], ['end']],
+        'onLoadingEnd runs once after the failure')
+    assert.ok(renderer.loadedEffects.has('synth/noise'), 'the effect that loaded stays loaded')
+})
+
+test('loadEffects lists a single failed effect', async () => {
+    const renderer = new CanvasRenderer({ basePath: SHADERS_URL })
+    const effects = await withFetch(fileFetch, async () => {
+        await renderer.loadManifest()
+        return withSilencedConsole(() => renderer.loadEffects(['synth/noSuchEffect']))
+    })
+    assert.equal(effects.length, 0)
+    assert.equal(effects.failed.length, 1)
+    assert.equal(effects.failed[0].effectId, 'synth/noSuchEffect')
+    assert.ok(effects.failed[0].error instanceof Error)
+})
+
+test('loadEffects never rejects for a failed effect', async () => {
+    const renderer = new CanvasRenderer({ basePath: '/no-such-dir' })
+    renderer._manifest = { 'synth/noise': {}, 'filter/bloom': {} }
+    await withSilencedConsole(() => assert.doesNotReject(async () => {
+        const effects = await renderer.loadEffects(['synth/noise', 'filter/bloom', 'not-an-id'])
+        assert.equal(effects.length, 0)
+        assert.deepEqual(effects.failed.map((entry) => entry.effectId), ['synth/noise', 'filter/bloom', 'not-an-id'])
+    }))
+})
+
+test('loadEffects resolves with the loaded effects, an empty failed list, and one onLoadingEnd when every load succeeds', async () => {
+    let ends = 0
+    const renderer = new CanvasRenderer({ basePath: SHADERS_URL, onLoadingEnd: () => { ends++ } })
+    const effects = await withFetch(fileFetch, async () => {
+        await renderer.loadManifest()
+        return renderer.loadEffects(['synth/noise', 'filter/bloom'])
+    })
+    assert.deepEqual(effects.map((effect) => `${effect.namespace}/${effect.name}`), ['synth/noise', 'filter/bloom'])
+    assert.deepEqual(effects.failed, [])
+    assert.equal(ends, 1)
+    assert.deepEqual((await renderer.loadEffects(['synth/noise'])).failed, [], 'a cached load lists no failures')
+    assert.deepEqual((await renderer.loadEffects([])).failed, [], 'an empty request lists no failures')
 })
 
 for (const { name, fn } of tests) {

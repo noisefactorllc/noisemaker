@@ -1,0 +1,60 @@
+name: Docker
+
+# Builds the Docker image and runs the README-DOCKER.md example in it.
+# The build installs TensorFlow, so this workflow runs only when an image
+# input changes and on manual dispatch.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Dockerfile'
+      - 'pyproject.toml'
+      - 'requirements*.txt'
+      - 'share/**'
+      - 'noisemaker/scripts/**'
+      - '.github/workflows/docker.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    name: Docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+    - name: Build the image
+      run: docker build -t noisemaker .
+
+    - name: Run noisemaker --help in the image
+      run: docker run --rm noisemaker noisemaker --help
+
+    - name: Run the README-DOCKER.md generate example
+      run: |
+        mkdir output
+        # The image user has user ID 1000. The runner user has a different ID.
+        # Let the image user write to the mounted folder.
+        chmod a+rwx output
+        docker run --rm -v "$PWD/output:/output" noisemaker \
+          noisemaker generate multires --width 128 --height 128 --seed 1 --filename output/noise.png
+
+    - name: Check that output/noise.png is a 128 by 128 PNG
+      run: |
+        test -f output/noise.png
+        file output/noise.png
+        python3 - output/noise.png <<'PYTHON'
+        import struct, sys
+        with open(sys.argv[1], 'rb') as png:
+            head = png.read(24)
+        if head[:8] != b'\x89PNG\r\n\x1a\n' or head[12:16] != b'IHDR':
+            sys.exit('output/noise.png is not a PNG file')
+        width, height = struct.unpack('>II', head[16:24])
+        if (width, height) != (128, 128):
+            sys.exit(f'output/noise.png is {width} by {height}, not 128 by 128')
+        print(f'output/noise.png is a {width} by {height} PNG')
+        PYTHON

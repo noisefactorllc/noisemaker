@@ -5,6 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
 import { PNG } from 'pngjs'
+import { correctiveBaselines, hostGpuInventory } from './corrective_baselines.js'
 
 // An interrupted run must not leave the browser process tree behind:
 // Playwright's own SIGTERM handler closes its browsers but never exits, and
@@ -48,17 +49,7 @@ const { acquireServer, releaseServer } = await import(path.join(repoRoot, 'vendo
 
 const width = 160
 const height = 96
-const expectedPatternHashes = {
-    // Rebaselined from 'ca2097ced765d7e77eaf1904c9f2932892115d4b03974cdad92a94ec1129e102'.
-    // Not a regression from this branch: the pre-branch tree, checked out clean and
-    // run unmodified, produces the value below as well, so nothing in this branch
-    // moved these pixels. The mono line pattern rotates by monoAngle=30 before
-    // thresholding, so a last-bit difference in the rotation flips pixels along the
-    // ink edge; the old hash came from a different ANGLE/driver build. Both backends
-    // agree on the new value, and the circle pattern below was unaffected.
-    line: '842b9a9d8176638ead50666b3f97b0756ab403e129fe46ad007f57c4626bd2ce',
-    circle: '0c1bb60f6ee1609c725092be1a460432c9f720ac32a34f491a9d0f9134d45892',
-}
+const expectedCircleHash = '0c1bb60f6ee1609c725092be1a460432c9f720ac32a34f491a9d0f9134d45892'
 const fixtureGlsl = `
 #ifdef GL_ES
 precision highp float;
@@ -243,7 +234,7 @@ function assertWind(result, label) {
         `fromRight trail=${leftTrail.toFixed(1)}, blast row range=${maxRowRange(result.blastLeft, 42, 110).toFixed(1)}, column jump=${maxColumnJump.toFixed(1)}, stagger row jump=${maxJump.toFixed(2)}`)
 }
 
-function assertRoundDots(result, label) {
+function assertRoundDots(result, label, expectedLineHash) {
     for (const [name, image] of [['light', result.lightDots]]) {
         // Cell center is between pixels 11/12; edge midpoint and corner are
         // both outside the capped circle and must share the same field tone.
@@ -284,9 +275,9 @@ function assertRoundDots(result, label) {
     assert.ok(Math.max(...edge.slice(0, 3).map((value, channel) => Math.abs(value - corner[channel]))) <= 3,
         `${label} color dot edge and corner must remain the same paper field`)
     console.log(`${label} Halftone: dark center/edge/corner=${[darkCenter, darkEdge, darkCorner].map(value => value.toFixed(1)).join('/')}, cyan center=${center.slice(0, 3).join('/')}`)
-    assert.equal(hash(result.line), expectedPatternHashes.line,
+    assert.equal(hash(result.line), expectedLineHash,
         `${label} mono line pixels must retain their established output`)
-    assert.equal(hash(result.circle), expectedPatternHashes.circle,
+    assert.equal(hash(result.circle), expectedCircleHash,
         `${label} mono circle pixels must retain their established output`)
     console.log(`${label} Halftone line/circle hashes: ${hash(result.line)} ${hash(result.circle)}`)
 }
@@ -297,12 +288,28 @@ async function main() {
         '--enable-features=Vulkan', '--enable-webgpu-developer-features', process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=vulkan'] })
     activeBrowser = browser
     try {
+        const identityPage = await browser.newPage()
+        await identityPage.goto(`${baseUrl}/shaders/effects/manifest.json`, { waitUntil: 'load' })
+        const identity = await identityPage.evaluate(async () => {
+            const gl = document.createElement('canvas').getContext('webgl2')
+            const extension = gl?.getExtension('WEBGL_debug_renderer_info')
+            const adapter = await navigator.gpu?.requestAdapter()
+            return {
+                renderer: extension ? gl.getParameter(extension.UNMASKED_RENDERER_WEBGL) : '',
+                vendor: adapter?.info.vendor,
+                architecture: adapter?.info.architecture,
+                device: adapter?.info.device,
+                description: adapter?.info.description
+            }
+        })
+        await identityPage.close()
+        const baselines = correctiveBaselines({ ...identity, hostGpus: hostGpuInventory() })
         const webgl = await backendRenders(browser, baseUrl, false, 'WebGL2')
         const webgpu = await backendRenders(browser, baseUrl, true, 'WebGPU')
         assertWind(webgl, 'WebGL2')
         assertWind(webgpu, 'WebGPU')
-        assertRoundDots(webgl, 'WebGL2')
-        assertRoundDots(webgpu, 'WebGPU')
+        assertRoundDots(webgl, 'WebGL2', baselines.halftoneLine)
+        assertRoundDots(webgpu, 'WebGPU', baselines.halftoneLine)
         for (const key of Object.keys(webgl)) {
             assert.ok(maxDifference(webgl[key], webgpu[key]) <= 1, `${key} backend parity exceeded one LSB`)
         }

@@ -19,6 +19,9 @@ export default new Effect({
     wrap: { slot: 2, components: 'y' },
     time: { slot: 2, components: 'z' },
     speed: { slot: 2, components: 'w' },
+    tileOffset: { slot: 3, components: 'xy' },
+    fullResolution: { slot: 3, components: 'zw' },
+    renderScale: { slot: 4, components: 'x' },
   },
   globals: {
     tex: {

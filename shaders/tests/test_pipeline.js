@@ -66,13 +66,14 @@ class MockBackend extends Backend {
 
     executePass(pass, state) {
         // Record the resolved read/write physical texture IDs for every
-        // global_ (ping-pong) surface this pass declares in inputs/outputs,
+        // global_ (ping-pong) surface this pass declares in inputs, outputs,
+        // or storageTextures,
         // so tests can pin the exact per-iteration binding sequence instead
         // of only observing which passes ran. state.surfaces/writeSurfaces
         // are reused/mutated objects (see Pipeline.getFrameState), so only
         // primitive string IDs are copied out here -- never a reference.
         const surfaceBindings = {}
-        for (const ioMap of [pass.inputs, pass.outputs]) {
+        for (const ioMap of [pass.inputs, pass.outputs, pass.storageTextures]) {
             if (!ioMap) continue
             for (const texId of Object.values(ioMap)) {
                 if (typeof texId !== 'string' || !texId.startsWith('global_')) continue
@@ -310,6 +311,79 @@ test('Pipeline - Dimension Resolution', async () => {
     }
 })
 
+test('Pipeline - Func texture dimensions use authored numeric defaults before UI updates', () => {
+    const pipeline = new Pipeline({ passes: [], textures: new Map() }, new MockBackend())
+    const wrapper = { fn() { throw new Error('Texture allocation must not execute Func callbacks') }, min: 1, max: 64 }
+    const cases = [
+        [{ screenDivide: 'zoom_chain_0', default: 32 }, { zoom_chain_0: wrapper }, 8],
+        [{ param: 'stateSize_node_1', default: 256 }, { stateSize_node_1: wrapper }, 256],
+        [{ param: 'volumeSize_chain_0', default: 64 }, { volumeSize_chain_0: wrapper }, 64],
+        [{ param: 'volumeSize_chain_0', power: 2, default: 4096 }, { volumeSize_chain_0: wrapper }, 4096],
+        [{ param: 'size', paramDefault: 3, multiply: 2, power: 2 }, { size: wrapper }, 36],
+        [{ screenDivide: 'zoom_chain_0', default: 32 }, { zoom_chain_0: 16 }, 16],
+        [{ param: 'stateSize_node_1', default: 256 }, { stateSize_node_1: 128 }, 128],
+        [{ param: 'volumeSize_chain_0', power: 2, default: 4096 }, { volumeSize_chain_0: 16 }, 256]
+    ]
+    for (const [spec, uniforms, expected] of cases) {
+        const actual = pipeline.resolveDimension(spec, 256, uniforms)
+        if (actual !== expected) {
+            throw new Error(`Texture dimension ${JSON.stringify(spec)}: expected ${expected}, got ${actual}`)
+        }
+    }
+})
+
+test('Pipeline - Func sizing allocates scoped textures and resizes after host values arrive', async () => {
+    const backend = new MockBackend()
+    const fnValue = { fn: () => 8 }
+    const graph = {
+        passes: [{ id: 'func_sizing', program: 'test_program', inputs: {}, outputs: {
+            state: 'global_ca_state_chain_0', positions: 'global_xyz_node_1'
+        }, uniforms: {
+            zoom_chain_0: fnValue,
+            stateSize_node_1: fnValue,
+            volumeSize_chain_0: fnValue
+        } }],
+        programs: { test_program: { fragment: 'void main() {}' } },
+        textures: new Map([
+            ['global_ca_state_chain_0', {
+                width: { screenDivide: 'zoom_chain_0', default: 32 },
+                height: { screenDivide: 'zoom_chain_0', default: 32 }
+            }],
+            ['global_xyz_node_1', {
+                width: { param: 'stateSize_node_1', default: 256 },
+                height: { param: 'stateSize_node_1', default: 256 }
+            }],
+            ['node_0_volumeCache', {
+                width: { param: 'volumeSize_chain_0', default: 64 },
+                height: { param: 'volumeSize_chain_0', power: 2, default: 4096 }
+            }]
+        ])
+    }
+    const pipeline = new Pipeline(graph, backend)
+    await pipeline.init(256, 256)
+
+    const expectSize = (id, width, height) => {
+        const texture = backend.textures.get(id)
+        if (texture?.width !== width || texture?.height !== height) {
+            throw new Error(`${id}: expected ${width}x${height}, got ${texture?.width}x${texture?.height}`)
+        }
+    }
+    expectSize('global_ca_state_chain_0_read', 8, 8)
+    expectSize('global_ca_state_chain_0_write', 8, 8)
+    expectSize('global_xyz_node_1_read', 256, 256)
+    expectSize('global_xyz_node_1_write', 256, 256)
+    expectSize('node_0_volumeCache', 64, 4096)
+
+    pipeline.setUniform('zoom_chain_0', 8)
+    pipeline.setUniform('stateSize_node_1', 128)
+    pipeline.setUniform('volumeSize_chain_0', 16)
+    expectSize('global_ca_state_chain_0_read', 32, 32)
+    expectSize('global_ca_state_chain_0_write', 32, 32)
+    expectSize('global_xyz_node_1_read', 128, 128)
+    expectSize('global_xyz_node_1_write', 128, 128)
+    expectSize('node_0_volumeCache', 16, 256)
+})
+
 test('Pipeline - Surface Double Buffering', async () => {
     const backend = new MockBackend()
     const graph = { passes: [], textures: new Map(), renderSurface: 'o0' }
@@ -518,6 +592,146 @@ test('Pipeline - Repeat Pass Binding Sequence (self-seeding, persists across fra
 
     if (f2iter1.surfaceBindings.rd_state.read !== f2iter0.surfaceBindings.rd_state.write) {
         throw new Error(`Expected frame 2 iteration 1 to read iteration 0's write (${f2iter0.surfaceBindings.rd_state.write}), read ${f2iter1.surfaceBindings.rd_state.read} instead`)
+    }
+})
+
+test('Pipeline - Custom feedback surface survives a skipped pass', async () => {
+    const backend = new MockBackend()
+    const graph = {
+        passes: [{
+            id: 'update_memory',
+            program: 'feedback',
+            inputs: { previous: 'global_memory' },
+            outputs: { color: 'global_memory' },
+            conditions: { skipIf: [{ uniform: 'frame', equals: 1 }] }
+        }],
+        textures: new Map([['global_memory', {
+            width: 'screen', height: 'screen', format: 'rgba16f', persistent: true
+        }]]),
+        programs: { feedback: { fragment: 'void main() {}' } }
+    }
+
+    const pipeline = new Pipeline(graph, backend)
+    await pipeline.init(16, 16)
+
+    pipeline.render(0)
+    const firstWrite = backend.passes[0].surfaceBindings.memory.write
+
+    backend.passes = []
+    pipeline.render(0.016)
+    if (backend.passes.length !== 0) {
+        throw new Error('Feedback pass should be skipped on frame 1')
+    }
+
+    pipeline.render(0.032)
+    const resumedRead = backend.passes[0].surfaceBindings.memory.read
+    if (resumedRead !== firstWrite) {
+        throw new Error(`Expected resumed feedback to read ${firstWrite}, got ${resumedRead}`)
+    }
+})
+
+test('Pipeline - Write-first persistent surface survives consecutive skipped passes', async () => {
+    const backend = new MockBackend()
+    const graph = {
+        passes: [
+            { id: 'update_memory', program: 'update', inputs: {},
+              outputs: { color: 'global_memory' },
+              conditions: { runIf: [{ uniform: 'frame', equals: 0 }] } },
+            { id: 'show_memory', program: 'show',
+              inputs: { source: 'global_memory' }, outputs: { color: 'result' } }
+        ],
+        textures: new Map([
+            ['global_memory', { width: 'screen', height: 'screen', format: 'rgba16f', persistent: true }],
+            ['result', { width: 'screen', height: 'screen', format: 'rgba16f', usage: ['render', 'sample'] }]
+        ]),
+        programs: { update: { fragment: 'void main() {}' }, show: { fragment: 'void main() {}' } }
+    }
+
+    const pipeline = new Pipeline(graph, backend)
+    await pipeline.init(16, 16)
+    pipeline.render(0)
+    const firstWrite = backend.passes[0].surfaceBindings.memory.write
+
+    for (const time of [0.016, 0.032, 0.048]) {
+        backend.passes = []
+        pipeline.render(time)
+        if (backend.passes.length !== 1 || backend.passes[0].passId !== 'show_memory') {
+            throw new Error('Expected only the show pass after the initial write')
+        }
+        const observedRead = backend.passes[0].surfaceBindings.memory.read
+        if (observedRead !== firstWrite) {
+            throw new Error(`Expected persistent read ${firstWrite} after skipped update, got ${observedRead}`)
+        }
+    }
+})
+
+test('Pipeline - Storage-only feedback surface survives a skipped pass', async () => {
+    const backend = new MockBackend()
+    const graph = {
+        passes: [{
+            id: 'update_storage_memory',
+            program: 'storageFeedback',
+            inputs: { previous: 'global_storage_memory' },
+            storageTextures: { result: 'global_storage_memory' },
+            conditions: { skipIf: [{ uniform: 'frame', equals: 1 }] }
+        }],
+        textures: new Map([['global_storage_memory', {
+            width: 'screen', height: 'screen', format: 'rgba16f', persistent: true
+        }]]),
+        programs: { storageFeedback: { fragment: 'void main() {}' } }
+    }
+
+    const pipeline = new Pipeline(graph, backend)
+    await pipeline.init(16, 16)
+
+    pipeline.render(0)
+    const firstWrite = backend.passes[0].surfaceBindings.storage_memory.write
+
+    backend.passes = []
+    pipeline.render(0.016)
+    if (backend.passes.length !== 0) {
+        throw new Error('Storage feedback pass should be skipped on frame 1')
+    }
+
+    pipeline.render(0.032)
+    const resumedRead = backend.passes[0].surfaceBindings.storage_memory.read
+    if (resumedRead !== firstWrite) {
+        throw new Error(`Expected resumed storage feedback to read ${firstWrite}, got ${resumedRead}`)
+    }
+})
+
+test('Pipeline - Scratch surface written before read keeps display-style swap', async () => {
+    const backend = new MockBackend()
+    const graph = {
+        passes: [
+            { id: 'clear', program: 'clear', inputs: {}, outputs: { color: 'global_scratch' } },
+            { id: 'deposit', program: 'deposit', blend: true,
+              inputs: {}, outputs: { color: 'global_scratch' } },
+            { id: 'consume', program: 'consume',
+              inputs: { source: 'global_scratch' }, outputs: { color: 'result' } }
+        ],
+        textures: new Map(),
+        programs: {
+            clear: { fragment: 'void main() {}' },
+            deposit: { fragment: 'void main() {}' },
+            consume: { fragment: 'void main() {}' }
+        }
+    }
+
+    const pipeline = new Pipeline(graph, backend)
+    await pipeline.init(16, 16)
+
+    pipeline.render(0)
+    const firstDepositWrite = backend.passes[1].surfaceBindings.scratch.write
+    if (backend.passes[2].surfaceBindings.scratch.read !== firstDepositWrite) {
+        throw new Error('Consumer should sample the deposit pass within the same frame')
+    }
+
+    backend.passes = []
+    pipeline.render(0.016)
+    const nextClearWrite = backend.passes[0].surfaceBindings.scratch.write
+    if (nextClearWrite !== firstDepositWrite) {
+        throw new Error(`Expected next clear to overwrite prior deposit target ${firstDepositWrite}, got ${nextClearWrite}`)
     }
 })
 

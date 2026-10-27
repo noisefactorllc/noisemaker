@@ -332,4 +332,52 @@ function build(src) {
   assert.ok(Math.abs(node.position[1] - 0.25) < 1e-9, 'a replaced AudioState reaches the scene')
 }
 
+{
+  const { tree, bindings } = build(`search synth
+    scene(mesh("box", pos: [midi(channel: 1, mode: midiMode.cc, cc: 74), audio(band: audioBand.low, channel: 2, name: "Interface", id: "right"), 0])).write(o0)`)
+  const midi = new MidiState()
+  midi.handleMessage(new Uint8Array([0xb0, 1, 127]))
+  midi.handleMessage(new Uint8Array([0xb0, 74, 64]))
+  const audio = new AudioState()
+  audio.setBands(1, 0, 0)
+  audio.registerDevice({ id: 'left', name: 'Interface', channelCount: 2 })
+  audio.registerDevice({ id: 'right', name: 'Interface', channelCount: 2 })
+  audio.setChannelValues('right', 2, { low: 0.3 })
+  evaluateBindings(bindings, 0, { midi, audio })
+  assert.ok(Math.abs(tree.getMeshNodes()[0].position[0] - 64 / 127) < 1e-9, 'selected MIDI controller drives scene')
+  assert.strictEqual(tree.getMeshNodes()[0].position[1], 0.3, 'selected audio device and channel drive scene')
+  audio.disconnectDevice('right')
+  evaluateBindings(bindings, 0, { midi, audio })
+  assert.strictEqual(tree.getMeshNodes()[0].position[1], 0, 'missing selected device stays at minimum')
+}
+
+{
+  const { tree, bindings } = build(`search synth
+    scene(mesh("box", pos: [midi(zone: midiZone.lower, members: 3, mode: midiMode.gateVelocity), 0, 0])).write(o0)`)
+  assert.strictEqual(bindings.length, 1, 'zone selector is collected as a binding')
+  const midi = new MidiState()
+  midi.handleMessage(new Uint8Array([0x91, 60, 127]))
+  evaluateBindings(bindings, 0, { midi, audio: null })
+  assert.strictEqual(tree.getMeshNodes()[0].position[0], 1, 'zone member drives scene')
+}
+
+{
+  const { tree, bindings } = build(`search synth
+    scene(mesh("box", pos: [midi(channel: 1, mode: midiMode.cc14, cc: 10), midi(channel: 1, mode: midiMode.nrpn, nrpn: 130), 0])).write(o0)`)
+  const midi = new MidiState()
+  for (const message of [[0xb0, 10, 64], [0xb0, 42, 127], [0xb0, 99, 1], [0xb0, 98, 2], [0xb0, 6, 32], [0xb0, 38, 7]]) midi.handleMessage(message)
+  evaluateBindings(bindings, 0, { midi, audio: null })
+  assert.ok(Math.abs(tree.getMeshNodes()[0].position[0] - 8319 / 16383) < 1e-9, 'paired MIDI controller drives scene')
+  assert.ok(Math.abs(tree.getMeshNodes()[0].position[1] - 4103 / 16383) < 1e-9, 'selected NRPN drives scene')
+}
+
+for (const selector of [
+  'midi(channel: 1, mode: midiMode.cc14, cc: 32)',
+  'midi(channel: 1, mode: midiMode.nrpn)',
+  'midi(zone: midiZone.lower, members: 16)',
+  'audio(band: audioBand.low, channel: 33)'
+]) {
+  assert.throws(() => build(`search synth\nscene(mesh("box", pos: [${selector}, 0, 0])).write(o0)`), /must be|requires/, `invalid selector ${selector} is rejected`)
+}
+
 console.log('Scene bindings tests passed')

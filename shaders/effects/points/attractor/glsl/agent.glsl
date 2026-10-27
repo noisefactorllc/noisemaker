@@ -21,6 +21,29 @@ layout(location = 0) out vec4 outXYZ;
 layout(location = 1) out vec4 outVel;
 layout(location = 2) out vec4 outRGBA;
 
+uniform sampler2D diffuseTex;
+uniform float diffuseActive;
+
+vec4 selectedDiffuse(vec2 uv) {
+    ivec2 size = textureSize(diffuseTex, 0);
+    ivec2 pixel = clamp(ivec2(clamp(uv, vec2(0.0), vec2(0.999999)) * vec2(size)), ivec2(0), size - 1);
+    return texelFetch(diffuseTex, pixel, 0);
+}
+
+uniform sampler2D baseColorTex;  // Agent color kept while a diffuse map is active
+layout(location = 3) out vec4 outBaseColor;
+
+// The agent's color without a diffuse map. baseColorTex keeps it (alpha > 0)
+// while a diffuse map is active and is cleared otherwise.
+vec4 baseColor(ivec2 coord, vec4 col) {
+    vec4 kept = texelFetch(baseColorTex, coord, 0);
+    return kept.a == 0.0 ? col : kept;
+}
+
+vec4 keptBaseColor(vec4 base) {
+    return diffuseActive > 0.5 ? vec4(base.rgb, max(base.a, 1.0 / 255.0)) : vec4(0.0);
+}
+
 // Integer-based hash for cross-platform determinism
 uint hash_uint(uint seed) {
     uint state = seed * 747796405u + 2891336453u;
@@ -158,7 +181,8 @@ void main() {
         
         outXYZ = vec4(pos.xyz, 1.0);
         outVel = vel;
-        outRGBA = col;
+        outRGBA = diffuseActive > 0.5 ? selectedDiffuse(fract(outXYZ.xy)) : col;
+        outBaseColor = keptBaseColor(col);
         return;
     }
     
@@ -167,6 +191,7 @@ void main() {
         outXYZ = pos;
         outVel = vel;
         outRGBA = col;
+        outBaseColor = keptBaseColor(baseColor(coord, col));
         return;
     }
     
@@ -183,7 +208,9 @@ void main() {
         newPos.z = hash(respawnSeed + 2u) * 30.0 + 10.0;
     }
     
+    vec4 base = baseColor(coord, col);
     outXYZ = vec4(newPos, 1.0);
     outVel = vel;
-    outRGBA = col;
+    outRGBA = diffuseActive > 0.5 ? selectedDiffuse(fract(outXYZ.xy)) : base;
+    outBaseColor = keptBaseColor(base);
 }

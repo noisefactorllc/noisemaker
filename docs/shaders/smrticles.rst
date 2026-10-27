@@ -16,7 +16,7 @@ Smart Particles
 
 *Whatever you'd like*
 
-Noisemaker's shader pipeline includes common architecture for GPU-accelerated agent-based particle simulations. It provides a unified framework for initializing, simulating, and rendering perhaps millions of particles with shared state management and composable behaviors.
+Noisemaker's shader pipeline provides common architecture for GPU-accelerated particle simulations based on agents. It can initialize, simulate, and render perhaps millions of particles. These particles share state management and composable behaviors.
 
 .. raw:: html
 
@@ -98,11 +98,11 @@ Traditional particle systems duplicate substantial boilerplate code across effec
 - Trail accumulation and decay
 - Point-sprite rendering and blending
 
-SMRTicles factors this common infrastructure into two **wrapper effects** (``pointsEmit`` and ``pointsRender``) that sandwich effect-specific **behavior middleware**. This architecture achieves:
+SMRTicles places effect-specific **behavior middleware** between two **wrapper effects**: ``pointsEmit`` and ``pointsRender``. The wrappers provide the common infrastructure. This architecture achieves:
 
 1. **Code Reduction**: ~40% less shader code per effect
 2. **Consistency**: All effects share the same deposit/blend approach
-3. **Composability**: Mix and match behaviors in a single pipeline
+3. **Composability**: Combine behaviors in a single pipeline
 4. **Maintainability**: Bug fixes propagate to all particle effects
 
 ----
@@ -170,7 +170,7 @@ SMRTicles compositions use method chaining in the Polymorphic DSL:
 State Textures
 --------------
 
-SMRTicles uses three shared global textures for agent state, created by ``pointsEmit`` and consumed by all downstream effects:
+The ``pointsEmit`` effect creates three shared global textures for agent state. All downstream effects consume them:
 
 .. list-table::
    :header-rows: 1
@@ -180,10 +180,10 @@ SMRTicles uses three shared global textures for agent state, created by ``points
      - Format
      - Contents
    * - ``global_xyz``
-     - rgba32f
+     - rgba32f (may fall back to rgba16f)
      - [x, y, z, alive_flag] — Position in normalized [0,1] space, w=1 alive
    * - ``global_vel``
-     - rgba32f
+     - rgba32f (or rgba16f on constrained devices)
      - [vx, vy, vz, seed] — Velocity vector and per-agent random seed
    * - ``global_rgba``
      - rgba8
@@ -192,7 +192,7 @@ SMRTicles uses three shared global textures for agent state, created by ``points
 State Texture Sizing
 ^^^^^^^^^^^^^^^^^^^^
 
-Agent count is controlled by the ``stateSize`` parameter, which sets the dimensions of the state textures. Total agents = stateSize × stateSize.
+The ``stateSize`` parameter controls agent count by setting the dimensions of the state textures. Total agents = stateSize × stateSize.
 
 .. list-table::
    :header-rows: 1
@@ -250,7 +250,7 @@ pointsEmit
 
 **Namespace:** ``render``
 
-**Purpose:** Initialize and maintain agent state. Runs every frame to handle respawns.
+**Purpose:** Initialize and maintain agent state. The effect runs every frame to handle respawns.
 
 **Key Parameters:**
 
@@ -324,19 +324,27 @@ pointsRender
    * - ``viewMode``
      - enum
      - flat
-     - Viewport mode: flat (2D) or ortho (3D)
+     - Viewport mode: flat (2D), ortho (fixed 3D rotation), or perspective (movable camera)
    * - ``rotateX/Y/Z``
      - float
      - varies
-     - 3D rotation in radians (when viewMode=ortho)
+     - 3D rotation in radians (when viewMode=ortho or perspective)
    * - ``viewScale``
      - float
      - 0.8
-     - Zoom factor for 3D view
+     - Zoom factor for ortho view; perspective view uses ``fieldOfView`` instead
    * - ``posX/Y``
      - float
      - 0.0
-     - Position offset for 3D view
+     - Camera position offset (when viewMode=ortho or perspective)
+   * - ``posZ``
+     - float
+     - 0.0
+     - Camera position offset along the depth axis (when viewMode=perspective)
+   * - ``fieldOfView``
+     - float
+     - 60.0
+     - Perspective camera field of view in degrees (when viewMode=perspective)
 
 **Internal Passes:**
 
@@ -346,7 +354,83 @@ pointsRender
 4. **Blend**: Composite trail over input texture
 
 .. note::
-   Additional sprite rendering modes (textured sprites, billboards, custom shapes) are planned for future releases.
+   ``pointsRender`` deposits one hardware point per agent. For textured
+   sprites, procedural shapes, and depth-sorted alpha blending, use
+   ``pointsBillboardRender`` instead — see below.
+
+pointsBillboardRender
+^^^^^^^^^^^^^^^^^^^^^
+
+**Namespace:** ``render``
+
+**Purpose:** Like ``pointsRender``, but scatters each agent as a screen-facing
+quad (billboard) instead of a single hardware point, so it can carry a
+texture or a procedural shape, size and rotation variation, and (in
+``perspective`` view) depth-sorted alpha blending with aperture defocus blur.
+
+**Key Parameters:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 15 15 50
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``shapeMode``
+     - enum
+     - texture
+     - Billboard fill: ``texture`` (sample ``tex``), or a procedural SDF shape
+       (circle, ring, square, diamond, triangle, star, soft)
+   * - ``tex``
+     - surface
+     - none
+     - Sprite texture, used when ``shapeMode`` is ``texture``
+   * - ``blendMode``
+     - enum
+     - additive
+     - ``additive`` accumulates trail brightness; ``alpha`` composites
+       depth-sorted, back-to-front
+   * - ``pointSize``
+     - float
+     - 8.0
+     - Base billboard size in pixels
+   * - ``sizeVariation`` / ``rotationVar``
+     - float
+     - 0.0
+     - Per-agent size / rotation randomization (0–100), seeded by ``seed``
+   * - ``depositOpacity``
+     - float
+     - 20.0
+     - Per-billboard opacity contribution
+   * - ``viewMode`` / ``rotateX/Y/Z`` / ``viewScale`` / ``posX/Y/Z`` / ``fieldOfView``
+     - —
+     - —
+     - Same camera model as ``pointsRender`` (flat / ortho / perspective)
+   * - ``sizeDistance`` / ``brightnessDistance``
+     - float
+     - 0.0
+     - When viewMode is ortho or perspective: distance (world units) over
+       which billboards shrink / dim as camera distance grows; 0 disables
+       the fade
+   * - ``aperture``
+     - float
+     - 0.0
+     - When viewMode is ortho or perspective: defocus blur strength; 0
+       disables it
+   * - ``focalDistance``
+     - float
+     - 80.0
+     - When viewMode is ortho or perspective: camera distance that stays in
+       focus when ``aperture`` > 0
+
+``blendMode: alpha`` sorts agents back-to-front every frame (a GPU merge
+sort over their camera-space depth) before drawing, so overlapping
+billboards composite correctly instead of fighting z-order under additive
+blending. ``aperture`` blurs billboards in proportion to their distance
+from ``focalDistance``, using a precomputed mean-sprite texture so the blur
+cost does not scale with billboard count.
 
 ----
 
@@ -357,8 +441,8 @@ All behavior effects live in the ``points`` namespace and follow a consistent pa
 
 1. Read ``global_xyz``, ``global_vel``, ``global_rgba`` from pipeline
 2. Apply effect-specific logic
-3. Write updated state back (MRT output to same textures)
-4. Passthrough ``inputTex`` to ``outputTex`` for 2D chain continuity
+3. Write updated state to the same textures through MRT output
+4. Pass ``inputTex`` unchanged to ``outputTex`` for 2D chain continuity
 
 Available Behaviors
 ^^^^^^^^^^^^^^^^^^^
@@ -387,6 +471,33 @@ Available Behaviors
      - Particle Lenia: continuous cellular automata with kernel-based attraction
    * - ``attractor``
      - Strange attractors: Lorenz, Rössler, Aizawa, Thomas, etc.
+   * - ``heightGrid``
+     - Not a simulation: arranges every agent into a fixed XZ grid with Y set
+       from a height map, and color from a diffuse map — a landscape's worth
+       of positions rather than a physics or flow-field behavior
+
+Independent Texture Inputs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Particle behaviors can read explicit surfaces without replacing the chained 2D input.
+The ``pointsEmit`` wrapper initializes agent colors from that input.
+
+Set ``diffuseTex`` on a behavior to sample a separate color map. Except for ``heightGrid``, omitting it or setting it to ``none`` preserves the behavior's current particle colors.
+
+``flow``, ``dla``, ``physarum``, and ``hydraulic`` accept ``heightTex`` for movement. Their height selectors use the chained input when omitted or set to ``none``. ``fieldTex`` is a deprecated alias for ``heightTex`` in ``flow``, ``dla``, and ``physarum`` until 2027-06-01.
+
+``heightGrid`` accepts ``heightTex`` and ``diffuseTex`` for height and color maps. Both selectors default to the chained input.
+
+.. code-block:: javascript
+
+   search synth, render, points
+   noise().write(o1)
+   solid(color: #ff0000).write(o2)
+   solid(color: #ffffff).pointsEmit()
+     .flow(heightTex: read(o1), diffuseTex: read(o2))
+     .pointsRender()
+     .write(o0)
+   render(o0)
 
 ----
 
@@ -418,6 +529,14 @@ Behavior effects use MRT to update all three state textures in a single pass:
        outVel = vel;
        outRGBA = rgba;
    }
+
+At pipeline creation, the runtime compares the combined attachment formats
+with the backend's per-sample color budget. If an MRT group is too wide, it
+demotes trailing ``rgba32f`` attachments to ``rgba16f`` while further
+reductions are available. On a 32-byte device, ``pointsEmit`` keeps position
+data in ``global_xyz`` at full precision and uses half precision for
+``global_vel``. A smaller reported budget can also demote ``global_xyz`` and
+may still be insufficient for the irreducible three-attachment pass.
 
 Point-Sprite Deposit
 ^^^^^^^^^^^^^^^^^^^^
@@ -517,7 +636,7 @@ To create a new SMRTicles behavior:
 
 3. **Implement shaders**: Create ``glsl/agent.glsl`` and ``wgsl/agent.wgsl`` with your behavior logic.
 
-4. **Test**: Use the MCP tools to verify compilation and rendering:
+4. **Test**: Use the MCP tools to check compilation and rendering:
 
 .. code-block:: bash
 

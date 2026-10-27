@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "filter/pondRipples",
+  "sourceHash": "4e43a51f2965634cf7b1041960d993c0ddea5fa80c420492ede1adf5a1cadfc3",
+  "caseHash": "2f57c46182b52cc4f9c63033f6315a3e4d82f1f24203e3e9b755186ad1e552c3",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 4096
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 4096
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

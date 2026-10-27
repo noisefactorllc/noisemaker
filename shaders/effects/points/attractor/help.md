@@ -10,6 +10,7 @@ Particles follow trajectories in 3D attractor space, creating complex orbital pa
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
+| diffuseTex | surface | none | - | Particle color map; none preserves the existing particle color |
 | stateSize | int | 256 | - | - |
 | attractor | int | lorenz | lorenz/rossler/aizawa/thomas/halvorsen/chen/dadras | Attractor |
 | speed | float | 1 | 0.01-2 | Speed |

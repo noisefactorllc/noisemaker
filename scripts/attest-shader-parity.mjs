@@ -4,12 +4,14 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
+import { shaderTestBrowserOptions } from './lib/shader-test-browser.mjs'
 
 import {
     comparePixelFrames,
     computeFileHash,
     computeParitySourceHash,
     effectDirectory,
+    isReadbackPerformanceWarning,
     matchesTargetEffectPass,
     PARITY_ATTESTATION_SCHEMA_VERSION,
     validateFrameEvidence,
@@ -34,16 +36,34 @@ if (!fs.existsSync(casePath)) {
     throw new Error(`${effectId} has no parity-case.json`)
 }
 
+const initialCaseHash = computeFileHash(casePath)
 const parityCase = JSON.parse(fs.readFileSync(casePath, 'utf8'))
+assert.equal(computeFileHash(casePath), initialCaseHash, 'Parity case changed while loading')
 const caseErrors = validateParityCase(parityCase, effectId)
 if (caseErrors.length > 0) throw new Error(`Invalid parity case: ${caseErrors.join('; ')}`)
 const resolution = parityCase.resolution
+const initialSourceHash = computeParitySourceHash(repoRoot, parityCase)
+
+// A tiled case renders the full image as a grid of tiles through the same
+// setTileRegion() call the host's large-format export uses: each tile renders
+// at tile size with its offset (bottom-origin, as the host passes it), the full
+// resolution and the case's renderScale, and the tiles are stitched back into
+// one full-resolution frame per backend.
+const tilePlan = parityCase.tiles ? {
+    fullResolution: resolution,
+    renderScale: parityCase.tiles.renderScale ?? 1,
+    tiles: Array.from({ length: (resolution[1] / parityCase.tiles.size[1]) * (resolution[0] / parityCase.tiles.size[0]) }, (_, index) => {
+        const columns = resolution[0] / parityCase.tiles.size[0]
+        return { offset: [(index % columns) * parityCase.tiles.size[0], Math.floor(index / columns) * parityCase.tiles.size[1]] }
+    }),
+} : null
 
 async function renderBackend(browser, baseUrl, preferWebGPU) {
-    const [width, height] = resolution
+    const [width, height] = tilePlan ? parityCase.tiles.size : resolution
     const page = await browser.newPage({ viewport: { width, height } })
     const consoleMessages = []
     page.on('console', (message) => {
+        if (isReadbackPerformanceWarning(message.type(), message.text())) return
         if (message.type() === 'error' || message.type() === 'warning') consoleMessages.push(message.text())
     })
     page.on('pageerror', (error) => consoleMessages.push(error.message))
@@ -70,51 +90,141 @@ await renderer.loadEffects(${JSON.stringify(parityCase.effects)});
 await renderer.compile(${JSON.stringify(parityCase.dsl)});
 renderer.stop();
 renderer.render(0);
-renderer.render(0);
-await renderer.pipeline.backend.device?.queue?.onSubmittedWorkDone?.();
-const surface = renderer.pipeline.surfaces.get(${JSON.stringify(parityCase.surface || 'o0')});
 const matchesTargetEffectPass = ${matchesTargetEffectPass.toString()};
+for (const texture of ${JSON.stringify(parityCase.textureInputs || [])}) {
+    const source = document.createElement('canvas');
+    source.width = texture.width;
+    source.height = texture.height;
+    source.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(texture.data), texture.width, texture.height), 0, 0);
+    const passes = renderer.pipeline.graph.passes.filter((pass) => matchesTargetEffectPass(pass, texture.effect));
+    if (!passes.length) throw new Error('Texture fixture has no executing effect: ' + texture.effect);
+    for (const pass of passes) {
+        const textureId = pass.inputs?.[texture.uniform];
+        if (typeof textureId !== 'string') throw new Error('Texture fixture uniform is not bound: ' + texture.uniform);
+        const uploaded = renderer.updateTextureFromSource(textureId, source, { flipY: false });
+        if (uploaded?.width !== texture.width || uploaded?.height !== texture.height) {
+            throw new Error('Texture fixture upload dimensions differ');
+        }
+    }
+}
+for (const mesh of ${JSON.stringify(parityCase.meshInputs || [])}) {
+    const loaded = await renderer.loadOBJFromURL('${baseUrl}/' + mesh.path, mesh.mesh);
+    if (!loaded.success || !loaded.vertexCount) throw new Error('Mesh fixture did not load: ' + mesh.path + ' ' + (loaded.error || ''));
+}
+const settleMs = ${JSON.stringify(parityCase.settleMs || 0)};
+const surface = renderer.pipeline.surfaces.get(${JSON.stringify(parityCase.surface || 'o0')});
 const candidates = [surface?.read, surface?.write].filter(Boolean);
+async function readBest() {
+    renderer.render(0);
+    renderer.render(0);
+    await renderer.pipeline.backend.device?.queue?.onSubmittedWorkDone?.();
+    let capture = null;
+    for (const id of candidates) {
+        try {
+            const pixels = await renderer.pipeline.backend.readPixels(id);
+            if (!pixels?.data) continue;
+            let nonzeroRgbPixels = 0;
+            let nonzeroAlphaPixels = 0;
+            const colors = new Set();
+            for (let i = 0; i < pixels.data.length; i += 4) {
+                if (pixels.data[i] || pixels.data[i + 1] || pixels.data[i + 2]) nonzeroRgbPixels++;
+                if (pixels.data[i + 3]) nonzeroAlphaPixels++;
+                colors.add(pixels.data[i] + ',' + pixels.data[i + 1] + ',' + pixels.data[i + 2]);
+            }
+            if (!capture || nonzeroRgbPixels > capture.nonzeroRgbPixels) {
+                capture = {
+                    id,
+                    width: pixels.width,
+                    height: pixels.height,
+                    nonzeroRgbPixels,
+                    nonzeroAlphaPixels,
+                    uniqueColors: colors.size,
+                    data: Array.from(pixels.data)
+                };
+            }
+        } catch {}
+    }
+    return capture;
+}
+function sameBytes(a, b) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+}
+async function captureSettled() {
+    let capture = await readBest();
+    const settleDeadline = Date.now() + settleMs;
+    let settled = settleMs === 0;
+    while (Date.now() < settleDeadline) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        const next = await readBest();
+        if (next && capture && sameBytes(next.data, capture.data)) {
+            capture = next;
+            settled = true;
+            break;
+        }
+        if (next) capture = next;
+    }
+    return { capture, settled };
+}
+const tilePlan = ${JSON.stringify(tilePlan)};
 let capture = null;
-for (const id of candidates) {
-    try {
-        const pixels = await renderer.pipeline.backend.readPixels(id);
-        if (!pixels?.data) continue;
+let settled = true;
+if (!tilePlan) {
+    ({ capture, settled } = await captureSettled());
+} else {
+    // WebGL2 readback rows run top-first and WebGPU readback rows bottom-first;
+    // each stitched frame keeps its backend's row order, as an untiled capture does.
+    const [fullWidth, fullHeight] = tilePlan.fullResolution;
+    const topFirst = renderer.pipeline.backend.getName() === 'WebGL2';
+    const data = new Array(fullWidth * fullHeight * 4).fill(0);
+    let id = null;
+    for (const tile of tilePlan.tiles) {
+        renderer.setTileRegion({ offset: tile.offset, fullResolution: tilePlan.fullResolution, renderScale: tilePlan.renderScale });
+        const part = await captureSettled();
+        if (!part.capture) { id = null; break; }
+        settled = settled && part.settled;
+        id = part.capture.id;
+        const tileWidth = part.capture.width;
+        const tileHeight = part.capture.height;
+        for (let row = 0; row < tileHeight; row++) {
+            const fullRow = topFirst ? fullHeight - tile.offset[1] - tileHeight + row : tile.offset[1] + row;
+            const from = row * tileWidth * 4;
+            const to = (fullRow * fullWidth + tile.offset[0]) * 4;
+            for (let i = 0; i < tileWidth * 4; i++) data[to + i] = part.capture.data[from + i];
+        }
+    }
+    renderer.clearTileRegion();
+    if (id) {
         let nonzeroRgbPixels = 0;
         let nonzeroAlphaPixels = 0;
         const colors = new Set();
-        for (let i = 0; i < pixels.data.length; i += 4) {
-            if (pixels.data[i] || pixels.data[i + 1] || pixels.data[i + 2]) nonzeroRgbPixels++;
-            if (pixels.data[i + 3]) nonzeroAlphaPixels++;
-            colors.add(pixels.data[i] + ',' + pixels.data[i + 1] + ',' + pixels.data[i + 2]);
+        for (let i = 0; i < data.length; i += 4) {
+            if (data[i] || data[i + 1] || data[i + 2]) nonzeroRgbPixels++;
+            if (data[i + 3]) nonzeroAlphaPixels++;
+            colors.add(data[i] + ',' + data[i + 1] + ',' + data[i + 2]);
         }
-        if (!capture || nonzeroRgbPixels > capture.nonzeroRgbPixels) {
-            capture = {
-                id,
-                width: pixels.width,
-                height: pixels.height,
-                nonzeroRgbPixels,
-                nonzeroAlphaPixels,
-                uniqueColors: colors.size,
-                data: Array.from(pixels.data)
-            };
-        }
-    } catch {}
+        capture = { id, width: fullWidth, height: fullHeight, nonzeroRgbPixels, nonzeroAlphaPixels, uniqueColors: colors.size, data };
+    }
 }
 window.parityResult = {
     backend: renderer.pipeline.backend.getName(),
     targetPassCount: renderer.pipeline.graph.passes.filter((pass) =>
         matchesTargetEffectPass(pass, ${JSON.stringify(effectId)})
     ).length,
+    settled,
     capture
 };
 </script>`, { waitUntil: 'load' })
-        await page.waitForFunction(() => window.parityResult, null, { timeout: 30000 })
+        await page.waitForFunction(() => window.parityResult, null, { timeout: 30000 * (tilePlan ? tilePlan.tiles.length : 1) })
         const result = await page.evaluate(() => window.parityResult)
         const expectedBackend = preferWebGPU ? 'WebGPU' : 'WebGL2'
         assert.equal(result.backend, expectedBackend, `expected ${expectedBackend}, got ${result.backend}`)
         assert.ok(result.targetPassCount > 0, `${expectedBackend} graph did not execute ${effectId}`)
         assert.ok(result.capture, `${expectedBackend} produced no readable output`)
+        if ((parityCase.settleMs || 0) > 0) {
+            assert.ok(result.settled, `${expectedBackend} capture did not settle within ${parityCase.settleMs} ms`)
+        }
         assert.deepEqual(consoleMessages, [], `${expectedBackend} console errors:\n${consoleMessages.join('\n')}`)
         return result
     } finally {
@@ -130,14 +240,7 @@ const baseUrl = await acquireServer(undefined, repoRoot, effectsDir)
 let browser
 
 try {
-    browser = await chromium.launch({
-        headless: true,
-        args: [
-            '--enable-unsafe-webgpu',
-            '--enable-features=Vulkan',
-            process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=vulkan',
-        ],
-    })
+    browser = await chromium.launch(shaderTestBrowserOptions())
     const webglResult = await renderBackend(browser, baseUrl, false)
     const webgpuResult = await renderBackend(browser, baseUrl, true)
     const webgl = webglResult.capture
@@ -170,14 +273,26 @@ try {
 
     const parity = comparePixelFrames(webgl, webgpu)
     if (parity.mismatchCount !== 0 || parity.maxDiff !== 0) {
-        throw new Error(`PIXEL PARITY FAILED: ${JSON.stringify(parity)}`)
+        const samples = []
+        for (let y = 0; y < webgl.height && samples.length < 8; y++) {
+            for (let x = 0; x < webgl.width && samples.length < 8; x++) {
+                const gl = webgl.data.slice((y * webgl.width + x) * 4, (y * webgl.width + x + 1) * 4)
+                const gpuIndex = ((webgpu.height - 1 - y) * webgpu.width + x) * 4
+                const gpu = webgpu.data.slice(gpuIndex, gpuIndex + 4)
+                if (gl.some((value, channel) => value !== gpu[channel])) samples.push({ x, y, webgl2: gl, webgpu: gpu })
+            }
+        }
+        throw new Error(`PIXEL PARITY FAILED: ${JSON.stringify({ ...parity, samples })}`)
     }
+
+    assert.equal(computeParitySourceHash(repoRoot, parityCase), initialSourceHash, 'Shader sources changed during attestation')
+    assert.equal(computeFileHash(casePath), initialCaseHash, 'Parity case changed during attestation')
 
     const attestation = {
         schemaVersion: PARITY_ATTESTATION_SCHEMA_VERSION,
         effect: effectId,
-        sourceHash: computeParitySourceHash(repoRoot, parityCase),
-        caseHash: computeFileHash(casePath),
+        sourceHash: initialSourceHash,
+        caseHash: initialCaseHash,
         resolution,
         frames,
         execution,

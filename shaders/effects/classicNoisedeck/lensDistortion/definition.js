@@ -203,7 +203,6 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { aberrationAmt: 'aberration', opacity: 'alpha', loopAmp: 'speed' },
   passes: [
     {
       name: "render",

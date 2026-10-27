@@ -3,31 +3,50 @@
 Polymorphic DSL
 ===============
 
-Polymorphic is the high level language powering the Noisemaker Rendering Pipeline, enabling live-coding visuals by chaining functions that evaluate to native shader graphs. The Polymorphic DSL serves as the high-level builder for the pipeline, allowing users to define complex, multi-pass effects declaratively.
+Polymorphic is the high-level language for the Noisemaker Rendering Pipeline. It supports live-coded visuals through function chains that evaluate to native shader graphs. The DSL lets users define complex, multi-pass effects declaratively.
 
-The language evaluates to a Directed Acyclic Graph (DAG) of render passes executed on the GPU. Each valid program must materialize its generator chains into explicit outputs so that the pipeline can schedule and double-buffer them deterministically.
+The language compiles to an ordered array of render passes that the GPU executes.
+Each valid program must write its generator chains to explicit outputs.
+These outputs let the pipeline connect passes and manage double-buffered
+surfaces deterministically.
 
 Grammar
 -------
 
 .. code-block:: none
 
-   Program        ::= SearchDirective? Statement* RenderDirective?
-   SearchDirective::= 'search' Ident ( ',' Ident )*
+   Program        ::= Ignored SearchDirective ( Ignored Statement )* ( Ignored RenderDirective )? Ignored
+   SearchDirective::= 'search' Namespace ( ',' Namespace )*
+   Namespace      ::= Ident | Keyword
    Statement      ::= VarAssign | ChainStmt | IfStmt | Break | Continue | Return
    RenderDirective::= 'render' '(' OutputRef ')'
-   Block          ::= '{' Statement* '}'
+   Block          ::= '{' ( Statement ';'* )* '}'
    IfStmt         ::= 'if' '(' Expr ')' Block ('elif' '(' Expr ')' Block)* ('else' Block)?
    Break          ::= 'break'
    Continue       ::= 'continue'
    Return         ::= 'return' Expr?
    VarAssign      ::= 'let' Ident '=' Expr
    ChainStmt      ::= Chain
-   Chain          ::= ChainElement ( '.' ChainElement )*
+   Chain          ::= Call ( Comment* '.' Comment* ChainElement )*
    ChainElement   ::= Call | WriteCall | Write3DCall | SubchainCall
-   SubchainCall   ::= 'subchain' '(' ArgList? ')' '{' ( '.' Call )+ '}'
-   WriteCall      ::= 'write' '(' OutputRef ')'
-   Write3DCall    ::= 'write3d' '(' ( VolRef | Ident ) ',' ( GeoRef | Ident ) ')'
+   SubchainCall   ::= 'subchain' '(' SubchainArgs? ')' '{' ( Comment* '.' Comment* Call )+ Comment* '}'
+   SubchainArgs   ::= String | SubchainPair ( ','? SubchainPair )* ','?
+   SubchainPair   ::= Ident ':' String
+   WriteCall      ::= 'write' '(' WriteTarget ')'
+   WriteTarget    ::= OutputRef | XyzRef | VelRef | RgbaRef | MeshRef | 'none'
+   Write3DCall    ::= 'write3d' '(' ( VolRef | OutputRef | Ident ) ',' ( GeoRef | OutputRef | Ident ) ')'
+   Call           ::= Ident '(' ArgList? ')'
+   ArgList        ::= Arg ( ',' Arg )* ','?
+   Arg            ::= Kwarg | Expr
+   Kwarg          ::= Ident ':' Expr
+   Expr           ::= Term ( ( '+' | '-' ) Term )*
+   Term           ::= Unary ( ( '*' | '/' ) Unary )*
+   Unary          ::= ( '+' | '-' )* Primary
+   Primary        ::= Number | 'Math.PI' | String | Boolean | Color | Array | Func | Ident | Member
+                    | Chain | Object | SurfaceRef | '(' Expr ')'
+   Object         ::= '{' ( Ident ':' Expr ( ',' Ident ':' Expr )* ','? )? '}'
+   Array          ::= '[' ( Expr ( ',' Expr )* )? ']'
+   Member         ::= Ident ( '.' Segment )+
    SceneCall      ::= 'scene' '(' SceneArg ( ',' SceneArg )* ')'          (preview)
    SceneArg       ::= Kwarg | CameraCall | LightCall | EnvironmentCall | NodeChain
    NodeChain      ::= ( MeshCall | VolumeCall | GroupCall ) ( '.' NodeLink )*
@@ -36,18 +55,9 @@ Grammar
    MaterialCall   ::= 'material' '(' MaterialSpec ')'
    MaterialSpec   ::= ( 'solid' | 'surface' ) '(' ArgList? ')' ( '.' MaterialTerm )*
    MaterialTerm   ::= ( 'pbr' | 'emit' ) '(' ArgList? ')'
-   Expr           ::= Chain | NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | SourceRef | VolRef | GeoRef | XyzRef | VelRef | RgbaRef | MeshRef | Func | '(' Expr ')'
-   Call           ::= Ident '(' ArgList? ')'
-   ArgList        ::= Arg ( ',' Arg )* ','?
-   Arg            ::= Kwarg | Positional
-   Kwarg          ::= Ident ':' Positional
-   Positional     ::= NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | VolRef | GeoRef | XyzRef | VelRef | RgbaRef | MeshRef | Func | ArrayLiteral | ObjectLiteral | Chain
-   ArrayLiteral   ::= '[' ( Positional ( ',' Positional )* ','? )? ']'
-   ObjectLiteral  ::= '{' ( Ident ':' Positional ( ',' Ident ':' Positional )* ','? )? '}'
-   NumberExpr     ::= Number | 'Math.PI' | '(' NumberExpr ')' | NumberExpr ( '+' | '-' | '*' | '/' ) NumberExpr
-   Member         ::= Ident ( '.' Ident )+
    Func           ::= '(' ')' '=>' Expr
-   OutputRef      ::= 'o' Digit+
+   SurfaceRef     ::= OutputRef | SourceRef | VolRef | GeoRef | XyzRef | VelRef | RgbaRef | MeshRef
+   OutputRef      ::= 'o' OutputDigit
    VolRef         ::= 'vol' Digit+
    GeoRef         ::= 'geo' Digit+
    XyzRef         ::= 'xyz' Digit+
@@ -55,14 +65,25 @@ Grammar
    RgbaRef        ::= 'rgba' Digit+
    MeshRef        ::= 'mesh' Digit+
    SourceRef      ::= 's' Digit+
-   Ident          ::= Letter ( Letter | Digit | '_' )*
-   Number         ::= Digit+ ( '.' Digit+ )?
-   String         ::= '"' [^"\n]* '"' | '"""' .* '"""'
+   Ident          ::= ( Letter | '_' ) ( Letter | Digit | '_' )*
+   Keyword        ::= 'let' | 'render' | 'write' | 'write3d' | 'true' | 'false' | 'if' | 'elif' | 'else'
+                    | 'break' | 'continue' | 'return' | 'search' | 'subchain'
+   Segment        ::= Ident | SurfaceRef | ( Keyword - 'search' )
+   Number         ::= Digit+ ( '.' Digit+ )? | '.' Digit+
+   String         ::= '"' ( '\' AnyChar | [^"\\\n] )* '"' | "'" ( '\' AnyChar | [^'\\\n] )* "'" | '"""' .* '"""'
    Digit          ::= '0'…'9'
+   OutputDigit    ::= '0'…'7'
    Letter         ::= 'A'…'Z' | 'a'…'z'
    Boolean        ::= 'true' | 'false'
-   Color          ::= '#' HexDigit HexDigit HexDigit ( HexDigit HexDigit HexDigit )? ( HexDigit HexDigit )?
+   Color          ::= '#' HexDigit{3} | '#' HexDigit{6} | '#' HexDigit{8}
    HexDigit       ::= Digit | 'A'…'F' | 'a'…'f'
+   Comment        ::= '//' [^\n]* | '/*' .* '*/'
+   Ignored        ::= ( Comment | ';' )*
+
+An ``Ident`` is never a ``Keyword``. A ``Namespace`` must name a registered
+namespace. Otherwise the parser reports ``P004``.
+``Chain`` in ``Primary`` cannot contain ``WriteCall`` or ``Write3DCall``
+(``P005``). Positional and keyword arguments may be mixed in ordinary calls.
 
 ``VolumeCall`` is an ordinary ``ArgList`` constrained by the scene compiler
 rather than by the grammar: it takes exactly one positional argument, a volume
@@ -90,30 +111,41 @@ is likewise provisional: it is currently only meaningful inside ``scene()``.
 **Output Materialization:**
 
 
-* Any chain that begins with a generator **must** terminate with ``.write(<surface>)``; omitting the terminal ``.write()`` on a generator chain yields diagnostic ``S006``.
-* Chains that extend an existing surface (e.g., reading via ``read(o0)`` and applying additional nodes) may omit ``.write()`` only when they are nested inside another chain that eventually writes to a surface.
+* Any chain that begins with a generator **must** terminate with ``.write(<surface>)``. Omitting the terminal ``.write()`` yields diagnostic ``S006``.
+* A chain that extends an existing surface may omit ``.write()`` only inside another chain that eventually writes to a surface.
+  For example, an extending chain can read through ``read(o0)`` and apply additional nodes.
 
 **Chainable Writes:**
 
 
 * ``.write(<surface>)`` can appear **anywhere** in a chain, including mid-chain.
-* When ``.write()`` appears mid-chain, it writes the current result to the specified surface and **passes the texture through** to the next node in the chain.
+* A mid-chain ``.write()`` writes the current result to the specified surface.
+  It **passes the texture through** to the next node.
 * Multiple ``.write()`` calls in a single chain write to multiple surfaces.
 * **Chains must still terminate with** ``.write()`` — mid-chain writes alone are not sufficient.
 * Example: ``noise().write(o0).blur().write(o1)`` writes the noise to ``o0``, then blurs and writes the result to ``o1``.
 
 **Generators:**
-A chain must start with a Generator function (an effect with no inputs).
+An effect chain that creates new content starts with a generator. The passes in a generator consume none of the pipeline inputs that
+``isStarterEffect()`` recognizes:
+
+- ``inputTex``
+- ``inputTex3d``
+- Direct surface references ``o0`` through ``o7``
+
+The ``read()`` and ``read3d()`` operations are separate
+built-in ways to start from existing surfaces.
 
 
-* Standard Generators: ``osc``, ``noise``, ``voronoi``, ``solid``, ``image``, ``video``, ``camera``.
-* Custom Generators: Any effect defining ``inputs: {}`` or marked as generator.
+* Generator examples (non-exhaustive): ``noise``, ``solid``, ``media``.
+* Pass inputs determine generator classification. An effect may declare
+  explicit non-pipeline inputs and still be a generator.
 
 **Colors:**
 Hex colors support 3, 6, or 8 digits: ``#RGB``, ``#RRGGBB``, ``#RRGGBBAA``. Alpha defaults to ``FF`` (1.0) if omitted.
 
 **Strings:**
-Strings use double quotes: ``"hello"``. For multi-line strings, use triple quotes: ``"""line1\nline2\nline3"""``. Triple-quoted strings preserve embedded newlines. This is useful for the ``text`` effect:
+Strings use double or single quotes: ``"hello"`` or ``'hello'``. A backslash and the character after it do not end the string, so ``"say \"hi\""`` is one string. A quoted string cannot contain a newline. For multi-line strings, use triple quotes: ``"""line1\nline2\nline3"""``. Triple-quoted strings preserve embedded newlines. This is useful for the ``text`` effect:
 
 .. code-block:: none
 
@@ -121,7 +153,10 @@ Strings use double quotes: ``"hello"``. For multi-line strings, use triple quote
   World""").write(o0)
 
 **Arrow Functions:**
-Currently restricted to zero-argument expression lambdas: ``() => expr``. Used primarily for deferred evaluation in control structures or future callbacks.
+Arrow functions currently support only zero-argument expression lambdas: ``() => expr``. Their primary use is deferred evaluation in control structures or future callbacks.
+
+**Comments and separators:**
+``//`` starts a line comment. ``/* ... */`` is a block comment, and block comments do not nest. Comments can go before ``search``, between statements, after ``render()``, and before or after the ``.`` in a chain. A comment inside an argument list is a parser error (``P001``). Comments inside an ``if``, ``elif`` or ``else`` block can appear before a statement or before the closing brace. The parser accepts them, and the unparser preserves them. A ``;`` can come before ``search`` and after ``search``, a statement or ``render()``. It is optional.
 
 Language Features
 -----------------
@@ -135,13 +170,13 @@ Functions accept arguments positionally, as named keywords, or as a mix of both 
 
 .. code-block:: none
 
-  noise(10, 0.1, 1)
+  noise(10, 2, 50)
 
 **Keyword arguments:**
 
 .. code-block:: none
 
-  noise(freq: 10, sync: 0.1, amp: 1)
+  noise(type: 10, octaves: 2, scaleX: 50)
 
 **Mixed arguments:**
 
@@ -196,13 +231,12 @@ Some effects accept multi-component vector parameters. Use the built-in vector c
 
 **Array literals:**
 
-Array literals — comma-separated numbers in square brackets — are an
-additional input form for any vector-valued argument. They are parsed
-and validated the same way ``vec2()`` / ``vec3()`` / ``vec4()`` are,
-and round-trip through the unparser as ``[…]`` so a program written
-with array literals comes back from a parse → unparse cycle in the
-same form. The vector constructor calls are unchanged and remain the
-canonical form for programs that already use them.
+Array literals contain comma-separated numbers in square brackets. They
+provide an additional input form for any vector-valued argument. The parser
+and validator handle them like ``vec2()``, ``vec3()``, and ``vec4()``.
+The unparser preserves the ``[…]`` form through a parse → unparse cycle.
+Vector constructor calls remain unchanged. They remain the canonical form
+for programs that already use them.
 
 .. code-block:: none
 
@@ -210,8 +244,15 @@ canonical form for programs that already use them.
   effect(quad: [0.05, 0.05, 0.45, 0.95]).write(o0)
 
 Elements may be any numeric expression (negative numbers, arithmetic,
-``Math.PI``). Array length is not enforced by the validator — whatever
-elements the source declared are passed through to the runtime.
+``Math.PI``). The validator does not enforce array length. It passes every declared
+element to the runtime.
+
+For a ``vec4`` parameter whose effect definition sets ``ui.format: 'vector'``,
+the unparser writes four finite numeric values as an array literal without
+rounding or color clamping. Remap's packed vertex parameters use this format
+to preserve exact coordinates when the editor regenerates DSL. Other
+``vec4`` parameters retain their existing formatting. See :doc:`effects`
+for the definition contract.
 
 Variables & Aliases
 ^^^^^^^^^^^^^^^^^^^
@@ -221,14 +262,21 @@ Programs may declare variables with ``let`` and reuse them. Variables can alias 
 .. code-block:: none
 
   let pattern = noise
-  pattern(20).write(o0)
+  pattern(10).write(o0)
 
 **Semantics:**
 
+Each chain uses the value from the latest ``let`` statement before that
+chain. A later ``let`` statement does not change an earlier chain. Inside a
+block, a ``let`` statement applies to the rest of that block. It does not
+change values outside the block.
 
 * ``let x = noise``: ``x`` becomes an alias for the ``noise`` function.
-* ``let y = noise(10)``: ``y`` stores a **partial application** (Effect Instance with some parameters bound). It does *not* execute the effect.
-* ``y(0.5)``: Creates a new Effect Instance, merging the stored parameters (``freq: 10``) with the new arguments (``sync: 0.5``). The original ``y`` remains unchanged (immutable).
+* ``let y = noise(10)``: ``y`` stores a **partial application** with ``type``
+  set to ``10``. It does *not* execute the effect.
+* ``y(2)``: Creates a new Effect Instance by appending ``octaves: 2`` to the
+  stored positional arguments. The original ``y`` remains unchanged
+  (immutable).
 
 Partials
 ^^^^^^^^
@@ -237,15 +285,15 @@ Invoking variables that store function calls merges stored arguments with call-s
 
 .. code-block:: none
 
-  let tuned = noise(5)
-  tuned(amp:0.5).write(o0)
+  let tuned = noise(type: 10, scaleX: 25)
+  tuned(scaleX: 50).write(o0)
 
 **Merge Rules:**
 
 
 * **Positional Arguments:** Appended to the stored arguments.
 * **Named Arguments:** Merged with stored arguments. **Call-site arguments override stored arguments** if keys conflict.
-* **Duplicate Keys:** If a named argument is provided multiple times in a single call, the last value wins.
+* **Duplicate Keys:** If a call provides a named argument multiple times, the last value wins.
 
 Control Flow
 ^^^^^^^^^^^^
@@ -254,15 +302,15 @@ The language supports ``if``, ``elif``, ``else`` for conditionals.
 
 .. note::
 
-  Control flow syntax is part of the parser and validator today, but runtime execution (branching) is not yet implemented. Programs using these constructs will not execute until the pipeline gains full support.
+  The parser and validator support control flow syntax, but the runtime does not yet execute branches. Programs using these constructs will not execute until the pipeline gains full support.
 
 **Arrow Functions:**
-Arrow functions (``() => expr``) are treated as **lazy expressions**. They are not evaluated immediately but are passed as-is to the effect or control structure, which determines when (or if) to evaluate them.
+Arrow functions (``() => expr``) are **lazy expressions**. The evaluator passes them unchanged to the effect or control structure without evaluating them immediately. That recipient determines when or whether to evaluate them.
 
 Subchains
 ^^^^^^^^^
 
-Subchains provide a first-class mechanism for grouping contiguous effects within a chain. They create atomic encapsulations that can be identified, manipulated, and reasoned about as units.
+Subchains group contiguous effects within a chain. Each group forms one unit that you can identify, manipulate, and reason about.
 
 **Syntax:**
 
@@ -278,7 +326,7 @@ Subchains provide a first-class mechanism for grouping contiguous effects within
 * ``name`` (optional): A human-readable label for the subchain.
 * ``id`` (optional): A unique identifier for programmatic access.
 
-Both arguments can be omitted, or ``name`` can be passed as a positional argument.
+You can omit both arguments or pass ``name`` as a positional argument. Keyword arguments must be comma-separated. Missing comma separators (``P010``) or unknown/duplicate keys (``P008``, ``P009``) produce parser warnings in standard mode or syntax errors when compiled with ``subchainArguments: 'strict'``.
 
 **Examples:**
 
@@ -292,8 +340,8 @@ Both arguments can be omitted, or ``name`` can be passed as a positional argumen
        .loopEnd()
      }
      .subchain(name: "color grading") {
-       .colorspace()
-       .hs(rotation: 180, saturation: 0.5)
+       .adjust(mode: hsv)
+       .adjust(rotation: 180, saturation: 0.5)
      }
      .write(o0)
 
@@ -302,8 +350,8 @@ Both arguments can be omitted, or ``name`` can be passed as a positional argumen
 **Rules:**
 
 * Subchains cannot be empty—they must contain at least one effect.
-* Subchains cannot be the first element in a chain; they require input from a preceding effect.
-* Effects inside subchains cannot be generators (e.g., ``noise()``, ``voronoi()``).
+* Subchains cannot be the first element in a chain. They require input from a preceding effect.
+* Effects inside subchains cannot be generators (e.g., ``noise()``, ``solid()``).
 * Subchains are chainable—the output flows through to subsequent effects after the closing brace.
 * Effects inside subchains use the same argument syntax as regular chain effects.
 
@@ -376,19 +424,21 @@ Namespaces
 
 Polymorphic supports a namespace system to organize effects and ensure compatibility.
 
-Built-in Namespace
-^^^^^^^^^^^^^^^^^^
+Built-in I/O
+^^^^^^^^^^^^
 
-The ``io`` namespace contains pipeline-level I/O functions that are always available without requiring a ``search`` directive. These are not effects per se, but fundamental pipeline operations:
+Pipeline-level I/O operations are globally available. A program still requires
+a ``search`` directive, but these operations do not require an ``io`` entry in
+its search order:
 
 * ``read(surface)``: Read from a 2D surface (e.g., ``read(o0)``)
 * ``write(surface)``: Write to a 2D surface (e.g., ``.write(o0)``)
 * ``read3d(vol, geo)``: Read from 3D volume and geometry buffers
 * ``write3d(vol, geo)``: Write to 3D volume and geometry buffers
 * ``render(surface)``: Set the final render output (program directive)
-* ``render3d()``: Render 3D volume to 2D output
 
-The ``io`` namespace is implicitly included in all programs. You never need to add ``io`` to your ``search`` directive—these functions are always accessible.
+``render3d()`` is an effect in the ``render`` namespace, not a built-in I/O
+operation.
 
 New Namespaces
 ^^^^^^^^^^^^^^
@@ -398,41 +448,42 @@ These namespaces are actively developed and maintained:
 * ``synth``: 2D generator effects that create patterns from scratch (noise, shapes, fractals)
 * ``filter``: 2D single-input effects that transform images (blur, color adjustment, distortion)
 * ``mixer``: Two-input effects that combine images (blend modes, compositing)
-* ``render``: Rendering utilities and feedback loops (pointsEmit, pointsRender, loopBegin/End)
+* ``render``: Rendering utilities and feedback loops (render3d, pointsEmit, pointsRender, loopBegin/End)
 * ``points``: Particle and agent-based simulations (physarum, life, flock, flow)
-* ``synth3d``: 3D volumetric generator effects (noise3d, ca3d, rd3d)
-* ``filter3d``: 3D volumetric processor effects (flow3d, render3d)
+* ``synth3d``: 3D volumetric generators (noise3d, cell3d, cellularAutomata3d, reactionDiffusion3d)
+* ``filter3d``: 3D volumetric processors (flow3d, palette3d)
 
 Classic Namespaces
 ^^^^^^^^^^^^^^^^^^
 
-In addition to the actively developed and maintained namespaces above, the following namespaces were ported from older versions of our products. Each namespace offers a different take on how runtime composition can work.
+The following namespaces contain ports from older versions of our products. They supplement the actively developed and maintained namespaces above. Each namespace offers a different approach to runtime composition.
 
 * ``classicNoisedeck``: These are complex and often slower shaders brought over from the "Classic" Noisedeck.app shader graph.
 
 Custom Namespaces
 ^^^^^^^^^^^^^^^^^
 
-External integrations can introduce their own top-level namespace at runtime via the ``registerNamespace()`` API, alongside the built-ins listed above. Once registered, the new id is accepted by the ``search`` directive and behaves like any built-in namespace. The reserved ``user`` namespace is also available without registration for ad-hoc effects.
+External integrations can introduce their own top-level namespace at runtime via the ``registerNamespace()`` API, alongside the built-ins listed above. After registration, the ``search`` directive accepts the new id. The namespace behaves like any built-in namespace. The reserved ``user`` namespace is also available without registration for ad-hoc effects.
 
 See :doc:`integration` for the full API: ``registerNamespace(id, descriptor)``, ``unregisterNamespace(id)``, and validation rules.
 
 Search Order
 ^^^^^^^^^^^^
 
-Every program **must** begin with a ``search`` directive that defines the namespace resolution order. There are no implicit defaults—explicit search order is required.
+Every program **must** begin with a ``search`` directive that defines the namespace resolution order. The language requires an explicit search order and has no implicit defaults.
 
 .. code-block:: none
 
   search synth, filter
-  noise3d(seed: 1).translate(x: 0, y: 0).write(o0)
+  noise().translate().write(o0)
 
-When a function like ``noise3d()`` is called, the runtime walks the search order (``synth``, then ``filter``) until a matching effect is found.
+For a call such as ``noise()``, the compiler searches namespaces in order
+(``synth``, then ``filter``) until it finds a matching effect.
 
 **Resolution Rules:**
 
 #. **Mandatory Search Directive:** Every program must start with ``search <namespace>, ...`` to specify which namespaces to search and in what order.
-#. **Unqualified Identifiers:** Calls like ``noise()`` walk the search order until a matching effect is found.
+#. **Unqualified Identifiers:** Calls like ``noise()`` search namespaces in order until they find a matching effect.
 #. **Overrides:** The ``from(ns, fn())`` helper allows sourcing an operation from a specific namespace temporarily (e.g., ``from(synth, noise())``).
 
 **Note:** Inline namespace prefixes (e.g., ``synth.noise()``) are **forbidden** in program chains. Use the ``search`` directive or ``from()`` helper instead.
@@ -440,7 +491,7 @@ When a function like ``noise3d()`` is called, the runtime walks the search order
 Enums
 -----
 
-Many function arguments accept enumerated options defined in a global registry. Enums are defined at the top level in ``std_enums.js`` as global categories (e.g., ``color``, ``blend``, ``wrap``).
+Many function arguments accept enumerated options defined in a global registry. The ``std_enums.js`` file defines these top-level categories: ``channel``, ``color``, ``oscType``, ``oscKind``, ``midiMode``, ``midiZone``, ``audioBand`` and ``palette``. Effect definitions add the ``choices`` of their parameters to the registry when they load.
 
 For example, the ``noise`` effect accepts a ``colorMode`` parameter with values from the global ``color`` enum. You can reference enum values in three ways:
 
@@ -461,7 +512,7 @@ The ``palette`` enum provides named color palettes for effects like ``palette()`
 .. code-block:: none
 
    search filter
-   read(o0).palette(paletteIndex: vaporwave).write(o1)
+   read(o0).palette(index: vaporwave).write(o1)
 
 **Available Palettes:**
 
@@ -586,7 +637,10 @@ The ``palette`` enum provides named color palettes for effects like ``palette()`
 Oscillators
 -----------
 
-Oscillators are objects that generate time-varying values for animating effect parameters. They produce looping values synchronized with the animation duration, making them ideal for creating smooth, repeating animations.
+Oscillators are objects that generate deterministic, time-varying values for
+animating effect parameters. When the other fields are literal or
+boundary-matched, a whole-number literal ``speed`` produces a seamless repeat
+at the animation boundary. Fractional or automated speeds do not guarantee one.
 
 Creating Oscillators
 ^^^^^^^^^^^^^^^^^^^^
@@ -595,7 +649,7 @@ Use the ``osc()`` function to create an oscillator:
 
 .. code-block:: none
 
-   osc(type: sine)
+   osc(type: oscKind.sine)
 
 **Parameters:**
 
@@ -608,37 +662,38 @@ Use the ``osc()`` function to create an oscillator:
      - Description
    * - type
      - oscKind
-     - (required)
+     - ``oscKind.sine``
      - Oscillator waveform type
    * - min
-     - number
+     - number or automation
      - 0
-     - Minimum output value
+     - Minimum normalized output (0–1)
    * - max
-     - number
+     - number or automation
      - 1
-     - Maximum output value
+     - Maximum normalized output (0–1)
    * - speed
-     - int
+     - number or automation
      - 1
-     - Loop speed multiplier (divides evenly into animation duration)
+     - Loop speed multiplier. Automated values map to -20..20.
    * - offset
-     - number
+     - number or automation
      - 0
-     - Phase offset (0..1)
+     - Phase offset in cycles. Automated values map to -1..1.
    * - seed
-     - number
+     - number or automation
      - 1
-     - Random seed (noise type only)
+     - Random seed (``noise`` and ``noise2d`` types)
 
 **Oscillator Types (oscKind):**
 
-* ``sine`` - Smooth sine wave: 0 → 1 → 0
-* ``tri`` - Linear triangle wave: 0 → 1 → 0
-* ``saw`` - Sawtooth wave: 0 → 1
-* ``sawInv`` - Inverted sawtooth: 1 → 0
-* ``square`` - Square wave: 0 or 1
-* ``noise`` - Periodic 2D noise (seamlessly looping)
+* ``oscKind.sine`` - Smooth sine wave: 0 → 1 → 0
+* ``oscKind.tri`` - Linear triangle wave: 0 → 1 → 0
+* ``oscKind.saw`` - Sawtooth wave: 0 → 1
+* ``oscKind.sawInv`` - Inverted sawtooth: 1 → 0
+* ``oscKind.square`` - Square wave: 0 or 1
+* ``oscKind.noise`` - Periodic noise (seamlessly looping)
+* ``oscKind.noise2d`` - Two-stage periodic noise: the ``osc2d`` effect's waveform, with both noise stages sampled at a fixed seed-derived position. Stays within 0 → 1 and loops seamlessly at whole-number speeds.
 
 Usage Examples
 ^^^^^^^^^^^^^^
@@ -648,16 +703,16 @@ Usage Examples
 .. code-block:: none
 
    search synth
-   noise(scale: osc(type: sine, min: 0.2, max: 0.8)).write(o0)
+   noise(scaleX: osc(type: oscKind.sine, min: 0.1, max: 0.8)).write(o0)
 
 **Using variables for reusable oscillators:**
 
 .. code-block:: none
 
    search synth
-   let scaleOsc = osc(type: sine, min: 0.2, max: 0.8)
-   let rotOsc = osc(type: saw)
-   noise(scale: scaleOsc, rotation: rotOsc).write(o0)
+   let horizontalScale = osc(type: oscKind.sine, min: 0.1, max: 0.8)
+   let verticalScale = osc(type: oscKind.saw, min: 0.2, max: 1)
+   noise(scaleX: horizontalScale, scaleY: verticalScale).write(o0)
 
 **Speed control for synchronized loops:**
 
@@ -665,65 +720,120 @@ Usage Examples
 
    search synth
    // speed: 2 means the oscillator completes 2 cycles per animation loop
-   noise(scale: osc(type: tri, min: 0.1, max: 1, speed: 2)).write(o0)
+   noise(scaleX: osc(type: oscKind.tri, min: 0.1, max: 1, speed: 2)).write(o0)
 
 **Phase offset for staggered animations:**
 
 .. code-block:: none
 
    search synth
-   let osc1 = osc(type: sine, offset: 0)
-   let osc2 = osc(type: sine, offset: 0.25)
-   let osc3 = osc(type: sine, offset: 0.5)
-   // Three oscillators at different phases create wave-like patterns
+   let horizontalScale = osc(type: oscKind.sine, offset: 0)
+   let verticalScale = osc(type: oscKind.sine, offset: 0.25)
+   noise(scaleX: horizontalScale, scaleY: verticalScale).write(o0)
 
 **Noise oscillator with seed:**
 
 .. code-block:: none
 
    search synth
-   noise(scale: osc(type: noise, min: 0.2, max: 0.8, seed: 42)).write(o0)
+   noise(scaleX: osc(type: oscKind.noise, min: 0.1, max: 0.8, seed: 42)).write(o0)
 
 Runtime Behavior
 ^^^^^^^^^^^^^^^^
 
-Oscillators are evaluated per-frame based on the current animation time. The pipeline normalizes time to a 0..1 range over the animation duration (default 10 seconds), then applies the speed multiplier and offset before computing the waveform value.
+The pipeline evaluates oscillators each frame from the current animation time. It normalizes time to a 0..1 range over the animation duration (default 10 seconds). It applies the speed multiplier and offset before computing the waveform value.
 
 The waveform yields a value in ``0..1``. ``min`` and ``max`` (each in ``0..1``, default the whole range) narrow it to a sub-range, and the result is then mapped onto the consuming parameter's own declared range — so ``osc(min: 0.2, max: 0.8)`` on ``scale`` sweeps the middle 60% of whatever ``scale`` allows, and no oscillator needs to know a parameter's units. A ``min`` or ``max`` outside ``0..1`` is clamped to it (an effect uniform warns; a :ref:`scene <shader-scene>` rejects it).
 
 Live Input
 ----------
 
-Use ``midi()`` and ``audio()`` to drive parameters from external signals. Both yield a value in ``0..1``, narrowed by ``min``/``max`` exactly as ``osc()`` is and mapped onto the parameter's range the same way, and can be mixed with oscillators or constants.
+Use ``midi()`` and ``audio()`` to drive parameters from external signals. Like
+``osc()``, both return normalized values that the receiving effect parameter
+maps onto its own range. Their numeric fields can also contain other automation
+descriptors.
 
-``midi(channel, mode?, min?, max?, sensitivity?)``
+``midi(channel, mode?, min?, max?, sensitivity?, cc: N, nrpn: N, name: "...", id: "...")``
 
-* ``channel`` (required): MIDI channel 1-16
-* ``mode``: midiMode value (default ``velocity``)
-* ``min`` / ``max``: Sub-range of the parameter's range, each in 0..1 (default 0..1)
-* ``sensitivity``: Decay rate for trigger modes (default 1)
+* ``channel``: Fixed MIDI channel 1–16, required unless ``zone`` is supplied.
+* ``zone``: Optional keyword-only ``midiZone.lower`` or ``midiZone.upper``.
+  Selects the newest held note across MPE member channels. Cannot be combined
+  with ``channel``. No held note returns ``min``.
+* ``members``: Optional keyword-only count 1–15, requiring ``zone``. Omit to
+  follow the port's RPN 6 zone configuration, using 15 until configured.
+  An explicit count overrides discovery for the binding.
+* ``mode``: ``midiMode.*`` value (default ``midiMode.velocity``)
+* ``min`` / ``max``: Number or automation setting the normalized bounds (default 0..1)
+* ``sensitivity``: Number or automation setting trigger falloff (default 1)
+* ``cc``: Optional keyword-only controller number (default 1). Use
+  ``midiMode.cc`` for 7-bit CC 0–127, or ``midiMode.cc14`` for paired 14-bit CC.
+  In 14-bit mode, ``cc: N`` selects MSB controller 0–31 and LSB controller
+  ``N + 32``. CC values hold independently per device/channel and ignore
+  note-off and ``sensitivity``.
+* ``nrpn``: Keyword-only parameter address 0–16382, required for
+  ``midiMode.nrpn``. Tracks CC99/98 selection and Data Entry CC6/38 separately
+  per device/channel/parameter. Values are normalized from 0–16383.
+* ``name`` / ``id``: Optional keyword-only input selector. The ``id`` field requires ``name``.
 
-``audio(band, min?, max?)``
+``midiMode.pitchBend`` reads the full 14-bit bend position (neutral 8192),
+``midiMode.pressure`` reads channel pressure, and ``midiMode.polyPressure``
+reads key pressure. They work with fixed channels or MPE zones. Zone bindings
+read raw member gestures; manager controls remain separately addressable by
+fixed channel. Bend is a normalized position, without semitone conversion or
+manager/member combination. MIDI 2.0 and general RPN parameter automation are
+not exposed. See :doc:`midi-audio` for message handling, held-note selection,
+and the distinct byte-update policies for ``cc14`` and NRPN.
 
-* ``band`` (required): ``low | mid | high | vol``
-* ``min`` / ``max``: Sub-range of the parameter's range, each in 0..1 (default 0..1)
+``audio(band, min?, max?, channel: N, name: "...", id: "...")``
+
+* ``band`` (required): ``audioBand.low``, ``audioBand.mid``, ``audioBand.high``,
+  ``audioBand.vol``, or ``audioBand.raw``
+* ``min`` / ``max``: Number or automation setting the normalized bounds (default 0..1)
+* ``channel``: Optional keyword-only channel 1–32. Alone, it selects a channel
+  on the default audio device. Without any selector, the legacy aggregate
+  analyser remains in use.
+* ``name`` / ``id``: Optional keyword-only device selector. A named audio
+  source requires ``channel``; ``id`` requires ``name`` and is authoritative.
+
+Device and channel selection are independent for both functions. A name-only
+selector must match exactly one connected device; missing, disconnected,
+ambiguous, or unavailable selected sources resolve to ``min``.
+``audioBand.raw`` requires a real host-supplied sample before it becomes ready;
+raw silence then maps to the midpoint of the output range.
+
+Audio channel choices must follow the host's actual delivered count. The DSL's
+32-channel processing ceiling does not guarantee 32-channel hardware capture:
+the Chromium 152 Linux capture path currently requests two channels per device,
+and Chromium's Web Audio bridge hands the graph a stereo fold of any track.
+See :doc:`midi-audio` for backend limits and capture requirements.
 
 Example:
 
 .. code-block:: none
 
    search synth
-   noise(
-     scale: midi(channel: 1, min: 0.1, max: 1),
-     speed: audio(band: low, min: 0.25, max: 1)
-   ).write(o0)
+   let floor = audio(band: audioBand.low)
+   let rate = midi(channel: 1, min: floor, max: 1)
+   noise(scaleX: osc(type: oscKind.sine, speed: rate)).write(o0)
 
-For detailed behavior and host integration, see :doc:`midi-audio`.
+These fields support nesting:
+
+- ``osc()``: ``min``, ``max``, ``speed``, ``offset``, and ``seed``
+- ``midi()``: ``min``, ``max``, and ``sensitivity``
+- ``audio()``: ``min`` and ``max``
+
+Enum values, channel numbers, and MIDI ``cc``, ``nrpn``, and ``members`` must be static literals or
+``let`` aliases resolving to valid literals, not live automation. Device
+names and IDs must remain quoted string literals.
+Bounds are clamped to 0–1 before mapping to the receiving parameter's range.
+The language supports up to eight nested levels beneath the outer descriptor.
+For selected-device examples, raw audio behavior, and host
+integration, see :doc:`midi-audio`.
 
 Pipeline Integration
 --------------------
 
-The DSL acts as a high-level builder for the Render Graph defined in :ref:`Pipeline Specification <shader-pipeline>`. For a detailed look at how the DSL is compiled, see :ref:`Compiler Specification <shader-compiler>`.
+The DSL acts as a high-level builder for the Render Graph defined in :ref:`Pipeline Specification <shader-pipeline>`. For compiler details, see :ref:`Compiler Specification <shader-compiler>`.
 
 Mapping DSL to Effects
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -746,7 +856,7 @@ The DSL provides symmetric operations for reading and writing textures:
 * **write(surface):** Writes the chain output to a 2D surface.
   
   - Example: ``noise(10).write(o0)``
-  - Surfaces: ``o0``-``o7`` (global)
+  - Surfaces: ``o0``-``o7`` (global; references outside this range produce a ``SyntaxError`` at parse time)
   - **Chainable:** ``write()`` can appear mid-chain, passing the texture through to subsequent nodes.
   
     - Example: ``noise().write(o0).blur().write(o1)`` — writes noise to ``o0``, then blurs and writes to ``o1``.
@@ -760,15 +870,15 @@ The DSL provides symmetric operations for reading and writing textures:
 
 * **write3d(vol, geo):** Writes to both a 3D volume and its geometry buffer.
   
-  - Example: ``noise3d(10).write3d(vol0, geo0)``
+  - Example: ``noise3d().write3d(vol0, geo0)``
 
 * **read3d(vol, geo):** Reads from both a 3D volume and its geometry buffer (starter form).
   
   - Example: ``read3d(vol0, geo0).render3d().write(o0)``
 
-* **read3d(vol):** Single-arg form for passing volume references to effect parameters.
+* **read3d(vol):** Single-arg form for passing volume or geometry references to effect parameters.
   
-  - Example: ``ca3d(source: read3d(vol0), geoSource: read3d(geo0))``
+  - Example: ``cellularAutomata3d(source: read3d(vol0), geoSource: read3d(geo0))``
   - This mirrors the 2D ``read(o0)`` pattern for surface parameters.
 
 Surfaces and Outputs
@@ -790,7 +900,7 @@ The DSL allows writing to named outputs (Surfaces) and reading from them.
 * **Output:** ``.write3d(vol0, geo0)`` writes 3D volume data and geometry to the specified surfaces.
 * **Input (starter):** ``read3d(vol0, geo0)`` reads from a volume and its geometry buffer to start a chain.
 * **Input (param):** ``read3d(vol0)`` or ``read3d(geo0)`` passes a reference to an effect parameter.
-* **None:** ``none`` disables a volume/geometry parameter (e.g., ``ca3d(source: none)``).
+* **None:** ``none`` disables a volume/geometry parameter (e.g., ``cellularAutomata3d(source: none)``).
 
 The geometry buffers store precomputed raymarching results (xyz=surface normal, w=depth), enabling downstream post-processing effects without re-raymarching.
 
@@ -802,7 +912,7 @@ Used by the SMRTicles particle system (see :ref:`SMRTicles <shader-smrticles>`):
 * **Velocity Surfaces:** ``vel0``-``vel7`` store agent velocities.
 * **Color Surfaces:** ``rgba0``-``rgba7`` store agent colors.
 
-These surfaces are managed by the ``pointsEmit`` and ``pointsRender`` wrappers. Behavior effects read and write these surfaces to update agent state each frame.
+The ``pointsEmit`` and ``pointsRender`` wrappers manage these surfaces. Behavior effects read and write these surfaces to update agent state each frame.
 
 **Mesh Surfaces:**
 
@@ -815,7 +925,12 @@ These surfaces are managed by the ``pointsEmit`` and ``pointsRender`` wrappers. 
 Feedback Loops
 ^^^^^^^^^^^^^^
 
-If a chain reads from a Surface that hasn't been written to yet in the current frame (or reads from itself), it reads the texture content from the **previous frame**. This enables feedback effects.
+A chain reads texture content from the **previous frame** in either of these cases:
+
+- The current frame has no earlier write to that Surface.
+- The chain reads from itself.
+
+This behavior enables feedback effects.
 
 Diagnostics
 -----------
@@ -835,6 +950,14 @@ Diagnostics
      - Lexer
      - Error
      - Unterminated string literal
+   * - L003
+     - Lexer
+     - Error
+     - Unterminated comment
+   * - L004
+     - Lexer
+     - Error
+     - Output surface reference out of range
    * - P001
      - Parser
      - Error
@@ -843,6 +966,38 @@ Diagnostics
      - Parser
      - Error
      - Expected closing parenthesis
+   * - P003
+     - Parser
+     - Error
+     - Invalid automation arguments
+   * - P004
+     - Parser
+     - Error
+     - Invalid search directive
+   * - P005
+     - Parser
+     - Error
+     - Invalid output operation
+   * - P006
+     - Parser
+     - Error
+     - Invalid subchain
+   * - P007
+     - Parser
+     - Error
+     - Invalid call expression
+   * - P008
+     - Parser
+     - Warning
+     - Unknown subchain argument key
+   * - P009
+     - Parser
+     - Warning
+     - Duplicate subchain argument key
+   * - P010
+     - Parser
+     - Warning
+     - Missing ',' between subchain arguments
    * - S001
      - Semantic
      - Error
@@ -855,10 +1010,6 @@ Diagnostics
      - Semantic
      - Error
      - Variable used before assignment
-   * - S005
-     - Semantic
-     - Error
-     - Illegal chain structure
    * - S004
      - Semantic
      - Error
@@ -882,14 +1033,14 @@ Diagnostics
    * - R001
      - Runtime
      - Error
-     - Runtime error
+     - Runtime error. Declared in ``diagnostics.js``. No code emits it.
 
 
 Common Errors
 ^^^^^^^^^^^^^
 
 
-* **S005 (Illegal chain structure):** Generator functions (like ``osc``, ``noise``) must appear at the start of a chain. They cannot consume an existing chain output.
+* **S005 (Illegal chain structure):** Generator functions (like ``noise`` and ``solid``) must appear at the start of a chain. They cannot consume an existing chain output.
 * **S006 (Starter chain missing write):** Generator-driven chains must end with ``.write()`` to produce a reusable surface.
-* **S007 (Deprecated parameter alias):** A parameter name you used still works but has been renamed. Update to the current name.
-* **S008 (Deprecated effect):** An effect you used still works but has been replaced by a newer effect. Update to the current name.
+* **S007 (Deprecated parameter alias):** The parameter has a new name. The previous name still works. Use the current name.
+* **S008 (Deprecated effect):** A newer effect replaces this effect, but the previous effect still works. Use the current name.

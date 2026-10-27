@@ -13,6 +13,11 @@ export default new Effect({
       default: "none",
       ui: { label: "source b" }
     },
+    baseTex: {
+      type: "surface",
+      default: "none",
+      ui: { label: "mask background", enabledBy: { param: "maskMode", eq: true } }
+    },
     mix: {
       type: "float",
       default: 0,
@@ -29,12 +34,11 @@ export default new Effect({
     }
   },
   defaultProgram: "search mixer, synth\n\npolygon(smooth: 0, bgAlpha: 0)\n  .write(o0)\n\n noise(scaleX: 100, scaleY: 100)\n  .alphaMask(tex: read(o0))\n  .write(o1)\n",
-  paramAliases: { mixAmt: 'mix' },
   passes: [
     {
       name: "render",
       program: "alphaMask",
-      inputs: { inputTex: "inputTex", tex: "tex" },
+      inputs: { inputTex: "inputTex", tex: "tex", baseTex: "baseTex" },
       uniforms: { mixAmt: "mix", maskMode: "maskMode" },
       outputs: { fragColor: "outputTex" }
     }

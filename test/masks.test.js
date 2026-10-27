@@ -1,6 +1,6 @@
 import assert from 'assert'
 import { ValueMask } from '../js/noisemaker/constants.js'
-import { maskValues, maskShape, getAtlas } from '../js/noisemaker/masks.js'
+import { maskValues, maskShape, getAtlas, Masks } from '../js/noisemaker/masks.js'
 import { loadGlyphs, loadFonts } from '../js/noisemaker/glyphs.js'
 import { setSeed } from '../js/noisemaker/util.js'
 
@@ -707,27 +707,20 @@ for (let x = 0; x < barShape[1]; x++) {
 const barShortSet = new Set(barShort.slice(0, barShape[1]))
 assert.ok(barShortSet.size > 1, 'bar_code_short should produce multiple bar values')
 
-// Fake QR code has finder patterns in three corners
+// Fake QR code follows the Python reference (masks.fake_qr): a solid border and
+// fixed rings, with random modules between them. test/parity compares every
+// pixel with Python.
+const fakeQr = Masks[ValueMask.fake_qr]
 const qrShape = [33, 33, 1]
-setSeed(222);
-[t1] = maskValues(ValueMask.fake_qr, qrShape)
-const qr = Array.from(t1.read())
-const qrPix = (x, y) => qr[y * qrShape[1] + x]
-function verifyFinder(ox, oy) {
-  for (let y = 0; y < 7; y++) {
-    for (let x = 0; x < 7; x++) {
-      const val = qrPix(ox + x, oy + y)
-      if (x === 0 || y === 0 || x === 6 || y === 6 || (x >= 2 && x <= 4 && y >= 2 && y <= 4)) {
-        assert.strictEqual(val, 1)
-      } else {
-        assert.strictEqual(val, 0)
-      }
-    }
-  }
+const qrPix = (x, y) => fakeQr({ x, y, shape: qrShape, uvNoise: [[0]], uvX: 0, uvY: 0 })
+for (let i = 0; i < 33; i++) {
+  for (const [x, y] of [[i, 0], [0, i], [i, 32], [32, i]]) assert.strictEqual(qrPix(x, y), 1)
 }
-verifyFinder(0, 0)
-verifyFinder(26, 0)
-verifyFinder(0, 26)
+assert.strictEqual(qrPix(25, 25), 0)
+for (let i = 23; i < 28; i++) {
+  assert.strictEqual(qrPix(27, i), 0)
+  assert.strictEqual(qrPix(i, 27), 0)
+}
 
 // Dropout mask drops ~75% of pixels (matches Python reference RNG sequence)
 const dropShape = [40, 40, 1]

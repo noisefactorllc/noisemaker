@@ -1,5 +1,6 @@
 // shaders/tests/test_scene_math.js
 import assert from 'assert'
+import { mat4 as localMat4, vec3 as localVec3, quat as localQuat } from '../src/scene/linalg.js'
 import {
   mat4,
   degToRad,
@@ -167,3 +168,40 @@ approx(radToDeg(Math.PI / 2), 90)
 }
 
 console.log('Scene math tests passed')
+
+// The scene runtime must use local, browser-loadable matrix operations.
+{
+  assert.deepStrictEqual(Array.from(localVec3.fromValues(1, 2, 3)), [1, 2, 3])
+  assert.deepStrictEqual(Array.from(localQuat.create()), [0, 0, 0, 1])
+  const matrix = localMat4.fromValues(1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 4, 0, 2, 4, 8, 1)
+  const inverse = localMat4.invert(localMat4.create(), matrix)
+  vecApprox(Array.from(localMat4.multiply(localMat4.create(), matrix, inverse)),
+    [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+  const singular = localMat4.fromValues(0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+  const untouched = localMat4.create()
+  assert.strictEqual(localMat4.invert(untouched, singular), null)
+  assert.deepStrictEqual(Array.from(untouched), Array.from(localMat4.create()))
+}
+
+// Preserve established transform and camera outputs while replacing the math dependency.
+{
+  const matrix = composeTransform([1.25, -2.5, 0.125], [30, 45, 60], [2, 3, 4])
+  assert.deepStrictEqual(Array.from(matrix), [
+    0.7071067690849304, 1.2247449159622192, -1.4142136573791504, 0,
+    -1.719670057296753, 2.2175967693328857, 1.0606602430343628, 0,
+    2.9567956924438477, 1.121320366859436, 2.4494898319244385, 0,
+    1.25, -2.5, 0.125, 1
+  ])
+  assert.deepStrictEqual(Array.from(mat4.invert(mat4.create(), matrix)), [
+    0.1767766773700714, -0.1910744309425354, 0.18479973077774048, 0,
+    0.3061862289905548, 0.2463996261358261, 0.07008253037929535, 0,
+    -0.3535533547401428, 0.117851123213768, 0.1530930995941162, 0,
+    0.588688850402832, 0.840110719203949, -0.07492997497320175, 1
+  ])
+  assert.deepStrictEqual(Array.from(lookAtMatrix(mat4.create(), [0.1, 0.2, 5.3], [0.7, 0.3, 0.1], [0.1, 0.9, 0.2])), [
+    0.9847278594970703, 0.13106150925159454, -0.114603191614151, 0,
+    -0.1340906023979187, 0.9907850027084351, -0.019100533798336983, 0,
+    0.1110437735915184, 0.034176040440797806, 0.9932277202606201, 0,
+    -0.6601867079734802, -0.3923961818218231, -5.248826503753662, 1
+  ])
+}

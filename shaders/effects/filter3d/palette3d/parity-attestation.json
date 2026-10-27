@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "filter3d/palette3d",
+  "sourceHash": "8cddbe4129edecb1b32e719a3140565bef1f949432c58d9eeaec1606b612eca8",
+  "caseHash": "1e6326fb72e2e1ce57b4b12510cda1909a808c975ba96d24b28abd76aec35689",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 130
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 130
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

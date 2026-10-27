@@ -403,7 +403,7 @@
         const placeholderEntry = effects.find(e => e.namespace === namespace && e.name === name);
         
         if (!placeholderEntry) {
-            helpContentEl.innerHTML = `<p class="error">Effect ${effectPath} not found</p>`;
+            helpContentEl.innerHTML = `<p class="error">Effect ${escapeHtml(String(effectPath))} not found</p>`;
             return;
         }
 
@@ -473,7 +473,7 @@
 
         } catch (e) {
             console.error('Failed to load effect:', e);
-            helpContentEl.innerHTML = `<p class="error">Error loading effect: ${e.message || e}</p>`;
+            helpContentEl.innerHTML = `<p class="error">Error loading effect: ${escapeHtml(String(e.message || e))}</p>`;
             canvas.style.opacity = '1';
             loadingEl.style.display = 'none';
         }

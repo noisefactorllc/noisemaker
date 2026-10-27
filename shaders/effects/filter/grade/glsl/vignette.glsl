@@ -111,7 +111,7 @@ void main() {
     
     // Early exit if no vignette
     if (abs(vignetteAmount) < 0.001) {
-        fragColor = color;
+        fragColor = vec4(color.rgb * color.a, color.a);
         return;
     }
     
@@ -136,5 +136,5 @@ void main() {
     // Final encode to sRGB
     rgb = linearToSrgb(max(rgb, vec3(0.0)));
     
-    fragColor = vec4(rgb, color.a);
+    fragColor = vec4(rgb * color.a, color.a);
 }

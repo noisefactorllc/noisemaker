@@ -69,6 +69,8 @@ function stubTeardownState(backend) {
     backend.pipelines = new Map()
     backend.bindGroups = new Map()
     backend.samplers = new Map()
+    backend.storageBuffers = new Map()
+    backend.retiredStorageBuffers = []
     backend.uniformBufferPool = []
     backend.activeUniformBuffers = []
     backend.context = null

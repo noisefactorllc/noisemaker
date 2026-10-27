@@ -151,8 +151,13 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let uv = pos.xy / texSize;
     let color = textureSample(inputTex, inputSampler, uv);
     
-    // Decode to linear
-    var rgb = srgbToLinear(color.rgb);
+    // The public input is premultiplied. Private grade stages carry straight
+    // sRGB until the final vignette pass restores premultiplied coverage.
+    var straight = vec3<f32>(0.0);
+    if (color.a > 0.0) {
+        straight = color.rgb / color.a;
+    }
+    var rgb = srgbToLinear(straight);
     
     // 1. White Balance
     rgb = applyWhiteBalance(rgb, uniforms.temperature, uniforms.tint);

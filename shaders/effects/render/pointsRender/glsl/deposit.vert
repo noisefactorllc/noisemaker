@@ -9,13 +9,15 @@ uniform vec2 resolution;
 uniform float density;
 
 // 3D viewport uniforms
-uniform int viewMode;     // 0=2D normalized, 1=3D orthographic
+const int viewMode = VIEW_MODE;     // 0=flat, 1=orthographic, 2=perspective
 uniform float rotateX;
 uniform float rotateY;
 uniform float rotateZ;
 uniform float viewScale;
 uniform float posX;
 uniform float posY;
+uniform float posZ;
+uniform float fieldOfView;
 
 out vec4 vColor;
 
@@ -66,12 +68,12 @@ void main() {
         // 2D mode: positions are normalized 0..1
         clipPos = pos.xy * 2.0 - 1.0;
     } else {
-        // 3D mode: apply rotation and orthographic projection
+        // 3D mode: rotate world coordinates before camera projection
         vec3 p = pos.xyz;
         
         // Detect if this is a 2D system (coords in 0-1) or 3D attractor (coords ±40)
         // 2D systems have Z near 0 and XY in 0-1 range
-        bool is2DSystem = abs(p.z) < 1.0 && p.x >= 0.0 && p.x <= 1.0 && p.y >= 0.0 && p.y <= 1.0;
+        bool is2DSystem = viewMode == 1 && abs(p.z) < 1.0 && p.x >= 0.0 && p.x <= 1.0 && p.y >= 0.0 && p.y <= 1.0;
         
         if (is2DSystem) {
             // Center 2D coords around origin: 0-1 -> -0.5 to 0.5
@@ -98,8 +100,19 @@ void main() {
         p.x += posX;
         p.y += posY;
         
-        // Orthographic projection with scale
-        if (is2DSystem) {
+        if (viewMode == 2) {
+            // Match the billboard camera at Z=80, looking down negative Z.
+            float cameraDepth = 80.0 - (p.z + posZ);
+            if (cameraDepth <= 0.1) {
+                gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
+                gl_PointSize = 0.0;
+                vColor = vec4(0.0);
+                return;
+            }
+            float focalLength = 1.0 / tan(clamp(fieldOfView, 10.0, 150.0) * 0.00872664626);
+            clipPos = p.xy * focalLength * viewScale / cameraDepth;
+            clipPos.x *= resolution.y / resolution.x;
+        } else if (is2DSystem) {
             // 2D systems: coords are now ±0.5, scale to fill viewport
             // Use 3.5x multiplier for close-up view that's nice to pan around
             clipPos = p.xy * 3.5 * viewScale;

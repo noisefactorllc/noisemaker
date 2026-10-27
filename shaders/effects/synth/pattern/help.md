@@ -55,18 +55,18 @@ render(o0)
 
 ```
 // Diagonal stripes
-pattern({ patternType: 0, rotation: 45, scale: 10 })
+pattern(type: 0, rotation: 45, scale: 10)
   .write(o0)
 
 // Polka dots
-pattern({ patternType: 2, scale: 8, thickness: 0.6 })
+pattern(type: 2, scale: 8, thickness: 0.6)
   .write(o0)
 
 // Honeycomb
-pattern({ patternType: 4, scale: 6, fgColor: [1, 0.8, 0], bgColor: [0.2, 0.1, 0] })
+pattern(type: 4, scale: 6, fgColor: #ffcc00, bgColor: #331a00)
   .write(o0)
 
 // Animated hearts
-pattern({ patternType: 9, scale: 12, animation: 1, speed: 2, fgColor: [1, 0.2, 0.3] })
+pattern(type: 9, scale: 12, animation: 1, speed: 2, fgColor: #ff334d)
   .write(o0)
 ```

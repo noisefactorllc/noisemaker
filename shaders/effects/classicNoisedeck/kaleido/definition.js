@@ -189,7 +189,6 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { kaleido: 'sides', loopAmp: 'speed' },
   passes: [
     {
       name: "render",

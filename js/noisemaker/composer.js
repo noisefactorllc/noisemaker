@@ -287,10 +287,13 @@ export class Preset {
         )
       }
     }
-    this.layers = prototype.layers || []
+    // Random layer lists are resolved here, once per construction, in the
+    // order of the reference Python implementation.
+    const layerCache = new Map()
+    this.layers = _resolvePresetLayers(presetName, presets, layerCache).slice()
     debugLog(this.debug, 'layers', this.layers)
     this.flattened_layers = []
-    _flattenAncestors(presetName, presets, {}, this.flattened_layers, [], this.debug)
+    _flattenAncestors(presetName, presets, {}, this.flattened_layers, layerCache, [], this.debug)
     debugLog(this.debug, 'flattened layers', this.flattened_layers)
 
     this.settings = new SettingsDict(
@@ -405,7 +408,8 @@ export class Preset {
     )
 
     const merged = { ...this.settings, ...g }
-    const freq = merged.freq ?? 1
+    // Same default frequency as the reference generators.multires().
+    const freq = merged.freq ?? 3
     debugLog(debug, 'render merged settings', merged)
     debugLog(debug, 'render shape', shape)
 
@@ -426,12 +430,14 @@ export class Preset {
         ctx,
         seed,
         time,
-        speed,
         octaveEffects: this.octave_effects,
         postEffects: this.post_effects,
         finalEffects: this.final_effects,
         progressCallback,
         ...merged,
+        // As in the reference render(), the caller's speed (default 1) is the
+        // render speed. A preset's "speed" setting does not change it.
+        speed,
       })
     }
     if (gatherDebug) {
@@ -555,7 +561,26 @@ export async function render(presetOrName, seed = 0, opts = {}) {
 
 export { gatherStageSnapshots, writeProgramUniforms }
 
-function _flattenAncestors(presetName, presets, unique, ancestors, stack = [], debug = false) {
+function _flattenLayerEntries(value) {
+  if (Array.isArray(value)) return value.flatMap(_flattenLayerEntries)
+  if (value === null || value === undefined) return []
+  return [value]
+}
+
+// Resolve a preset's layer list once per Preset construction. A random list
+// (for example `random_member(...)` or `random_int(...)`) consumes RNG calls
+// here, in the same order as `_resolve_preset_layers` in the Python composer.
+function _resolvePresetLayers(presetName, presets, cache) {
+  if (cache.has(presetName)) return cache.get(presetName)
+  const prototype = presets[presetName] || {}
+  const resolved = _flattenLayerEntries(
+    resolveValue(prototype.layers ?? [], Object.create(null)),
+  )
+  cache.set(presetName, resolved)
+  return resolved
+}
+
+function _flattenAncestors(presetName, presets, unique, ancestors, layerCache, stack = [], debug = false) {
   debugLog(debug, '_flattenAncestors enter', presetName, 'stack', stack)
   if (stack.includes(presetName)) {
     const cycle = stack.slice(stack.indexOf(presetName)).concat(presetName).join(' -> ')
@@ -563,7 +588,7 @@ function _flattenAncestors(presetName, presets, unique, ancestors, stack = [], d
     throw new Error(`Cycle detected in preset layers: ${cycle}`)
   }
   stack.push(presetName)
-  const layers = presets[presetName].layers || []
+  const layers = _resolvePresetLayers(presetName, presets, layerCache)
   debugLog(debug, 'layers for', presetName, layers)
   for (const ancestorName of layers) {
     if (!(ancestorName in presets)) {
@@ -571,7 +596,7 @@ function _flattenAncestors(presetName, presets, unique, ancestors, stack = [], d
     }
     if (unique[ancestorName]) continue
     if (presets[ancestorName].unique) unique[ancestorName] = true
-    _flattenAncestors(ancestorName, presets, unique, ancestors, stack, debug)
+    _flattenAncestors(ancestorName, presets, unique, ancestors, layerCache, stack, debug)
   }
   stack.pop()
   ancestors.push(presetName)

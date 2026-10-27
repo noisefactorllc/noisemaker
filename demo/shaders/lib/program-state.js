@@ -9,6 +9,7 @@
 
 import { Emitter } from './emitter.js'
 import { expandPalette } from '../../../shaders/src/runtime/palette-expansion.js'
+import { writeUniformAliases } from '../../../shaders/src/runtime/uniform-aliases.js'
 import { extractEffectsFromDsl } from './dsl-utils.js'
 import { compile, unparse, formatValue } from '../../../shaders/src/lang/index.js'
 import { getEffect, isStarterEffect } from '../../../shaders/src/renderer/canvas.js'
@@ -31,6 +32,7 @@ import { getEffect, isStarterEffect } from '../../../shaders/src/renderer/canvas
  * @fires structurechange - When effects are added/removed/reordered: { structure, previousStructure }
  * @fires reset - When a step is reset to defaults: { stepKey }
  * @fires load - When state is loaded from DSL or deserialized: { structure }
+ * @fires recompileNeeded - When the pipeline must be compiled again from toDsl(): a compile-time define changed, or deserialize() restored another program
  *
  * @example
  * const state = new ProgramState({ renderer })
@@ -1066,6 +1068,10 @@ export class ProgramState extends Emitter {
                         converted = this._renderer.convertParameterForUniform(value, spec)
                     }
 
+                    // A pass may feed a renamed shader uniform from this
+                    // param (runtime/uniform-aliases.js).
+                    writeUniformAliases(pass, paramName, uniformName, converted)
+
                     if (uniformName in pass.uniforms) {
                         // Consumer passes inherit volumeSize from the upstream
                         // source emitter — their step-state default is stale.
@@ -1205,8 +1211,18 @@ export class ProgramState extends Emitter {
         this._mediaInputs = new Map(Object.entries(data.mediaInputs || {}))
         this._textInputs = new Map(Object.entries(data.textInputs || {}))
 
-        // Load DSL (this rebuilds stepStates from structure)
+        // Load DSL (this rebuilds stepStates from structure). A snapshot can
+        // hold another program than the compiled one, as an undo across an
+        // added or removed step does. Make it the renderer's current program,
+        // so toDsl() and serialize() describe it, and ask the host to
+        // recompile once the state is restored.
+        let programChanged = false
         if (data.dsl) {
+            if (this._renderer && this._renderer.currentDsl !== data.dsl) {
+                const compiled = extractEffectsFromDsl(this._renderer.currentDsl || '') || []
+                programChanged = !this._structuresMatch(compiled, extractEffectsFromDsl(data.dsl) || [])
+                if (programChanged) this._renderer.currentDsl = data.dsl
+            }
             this.fromDsl(data.dsl)
         }
 
@@ -1220,6 +1236,7 @@ export class ProgramState extends Emitter {
 
         this._applyToPipeline()
         this.emit('load', { structure: this._structure })
+        if (programChanged) this.emit('recompileNeeded')
     }
 
     // =========================================================================

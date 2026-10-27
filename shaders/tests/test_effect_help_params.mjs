@@ -28,6 +28,13 @@
  * Globals are read out of the definition source rather than by importing it,
  * matching how test_effect_tags.js and the manifest generator read tags: these
  * files import the runtime, and the check has to work without standing one up.
+ *
+ * A definition is either an object literal (`globals: {`) or a class with a
+ * field (`globals = {`). The first version read only the object-literal form,
+ * so the ten class definitions returned no globals and were skipped without a
+ * message, and seven of them shipped undocumented parameters. Both forms are
+ * read now, and a definition whose globals cannot be read is a failure, not a
+ * skip.
  */
 import { readFileSync, readdirSync, existsSync, statSync } from 'fs'
 import { fileURLToPath } from 'url'
@@ -37,7 +44,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const EFFECTS_DIR = join(__dirname, '..', 'effects')
 
 /**
- * Keys at depth 1 of the `globals: { ... }` object literal — the parameter
+ * Keys at depth 1 of the `globals: { ... }` object literal, or of the
+ * `globals = { ... }` class field — the parameter
  * names the DSL accepts. Brace-walked rather than matched with one regex,
  * because parameter bodies are themselves objects (`ui`, `choices`) and a flat
  * pattern would pick up their keys as parameters.
@@ -52,7 +60,7 @@ const EFFECTS_DIR = join(__dirname, '..', 'effects')
  */
 function globalsOf(source) {
     const code = source.replace(/(^|[^:])\/\/[^\n]*/g, '$1')
-    const at = code.search(/\bglobals\s*:\s*\{/)
+    const at = code.search(/\bglobals\s*[:=]\s*\{/)
     if (at < 0) return null
     const keys = []
     let depth = 0
@@ -101,6 +109,7 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/
 
 function collect() {
     const effects = []
+    const unreadable = []
     for (const ns of readdirSync(EFFECTS_DIR)) {
         const nsDir = join(EFFECTS_DIR, ns)
         if (!statSync(nsDir).isDirectory()) continue
@@ -109,7 +118,7 @@ function collect() {
             const help = join(nsDir, name, 'help.md')
             if (!existsSync(def) || !existsSync(help)) continue
             const globals = globalsOf(readFileSync(def, 'utf8'))
-            if (globals === null) continue
+            if (globals === null) { unreadable.push(`${ns}/${name}`); continue }
             effects.push({
                 id: `${ns}/${name}`,
                 globals: new Set(globals),
@@ -117,7 +126,36 @@ function collect() {
             })
         }
     }
-    return effects
+    return { effects, unreadable }
+}
+
+/** `id: name, ...` for each table row that names no declared parameter. */
+function ghostViolations(effects) {
+    const violations = []
+    for (const { id, globals, documented } of effects) {
+        const ghosts = documented.filter(p => !globals.has(p))
+        if (ghosts.length) {
+            const detail = ghosts
+                .map(p => (IDENTIFIER.test(p) ? p : `"${p}" (not an identifier, so it can only be a label)`))
+                .join(', ')
+            violations.push(`${id}: ${detail}`)
+        }
+    }
+    return violations
+}
+
+/** `id: name, ...` for each declared parameter that the table does not list. */
+function undocumentedViolations(effects) {
+    const violations = []
+    for (const { id, globals, documented } of effects) {
+        // Prose-format help files opt out by having no table at all.
+        if (!documented.length) continue
+        const undocumented = [...globals].filter(p => !documented.includes(p))
+        if (undocumented.length) {
+            violations.push(`${id}: ${undocumented.join(', ')}`)
+        }
+    }
+    return violations
 }
 
 function test(name, fn) {
@@ -132,19 +170,46 @@ function test(name, fn) {
     }
 }
 
-const effects = collect()
+const { effects, unreadable } = collect()
+
+test('a class definition with an undocumented parameter fails the check', () => {
+    const source = [
+        'export default class Probe extends Effect {',
+        '    globals = {',
+        '        documented: { type: "float", default: 1, ui: { label: "documented" } },',
+        '        missing: { type: "float", default: 0, ui: { label: "missing" } }',
+        '    }',
+        '}',
+    ].join('\n')
+    const table = [
+        '| Parameter | Type | Default | Range | Description |',
+        '|-----------|------|---------|-------|-------------|',
+        '| documented | float | 1 | - | Documented |',
+    ].join('\n')
+    const globals = globalsOf(source)
+    if (globals === null) throw new Error('globalsOf read no globals from a `globals = {` class field')
+    if (globals.join(',') !== 'documented,missing') {
+        throw new Error(`globalsOf read [${globals.join(', ')}] from the class field, expected [documented, missing]`)
+    }
+    const probe = [{ id: 'probe/classDefinition', globals: new Set(globals), documented: documentedParams(table) }]
+    const violations = undocumentedViolations(probe)
+    if (violations.join('\n') !== 'probe/classDefinition: missing') {
+        throw new Error(`expected one violation for 'missing', got: ${JSON.stringify(violations)}`)
+    }
+})
+
+test('every effect definition with a help.md has globals the check can read', () => {
+    if (unreadable.length) {
+        throw new Error(
+            'No `globals: {` or `globals = {` block was found in these\n' +
+            'definitions, so their help.md tables cannot be checked:\n  ' +
+            unreadable.join('\n  '),
+        )
+    }
+})
 
 test('every parameter in a help.md table exists in the effect definition', () => {
-    const violations = []
-    for (const { id, globals, documented } of effects) {
-        const ghosts = documented.filter(p => !globals.has(p))
-        if (ghosts.length) {
-            const detail = ghosts
-                .map(p => (IDENTIFIER.test(p) ? p : `"${p}" (not an identifier, so it can only be a label)`))
-                .join(', ')
-            violations.push(`${id}: ${detail}`)
-        }
-    }
+    const violations = ghostViolations(effects)
     if (violations.length) {
         throw new Error(
             'help.md documents parameters the definition does not declare. The\n' +
@@ -157,15 +222,7 @@ test('every parameter in a help.md table exists in the effect definition', () =>
 })
 
 test('every parameter in the definition appears in the help.md table', () => {
-    const violations = []
-    for (const { id, globals, documented } of effects) {
-        // Prose-format help files opt out by having no table at all.
-        if (!documented.length) continue
-        const undocumented = [...globals].filter(p => !documented.includes(p))
-        if (undocumented.length) {
-            violations.push(`${id}: ${undocumented.join(', ')}`)
-        }
-    }
+    const violations = undocumentedViolations(effects)
     if (violations.length) {
         throw new Error(
             'Effect definitions declare parameters their help.md table does not\n' +

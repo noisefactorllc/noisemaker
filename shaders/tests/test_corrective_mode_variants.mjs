@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
 import crypto from 'node:crypto'
 import { PNG } from 'pngjs'
+import { correctiveBaselines, hostGpuInventory } from './corrective_baselines.js'
 
 // An interrupted run must not leave the browser process tree behind:
 // Playwright's own SIGTERM handler closes its browsers but never exits, and
@@ -50,7 +51,7 @@ const { acquireServer, releaseServer } = await import(path.join(repoRoot, 'vendo
 const baseUrl = await acquireServer(undefined, repoRoot, effectsDir)
 const browser = await chromium.launch({
     headless: true,
-    args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan',
+    args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--enable-webgpu-developer-features',
         process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=vulkan'],
 })
 activeBrowser = browser
@@ -256,6 +257,8 @@ function directionalTextureStats(png) {
 
 try {
     const rendered = {}
+    let webglRenderer = ''
+    let webgpuAdapter = null
     const softDsl = `search synth, filter
 
 solid(color: #808080)
@@ -324,6 +327,18 @@ render(o0)`
     for (const preferWebGPU of [false, true]) {
         const expected = preferWebGPU ? 'WebGPU' : 'WebGL2'
         const { page, errors } = await install(preferWebGPU)
+        if (preferWebGPU) {
+            webgpuAdapter = await page.evaluate(async () => {
+                const adapter = await navigator.gpu?.requestAdapter()
+                return adapter ? { vendor: adapter.info.vendor, architecture: adapter.info.architecture, device: adapter.info.device, description: adapter.info.description } : null
+            })
+        } else {
+            webglRenderer = await page.evaluate(() => {
+                const gl = document.createElement('canvas').getContext('webgl2')
+                const extension = gl?.getExtension('WEBGL_debug_renderer_info')
+                return extension ? gl.getParameter(extension.UNMASKED_RENDERER_WEBGL) : ''
+            })
+        }
         for (const mode of textureModes) {
             const dsl = `search synth, filter
 
@@ -537,14 +552,10 @@ render(o0)`
         `Mosaic Tiles must pixelize each tile to a representative source sample; equal-neighbor ratio=${mosaicPlateau.toFixed(4)}`)
     const mosaicHashes = Object.fromEntries(['WebGL2', 'WebGPU'].map(backend => [backend,
         crypto.createHash('sha256').update(rendered[backend].mosaic.data).digest('hex')]))
-    // Stale control constant: Mosaic and Shifted share mosaicWarp and
-    // mosaicGroutMask, so the Shifted correction moved Mosaic too and this
-    // "unchanged" baseline was never refreshed. Both backends agree on the
-    // current value bit-for-bit, and the Shifted and Paper hashes below still
-    // match their originals.
+    const baselines = correctiveBaselines({ renderer: webglRenderer, ...webgpuAdapter, hostGpus: hostGpuInventory() })
     assert.deepEqual(mosaicHashes, {
-        WebGL2: '662262ed0c4723f20802e300bd2f6637cea6d71b9fbc38bb562a89f94f25ac3d',
-        WebGPU: '662262ed0c4723f20802e300bd2f6637cea6d71b9fbc38bb562a89f94f25ac3d',
+        WebGL2: baselines.mosaic,
+        WebGPU: baselines.mosaic,
     }, 'Mosaic mode pixels must remain byte-identical while Shifted is corrected')
     const shiftedHashes = Object.fromEntries(['WebGL2', 'WebGPU'].map(backend => [backend,
         crypto.createHash('sha256').update(rendered[backend].shifted.data).digest('hex')]))
@@ -571,7 +582,7 @@ render(o0)`
         crypto.createHash('sha256').update(rendered[backend].paper.data).digest('hex')]))
     assert.deepEqual(paperHashes, {
         WebGL2: '26624775e320302ac79ff2151bcb66a24308fc8580c4a73a3966a72fc67328e9',
-        WebGPU: 'c22a69b73345b2f9f28a22cd82cb50fc35f0f08048aecd959b72945d92cc7729',
+        WebGPU: baselines.paperWebGPU,
     }, 'original Paper Texture pixels must retain their backend-specific contracts')
     const softStats = softTextureStats(rendered.WebGL2.soft)
     assert.ok(softStats.unique > 100, `Soft Texture needs continuous tonal variation: ${JSON.stringify(softStats)}`)

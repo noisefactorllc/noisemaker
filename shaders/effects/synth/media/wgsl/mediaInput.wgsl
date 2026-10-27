@@ -4,7 +4,7 @@
  */
 
 struct Uniforms {
-    data : array<vec4<f32>, 5>,
+    data : array<vec4<f32>, 6>,
 };
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 @group(0) @binding(1) var samp : sampler;
@@ -22,6 +22,8 @@ var<private> flip : i32;
 var<private> bgColor : vec3<f32>;
 var<private> bgAlpha : f32;
 var<private> imageSize : vec2<f32>;
+var<private> tileOffset : vec2<f32>;
+var<private> fullResolution : vec2<f32>;
 
 const PI : f32 = 3.14159265359;
 const TAU : f32 = 6.28318530718;
@@ -57,45 +59,101 @@ fn tile(st: vec2<f32>) -> vec2<f32> {
     return st;
 }
 
+// External uploads use straight alpha; filter premultiplied texels.
+fn mediaTexel(p: vec2<i32>, size: vec2<i32>) -> vec4<f32> {
+    let c = textureLoad(imageTex, clamp(p, vec2<i32>(0), size - vec2<i32>(1)), 0);
+    return vec4<f32>(c.rgb * c.a, c.a);
+}
+
+fn sampleMedia(uv: vec2<f32>) -> vec4<f32> {
+    let size = vec2<i32>(textureDimensions(imageTex));
+    let p = uv * vec2<f32>(size) - vec2<f32>(0.5);
+    let lo = vec2<i32>(floor(p));
+    let f = fract(p);
+    return mix(mix(mediaTexel(lo, size), mediaTexel(lo + vec2<i32>(1, 0), size), f.x),
+               mix(mediaTexel(lo + vec2<i32>(0, 1), size), mediaTexel(lo + vec2<i32>(1, 1), size), f.x), f.y);
+}
+
 fn getImage(pos: vec2<f32>) -> vec4<f32> {
+    // Under tiled print export the fragment position is tile-local. Add the
+    // tile's global offset so every tile and the untiled reference sample
+    // the same absolute image pixel. Branch on the runtime offset so the
+    // untiled path keeps the original expression bit-for-bit across
+    // compilers with relaxed math (tileOffset is 0 when not tiling).
     var st = pos / imageSize;
+    if (tileOffset.x != 0.0 || tileOffset.y != 0.0) {
+        st = (pos + tileOffset) / imageSize;
+    }
     st.y = 1.0 - st.y;
 
     var scale = 100.0 / scaleAmt;
     if (scale == 0.0) { scale = 1.0; }
     st = st * scale;
 
-    if (posIndex == 0) {
-        st.y = st.y + (resolution.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
-    } else if (posIndex == 1) {
-        st.x = st.x - (resolution.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
-        st.y = st.y + (resolution.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
-    } else if (posIndex == 2) {
-        st.x = st.x - (resolution.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
-        st.y = st.y + (resolution.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
-    } else if (posIndex == 3) {
-        st.y = st.y + (resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
-    } else if (posIndex == 4) {
-        st.x = st.x - (resolution.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
-        st.y = st.y + (resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
-    } else if (posIndex == 5) {
-        st.x = st.x - (resolution.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
-        st.y = st.y + (resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
-    } else if (posIndex == 6) {
-        st.y = st.y + 1.0 - (scale - (1.0 / imageSize.y * scale));
-    } else if (posIndex == 7) {
-        st.x = st.x - (resolution.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
-        st.y = st.y + 1.0 - (scale - (1.0 / imageSize.y * scale));
-    } else if (posIndex == 8) {
-        st.x = st.x - (resolution.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
-        st.y = st.y + 1.0 - (scale - (1.0 / imageSize.y * scale));
+    // Keep the original untiled math exact on both backends.
+    if (fullResolution.x > 0.0 && (fullResolution.x != resolution.x || fullResolution.y != resolution.y)) {
+        if (posIndex == 0) {
+            st.y = st.y + (fullResolution.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
+        } else if (posIndex == 1) {
+            st.x = st.x - (fullResolution.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
+            st.y = st.y + (fullResolution.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
+        } else if (posIndex == 2) {
+            st.x = st.x - (fullResolution.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
+            st.y = st.y + (fullResolution.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
+        } else if (posIndex == 3) {
+            st.y = st.y + (fullResolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
+        } else if (posIndex == 4) {
+            st.x = st.x - (fullResolution.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
+            st.y = st.y + (fullResolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
+        } else if (posIndex == 5) {
+            st.x = st.x - (fullResolution.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
+            st.y = st.y + (fullResolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
+        } else if (posIndex == 6) {
+            st.y = st.y + 1.0 - (scale - (1.0 / imageSize.y * scale));
+        } else if (posIndex == 7) {
+            st.x = st.x - (fullResolution.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
+            st.y = st.y + 1.0 - (scale - (1.0 / imageSize.y * scale));
+        } else if (posIndex == 8) {
+            st.x = st.x - (fullResolution.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
+            st.y = st.y + 1.0 - (scale - (1.0 / imageSize.y * scale));
+        }
+
+        st.x = st.x - map(offsetX, -100.0, 100.0, -fullResolution.x / imageSize.x * scale, fullResolution.x / imageSize.x * scale) * 1.5;
+        st.y = st.y - map(offsetY, -100.0, 100.0, -fullResolution.y / imageSize.y * scale, fullResolution.y / imageSize.y * scale) * 1.5;
+    } else {
+        if (posIndex == 0) {
+            st.y = st.y + (resolution.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
+        } else if (posIndex == 1) {
+            st.x = st.x - (resolution.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
+            st.y = st.y + (resolution.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
+        } else if (posIndex == 2) {
+            st.x = st.x - (resolution.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
+            st.y = st.y + (resolution.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
+        } else if (posIndex == 3) {
+            st.y = st.y + (resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
+        } else if (posIndex == 4) {
+            st.x = st.x - (resolution.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
+            st.y = st.y + (resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
+        } else if (posIndex == 5) {
+            st.x = st.x - (resolution.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
+            st.y = st.y + (resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
+        } else if (posIndex == 6) {
+            st.y = st.y + 1.0 - (scale - (1.0 / imageSize.y * scale));
+        } else if (posIndex == 7) {
+            st.x = st.x - (resolution.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
+            st.y = st.y + 1.0 - (scale - (1.0 / imageSize.y * scale));
+        } else if (posIndex == 8) {
+            st.x = st.x - (resolution.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
+            st.y = st.y + 1.0 - (scale - (1.0 / imageSize.y * scale));
+        }
+
+        st.x = st.x - map(offsetX, -100.0, 100.0, -resolution.x / imageSize.x * scale, resolution.x / imageSize.x * scale) * 1.5;
+        st.y = st.y - map(offsetY, -100.0, 100.0, -resolution.y / imageSize.y * scale, resolution.y / imageSize.y * scale) * 1.5;
     }
 
-    st.x = st.x - map(offsetX, -100.0, 100.0, -resolution.x / imageSize.x * scale, resolution.x / imageSize.x * scale) * 1.5;
-    st.y = st.y - map(offsetY, -100.0, 100.0, -resolution.y / imageSize.y * scale, resolution.y / imageSize.y * scale) * 1.5;
-
     st.x = st.x * (imageSize.x / imageSize.y);
-    st = rotate2D(st);
+    // Preserve exact texture coordinates for the identity transform.
+    if (rotation != 0.0) { st = rotate2D(st); }
     st.x = st.x / (imageSize.x / imageSize.y);
 
     st = tile(st);
@@ -131,17 +189,10 @@ fn getImage(pos: vec2<f32>) -> vec4<f32> {
         if (st.y < 0.5) { st.y = 1.0 - st.y; }
     }
 
-    // Compensate for WebGPU blit Y-flip (present shader maps UV y=0 to screen bottom)
-    st.y = 1.0 - st.y;
-
-    var text = textureSample(imageTex, samp, st);
+    let text = sampleMedia(st);
 
     if (st.x < 0.0 || st.x > 1.0 || st.y < 0.0 || st.y > 1.0) {
-        return vec4<f32>(bgColor, bgAlpha);
-    }
-
-    if (text.a > 0.0) {
-        text = vec4<f32>(text.rgb / text.a, text.a);
+        return vec4<f32>(bgColor * bgAlpha, bgAlpha);
     }
 
     return text;
@@ -165,8 +216,10 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
 
     imageSize = uniforms.data[4].xy;
 
-    // Convert from WGSL top-down to bottom-up coordinates (matching GLSL gl_FragCoord)
-    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
+    tileOffset = uniforms.data[5].xy;
+    fullResolution = uniforms.data[5].zw;
 
-    return getImage(posFromBottom);
+    // Internal rows match GLSL texture rows; presentation applies the final
+    // Y conversion. Keep anchor, offset and rotation in that same space.
+    return getImage(pos.xy);
 }

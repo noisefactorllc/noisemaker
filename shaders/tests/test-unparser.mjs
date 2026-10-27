@@ -4,6 +4,24 @@
  */
 
 import { unparse } from '../src/lang/unparser.js';
+import assert from 'node:assert/strict';
+import { compile } from '../src/lang/index.js';
+import { registerOp } from '../src/lang/ops.js';
+import { registerStarterOps } from '../src/lang/validator.js';
+import solid from '../effects/synth/solid/definition.js';
+import invert from '../effects/filter/invert/definition.js';
+import noise from '../effects/synth/noise/definition.js';
+import scale from '../effects/filter/scale/definition.js';
+import heightmap from '../effects/synth3d/heightmap3d/definition.js';
+import landscape from '../effects/render/renderLandscape3d/definition.js';
+import Text from '../effects/filter/text/definition.js';
+import { registerEffect } from '../src/runtime/registry.js';
+import { ProgramState } from '../../demo/shaders/lib/program-state.js';
+import media from '../effects/synth/media/definition.js';
+import remap from '../effects/synth/remap/definition.js';
+import grade from '../effects/filter/grade/definition.js';
+import { CanvasRenderer } from '../src/renderer/canvas.js';
+import { compileGraph } from '../src/runtime/compiler.js';
 
 let passed = 0;
 let failed = 0;
@@ -494,6 +512,349 @@ test('Strings starting with digits must be quoted', () => {
     
     // id starting with digit must be quoted (not a valid identifier)
     assertIncludes(result, 'id: "0vjd"', 'String starting with digit must be quoted');
+});
+
+// Compile real effect chains so the test detects dropped or misplaced inputs,
+// including edits to producers that the compiler flattened into temporary steps.
+const inlineDefinitions = new Map([solid, invert, noise, scale, heightmap, landscape].map(def => [`${def.namespace}.${def.func}`, def]));
+for (const [name, def] of inlineDefinitions) {
+    registerOp(name, { name: def.func, args: Object.entries(def.globals).map(([key, spec]) => ({ name: key, ...spec })) });
+}
+registerStarterOps(['synth.solid', 'synth.noise', 'synth3d.heightmap3d']);
+const inlineOptions = { getEffectDef: name => inlineDefinitions.get(name) };
+const surfaceProgram = 'search synth, filter, synth3d, render\nheightmap3d(heightTex: solid(color: #00ff00).invert(), tex: solid(color: #ff0000)).renderLandscape3d().write(o0)\nrender(o0)';
+const semantics = dsl => compile(dsl).plans.map(plan => plan.chain.map(({ op, args, from, temp }) => ({ op, args, from, temp })));
+
+test('Inline height and color chains retain independent producer edits during mode changes', () => {
+    const overrides = { 0: { color: [1, 0, 0] }, 2: { color: [0, 0, 1] }, 4: { viewMode: 2 } };
+    const result = unparse(compile(surfaceProgram), overrides, inlineOptions);
+    const expected = surfaceProgram.replace('#00ff00', '#ff0000').replace('tex: solid(color: #ff0000)', 'tex: solid(color: #0000ff)')
+        .replace('renderLandscape3d()', 'renderLandscape3d(viewMode: perspective)');
+    assert.deepEqual(semantics(result), semantics(expected));
+});
+
+test('Replacing an inline surface removes its unused producer chain', () => {
+    const result = unparse(compile(surfaceProgram), { 3: { heightTex: 'none' } }, inlineOptions);
+    const expected = surfaceProgram.replace('heightTex: solid(color: #00ff00).invert(), ', '');
+    assert.deepEqual(semantics(result), semantics(expected));
+});
+
+// Refs #304: unparse() used to round non-integer numeric literals to 3
+// decimals, changing a program's parameter values on every regenerate/save.
+test('Numeric literal parameters survive compile → unparse → compile exactly', () => {
+    const source = `search synth, filter
+noise(seed: 1).scale(x: 1.7778, y: 0.33333, centerY: 0.0004, centerX: osc(type: oscKind.sine, min: 0.1234, max: 0.5678)).write(o0)
+render(o0)`;
+
+    const first = unparse(compile(source), {}, inlineOptions);
+
+    // Shortest round-trip representation, same precision as osc() bounds.
+    assertIncludes(first, 'x: 1.7778', 'Literal with 4 decimals keeps full precision');
+    assertIncludes(first, 'y: 0.33333', 'Literal with 5 decimals keeps full precision');
+    assertIncludes(first, 'centerY: 0.0004', 'Literal below 0.0005 must not round to 0');
+    assertIncludes(first, 'min: 0.1234, max: 0.5678', 'Oscillator bounds keep full precision');
+
+    const second = compile(first);
+    assert.deepEqual(second.diagnostics, []);
+    const scaleArgs = second.plans[0].chain[1].args;
+    assert.equal(scaleArgs.x, 1.7778, 'x reparses to the same value');
+    assert.equal(scaleArgs.y, 0.33333, 'y reparses to the same value');
+    assert.equal(scaleArgs.centerY, 0.0004, 'centerY reparses to the same value');
+    const osc = scaleArgs.centerX;
+    const oscMin = osc?.min ?? osc?.min?.value;
+    const oscMax = osc?.max ?? osc?.max?.value;
+    assert.equal(oscMin, 0.1234, 'osc min reparses to the same value');
+    assert.equal(oscMax, 0.5678, 'osc max reparses to the same value');
+
+    assert.equal(unparse(second, {}, inlineOptions), first, 'Round trip is stable');
+});
+
+test('renderLandscape3d never emits its inherited volumeSize', () => {
+    const source = `search synth3d, render
+heightmap3d(volumeSize: x128).renderLandscape3d(viewMode: perspective, rotateX: 1.5708).write(o0)
+render(o0)`;
+
+    const extractCall = (text) => {
+        const match = text.match(/renderLandscape3d\([\s\S]*?\)/);
+        assert.ok(match, 'renderLandscape3d call must be emitted');
+        return match[0];
+    };
+
+    const rendered = unparse(compile(source), {}, inlineOptions);
+    assertIncludes(rendered, 'heightmap3d(volumeSize: x128)', 'Producer volumeSize is kept');
+    assertNotIncludes(extractCall(rendered), 'volumeSize', 'Consumer volumeSize must not be written');
+
+    // State overrides that still carry the consumer's own copy are dropped too.
+    const withOverrides = unparse(compile(source), { 1: { volumeSize: 128, rotateX: 1.5708 } }, inlineOptions);
+    assertNotIncludes(extractCall(withOverrides), 'volumeSize', 'Override volumeSize on the consumer must not be written');
+
+    // Playground-style unparse without effect definitions: the op schema the
+    // validator filled defaults from suppresses the inherited default there.
+    const playground = unparse(compile(source), {}, {});
+    assertNotIncludes(extractCall(playground), 'volumeSize', 'Inherited default volumeSize must not leak into playground-style unparse');
+});
+
+test('Bare state arguments preserve their runtime values after unparsing', () => {
+    const definition = { globals: { amount: { type: 'float', default: 0, min: 0, max: 100 } } };
+    registerOp('synth.stateRoundtrip', { name: 'stateRoundtrip', args: [{ name: 'amount', ...definition.globals.amount }] });
+    registerStarterOps(['synth.stateRoundtrip']);
+    for (const name of ['seed', 'time', 'frame', 'u1']) {
+        const source = `search synth\nstateRoundtrip(amount: ${name}).write(o0)\nrender(o0)`;
+        const before = compile(source);
+        const output = unparse(before, {}, { getEffectDef: () => definition });
+        assertIncludes(output, `amount: ${name}`, 'Keep the state expression as DSL');
+        const after = compile(output);
+        assert.deepEqual(after.diagnostics, before.diagnostics);
+        for (const value of [0, 7, 31]) {
+            const state = { [name]: value };
+            assert.equal(after.plans[0].chain[0].args.amount.fn(state), value);
+        }
+    }
+});
+
+// The lexer keeps a string literal's content as written, escapes included.
+// unparse must write that same content back, so a saved program reloads with
+// the same values and the text does not grow on each save.
+const textDefinition = new Text();
+registerOp('filter.text', { name: textDefinition.func, args: Object.entries(textDefinition.globals).map(([key, spec]) => ({ name: key, ...spec })) });
+registerEffect('filter.text', textDefinition);
+const stringOptions = { getEffectDef: name => name === 'filter.text' ? textDefinition : inlineDefinitions.get(name) };
+
+function stringValueCycles(source, read, options) {
+    const values = [];
+    let dsl = source;
+    for (let cycle = 0; cycle < 3; cycle++) {
+        const compiled = compile(dsl);
+        assert.deepEqual(compiled.diagnostics.filter(d => d.severity === 'error'), [], dsl);
+        values.push(read(compiled));
+        dsl = unparse(compiled, {}, options);
+    }
+    return values;
+}
+
+test('Existing text() literals compile to the same values as before', () => {
+    const read = literal => compile(`search synth, filter\nnoise().text(text: ${literal}).write(o0)\nrender(o0)`).plans[0].chain[1].args.text;
+    assertEqual(read(String.raw`"say \"hi\" C:\\temp"`), String.raw`say \"hi\" C:\\temp`, 'Double-quoted escapes stay in the value');
+    assertEqual(read(String.raw`"C:\new"`), String.raw`C:\new`, 'Backslash and n stay two characters');
+    assertEqual(read(`'say "hi"'`), 'say "hi"', 'Single quotes hold double quotes');
+    assertEqual(read('"""two\nlines"""'), 'two\nlines', 'Triple quotes hold newlines');
+});
+
+test('text() values with quotes, backslashes and newlines survive three unparse cycles', () => {
+    const literals = [String.raw`"say \"hi\" C:\\temp"`, String.raw`"C:\new"`, String.raw`"a \\ b"`, `'say "hi"'`,
+        String.raw`'it\'s'`, `"it's"`, '"""two\nlines"""', '"""say "hi"\nC:\\temp"""', String.raw`"tail \\"`, String.raw`"q\""`];
+    for (const literal of literals) {
+        const source = `search synth, filter\nnoise().text(text: ${literal}).write(o0)\nrender(o0)`;
+        const expected = compile(source).plans[0].chain[1].args.text;
+        for (const options of [{}, stringOptions]) {
+            assert.deepEqual(stringValueCycles(source, compiled => compiled.plans[0].chain[1].args.text, options),
+                [expected, expected, expected], literal);
+        }
+    }
+});
+
+test('Subchain names and ids with newlines, quotes and backslashes survive three unparse cycles', () => {
+    const literals = ['"""two\nlines"""', `'say "x"'`, String.raw`"back\\slash"`, String.raw`"q\"uote"`, String.raw`"C:\new"`];
+    const read = compiled => {
+        const begin = compiled.plans[0].chain.find(step => step.op === '_subchain_begin');
+        return [begin.args.name, begin.args.id];
+    };
+    for (const literal of literals) {
+        const source = `search synth, filter\nnoise().subchain(name: ${literal}, id: ${literal}) {\n  .invert()\n}.write(o0)\nrender(o0)`;
+        const expected = read(compile(source));
+        assert.ok(expected[0] && expected[1], `${literal} must compile to a subchain name and id`);
+        assert.deepEqual(stringValueCycles(source, read, stringOptions), [expected, expected, expected], literal);
+    }
+});
+
+test('ProgramState text values with quotes and backslashes keep the same DSL across saves', () => {
+    const renderer = { currentDsl: 'search synth, filter\n\nnoise()\n  .text(text: "start")\n  .write(o0)\n\nrender(o0)', enums: {} };
+    const state = new ProgramState({ renderer });
+    state.fromDsl(renderer.currentDsl);
+    // The first values have a literal form that holds them as written. The
+    // last has both quote kinds and ends with a double quote, so no form
+    // holds it; it gains backslashes once and is then stable.
+    const values = [String.raw`say "hi" C:\temp`, String.raw`C:\new`, 'two\nlines', 'say "hi"\nC:\\temp', 'tail\\', String.raw`it's "hi"`];
+    for (const value of values) {
+        state.setValue('step_1', 'text', value);
+        const first = state.toDsl();
+        renderer.currentDsl = first;
+        state.fromDsl(first);
+        const reloaded = state.getValue('step_1', 'text');
+        const second = state.toDsl();
+        assertEqual(second, first, `DSL must not change on the second save of ${JSON.stringify(value)}`);
+        if (value === String.raw`it's "hi"`) {
+            assertEqual(reloaded, String.raw`it's \"hi\"`, 'The value with no literal form gets one backslash per double quote');
+        } else {
+            assertEqual(reloaded, value, `${JSON.stringify(value)} must reload unchanged`);
+        }
+    }
+});
+
+// The parser keeps an arrow function's body as source text. The compiled
+// {fn} value keeps that node, so unparse can write the function back.
+test('Arrow-function arguments and let values unparse to DSL with the same functions', () => {
+    const programs = [
+        ['noise(scaleX: () => 0.5).write(o0)', compiled => [compiled.plans[0].chain[0].args.scaleX], [0.5]],
+        ['let f = () => 0.5\nnoise(scaleX: f).write(o0)', compiled => [compiled.plans[0].chain[0].args.scaleX], [0.5]],
+        ['noise(wrap: () => true).write(o0)', compiled => [compiled.plans[0].chain[0].args.wrap], [true]]
+    ];
+    for (const [body, read, results] of programs) {
+        const source = `search synth\n${body}\nrender(o0)`;
+        const first = compile(source);
+        for (const options of [{}, inlineOptions]) {
+            const output = unparse(first, {}, options);
+            assertNotIncludes(output, '[object Object]', 'Arrow function must not be written as an object');
+            const second = compile(output);
+            assert.deepEqual(second.diagnostics, first.diagnostics, output);
+            assert.deepEqual(second.vars?.map(v => v.expr.src), first.vars?.map(v => v.expr.src), `let text of ${output}`);
+            const before = read(first);
+            const after = read(second);
+            assert.deepEqual(after.map(value => value._ast.src), before.map(value => value._ast.src), `argument text of ${output}`);
+            assert.deepEqual(after.map(value => value.fn({})), results, `argument result of ${output}`);
+        }
+    }
+    const letOutput = unparse(compile('search synth\nlet f = () => 0.5\nnoise(scaleX: f).write(o0)\nrender(o0)'), {}, inlineOptions);
+    assertIncludes(letOutput, 'let f = () => 0.5', 'let keeps the arrow-function text');
+    assertIncludes(letOutput, 'scaleX: f', 'The argument keeps the let name');
+});
+
+// vec2() on a vec2 parameter and vec4() on a vec4 parameter set the given
+// components, as vec3() and array literals do. CanvasRenderer registers vec4
+// parameters as `color`, so these effects use the loader's registration.
+const vectorRenderer = new CanvasRenderer();
+const vectorDefinitions = new Map();
+for (const [namespace, name, definition] of [['synth', 'media', media], ['synth', 'remap', remap], ['filter', 'grade', grade]]) {
+    const instance = typeof definition === 'function' ? new definition() : definition;
+    vectorRenderer.registerEffectWithRuntime({ namespace, name, instance });
+    vectorRenderer.registerStarterOpForEffect({ namespace, name, instance });
+    vectorDefinitions.set(`${namespace}.${name}`, instance);
+}
+const vectorOptions = { getEffectDef: name => vectorDefinitions.get(name) ?? null };
+const vectorArg = (source, op, key) => {
+    const compiled = compile(`search synth, filter\n${source}.write(o0)\nrender(o0)`);
+    const step = compiled.plans[0].chain.find(entry => entry.op === op);
+    return { value: step.args[key], codes: compiled.diagnostics.map(d => d.code), compiled };
+};
+
+test('vec2() and vec4() arguments set their components on vec2 and vec4 parameters', () => {
+    for (const [source, op, key, expected] of [
+        ['media(imageSize: vec2(512, 256))', 'synth.media', 'imageSize', [512, 256]],
+        ['remap(zone0_bounds: vec4(0.1, 0.2, 0.8, 0.9))', 'synth.remap', 'zone0_bounds', [0.1, 0.2, 0.8, 0.9]]
+    ]) {
+        const { value, codes, compiled } = vectorArg(source, op, key);
+        assert.deepEqual(codes, [], source);
+        assert.deepEqual(value, expected, source);
+        // unparse writes the value back in a form that compiles to it again.
+        const output = unparse(compiled, {}, vectorOptions);
+        const again = compile(output);
+        assert.deepEqual(again.diagnostics, [], output);
+        assert.deepEqual(again.plans[0].chain.find(entry => entry.op === op).args[key], expected, output);
+    }
+});
+
+test('vec3(), array literal and hex vector arguments keep their results', () => {
+    for (const [source, op, key, expected] of [
+        ['noise().grade(shadowTint: vec3(0.1, 0.2, 0.3))', 'filter.grade', 'shadowTint', [0.1, 0.2, 0.3]],
+        ['media(imageSize: [512, 256])', 'synth.media', 'imageSize', [512, 256]],
+        ['remap(zone0_bounds: [0.1, 0.2, 0.8, 0.9])', 'synth.remap', 'zone0_bounds', [0.1, 0.2, 0.8, 0.9]],
+        ['remap(zone0_bounds: #19334dcc)', 'synth.remap', 'zone0_bounds', [25 / 255, 51 / 255, 77 / 255, 204 / 255]]
+    ]) {
+        const { value, codes } = vectorArg(source, op, key);
+        assert.deepEqual(codes, [], source);
+        assert.deepEqual(value, expected, source);
+    }
+});
+
+test('vec2() and vec4() with the wrong number of components give a diagnostic', () => {
+    for (const [source, op, key, fallback] of [
+        ['media(imageSize: vec2(512))', 'synth.media', 'imageSize', [1024, 1024]],
+        ['media(imageSize: vec2(512, 256, 1))', 'synth.media', 'imageSize', [1024, 1024]],
+        ['remap(zone0_bounds: vec4(0.1, 0.2, 0.8))', 'synth.remap', 'zone0_bounds', [0, 0, 1, 1]],
+        ['remap(zone0_bounds: vec4(0.1, 0.2, 0.8, 0.9, 1))', 'synth.remap', 'zone0_bounds', [0, 0, 1, 1]]
+    ]) {
+        const { value, codes } = vectorArg(source, op, key);
+        assert.deepEqual(codes, ['S002'], source);
+        assert.deepEqual(value, fallback, source);
+    }
+});
+
+// The parser and validator accept if/elif/else, break, continue and return,
+// but the runtime does not execute them. compileGraph() rejects them with the
+// documented ExpansionFailure shape, and unparse keeps every statement.
+for (const [name, definition] of [['noise', noise], ['solid', solid]]) {
+    vectorRenderer.registerEffectWithRuntime({ namespace: 'synth', name, instance: definition });
+    vectorRenderer.registerStarterOpForEffect({ namespace: 'synth', name, instance: definition });
+}
+const controlFlowPrograms = [
+    ['search synth\nif (true) {\n  noise().write(o0)\n} else {\n  solid().write(o0)\n}\nrender(o0)', ['if']],
+    ['search synth\nnoise().write(o0)\nreturn 5\nrender(o0)', ['return']],
+    ['search synth\nnoise().write(o0)\nbreak\nrender(o0)', ['break']],
+    ['search synth\nnoise().write(o0)\ncontinue\nrender(o0)', ['continue']],
+    ['search synth\nlet k = 1\n// before the branch\nif (k) {\n  noise().write(o0)\n} elif (() => time > 2) {\n  solid().write(o0)\n  break\n} elif (0) {\n  if (false) {\n    return\n  }\n}\nnoise(seed: 3).write(o1)\nreturn noise()\nrender(o0)', ['if', 'return']],
+    ['search synth\nif (true) {\n  let x = 1\n  noise(seed: x).write(o0)\n}\nrender(o0)', ['if']],
+    ['search synth\nlet x = 2\nif (true) {\n  let x = 5\n  noise(seed: x).write(o0)\n} else {\n  let y = x\n  solid().write(o0)\n}\nnoise(seed: x).write(o1)\nrender(o0)', ['if']],
+    ['search synth\nif (true) {\n  // inside\n  noise().write(o0)\n  // before the close\n}\nrender(o0)', ['if']],
+    ['search synth\nif (true) {\n  noise().write(o0)\n} elif (false) {\n  // elif comment\n  break\n} else {\n  // only a comment\n}\nrender(o0)', ['if']],
+    ['search synth\nif (true) {\n  // the let\n  let x = 1\n  // nested\n  if (x) {\n    noise(seed: x).write(o0)\n  }\n}\nrender(o0)', ['if']]
+];
+const controlFlowShape = plans => plans.map(plan => plan.chain ? { ops: plan.chain.map(step => step.op), comments: plan.leadingComments } : {
+    type: plan.type,
+    name: plan.name,
+    expr: JSON.stringify(plan.expr, (key, value) => key === 'loc' ? undefined : value),
+    cond: JSON.stringify(plan.cond, (key, value) => key === 'loc' ? undefined : value),
+    condition: JSON.stringify(plan.source?.condition, (key, value) => key === 'loc' ? undefined : value),
+    value: JSON.stringify(plan.source?.value, (key, value) => key === 'loc' ? undefined : value),
+    comments: (plan.source || plan).leadingComments,
+    then: plan.then && controlFlowShape(plan.then),
+    thenEnd: plan.source?.then?.trailingComments,
+    elif: plan.elif?.map((entry, index) => ({
+        cond: JSON.stringify(entry.cond, (key, value) => key === 'loc' ? undefined : value),
+        then: controlFlowShape(entry.then),
+        end: plan.source?.elif?.[index]?.then?.trailingComments
+    })),
+    elifConditions: plan.source?.elif?.map(entry => JSON.stringify(entry.condition, (key, value) => key === 'loc' ? undefined : value)),
+    else: plan.else && controlFlowShape(plan.else),
+    elseEnd: plan.source?.else?.trailingComments,
+    hasElse: plan.source ? plan.source.else !== null : undefined
+});
+
+test('compileGraph rejects control flow with the documented ExpansionFailure shape', () => {
+    for (const [source, keywords] of controlFlowPrograms) {
+        assert.deepEqual(compile(source).diagnostics, [], source);
+        let thrown = null;
+        try { compileGraph(source); } catch (err) { thrown = err; }
+        assert.ok(thrown, `${source} must not compile to a graph`);
+        assert.ok(!(thrown instanceof TypeError), `${source} threw ${thrown}`);
+        assert.equal(thrown.code, 'ERR_EXPANSION_FAILED', source);
+        assert.deepEqual(thrown.errors, keywords.map(keyword => ({ message: `The runtime does not yet execute control flow ('${keyword}')` })), source);
+    }
+});
+
+test('unparse keeps every statement of a control-flow program', () => {
+    for (const [source] of controlFlowPrograms) {
+        const first = compile(source);
+        for (const options of [{}, vectorOptions]) {
+            const output = unparse(first, {}, options);
+            const second = compile(output);
+            assert.deepEqual(second.diagnostics, first.diagnostics, output);
+            assert.deepEqual(controlFlowShape(second.plans), controlFlowShape(first.plans), output);
+            assert.equal(unparse(second, {}, options), output, 'A second unparse gives the same text');
+            for (const comment of source.match(/\/\/[^\n]*/g) || []) {
+                assertIncludes(output, comment, 'unparse keeps each comment');
+            }
+        }
+    }
+});
+
+test('A let inside a block applies to the rest of that block only', () => {
+    const compiled = compile('search synth\nlet x = 2\nif (true) {\n  let x = 5\n  noise(seed: x).write(o0)\n} else {\n  let y = x\n  solid().write(o0)\n}\nnoise(seed: x).write(o1)\nrender(o0)');
+    const [branch, after] = compiled.plans;
+    assert.equal(branch.then[0].type, 'VarAssign');
+    assert.equal(branch.then[1].chain[0].args.seed.value, 5, 'The block let shadows the top-level x in its block');
+    assert.equal(after.chain[0].args.seed.value, 2, 'After the block, x is the top-level value again');
+    const leaked = compile('search synth\nif (true) {\n  let z = 3\n}\nnoise(seed: z).write(o0)\nrender(o0)');
+    assert.deepEqual(leaked.diagnostics.map(d => d.code), ['S003'], 'A block let is not visible after the block');
 });
 
 // Summary

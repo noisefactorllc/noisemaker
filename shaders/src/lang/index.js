@@ -2,7 +2,7 @@ import {lex} from './lexer.js'
 import {parse} from './parser.js'
 import {validate} from './validator.js'
 import {unparse, applyParameterUpdates, formatValue, unparseCall} from './unparser.js'
-import {replaceEffect, listSteps, getCompatibleReplacements} from './transform.js'
+import {replaceEffect, listSteps, getCompatibleReplacements, predictReplacement} from './transform.js'
 import {formatDslError, isDslSyntaxError} from './error-formatter.js'
 
 /**
@@ -10,10 +10,10 @@ import {formatDslError, isDslSyntaxError} from './error-formatter.js'
  * @param {string} src
  * @returns {object} {plans, diagnostics, render}
  */
-export function compile(src) {
+export function compile(src, options = {}) {
     const tokens = lex(src)
-    const ast = parse(tokens)
+    const ast = parse(tokens, options)
     return validate(ast)
 }
 
-export { lex, parse, validate, unparse, applyParameterUpdates, formatValue, unparseCall, replaceEffect, listSteps, getCompatibleReplacements, formatDslError, isDslSyntaxError }
+export { lex, parse, validate, unparse, applyParameterUpdates, formatValue, unparseCall, replaceEffect, listSteps, getCompatibleReplacements, predictReplacement, formatDslError, isDslSyntaxError }

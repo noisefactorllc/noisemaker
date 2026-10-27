@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "points/lenia",
+  "sourceHash": "3d723ee101ad45ae6b72198f882fd263dae6cf9166a24a18f81352b724c03f42",
+  "caseHash": "d5226ec35c0af9acb1436700983b698b774eb88c8f27c6c7b5439e39c4336143",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4095,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 3325
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4095,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 3325
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 5,
+    "webgpuTargetPasses": 5
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

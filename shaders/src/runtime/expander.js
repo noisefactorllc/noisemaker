@@ -5,6 +5,8 @@ import { SCENE_COLOR_TEXTURE } from '../rendering/scene-compiler.js'
 
 const SURFACE_REF_PATTERN = /^(?:o|vol|geo|xyz|vel|rgba)[0-7]$/
 const TEXTURE_ARG_KINDS = new Set(['temp', 'output', 'source', 'feedback', 'vol', 'geo', 'xyz', 'vel', 'rgba', 'pipeline'])
+// Compiled control-flow plan type -> DSL keyword
+const CONTROL_FLOW_KEYWORDS = { Branch: 'if', Break: 'break', Continue: 'continue', Return: 'return' }
 
 function isTextureArg(arg) {
     return arg !== null && typeof arg === 'object' && TEXTURE_ARG_KINDS.has(arg.kind)
@@ -106,7 +108,7 @@ function resolveGlobalSurfaceRef(name) {
  * @param {object} [options] - Expansion options
  * @param {object} [options.shaderOverrides] - Per-step shader overrides, keyed by step index
  *   Example: { 0: { main: { glsl: '...', wgsl: '...' } } }
- * @returns {object} { passes, errors, programs, textureSpecs, renderSurface }
+ * @returns {object} { passes, errors, programs, textureSpecs, renderSurface, mediaSteps }
  */
 export function expand(compilationResult, options = {}) {
     const shaderOverrides = options.shaderOverrides || {}
@@ -115,6 +117,15 @@ export function expand(compilationResult, options = {}) {
     const programs = {}
     const textureSpecs = {} // nodeId_texName -> { width, height, format, is3D?, depth? }
     const textureMap = new Map() // logical_id -> virtual_texture_id
+    const writtenVolumes = new Map() // exported volume -> source sizing uniform
+    const readVolumes = new Map() // reader sizing scope -> volume and preceding writer
+    const exportedTextures = new Map() // exported atlas -> source texture
+    // Media steps bound to per-step external textures (imageTex_step_N, where
+    // N is the step's node index). One entry per distinct texture id so hosts
+    // can upload sources and publish imageSize without reproducing the
+    // numbering themselves (issue #308).
+    const mediaSteps = []
+    const mediaStepIds = new Set()
     let lastWrittenSurface = null // Track the last surface written to
 
     // Helper to resolve enum paths
@@ -133,6 +144,13 @@ export function expand(compilationResult, options = {}) {
 
     // 1. Expand each plan into passes
     for (const plan of compilationResult.plans) {
+        // Branch, Break, Continue and Return plans have no chain. The parser
+        // and validator accept them, but the runtime does not execute them.
+        if (!Array.isArray(plan.chain)) {
+            const keyword = CONTROL_FLOW_KEYWORDS[plan.type] ?? plan.type
+            errors.push({ message: `The runtime does not yet execute control flow ('${keyword}')` })
+            continue
+        }
         // Each plan is a chain of effects
         // We need to track the "current" output texture as we traverse the chain
         let currentInput = null      // 2D pipeline texture
@@ -152,6 +170,7 @@ export function expand(compilationResult, options = {}) {
         // Example: noise3d sets volumeSize, cellularAutomata3d uses it without declaring it
         const pipelineUniforms = {}
         const chainScopeId = `chain_${compilationResult.plans.indexOf(plan)}`
+        const volumeSizeParam = `volumeSize_${chainScopeId}`
 
         for (const step of plan.chain) {
             // Handle builtin read operations - these just set the current input
@@ -183,6 +202,16 @@ export function expand(compilationResult, options = {}) {
                     } else {
                         currentInputGeo = geo.name || geo
                     }
+                }
+                // Resolve the producer scope after all plans have been expanded:
+                // readers may precede writers to consume the previous frame.
+                const volume = writtenVolumes.get(currentInput3d)
+                if (currentInput3d) {
+                    // Preserve the writer visible at this read. A later filter
+                    // may rewrite the same surface without becoming its size owner.
+                    readVolumes.set(volumeSizeParam, { surface: currentInput3d, writer: volume })
+                    pipelineUniforms.volumeSize = volume?.value ?? 64
+                    pipelineUniforms[volumeSizeParam] = pipelineUniforms.volumeSize
                 }
                 // Register the read3d output so subsequent steps can find it via step.from
                 const nodeId = `node_${step.temp}`
@@ -244,6 +273,13 @@ export function expand(compilationResult, options = {}) {
                 // Blit 3D volume to target global surface (skip if "none")
                 if (tex3d && tex3d.name !== 'none' && currentInput3d) {
                     const targetVol = `global_${tex3d.name}`
+                    exportedTextures.set(targetVol, currentInput3d)
+                    if (textureSpecs[currentInput3d]) {
+                        textureSpecs[targetVol] = { ...textureSpecs[currentInput3d] }
+                    }
+                    if (pipelineUniforms.volumeSize !== undefined) {
+                        writtenVolumes.set(targetVol, { param: volumeSizeParam, value: pipelineUniforms.volumeSize })
+                    }
 
                     // Only add blit if the current input is not already the target
                     if (currentInput3d !== targetVol) {
@@ -266,6 +302,10 @@ export function expand(compilationResult, options = {}) {
                 // Blit geometry buffer to target global surface (skip if "none")
                 if (geo && geo.name !== 'none' && currentInputGeo) {
                     const targetGeo = `global_${geo.name}`
+                    exportedTextures.set(targetGeo, currentInputGeo)
+                    if (textureSpecs[currentInputGeo]) {
+                        textureSpecs[targetGeo] = { ...textureSpecs[currentInputGeo] }
+                    }
 
                     // Only add blit if the current input is not already the target
                     if (currentInputGeo !== targetGeo) {
@@ -343,7 +383,7 @@ export function expand(compilationResult, options = {}) {
             // Helper to scope particle textures to current pipeline
             const scopeParticleTex = (texName) => {
                 if (!currentParticlePipelineId) return texName
-                if (/^global_(xyz|vel|rgba|points_trail|life_data)$/.test(texName)) {
+                if (/^global_(xyz|vel|rgba|points_trail|life_data|[a-z]+_base_color)$/.test(texName)) {
                     return `${texName}_${currentParticlePipelineId}`
                 }
                 return texName
@@ -440,12 +480,13 @@ export function expand(compilationResult, options = {}) {
 
             // Collect texture specs from effect definition
             // Textures starting with 'global_' are shared within a pipeline segment.
-            // Particle textures (global_xyz, global_vel, global_rgba, global_points_trail, global_life_data)
-            // get scoped to the current particle pipeline to allow multiple pipelines to coexist.
+            // Particle textures (global_xyz, global_vel, global_rgba, global_points_trail, global_life_data,
+            // and each behavior's global_<behavior>_base_color) get scoped to the current particle
+            // pipeline to allow multiple pipelines to coexist, and are sized by its stateSize.
             if (effectDef.textures) {
                 for (const [texName, spec] of Object.entries(effectDef.textures)) {
                     let virtualTexId
-                    const isParticleTex = /^global_(xyz|vel|rgba|points_trail|life_data)$/.test(texName)
+                    const isParticleTex = /^global_(xyz|vel|rgba|points_trail|life_data|[a-z]+_base_color)$/.test(texName)
                     const shouldScopeAsParticle = isParticleTex && currentParticlePipelineId
                     const shouldScopeAsChain = texName.startsWith('global_') && !isParticleTex
 
@@ -492,9 +533,13 @@ export function expand(compilationResult, options = {}) {
                         const scopeDimSpec = (dimSpec) => {
                             if (typeof dimSpec === 'object' && dimSpec.param !== undefined) {
                                 const originalParam = dimSpec.param
-                                const scopedParam = `${originalParam}_${scopeSuffix}`
-                                // Track this mapping so we can copy uniform values later
-                                scopedParamMap.set(originalParam, scopedParam)
+                                const dimensionScope = originalParam === 'stateSize' && currentParticlePipelineId && !texName.startsWith('global_')
+                                    ? currentParticlePipelineId : scopeSuffix
+                                const scopedParam = originalParam === 'volumeSize' ? volumeSizeParam : `${originalParam}_${dimensionScope}`
+                                // Track this mapping so we can copy uniform values later.
+                                // An inherited dimension reads the scope's value and never
+                                // writes this effect's own value over it.
+                                if (!dimSpec.inherit) scopedParamMap.set(originalParam, scopedParam)
                                 return {
                                     ...dimSpec,
                                     param: scopedParam
@@ -641,6 +686,12 @@ export function expand(compilationResult, options = {}) {
 
             // Expand passes
             const effectPasses = effectDef.passes || []
+            const conditionalUniforms = new Set()
+            for (const passDef of effectPasses) {
+                for (const condition of [...(passDef.conditions?.runIf || []), ...(passDef.conditions?.skipIf || [])]) {
+                    conditionalUniforms.add(condition.uniform)
+                }
+            }
             for (let i = 0; i < effectPasses.length; i++) {
                 const passDef = effectPasses[i]
                 const passId = `${nodeId}_pass_${i}`
@@ -648,7 +699,22 @@ export function expand(compilationResult, options = {}) {
                 // Use nodeId prefix for program name to match program collection above.
                 // Append the same compile-time-define suffix so passes reference the
                 // variant-specific program entry.
-                const programName = `${nodeId}_${passDef.program}${programDefineSuffix}`
+                let programName = `${nodeId}_${passDef.program}${programDefineSuffix}`
+                if (passDef.defines) {
+                    // Conditional passes can select precompiled variants without
+                    // freezing an animated selector into a global define.
+                    const baseProgram = programs[programName]
+                    const passDefineSuffix = Object.entries(passDef.defines)
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([key, value]) => `__${key}_${value}`).join('')
+                    programName += passDefineSuffix
+                    if (baseProgram && !programs[programName]) {
+                        programs[programName] = {
+                            ...baseProgram,
+                            defines: { ...compileTimeDefines, ...passDef.defines }
+                        }
+                    }
+                }
 
                 const pass = {
                     id: passId,
@@ -660,9 +726,22 @@ export function expand(compilationResult, options = {}) {
                     countUniform: passDef.countUniform,  // For dynamic vertex count from uniforms
                     repeat: passDef.repeat,  // Number of iterations per frame
                     blend: passDef.blend,
+                    conditions: passDef.conditions,
                     workgroups: passDef.workgroups,
                     storageBuffers: passDef.storageBuffers,
                     storageTextures: passDef.storageTextures,
+                    // Pass labels and per-pass execution controls are
+                    // copied verbatim. `name`/`type` stay queryable metadata
+                    // (backend shader-kind dispatch remains source-derived);
+                    // `viewport` is resolved to backend x/y/w/h numbers by
+                    // Pipeline.resolvePassViewport(); `clear` drives the
+                    // WebGPU render-pass loadOp; `samplerTypes` selects
+                    // per-binding samplers in the WebGPU backend.
+                    name: passDef.name,
+                    type: passDef.type,
+                    clear: passDef.clear,
+                    viewport: passDef.viewport,
+                    samplerTypes: passDef.samplerTypes,
                     inputs: {},
                     outputs: {},
                     uniforms: {}
@@ -724,6 +803,14 @@ export function expand(compilationResult, options = {}) {
                                 min: def.min ?? 0,
                                 max: def.max ?? 100
                             }
+                        } else if (def.type === 'int' && def.choices && conditionalUniforms.has(uniformName)) {
+                            // A conditional selector must use the same integer in
+                            // every shader pass and in CPU-side pass selection.
+                            pass.uniformSpecs[uniformName] = { type: 'int' }
+                            if (Number.isFinite(def.min) && Number.isFinite(def.max)) {
+                                pass.uniformSpecs[uniformName].min = def.min
+                                pass.uniformSpecs[uniformName].max = def.max
+                            }
                         }
                     }
                 }
@@ -783,7 +870,20 @@ export function expand(compilationResult, options = {}) {
                 // This ensures specific passes get the uniforms they need from globals
                 if (passDef.uniforms) {
                     for (const [uniformName, globalRef] of Object.entries(passDef.uniforms)) {
-                        // globalRef is the name of the global parameter
+                        // Constants specialize draws that share a program,
+                        // without exposing internal pass selection as DSL args.
+                        if (typeof globalRef === 'number') {
+                            pass.uniforms[uniformName] = globalRef
+                            continue
+                        }
+                        // globalRef is the name of the global parameter.
+                        // Record a renamed mapping so runtime parameter
+                        // updates reach this shader uniform too
+                        // (runtime/uniform-aliases.js).
+                        if (globalRef !== uniformName) {
+                            if (!pass.uniformAliases) pass.uniformAliases = {}
+                            pass.uniformAliases[uniformName] = globalRef
+                        }
                         // Look up the value from pipelineUniforms (includes defaults and DSL args)
                         if (pipelineUniforms[uniformName] !== undefined) {
                             pass.uniforms[uniformName] = pipelineUniforms[uniformName]
@@ -884,7 +984,19 @@ export function expand(compilationResult, options = {}) {
                             // External texture input (e.g., camera/video) - use per-step texture ID
                             // Each media effect instance gets its own texture (imageTex_step_0, imageTex_step_1, etc.)
                             // The texture will be created/updated via updateTextureFromSource()
-                            pass.inputs[uniformName] = `${texRef}_step_${step.temp}`
+                            const texId = `${texRef}_step_${step.temp}`
+                            pass.inputs[uniformName] = texId
+                            // Record the binding so hosts can enumerate media
+                            // texture ids via renderer.getMediaSteps().
+                            if (!mediaStepIds.has(texId)) {
+                                mediaStepIds.add(texId)
+                                mediaSteps.push({
+                                    textureId: texId,
+                                    uniform: uniformName,
+                                    stepIndex: step.temp,
+                                    effect: effectName
+                                })
+                            }
                         } else if (step.args && Object.prototype.hasOwnProperty.call(step.args, texRef)) {
                             // Reference to an argument (e.g. blend(tex: ...))
                             const arg = step.args[texRef]
@@ -1190,6 +1302,47 @@ export function expand(compilationResult, options = {}) {
         }
     }
 
+    // Follow volume handoffs after expansion so ordering and re-export do not
+    // change atlas dimensions. Cycles without a producer retain their defaults.
+    const resolveVolume = (param, visited = new Set()) => {
+        if (visited.has(param)) return null
+        visited.add(param)
+        const read = readVolumes.get(param)
+        const writer = read?.writer || writtenVolumes.get(read?.surface)
+        if (!writer || writer.param === param) return null
+        return resolveVolume(writer.param, visited) || writer
+    }
+    const resolvedVolumes = new Map()
+    for (const param of readVolumes.keys()) {
+        const source = resolveVolume(param)
+        if (source) resolvedVolumes.set(param, source)
+    }
+    const resolveExport = (id, visited = new Set()) => {
+        if (visited.has(id)) return textureSpecs[id]
+        visited.add(id)
+        const source = exportedTextures.get(id)
+        if (!source || source === id) return textureSpecs[id]
+        const spec = resolveExport(source, visited)
+        if (spec) textureSpecs[id] = { ...spec }
+        return textureSpecs[id]
+    }
+    for (const id of exportedTextures.keys()) resolveExport(id)
+    for (const spec of Object.values(textureSpecs)) {
+        for (const axis of ['width', 'height', 'depth']) {
+            const source = resolvedVolumes.get(spec[axis]?.param)
+            if (source) spec[axis] = { ...spec[axis], param: source.param }
+        }
+    }
+    for (const pass of passes) {
+        for (const [param, source] of resolvedVolumes) {
+            if (!(param in pass.uniforms)) continue
+            delete pass.uniforms[param]
+            pass.uniforms[source.param] = source.value
+            pass.uniforms.volumeSize = source.value
+            if (pass.scopedParams?.volumeSize === param) pass.scopedParams.volumeSize = source.param
+        }
+    }
+
     // Determine the render surface:
     // 1. Explicit render() directive takes precedence
     // 2. Fall back to the last surface written to in the program
@@ -1204,5 +1357,5 @@ export function expand(compilationResult, options = {}) {
         renderSurface = null
     }
 
-    return { passes, errors, programs, textureSpecs, renderSurface }
+    return { passes, errors, programs, textureSpecs, renderSurface, mediaSteps }
 }

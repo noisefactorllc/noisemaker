@@ -26,6 +26,11 @@ export default new Effect({
   // Private pheromone texture - NOT shared with pointsRender
   // This isolates chemistry (deposit/decay) from visual trail intensity
   textures: {
+    global_physarum_base_color: {
+      width: { param: 'stateSize', inherit: true, default: 256 },
+      height: { param: 'stateSize', inherit: true, default: 256 },
+      format: "rgba8"
+    },
     global_physarum_pheromone: {
       width: "100%",
       height: "100%",
@@ -39,6 +44,14 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    heightTex: {
+      type: "surface", default: "none", colorModeUniform: "fieldActive",
+      ui: { label: "height map", category: "general" }
+    },
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "general" }
+    },
     moveSpeed: {
       type: "float",
       default: 1.78,
@@ -142,6 +155,8 @@ export default new Effect({
     }
   },
 
+  paramAliases: { fieldTex: 'heightTex' },
+
   passes: [
     // Pass 1: Decay pheromone - apply persistence before agents sense it
     {
@@ -163,7 +178,7 @@ export default new Effect({
     {
       name: "agent",
       program: "agent",
-      drawBuffers: 3,
+      drawBuffers: 4,
       inputs: {
         xyzTex: "global_xyz",
         velTex: "global_vel",
@@ -171,9 +186,14 @@ export default new Effect({
         // Read pheromone texture for sensor feedback
         trailTex: "global_physarum_pheromone",
         // Read input for field attraction
-        inputTex: "inputTex"
+        inputTex: "inputTex",
+        heightTex: "heightTex",
+        diffuseTex: "diffuseTex",
+        baseColorTex: "global_physarum_base_color"
       },
       uniforms: {
+        diffuseActive: "diffuseActive",
+        fieldActive: "fieldActive",
         moveSpeed: "moveSpeed",
         turnSpeed: "turnSpeed",
         sensorAngle: "sensorAngle",
@@ -183,7 +203,8 @@ export default new Effect({
       outputs: {
         outXYZ: "global_xyz",
         outVel: "global_vel",
-        outRGBA: "global_rgba"
+        outRGBA: "global_rgba",
+        outBaseColor: "global_physarum_base_color"
       }
     },
 

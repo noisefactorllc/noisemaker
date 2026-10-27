@@ -85,7 +85,7 @@ export default new Effect({
       }
     }
   },
-  defaultProgram: "search filter, synth\n\nmodPattern()\n.smooth(type: blur, radius: 4)\n.write(o0)",
+  defaultProgram: "search filter, synth\n\npattern(type: stripes, scale: 5, rotation: 88, smoothness: 0.001, bgColor: #808080)\n.smooth(type: blur, radius: 4)\n.write(o0)",
   textures: {
     _smoothEdges: { width: "input", height: "input", format: "rgba8unorm" }
   },

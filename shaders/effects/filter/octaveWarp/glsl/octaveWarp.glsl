@@ -40,9 +40,9 @@ uvec3 pcg(uvec3 v) {
 
 float hash21(vec2 p) {
     uvec3 v = uvec3(
-        uint(p.x >= 0.0 ? p.x * 2.0 : -p.x * 2.0 + 1.0),
-        uint(p.y >= 0.0 ? p.y * 2.0 : -p.y * 2.0 + 1.0),
-        uint(seed)
+        uint(abs(p.x) * 2.0) + uint(p.x < 0.0),
+        uint(abs(p.y) * 2.0) + uint(p.y < 0.0),
+        uint(abs(seed))
     );
     return float(pcg(v).x) / float(0xffffffffu);
 }

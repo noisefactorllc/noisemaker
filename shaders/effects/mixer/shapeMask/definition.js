@@ -70,7 +70,7 @@ export default new Effect({
       uniform: "rotation",
       min: -180,
       max: 180,
-      ui: { label: "rotation", control: "slider" }
+      ui: { label: "rotation", control: "slider", enabledBy: { param: "shape", notIn: [0, 6] } }
     },
     posX: {
       type: "float",

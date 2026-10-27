@@ -374,7 +374,7 @@ fn fragmentMain(input: VertexOutput) -> FragmentOutput {
     
     // Camera setup - fixed position, volume rotates
     // Scale camera position from 0-1 UI range to world coords
-    let ro = u.cameraPosition * vec3f(-1.0, 1.0, 1.0) * 3.5;
+    let ro = u.cameraPosition * 3.5;
     
     // Camera looks at origin; handle case when at origin
     var forward: vec3f;
@@ -384,20 +384,23 @@ fn fragmentMain(input: VertexOutput) -> FragmentOutput {
         forward = normalize(-ro);  // Look toward origin
     }
     var worldUp = vec3f(0.0, 1.0, 0.0);
-    // Handle looking straight up/down
+    // Looking straight down, screen up is -Z, as it is just short of straight
+    // down, so a top-down view shows the volume's far side at the top.
     if (abs(dot(forward, worldUp)) > 0.999) {
-        worldUp = vec3f(0.0, 0.0, 1.0);
+        worldUp = vec3f(0.0, 0.0, sign(forward.y));
     }
-    let right = normalize(cross(worldUp, forward));
-    let up = cross(forward, right);
+    // (right, up, -forward) is right-handed, so the volume is never mirrored.
+    let right = normalize(cross(forward, worldUp));
+    let up = cross(right, forward);
     
     let rd = normalize(forward + uv.x * right + uv.y * up);
     
     // Light direction is fixed in world space (not view space)
-    let worldLightDir = normalize(u.lightDirection * vec3f(-1.0, 1.0, 1.0));
+    let worldLightDir = normalize(u.lightDirection);
     
-    // Rotate ray into volume space
-    let angle = u.time * TAU * f32(u.orbitSpeed);
+    // Rotate ray into volume space. The angle is negated so the volume spins
+    // on screen in the same direction as in earlier releases.
+    let angle = -u.time * TAU * f32(u.orbitSpeed);
     let c = cos(angle);
     let s = sin(angle);
     // Rotation around Y axis

@@ -93,6 +93,7 @@ async function loadEffect(file, namespace, name) {
 
 await loadEffect(new URL('../effects/synth/noise/definition.js', import.meta.url).pathname, 'synth', 'noise')
 await loadEffect(new URL('../effects/render/pointsEmit/definition.js', import.meta.url).pathname, 'render', 'pointsEmit')
+await loadEffect(new URL('../effects/points/flow/definition.js', import.meta.url).pathname, 'points', 'flow')
 
 class StubBackend {
     constructor(capabilities) {
@@ -130,6 +131,18 @@ function createdFormat(pipeline, keyPrefix) {
         if (key.startsWith(keyPrefix)) return { key, format: tex.format }
     }
     return null
+}
+
+function buildTexturePipeline(texId, spec) {
+    const graph = {
+        passes: [],
+        textures: new Map([[texId, spec]])
+    }
+    const pipeline = new Pipeline(graph, new StubBackend())
+    pipeline.width = 512
+    pipeline.height = 512
+    pipeline.recreateTextures()
+    return { graph, pipeline }
 }
 
 // ---------------------------------------------------------------------------
@@ -173,6 +186,154 @@ await test('the byte table scores single-channel float formats at 4 bytes', () =
     if (pipeline.mrtFormatBytes('r32float') !== 4) throw new Error(`r32float scored ${pipeline.mrtFormatBytes('r32float')}, expected 4`)
     if (pipeline.mrtFormatBytes('rgba16f') !== 8) throw new Error('rgba16f must still score 8')
     if (pipeline.mrtFormatBytes('rgba32f') !== 16) throw new Error('rgba32f must still score 16')
+})
+
+await test('same-size global surface is recreated when MRT budgeting changes its format', () => {
+    const { graph, pipeline } = buildPipeline({ maxColorBytesPerSample: 64 })
+    const initialVel = specFormat(graph, 'global_vel')
+    const surfaceName = pipeline.parseGlobalName(initialVel.key)
+    const surface = pipeline.surfaces.get(surfaceName)
+    const beforeRead = pipeline.backend.textures.get(surface.read)
+    const beforeWrite = pipeline.backend.textures.get(surface.write)
+    if (beforeRead.format !== 'rgba32f' || beforeWrite.format !== 'rgba32f') {
+        throw new Error(`initial vel textures: expected rgba32f/rgba32f, got ${beforeRead.format}/${beforeWrite.format}`)
+    }
+
+    pipeline.backend.capabilities.maxColorBytesPerSample = 32
+    pipeline.createSurfaces()
+
+    const vel = specFormat(graph, 'global_vel')
+    const afterRead = pipeline.backend.textures.get(surface.read)
+    const afterWrite = pipeline.backend.textures.get(surface.write)
+    if (!vel || vel.format !== 'rgba16f') {
+        throw new Error(`budgeted vel spec: expected rgba16f, got ${JSON.stringify(vel)}`)
+    }
+    if (afterRead.format !== 'rgba16f' || afterWrite.format !== 'rgba16f') {
+        throw new Error(`budgeted vel textures: expected rgba16f/rgba16f, got ${afterRead.format}/${afterWrite.format}`)
+    }
+    if (afterRead === beforeRead || afterWrite === beforeWrite) {
+        throw new Error('same-size global vel textures were reused after their format changed')
+    }
+
+    pipeline.createSurfaces()
+    if (pipeline.backend.textures.get(surface.read) !== afterRead ||
+        pipeline.backend.textures.get(surface.write) !== afterWrite) {
+        throw new Error('matching global vel textures were recreated unnecessarily')
+    }
+})
+
+await test('global texture recreation rejects a stale write-side format', () => {
+    const { graph, pipeline } = buildPipeline({ maxColorBytesPerSample: 32 })
+    const vel = specFormat(graph, 'global_vel')
+    const surfaceName = pipeline.parseGlobalName(vel.key)
+    const surface = pipeline.surfaces.get(surfaceName)
+    const beforeRead = pipeline.backend.textures.get(surface.read)
+    const beforeWrite = pipeline.backend.textures.get(surface.write)
+
+    beforeWrite.format = 'rgba32f'
+    pipeline.recreateTextures(pipeline.collectDefaultUniforms())
+
+    const afterRead = pipeline.backend.textures.get(surface.read)
+    const afterWrite = pipeline.backend.textures.get(surface.write)
+    if (afterRead.format !== 'rgba16f' || afterWrite.format !== 'rgba16f') {
+        throw new Error(`recreated vel textures: expected rgba16f/rgba16f, got ${afterRead.format}/${afterWrite.format}`)
+    }
+    if (afterRead === beforeRead || afterWrite === beforeWrite) {
+        throw new Error('global vel pair was reused with a stale write-side format')
+    }
+})
+
+await test('same-size regular 2D texture is recreated when its format changes', () => {
+    const spec = { width: 'screen', height: 'screen', format: 'rgba32f' }
+    const { pipeline } = buildTexturePipeline('node_0_state', spec)
+    const before = pipeline.backend.textures.get('node_0_state')
+
+    spec.format = 'rgba16f'
+    pipeline.recreateTextures()
+
+    const after = pipeline.backend.textures.get('node_0_state')
+    if (after.format !== 'rgba16f') {
+        throw new Error(`regular 2D texture: expected rgba16f, got ${after.format}`)
+    }
+    if (after === before) {
+        throw new Error('same-size regular 2D texture was reused after its format changed')
+    }
+
+    pipeline.recreateTextures()
+    if (pipeline.backend.textures.get('node_0_state') !== after) {
+        throw new Error('matching regular 2D texture was recreated unnecessarily')
+    }
+})
+
+await test('same-size regular 3D texture is recreated when its format changes', () => {
+    const spec = { width: 16, height: 16, depth: 16, format: 'rgba32f', is3D: true }
+    const { pipeline } = buildTexturePipeline('node_0_volume', spec)
+    const before = pipeline.backend.textures.get('node_0_volume')
+
+    spec.format = 'rgba16f'
+    pipeline.recreateTextures()
+
+    const after = pipeline.backend.textures.get('node_0_volume')
+    if (after.format !== 'rgba16f') {
+        throw new Error(`regular 3D texture: expected rgba16f, got ${after.format}`)
+    }
+    if (after === before) {
+        throw new Error('same-size regular 3D texture was reused after its format changed')
+    }
+
+    pipeline.recreateTextures()
+    if (pipeline.backend.textures.get('node_0_volume') !== after) {
+        throw new Error('matching regular 3D texture was recreated unnecessarily')
+    }
+})
+
+await test('a behavior keeps agent positions at rgba32f with its base color memory under a 32-byte budget', () => {
+    const graph = compileGraph(`search synth, render, points
+noise().pointsEmit(stateSize: x64).flow().write(o0)
+render(o0)`)
+    const pipeline = new Pipeline(graph, new StubBackend({ maxColorBytesPerSample: 32 }))
+    pipeline.width = 512
+    pipeline.height = 512
+    pipeline.createSurfaces()
+    pipeline.recreateTextures(pipeline.collectDefaultUniforms())
+    const agent = graph.passes.find(pass => pass.effectFunc === 'flow' && pass.outputs?.outBaseColor)
+    if (!agent) throw new Error('flow agent pass with outBaseColor not found')
+    const formats = Object.fromEntries(Object.entries(agent.outputs).map(([name, id]) => [name, graph.textures.get(id)?.format]))
+    const expected = { outXYZ: 'rgba32f', outVel: 'rgba16f', outRGBA: 'rgba8', outBaseColor: 'rgba8' }
+    if (JSON.stringify(formats) !== JSON.stringify(expected)) {
+        throw new Error(`flow agent formats: expected ${JSON.stringify(expected)}, got ${JSON.stringify(formats)}`)
+    }
+    // The memory follows pointsEmit's stateSize, never flow's own default.
+    const xyz = createdFormat(pipeline, 'global_xyz')
+    const base = createdFormat(pipeline, 'global_flow_base_color')
+    const xyzTex = pipeline.backend.textures.get(xyz.key)
+    const baseTex = pipeline.backend.textures.get(base.key)
+    if (xyzTex.width !== 64 || baseTex.width !== 64 || baseTex.height !== 64) {
+        throw new Error(`expected 64x64 state and memory, got xyz ${xyzTex.width}x${xyzTex.height}, memory ${baseTex.width}x${baseTex.height}`)
+    }
+    if (agent.scopedParams?.stateSize) {
+        throw new Error(`flow must not write its own stateSize into the pipeline scope: ${JSON.stringify(agent.scopedParams)}`)
+    }
+})
+
+await test('a behavior sizes its base color memory like pointsEmit when stateSize is a function', () => {
+    // The runtime does not evaluate a function-valued stateSize, so each
+    // texture falls back to its spec's own default. pointsEmit's state and the
+    // behavior's memory are attachments of one agent pass, so they must fall
+    // back to the same size, or WebGPU rejects the pass.
+    const graph = compileGraph(`search synth, render, points
+noise().pointsEmit(stateSize: () => 128).flow().write(o0)
+render(o0)`)
+    const pipeline = new Pipeline(graph, new StubBackend())
+    pipeline.width = 512
+    pipeline.height = 512
+    pipeline.createSurfaces()
+    pipeline.recreateTextures(pipeline.collectDefaultUniforms())
+    const xyzTex = pipeline.backend.textures.get(createdFormat(pipeline, 'global_xyz').key)
+    const baseTex = pipeline.backend.textures.get(createdFormat(pipeline, 'global_flow_base_color').key)
+    if (baseTex.width !== xyzTex.width || baseTex.height !== xyzTex.height) {
+        throw new Error(`memory ${baseTex.width}x${baseTex.height} does not match agent state ${xyzTex.width}x${xyzTex.height}`)
+    }
 })
 
 // ---------------------------------------------------------------------------

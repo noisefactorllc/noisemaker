@@ -76,7 +76,7 @@ export default new Effect({
       min: 3,
       max: 8,
       uniform: "degree",
-      ui: { label: "degree", control: "slider", category: "fractal" }
+      ui: { label: "degree", control: "slider", category: "fractal", enabledBy: { param: "poi", eq: 0 } }
     },
     relaxation: {
       type: "float",
@@ -139,7 +139,7 @@ export default new Effect({
       zero: 0,
       randChance: 0,
       uniform: "zoomSpeed",
-      ui: { label: "zoom speed", control: "slider", category: "animation" }
+      ui: { label: "zoom speed", control: "slider", category: "animation", enabledBy: { param: "zoomDepth", gt: 0 } }
     },
     zoomDepth: {
       type: "float",
@@ -159,7 +159,7 @@ export default new Effect({
       step: 0.01,
       randChance: 0,
       uniform: "degreeSpeed",
-      ui: { label: "degree speed", control: "slider", category: "animation" }
+      ui: { label: "degree speed", control: "slider", category: "animation", enabledBy: { param: "poi", eq: 0 } }
     },
     degreeRange: {
       type: "float",
@@ -169,7 +169,7 @@ export default new Effect({
       step: 0.01,
       randChance: 0,
       uniform: "degreeRange",
-      ui: { label: "degree range", control: "slider", category: "animation" }
+      ui: { label: "degree range", control: "slider", category: "animation", enabledBy: { param: "poi", eq: 0 } }
     },
     relaxSpeed: {
       type: "float",

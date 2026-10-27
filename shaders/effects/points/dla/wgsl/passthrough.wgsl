@@ -12,9 +12,8 @@ struct Uniforms {
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let uv = fragCoord.xy / u.resolution;
-    let displayUv = vec2f(uv.x, 1.0 - uv.y);
-    let input = textureSample(inputTex, inputTexSampler, displayUv);
-    let grid = textureSample(gridTex, gridTexSampler, displayUv);
+    let input = textureSample(inputTex, inputTexSampler, uv);
+    let grid = textureSample(gridTex, gridTexSampler, uv);
     
     // Blend grid structure over input
     // Grid alpha indicates structure presence

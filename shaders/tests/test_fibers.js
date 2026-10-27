@@ -1,5 +1,5 @@
 import { EffectHarness } from './harness_effect.js'
-import Fibers from '../effects/nm/fibers/definition.js'
+import Fibers from '../effects/filter/fibers/definition.js'
 
 console.log('Testing Fibers Effect')
 console.log('=' .repeat(60))

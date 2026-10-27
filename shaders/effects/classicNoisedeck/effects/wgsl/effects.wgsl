@@ -29,6 +29,11 @@ struct Uniforms {
     offsetY: f32,
     intensity: f32,
     saturation: f32,
+    aspectInv: f32,
+    invFullResolution: vec2f,
+    tileOffset: vec2f,
+    fullResolution: vec2f,
+    renderScale: f32,
 }
 
 const PI: f32 = 3.14159265359;
@@ -39,7 +44,30 @@ fn aspectRatio() -> f32 {
 }
 
 fn mapRange(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
-    return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
+    // The final division lowers differently: Dawn computes x * rcp(span)
+    // (approximate reciprocal), ANGLE a correctly-rounded divide, so mapped
+    // values differ by ~1 ulp and knife-edge taps flip. One Newton-Raphson
+    // step pins the reciprocal to the same value on both backends (multiply
+    // and subtract are correctly rounded in both Metal math modes). The clamp
+    // keeps the span*rmul product from fusing into the (2.0 - ...) subtract.
+    let span = inMax - inMin;
+    let rmul = 1.0 / span;
+    let mc = min(max(span * rmul, -1e38), 1e38);
+    return outMin + (outMax - outMin) * ((value - inMin) * (rmul * (2.0 - mc)));
+}
+
+// GLSL mod(): x - y * floor(x / y). WGSL % truncates instead, and its exact
+// remainder differs from this expression when y is not exactly representable.
+fn glslMod(x: f32, y: f32) -> f32 {
+    return x - y * floor(x / y);
+}
+
+// The GLSL maps a full-image coordinate into the input texture as
+// (uv * fullResolution - tileOffset) / textureSize. Untiled, tileOffset is 0
+// and fullResolution is the frame size. The division by the texture size is
+// x * rcp(size), which need not return uv exactly; compute it the same way.
+fn inputCoord(uv: vec2f) -> vec2f {
+    return (uv * u.fullResolution - u.tileOffset) / vec2f(textureDimensions(inputTex, 0));
 }
 
 // PCG PRNG
@@ -65,16 +93,29 @@ fn random(p: vec2f) -> f32 {
 }
 
 fn rotate2D(st_in: vec2f, rot: f32) -> vec2f {
+    // min/max clamps pin the evaluation order at every multiply that feeds an
+    // add or the caller's arithmetic: relaxed math contracts those pairs into
+    // fma while standard math double-rounds, and the 1 ulp difference flips
+    // sampler taps. The clamps are value-exact for finite values. The aspect
+    // scalars are CPU-computed uniforms, so neither backend evaluates an
+    // in-shader division here.
     var st = st_in;
-    st.x *= aspectRatio();
+    st.x *= u.aspect;
+    st.x = min(max(st.x, -1e38), 1e38);
     let r = mapRange(rot, 0.0, 360.0, 0.0, 2.0);
     let angle = r * PI;
-    st -= vec2f(0.5 * aspectRatio(), 0.5);
+    let ox = min(max(0.5 * u.aspect, -1e38), 1e38);
+    st -= vec2f(ox, 0.5);
     let c = cos(angle);
     let s = sin(angle);
-    st = vec2f(c * st.x - s * st.y, s * st.x + c * st.y);
-    st += vec2f(0.5 * aspectRatio(), 0.5);
-    st.x /= aspectRatio();
+    let px = min(max(c * st.x, -1e38), 1e38);
+    let py = min(max(s * st.y, -1e38), 1e38);
+    let qx = min(max(-s * st.x, -1e38), 1e38);
+    let qy = min(max(c * st.y, -1e38), 1e38);
+    st = vec2f(px + py, qx + qy);
+    st += vec2f(ox, 0.5);
+    st.x *= u.aspectInv;
+    st = min(max(st, vec2f(-1e38)), vec2f(1e38));
     return st;
 }
 
@@ -100,15 +141,17 @@ fn hsv2rgb(hsv: vec3f) -> vec3f {
     let s = hsv.y;
     let v = hsv.z;
     let c = v * s;
-    let x = c * (1.0 - abs(fract(h * 6.0) * 2.0 - 1.0));
+    let x = c * (1.0 - abs((h * 6.0) - 2.0 * floor((h * 6.0) / 2.0) - 1.0));
     let m = v - c;
     var rgb: vec3f;
-    if (h < 1.0/6.0) { rgb = vec3f(c, x, 0.0); }
-    else if (h < 2.0/6.0) { rgb = vec3f(x, c, 0.0); }
-    else if (h < 3.0/6.0) { rgb = vec3f(0.0, c, x); }
-    else if (h < 4.0/6.0) { rgb = vec3f(0.0, x, c); }
-    else if (h < 5.0/6.0) { rgb = vec3f(x, 0.0, c); }
-    else { rgb = vec3f(c, 0.0, x); }
+    // The GLSL's ranges, including black for a hue outside [0, 1).
+    if (0.0 <= h && h < 1.0/6.0) { rgb = vec3f(c, x, 0.0); }
+    else if (1.0/6.0 <= h && h < 2.0/6.0) { rgb = vec3f(x, c, 0.0); }
+    else if (2.0/6.0 <= h && h < 3.0/6.0) { rgb = vec3f(0.0, c, x); }
+    else if (3.0/6.0 <= h && h < 4.0/6.0) { rgb = vec3f(0.0, x, c); }
+    else if (4.0/6.0 <= h && h < 5.0/6.0) { rgb = vec3f(x, 0.0, c); }
+    else if (5.0/6.0 <= h && h < 1.0) { rgb = vec3f(c, 0.0, x); }
+    else { rgb = vec3f(0.0, 0.0, 0.0); }
     return rgb + vec3f(m);
 }
 
@@ -118,7 +161,7 @@ fn rgb2hsv(rgb: vec3f) -> vec3f {
     let delta = maxC - minC;
     var h = 0.0;
     if (delta != 0.0) {
-        if (maxC == rgb.r) { h = ((rgb.g - rgb.b) / delta) % 6.0 / 6.0; }
+        if (maxC == rgb.r) { h = glslMod((rgb.g - rgb.b) / delta, 6.0) / 6.0; }
         else if (maxC == rgb.g) { h = ((rgb.b - rgb.r) / delta + 2.0) / 6.0; }
         else { h = ((rgb.r - rgb.g) / delta + 4.0) / 6.0; }
     }
@@ -138,13 +181,17 @@ fn posterize(color: vec3f, levIn: f32) -> vec3f {
 
 fn pixellate(uv_in: vec2f, sizeIn: f32) -> vec3f {
     var size = sizeIn;
-    if (size < 1.0) { return textureSample(inputTex, samp, uv_in).rgb; }
+    if (size < 1.0) { return textureSample(inputTex, samp, inputCoord(uv_in)).rgb; }
     size *= 4.0;
-    let dx = size / u.resolution.x;
-    let dy = size / u.resolution.y;
+    // The block grid is anchored to the full image, so its cell size is a
+    // fraction of fullResolution (the tile size under tiling). Untiled the
+    // two resolutions are equal, so this is byte-identical to the previous
+    // resolution-based grid.
+    let dx = size * (1.0 / u.fullResolution.x);
+    let dy = size * (1.0 / u.fullResolution.y);
     var uv = uv_in - 0.5;
     let coord = vec2f(dx * floor(uv.x / dx), dy * floor(uv.y / dy)) + 0.5;
-    return textureSample(inputTex, samp, coord).rgb;
+    return textureSample(inputTex, samp, inputCoord(coord)).rgb;
 }
 
 fn desaturate(color: vec3f) -> vec3f {
@@ -153,7 +200,10 @@ fn desaturate(color: vec3f) -> vec3f {
 }
 
 fn convolve(uv: vec2f, kernel: array<f32, 9>, divide: bool) -> vec3f {
-    let steps = 1.0 / u.resolution;
+    // One kernel step is one full-image pixel. Untiled the full resolution
+    // equals the canvas resolution; under tiling the canvas is the tile, so
+    // the tile resolution would double every kernel step.
+    let steps = 1.0 / u.fullResolution;
     let offsets = array<vec2f, 9>(
         vec2f(-steps.x, -steps.y), vec2f(0.0, -steps.y), vec2f(steps.x, -steps.y),
         vec2f(-steps.x, 0.0), vec2f(0.0, 0.0), vec2f(steps.x, 0.0),
@@ -162,11 +212,21 @@ fn convolve(uv: vec2f, kernel: array<f32, 9>, divide: bool) -> vec3f {
     var kernelWeight = 0.0;
     var conv = vec3f(0.0);
     for (var i = 0; i < 9; i++) {
-        let color = textureSample(inputTex, samp, uv + offsets[i] * u.effectAmt).rgb;
+        let color = textureSample(inputTex, samp, inputCoord(uv + offsets[i] * u.effectAmt)).rgb;
         conv += color * kernel[i];
         kernelWeight += kernel[i];
     }
-    if (divide && kernelWeight != 0.0) { conv /= kernelWeight; }
+    if (divide) {
+        if (kernelWeight != 0.0) {
+            conv /= kernelWeight;
+        } else {
+            // The edge and derivative kernels sum to zero. The GLSL divides
+            // by that zero weight anyway, and clamp() takes the result to 1
+            // where conv > 0 and to 0 elsewhere. Give that result directly;
+            // WGSL leaves a division by zero indeterminate.
+            conv = select(vec3f(0.0), vec3f(1.0), conv > vec3f(0.0));
+        }
+    }
     return clamp(conv, vec3f(0.0), vec3f(1.0));
 }
 
@@ -230,25 +290,36 @@ fn convolutionEffect(color: vec3f, uv: vec2f) -> vec3f {
     return color;
 }
 
-fn cga(color: vec4f, st: vec2f) -> vec3f {
+// globalCoord is the output pixel's full-image coordinate (the GLSL phase
+// uses gl_FragCoord + tileOffset), while st (the transformed coordinate)
+// picks the sampled block.
+fn cga(color: vec4f, st: vec2f, globalCoord: vec2f) -> vec3f {
     let amt = mapRange(u.effectAmt, 0.0, 20.0, 0.0, 5.0);
     if (amt < 0.01) { return color.rgb; }
-    let pixelDensity = amt;
+    let pixelDensity = amt * u.renderScale;
     let size = 2.0 * pixelDensity;
     let dSize = 2.0 * size;
-    let amount = u.resolution.x / size;
+    // The block grid is anchored to the full image, so the block count uses
+    // the full resolution (the tile resolution under tiling).
+    let amount = u.fullResolution.x / size;
     var d = 1.0 / amount;
-    let ar = u.resolution.x / u.resolution.y;
+    // The GLSL takes this ratio from fullResolution, so the block grid keeps
+    // its shape across print tiles.
+    let ar = u.fullResolution.x / u.fullResolution.y;
     let sx = floor(st.x / d) * d;
     d = ar / amount;
     let sy = floor(st.y / d) * d;
-    let base = textureSample(inputTex, samp, vec2f(sx, sy));
+    // The block grid is globally anchored, so the snapped block center is a
+    // full-image coordinate; map it into this tile's input texture.
+    let base = textureSample(inputTex, samp, inputCoord(vec2f(sx, sy)));
     let lum = 0.2126 * base.r + 0.7152 * base.g + 0.0722 * base.b;
     let o = floor(6.0 * lum);
     let black = vec3f(0.0);
     let light = vec3f(85.0, 255.0, 255.0) / 255.0;
     let dark = vec3f(254.0, 84.0, 255.0) / 255.0;
     let white = vec3f(1.0);
+    // Levels outside 0..6 (input outside 0..1) keep both colors black, as
+    // the GLSL's zero-initialized c1 and c2 do.
     var c1 = black;
     var c2 = black;
     if (o == 0.0) { c1 = black; c2 = black; }
@@ -257,25 +328,30 @@ fn cga(color: vec4f, st: vec2f) -> vec3f {
     else if (o == 3.0) { c1 = dark; c2 = light; }
     else if (o == 4.0) { c1 = light; c2 = light; }
     else if (o == 5.0) { c1 = light; c2 = white; }
-    else { c1 = white; c2 = white; }
-    let fx = st.x * u.resolution.x;
-    let fy = st.y * u.resolution.y;
+    else if (o == 6.0) { c1 = white; c2 = white; }
     var result = c1;
-    if ((fx % dSize) > size) {
-        if ((fy % dSize) > size) { result = c1; } else { result = c2; }
+    // The checker phase is anchored to the full image (tileOffset is 0
+    // untiled), so the pattern does not restart at every tile boundary.
+    if (glslMod(globalCoord.x, dSize) > size) {
+        if (glslMod(globalCoord.y, dSize) > size) { result = c1; } else { result = c2; }
     } else {
-        if ((fy % dSize) > size) { result = c2; } else { result = c1; }
+        if (glslMod(globalCoord.y, dSize) > size) { result = c2; } else { result = c1; }
     }
     return result;
 }
 
 fn subpixel(st: vec2f, scaleIn: f32) -> vec3f {
-    let scale = mapRange(scaleIn, 0.0, 100.0, 0.0, 10.0);
-    let orig = pixellate(st, scale);
+    // The GLSL scales the stripe width by renderScale for whole-canvas
+    // high-resolution export.
+    let scale = mapRange(scaleIn, 0.0, 100.0, 0.0, 10.0) * u.renderScale;
+    let orig = pixellate(st, 4.0 * scale);
     var color = orig;
-    let coord = floor(st * u.resolution);
-    let m = coord.x % (4.0 * scale);
-    if ((coord.y % (4.0 * scale)) <= scale) {
+    // The stripe mask is anchored to the full image in full-image pixels
+    // (equal to tile pixels untiled), so the stripes do not shift or
+    // rescale at tile boundaries.
+    let coord = floor(st * u.fullResolution);
+    let m = glslMod(coord.x, 4.0 * scale);
+    if (glslMod(coord.y, 4.0 * scale) <= scale) {
         color *= vec3f(0.0);
     } else if (m <= scale) {
         color *= vec3f(1.0, 0.0, 0.0);
@@ -290,13 +366,15 @@ fn subpixel(st: vec2f, scaleIn: f32) -> vec3f {
     return mix(orig, color, factor);
 }
 
+// Bloom samples a small neighborhood of the full-image coordinate st, so
+// every tap maps through the tile mapping (identity untiled).
 fn bloom(st: vec2f) -> vec3f {
     var sum = vec3f(0.0);
-    let orig = textureSample(inputTex, samp, st).rgb;
+    let orig = textureSample(inputTex, samp, inputCoord(st)).rgb;
     let strength = mapRange(u.effectAmt, 0.0, 20.0, 0.0, 0.25);
     for (var i = -4; i < 4; i++) {
         for (var j = -3; j < 3; j++) {
-            sum += textureSample(inputTex, samp, st + vec2f(f32(j), f32(i)) * 0.004).rgb * strength;
+            sum += textureSample(inputTex, samp, inputCoord(st + vec2f(f32(j), f32(i)) * 0.004)).rgb * strength;
         }
     }
     var color: vec3f;
@@ -311,15 +389,50 @@ fn zoomBlur(st: vec2f) -> vec3f {
     var total = 0.0;
     let toCenter = st - 0.5;
     let offset = prng(vec3f(12.9898, 78.233, 151.7182)).x;
+    // Pin the evaluation order of the tap chain: relaxed math reassociates
+    // toCenter * percent * strength as toCenter * (percent * strength), which
+    // shifts tap coordinates by 1 ulp and flips nearest-sampler taps. The
+    // min/max clamps are value-exact for finite values and force both
+    // backends to evaluate fl(fl(toCenter * percent) * strength). The
+    // accumulation clamp keeps the add's operand from being a raw multiply
+    // result, which relaxed math fuses into an fma and standard math
+    // double-rounds.
+    var products: array<vec3f, 41>;
     for (var t = 0.0; t <= 40.0; t += 1.0) {
         let percent = (t + offset) / 40.0;
-        let weight = 4.0 * (percent - percent * percent);
+        let percentSq = min(max(percent * percent, -1e38), 1e38);
+        let weight = 4.0 * (percent - percentSq);
         let strength = mapRange(u.effectAmt, 0.0, 20.0, 0.0, 1.0);
-        let tex = textureSample(inputTex, samp, st + toCenter * percent * strength);
-        color += tex.rgb * weight;
-        total += weight;
+        let tapA = toCenter * percent;
+        let tap = min(max(tapA, vec2f(-1e38)), vec2f(1e38)) * strength;
+        var tapB = min(max(tap, vec2f(-1e38)), vec2f(1e38));
+        // Under tiling, clamp each tap component to an absolute 256 px
+        // budget (as filter/lens and filter/parallax do): the raw
+        // displacement is a fraction of fullResolution, so an unclamped tap
+        // would reach past the fixed 1024 px tile overlap on large prints.
+        // Untiled the clamp is off and the output is byte-identical.
+        if (u.tileOffset.x != 0.0 || u.tileOffset.y != 0.0) {
+            let tapBudget = vec2f(256.0) * u.invFullResolution;
+            tapB = min(max(tapB, -tapBudget), tapBudget);
+        }
+        let tex = textureSample(inputTex, samp, inputCoord(st + tapB));
+        products[u32(t)] = min(max(tex.rgb * weight, vec3f(-1e38)), vec3f(1e38));
+        total += min(max(weight, -1e38), 1e38);
     }
-    return color / total;
+    for (var i = 0u; i < 41u; i += 1u) {
+        color += products[i];
+    }
+    // Refine the reciprocal with one Newton-Raphson step: the raw division
+    // lowers differently (Dawn: x * rcp(x), ANGLE: correctly-rounded divide),
+    // and the ~1 ulp difference flips the final 8-bit rounding when the value
+    // sits on an x.5 boundary. Multiply/subtract are correctly rounded in both
+    // Metal math modes, so both backends converge to the same reciprocal. The
+    // min/max clamp pins the inner multiply's order (relaxed math would fuse
+    // it into the subtract as an fma; standard math double-rounds).
+    var r = 1.0 / total;
+    let tr = min(max(total * r, -1e38), 1e38);
+    r = r * (2.0 - tr);
+    return color * r;
 }
 
 fn periodicFunction(p: f32) -> f32 {
@@ -332,42 +445,72 @@ fn offsets(st: vec2f) -> f32 {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    var uv = fragCoord.xy / u.resolution;
+    // The GLSL builds a full-image coordinate (gl_FragCoord.xy + tileOffset)
+    // and scales it by the CPU-computed reciprocal of fullResolution instead
+    // of dividing (see the invFullResolution declaration): both backends then
+    // evaluate the same correctly-rounded multiply, so the uv chain is
+    // bit-identical and every tile maps the same full-image uv.
+    var globalCoord = fragCoord.xy + u.tileOffset;
+    var uv = globalCoord * u.invFullResolution;
 
-    var scale = 100.0 / u.scaleAmt;
+    // The division by a runtime uniform lowers differently (Dawn: x * rcp(y),
+    // ANGLE: correctly-rounded divide) — a ~1 ulp difference rescales every uv
+    // and flips knife-edge taps. One Newton-Raphson step pins the reciprocal
+    // on both backends; the clamp keeps the scaleAmt*sR product from fusing
+    // into the (2.0 - ...) subtract.
+    let sR = 1.0 / u.scaleAmt;
+    let sC = min(max(u.scaleAmt * sR, -1e38), 1e38);
+    var scale = 100.0 * (sR * (2.0 - sC));
     if (scale == 0.0) { scale = 1.0; }
 
     uv = rotate2D(uv, u.rotation);
     uv -= 0.5;
     uv *= scale;
+    // Clamp before the add: relaxed math contracts the multiply into the
+    // add as an fma while standard math double-rounds, and the 1 ulp
+    // difference flips sampler taps at x.5 rounding boundaries.
+    uv = min(max(uv, vec2f(-1e38)), vec2f(1e38));
     uv += 0.5;
 
-    let imageSize = u.resolution;
-    uv.x -= ceil((u.resolution.x / imageSize.x * scale * 0.5) - (0.5 - (1.0 / imageSize.x * scale)));
-    uv.y += ceil((u.resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale);
-    uv.x -= mapRange(u.offsetX, -100.0, 100.0, -u.resolution.x / imageSize.x * scale, u.resolution.x / imageSize.x * scale) * 1.5;
-    uv.y -= mapRange(u.offsetY, -100.0, 100.0, -u.resolution.y / imageSize.y * scale, u.resolution.y / imageSize.y * scale) * 1.5;
+    // The zoom center is anchored to the full image; the tile resolution
+    // would shift it under tiling. Untiled the two are equal.
+    let imageSize = u.fullResolution;
+    // imageSize is a copy of u.fullResolution, so a resolution/imageSize style
+    // self-division would be a value divided by itself: ANGLE computes exactly
+    // 1.0 while Dawn lowers the division to x * rcp(x) (~1 ulp off), which
+    // shifted the offset map's arguments and flipped knife-edge sampler taps.
+    // Use the exact 1.0.
+    uv.x -= ceil((scale * 0.5) - (0.5 - (1.0 / imageSize.x * scale)));
+    uv.y += ceil((scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale);
+    // Pin the offset-shift evaluation order with scalar clamps: the map
+    // result feeds a multiply then a subtract, and relaxed math contracts
+    // that pair into an fma while standard math double-rounds. The clamps
+    // are value-exact for finite values.
+    let shiftXv = min(max(mapRange(u.offsetX, -100.0, 100.0, -scale, scale) * 1.5, -1e38), 1e38);
+    let shiftYv = min(max(mapRange(u.offsetY, -100.0, 100.0, -scale, scale) * 1.5, -1e38), 1e38);
+    uv -= vec2f(shiftXv, shiftYv);
     uv = fract(uv);
 
-    // flip/mirror
+    // flip/mirror. uv.y runs up the frame, so "up to down" keeps uv.y > 0.5
+    // and reflects it onto the bottom half.
     if (FLIP == 1) { uv = 1.0 - uv; }
     else if (FLIP == 2) { uv.x = 1.0 - uv.x; }
     else if (FLIP == 3) { uv.y = 1.0 - uv.y; }
     else if (FLIP == 11) { if (uv.x > 0.5) { uv.x = 1.0 - uv.x; } }
     else if (FLIP == 12) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } }
-    else if (FLIP == 13) { if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
-    else if (FLIP == 14) { if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
-    else if (FLIP == 15) { if (uv.x > 0.5) { uv.x = 1.0 - uv.x; } if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
-    else if (FLIP == 16) { if (uv.x > 0.5) { uv.x = 1.0 - uv.x; } if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
-    else if (FLIP == 17) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
-    else if (FLIP == 18) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
+    else if (FLIP == 13) { if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
+    else if (FLIP == 14) { if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
+    else if (FLIP == 15) { if (uv.x > 0.5) { uv.x = 1.0 - uv.x; } if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
+    else if (FLIP == 16) { if (uv.x > 0.5) { uv.x = 1.0 - uv.x; } if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
+    else if (FLIP == 17) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
+    else if (FLIP == 18) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
 
-    var color = textureSample(inputTex, samp, uv);
+    var color = textureSample(inputTex, samp, inputCoord(uv));
 
     if (u.effectAmt != 0.0 && EFFECT != 0) {
         if (EFFECT == 100) { color = vec4f(pixellate(uv, u.effectAmt), color.a); }
         else if (EFFECT == 110) { color = vec4f(posterize(color.rgb, u.effectAmt), color.a); }
-        else if (EFFECT == 200) { color = vec4f(cga(color, uv), color.a); }
+        else if (EFFECT == 200) { color = vec4f(cga(color, uv, globalCoord), color.a); }
         else if (EFFECT == 210) { color = vec4f(subpixel(uv, u.effectAmt), color.a); }
         else if (EFFECT == 220) { color = vec4f(bloom(uv), color.a); }
         else if (EFFECT == 230) { color = vec4f(zoomBlur(uv), color.a); }

@@ -36,12 +36,17 @@
  *   --all                     Run ALL optional tests
  *   --benchmark               Run FPS test (~500ms per effect)
  *   --uniforms                Test that uniform controls affect output
+ *                             (also reports measured luma/channel deltas per uniform)
  *   --structure               Test for unused files, naming conventions, leaked uniforms
  *   --structure-only          Run ONLY structure tests (no browser, filesystem-based)
+ *   --describe                Print the COMPLETE parsed definition schema per effect
+ *                             (no browser; includes an audit of what the Shade MCP
+ *                             definition projection leaves out)
  *   --alg-equiv               Test GLSL/WGSL algorithmic equivalence (requires --with-ai)
  *   --branching               Analyze shaders for unnecessary branching (requires --with-ai)
  *   --passthrough             Test that filter effects do NOT pass through input unchanged
  *   --pixel-parity            Test GLSL/WGSL pixel-for-pixel output parity at frame 0
+ *   --low-variety             OPT-IN: fail effects whose output is low variety and not exempt
  *   --with-ai                 Enable AI-based tests (alg-equiv, branching, vision)
  *   --no-vision               Skip AI vision validation (even with --with-ai)
  *
@@ -73,8 +78,15 @@ import {
     compileEffect, renderEffectFrame as shadeRenderEffectFrame,
     testNoPassthrough, testPixelParity, testUniformResponsiveness,
     checkEffectStructure,
+    globalsFromPrefix,
     matchEffects,
 } from '../../vendor/shade-mcp/harness/index.js'
+import {
+    computeTemporalDiff,
+    isLowVariety,
+    isNoAnimation,
+} from './frame-metrics.js'
+import { auditDefinitionLoss } from './definition-schema.js'
 // AI-dependent imports are loaded dynamically to avoid requiring @anthropic-ai/sdk at module level
 let getAIProvider, checkAlgEquiv, analyzeBranching
 async function loadAIDeps() {
@@ -87,91 +99,76 @@ async function loadAIDeps() {
     }
 }
 
-// Noisemaker-specific window globals (different from shade-mcp defaults)
-const NOISEMAKER_GLOBALS = {
-    canvasRenderer: '__noisemakerCanvasRenderer',
-    renderingPipeline: '__noisemakerRenderingPipeline',
-    currentBackend: '__noisemakerCurrentBackend',
-    currentEffect: '__noisemakerCurrentEffect',
-    setPaused: '__noisemakerSetPaused',
-    setPausedTime: '__noisemakerSetPausedTime',
-    frameCount: '__noisemakerFrameCount',
-}
+// Noisemaker's viewer globals: the __noisemaker-prefixed names Shade MCP
+// derives (the same SHADE_GLOBALS_PREFIX the repository's .mcp.json sets).
+const NOISEMAKER_GLOBALS = globalsFromPrefix('__noisemaker')
 
 function gracePeriod(ms = 125) {
     return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+/**
+ * Render one frame through the Shade MCP verb (which binds the result to the
+ * requested effect and backend, reads the presented render surface on both
+ * backends, and computes the shared ImageMetrics), then add this harness's
+ * temporal metrics.
+ */
 async function renderEffectFrame(session, effectId, options = {}) {
-    if (session.backend !== 'webgpu') {
-        return shadeRenderEffectFrame(session, effectId, options)
+    const result = await shadeRenderEffectFrame(session, effectId, options)
+    return augmentFrameMetrics(session, result)
+}
+
+/**
+ * Extend a captured frame result with the temporal no-animation and
+ * low-variety metrics. The temporal metric is an external
+ * two-frame comparison: the probe re-renders the effect at two distinct
+ * normalized times (0 and 0.5, so loop-phase alignment cannot alias an
+ * animated effect into a false "no-animation") and diffs the sampled
+ * pixels with the same grounded boundary the filter modification check
+ * uses. The low-variety metric classifies the already-sampled unique
+ * color count. Metrics are additive; no existing field or threshold is
+ * changed.
+ */
+async function augmentFrameMetrics(session, result) {
+    if (!result || result.status !== 'ok' || !result.metrics) return result
+
+    const markProbeFailure = (error) => {
+        result.metrics.temporal_diff = null
+        result.metrics.is_no_animation = null
+        result.metrics.is_low_variety = null
+        result.metrics.temporal_probe_error = error
     }
 
-    return session.runWithConsoleCapture(async () => {
-        const page = session.page
-        await session.setBackend(session.backend)
-
-        if (options.resolution) {
-            await page.setViewportSize({ width: options.resolution[0], height: options.resolution[1] })
-        }
-
-        await page.evaluate((id) => {
-            const select = document.getElementById('effect-select')
-            if (select) {
-                select.value = id
-                select.dispatchEvent(new Event('change'))
-            }
-        }, effectId)
-
-        await page.waitForFunction(() => {
-            const status = document.getElementById('status')
-            const text = (status?.textContent || '').toLowerCase()
-            return text.includes('loaded') || text.includes('compiled') || text.includes('ready') || text.includes('error')
-        }, { timeout: 300000 })
-
-        if (options.uniforms) {
-            await page.evaluate(({ uniforms, globals }) => {
-                const pipeline = window[globals.renderingPipeline]
-                if (!pipeline) return
-                for (const [key, value] of Object.entries(uniforms)) {
-                    if (pipeline.setUniform) pipeline.setUniform(key, value)
-                    else if (pipeline.globalUniforms) pipeline.globalUniforms[key] = value
-                }
-            }, { uniforms: options.uniforms, globals: session.globals })
-        }
-
-        if (options.time !== undefined) {
-            await page.evaluate(({ time, globals }) => {
-                if (window[globals.setPaused]) window[globals.setPaused](true)
-                if (window[globals.setPausedTime]) window[globals.setPausedTime](time)
-            }, { time: options.time, globals: session.globals })
-        }
-
-        const warmupFrames = options.warmupFrames ?? 10
-        await page.evaluate(({ frames, globals }) => {
-            return new Promise((resolve) => {
-                const start = window[globals.frameCount] || 0
-                const poll = () => {
-                    const current = window[globals.frameCount] || 0
-                    if (current - start >= frames) resolve()
-                    else requestAnimationFrame(poll)
-                }
-                poll()
-            })
-        }, { frames: warmupFrames, globals: session.globals })
-
-        return page.evaluate(async ({ globals, captureImage }) => {
+    try {
+        const probe = await session.page.evaluate(async ({ globals }) => {
             const renderer = window[globals.canvasRenderer]
             const pipeline = window[globals.renderingPipeline]
             const backend = pipeline?.backend
             if (!renderer || !pipeline || !backend) {
-                return { status: 'error', backend: 'unknown', error: 'No renderer' }
-            }
-            if (typeof backend.readPixels !== 'function') {
-                return { status: 'error', backend: backend.getName?.() || 'unknown', error: 'Backend cannot read pixels' }
+                return { status: 'error', error: 'No renderer' }
             }
 
-            const readSurface = async () => {
+            const samplePixels = (data, pixelCount) => {
+                const stride = Math.max(1, Math.floor(pixelCount / 1000))
+                const out = []
+                for (let i = 0; i < pixelCount; i += stride) {
+                    const idx = i * 4
+                    out.push(data[idx], data[idx + 1], data[idx + 2])
+                }
+                return out
+            }
+
+            const readSamples = async () => {
+                const gl = backend.gl
+                if (gl) {
+                    const canvas = renderer.canvas
+                    const width = canvas.width
+                    const height = canvas.height
+                    const pixels = new Uint8Array(width * height * 4)
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+                    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+                    return samplePixels(pixels, width * height)
+                }
                 const candidates = []
                 const surface = pipeline.graph?.renderSurface
                 const frameReadId = surface ? pipeline.frameReadTextures?.get(surface) : null
@@ -190,12 +187,11 @@ async function renderEffectFrame(session, effectId, options = {}) {
                 } catch {
                     // Some backends do not expose a texture map in harness mode.
                 }
-
                 for (const textureId of [...new Set(candidates)]) {
                     try {
                         const pixels = await backend.readPixels(textureId)
                         if (pixels?.width && pixels?.height && pixels?.data) {
-                            return pixels
+                            return samplePixels(pixels.data, pixels.width * pixels.height)
                         }
                     } catch {
                         // Try the next candidate texture.
@@ -204,94 +200,28 @@ async function renderEffectFrame(session, effectId, options = {}) {
                 return null
             }
 
-            let pixels = null
-            for (let attempt = 0; attempt < 6 && !pixels; attempt++) {
-                renderer.render(0)
-                renderer.render(0)
-                pixels = await readSurface()
-                if (!pixels) await new Promise(resolve => setTimeout(resolve, 80))
-            }
+            renderer.render(0)
+            const samplesA = await readSamples()
+            if (!samplesA) return { status: 'error', error: 'Failed to read pixels (frame A)' }
+            renderer.render(0.5)
+            const samplesB = await readSamples()
+            if (!samplesB) return { status: 'error', error: 'Failed to read pixels (frame B)' }
+            return { status: 'ok', samplesA, samplesB }
+        }, { globals: session.globals })
 
-            if (!pixels) {
-                return { status: 'error', backend: backend.getName?.() || 'unknown', error: 'Failed to read pixels' }
-            }
+        if (probe?.status !== 'ok') {
+            markProbeFailure(probe?.error || 'temporal probe failed')
+            return result
+        }
 
-            const { data, width, height } = pixels
-            const pixelCount = width * height
-            const stride = Math.max(1, Math.floor(pixelCount / 1000))
-            let sumR = 0
-            let sumG = 0
-            let sumB = 0
-            let sumA = 0
-            let sumR2 = 0
-            let sumG2 = 0
-            let sumB2 = 0
-            let samples = 0
-            const colorSet = new Set()
-
-            for (let i = 0; i < pixelCount; i += stride) {
-                const idx = i * 4
-                const r = data[idx] / 255
-                const g = data[idx + 1] / 255
-                const b = data[idx + 2] / 255
-                const a = data[idx + 3] / 255
-                sumR += r
-                sumG += g
-                sumB += b
-                sumA += a
-                sumR2 += r * r
-                sumG2 += g * g
-                sumB2 += b * b
-                colorSet.add(`${data[idx]},${data[idx + 1]},${data[idx + 2]}`)
-                samples++
-            }
-
-            const meanR = sumR / samples
-            const meanG = sumG / samples
-            const meanB = sumB / samples
-            const stdR = Math.sqrt(sumR2 / samples - meanR * meanR)
-            const stdG = Math.sqrt(sumG2 / samples - meanG * meanG)
-            const stdB = Math.sqrt(sumB2 / samples - meanB * meanB)
-            const luma = 0.299 * meanR + 0.587 * meanG + 0.114 * meanB
-            let lumaVar = 0
-
-            for (let i = 0; i < pixelCount; i += stride) {
-                const idx = i * 4
-                const sampleLuma = 0.299 * data[idx] / 255 + 0.587 * data[idx + 1] / 255 + 0.114 * data[idx + 2] / 255
-                lumaVar += (sampleLuma - luma) * (sampleLuma - luma)
-            }
-            lumaVar /= samples
-
-            let imageUri = null
-            if (captureImage) {
-                const tmpCanvas = document.createElement('canvas')
-                tmpCanvas.width = width
-                tmpCanvas.height = height
-                const ctx = tmpCanvas.getContext('2d')
-                const imageData = ctx.createImageData(width, height)
-                imageData.data.set(data)
-                ctx.putImageData(imageData, 0, 0)
-                imageUri = tmpCanvas.toDataURL('image/png')
-            }
-
-            return {
-                status: 'ok',
-                backend: backend.getName?.() || 'WebGPU',
-                frame: { image_uri: imageUri, width, height },
-                metrics: {
-                    mean_rgb: [meanR, meanG, meanB],
-                    mean_alpha: sumA / samples,
-                    std_rgb: [stdR, stdG, stdB],
-                    luma_variance: lumaVar,
-                    unique_sampled_colors: colorSet.size,
-                    is_all_zero: meanR === 0 && meanG === 0 && meanB === 0,
-                    is_all_transparent: sumA / samples < 0.01,
-                    is_essentially_blank: lumaVar < 1e-4,
-                    is_monochrome: colorSet.size <= 1,
-                }
-            }
-        }, { globals: session.globals, captureImage: !!options.captureImage })
-    })
+        const temporalDiff = computeTemporalDiff(probe.samplesA, probe.samplesB)
+        result.metrics.temporal_diff = temporalDiff
+        result.metrics.is_no_animation = isNoAnimation(temporalDiff)
+        result.metrics.is_low_variety = isLowVariety(result.metrics.unique_sampled_colors)
+    } catch (err) {
+        markProbeFailure(String(err?.message || err))
+    }
+    return result
 }
 
 // =========================================================================
@@ -324,6 +254,17 @@ const TRANSPARENT_EXEMPT_EFFECTS = new Set([
 ])
 
 /**
+ * Effects exempt from the OPT-IN low-variety gate (--low-variety).
+ * The metric itself is returned universally; the gate is never enabled by
+ * default. These effects are designed to output few colors.
+ */
+const LOW_VARIETY_EXEMPT_EFFECTS = new Set([
+    'filter/shape',       // Outputs a shape on solid background
+    'filter/solid',       // Outputs a solid fill color by design
+    'synth/solid',        // Outputs a solid fill color by design
+])
+
+/**
  * Effects exempt from passthrough check.
  */
 const PASSTHROUGH_EXEMPT_EFFECTS = new Set([
@@ -344,11 +285,13 @@ function parseArgs() {
         runBenchmark: false,
         runUniforms: false,
         runStructure: false,
+        runDescribe: false,
         runStructureOnly: false,
         runAlgEquiv: false,
         runBranching: false,
         runPassthrough: false,
         runPixelParity: false,
+        runLowVariety: false,
         withAi: false,
         skipVision: false,
         useBundles: false,
@@ -372,6 +315,8 @@ function parseArgs() {
             parsed.runBenchmark = true
         } else if (arg === '--uniforms') {
             parsed.runUniforms = true
+        } else if (arg === '--describe') {
+            parsed.runDescribe = true
         } else if (arg === '--structure') {
             parsed.runStructure = true
         } else if (arg === '--structure-only') {
@@ -385,6 +330,8 @@ function parseArgs() {
             parsed.runPassthrough = true
         } else if (arg === '--pixel-parity') {
             parsed.runPixelParity = true
+        } else if (arg === '--low-variety') {
+            parsed.runLowVariety = true
         } else if (arg === '--with-ai') {
             parsed.withAi = true
         } else if (arg === '--no-vision') {
@@ -412,8 +359,8 @@ function parseArgs() {
 
     // Default effects
     if (parsed.effects.length === 0) {
-        // In structure-only mode, default to all effects
-        if (parsed.runStructureOnly) {
+        // In structure-only or describe mode, default to all effects
+        if (parsed.runStructureOnly || parsed.runDescribe) {
             parsed.effects = ['*/*']
         } else {
             parsed.effects = ['synth/noise']
@@ -766,22 +713,11 @@ async function testEffect(session, effectId, options) {
     })
 
     // Compile
-    let compileResult = await compileEffect(session, effectId)
+    const compileResult = await compileEffect(session, effectId)
 
-    // Work around shade-mcp substring match: if the effect name contains "error"
-    // (e.g. "scanlineError"), the harness falsely detects a compile failure.
-    // Re-check by verifying the pipeline actually has compiled passes.
-    if (compileResult.status === 'error' && effectId.toLowerCase().includes('error')) {
-        const hasCompiledPasses = await session.page.evaluate(({ globals }) => {
-            const pipeline = window[globals.renderingPipeline]
-            return pipeline?.graph?.passes?.length > 0
-        }, { globals: session.globals })
-        if (hasCompiledPasses) {
-            compileResult = { ...compileResult, status: 'ok', message: 'Compiled successfully (name contains "error")' }
-        }
-    }
     timings.push(`compile:${Date.now() - t0}ms`)
     t0 = Date.now()
+
     results.compile = compileResult.status
 
     if (compileResult.status === 'error') {
@@ -806,6 +742,23 @@ async function testEffect(session, effectId, options) {
     results.isBlankExempt = isBlankExempt && (renderResult.metrics?.is_essentially_blank || false)
     results.isAllTransparent = (renderResult.metrics?.is_all_transparent || false) && !isTransparentExempt
     results.isTransparentExempt = isTransparentExempt && (renderResult.metrics?.is_all_transparent || false)
+    results.temporalDiff = renderResult.metrics?.temporal_diff ?? null
+    results.isNoAnimation = renderResult.metrics?.is_no_animation ?? null
+    results.isLowVariety = renderResult.metrics?.is_low_variety ?? null
+
+    if (renderResult.warning) {
+        console.log(`  ⚠ render: ${renderResult.warning} (returned frame dimensions are authoritative)`)
+    }
+
+    // OPT-IN low-variety gate (--low-variety). Never applied by default;
+    // rejections of previously accepted effects only happen behind this flag.
+    results.isLowVarietyFailed = false
+    if (options.runLowVariety && renderResult.status === 'ok') {
+        const isLowVarietyExempt = LOW_VARIETY_EXEMPT_EFFECTS.has(effectId)
+        if (results.isLowVariety && !isLowVarietyExempt) {
+            results.isLowVarietyFailed = true
+        }
+    }
 
     if (renderResult.status === 'error') {
         console.log(`  ❌ render: ${renderResult.error}`)
@@ -830,7 +783,20 @@ async function testEffect(session, effectId, options) {
     } else if (results.isMonochromeExempt) {
         console.log(`  ⊘ render: monochrome (exempt - expected for ${effectId})`)
     } else {
-        console.log(`  ✓ render (${renderResult.metrics?.unique_sampled_colors} colors)`)
+        const animationNote = results.isNoAnimation === null
+            ? 'animation: probe failed'
+            : (results.isNoAnimation ? 'static' : 'animating')
+        console.log(`  ✓ render (${renderResult.metrics?.unique_sampled_colors} colors, temporal_diff=${results.temporalDiff?.toFixed(6)}, ${animationNote})`)
+    }
+
+    if (results.isLowVarietyFailed) {
+        console.log(`  ❌ render: LOW VARIETY (${renderResult.metrics.unique_sampled_colors} unique colors, not exempt)`)
+    } else if (options.runLowVariety && renderResult.status === 'ok' && results.isLowVariety) {
+        console.log(`  ⊘ render: low variety (exempt - expected for ${effectId})`)
+    }
+
+    if (renderResult.status === 'ok') {
+        console.log(`  ℹ metrics: temporal_diff=${results.temporalDiff === null ? 'null' : results.temporalDiff.toFixed(6)}, is_no_animation=${results.isNoAnimation}, is_low_variety=${results.isLowVariety}`)
     }
 
     // Uniform responsiveness test
@@ -839,14 +805,26 @@ async function testEffect(session, effectId, options) {
         const uniformResult = await testUniformResponsiveness(session, effectId)
         timings.push(`uniforms:${Date.now() - t0}ms`)
         results.uniforms = uniformResult.status
+        const tested = uniformResult.tested_uniforms || []
 
         if (uniformResult.status === 'skipped') {
             console.log(`  ⊘ uniforms: ${uniformResult.details}`)
         } else if (uniformResult.status === 'ok') {
-            console.log(`  ✓ uniforms: ${uniformResult.tested_uniforms.join(', ')}`)
+            console.log(`  ✓ uniforms: ${tested.join(', ')}`)
         } else {
             results.uniformsFailed = true
-            console.log(`  ❌ uniforms: ${uniformResult.details} [${uniformResult.tested_uniforms.join(', ')}]`)
+            console.log(`  ❌ uniforms: ${uniformResult.details ?? uniformResult.error} [${tested.join(', ')}]`)
+        }
+
+        // Measured deltas against the verb's threshold, from its own result.
+        const measured = (uniformResult.uniforms || []).filter((u) => typeof u.luma_diff === 'number')
+        if (measured.length > 0) {
+            console.log(
+                `  ℹ uniform deltas (threshold ${uniformResult.threshold}): ` +
+                measured
+                    .map((u) => `${u.name} luma=${u.luma_diff.toFixed(6)} channel=${u.max_channel_diff.toFixed(6)} ${u.responds ? 'responds' : 'flat'}`)
+                    .join(', '),
+            )
         }
     }
 
@@ -910,45 +888,45 @@ async function testEffect(session, effectId, options) {
         // then time a fixed number of steady-state frames and report FPS from
         // the MEDIAN frame time, which is unaffected by the rare stall outliers.
         // The 30 fps floor is unchanged; effects that genuinely sustain <30 fps
-        // still fail. The vendored benchmark bundle is left untouched.
-        await session.page.evaluate((id) => {
-            const select = document.getElementById('effect-select')
-            if (select) { select.value = id; select.dispatchEvent(new Event('change')) }
-        }, effectId)
-        await session.page.waitForFunction(() => {
-            const t = (document.getElementById('status')?.textContent || '').toLowerCase()
-            return t.includes('loaded') || t.includes('compiled') || t.includes('ready') || t.includes('error')
-        }, { timeout: 3e5 })
-        const benchResult = await session.page.evaluate(({ warm, measure }) => new Promise((resolve) => {
-            const frames = []
-            let last = performance.now(), seen = 0
-            function onFrame() {
-                const now = performance.now(); const dt = now - last; last = now; seen++
-                if (seen > warm) frames.push(dt)           // drop startup/compile transient
-                if (frames.length >= measure) {
-                    const sorted = frames.slice().sort((a, b) => a - b)
-                    const median = sorted[Math.floor(sorted.length / 2)] || 1
-                    const mean = frames.reduce((a, b) => a + b, 0) / frames.length
-                    let mx = 0; for (const f of frames) if (f > mx) mx = f
-                    resolve({
-                        fps: Math.round(1e5 / median) / 100,       // median frame time -> robust FPS
-                        meanFps: Math.round(1e5 / mean) / 100,
-                        maxFrameMs: Math.round(mx * 100) / 100,
-                    })
-                    return
+        // still fail. The session's selectEffect() waits for a graph built
+        // after this selection and confirms the page shows the effect.
+        const selection = await session.selectEffect(effectId)
+        if (selection.status !== 'ok') {
+            timings.push(`benchmark:${Date.now() - t0}ms`)
+            results.benchmarkFailed = true
+            console.log(`  ❌ benchmark: ${selection.message}`)
+        } else {
+            const benchResult = await session.page.evaluate(({ warm, measure }) => new Promise((resolve) => {
+                const frames = []
+                let last = performance.now(), seen = 0
+                function onFrame() {
+                    const now = performance.now(); const dt = now - last; last = now; seen++
+                    if (seen > warm) frames.push(dt)           // drop startup/compile transient
+                    if (frames.length >= measure) {
+                        const sorted = frames.slice().sort((a, b) => a - b)
+                        const median = sorted[Math.floor(sorted.length / 2)] || 1
+                        const mean = frames.reduce((a, b) => a + b, 0) / frames.length
+                        let mx = 0; for (const f of frames) if (f > mx) mx = f
+                        resolve({
+                            fps: Math.round(1e5 / median) / 100,       // median frame time -> robust FPS
+                            meanFps: Math.round(1e5 / mean) / 100,
+                            maxFrameMs: Math.round(mx * 100) / 100,
+                        })
+                        return
+                    }
+                    requestAnimationFrame(onFrame)
                 }
                 requestAnimationFrame(onFrame)
+            }), { warm: 20, measure: 100 })
+            timings.push(`benchmark:${Date.now() - t0}ms`)
+            results.benchmark = benchResult.fps
+            results.benchmarkStats = benchResult
+            if (benchResult.fps < 30) {
+                results.benchmarkFailed = true
+                console.log(`  ❌ benchmark: ${benchResult.fps} fps sustained (below 30 fps target) [mean ${benchResult.meanFps}, max frame ${benchResult.maxFrameMs}ms]`)
+            } else {
+                console.log(`  ✓ benchmark: ${benchResult.fps} fps sustained (mean ${benchResult.meanFps}, max frame ${benchResult.maxFrameMs}ms)`)
             }
-            requestAnimationFrame(onFrame)
-        }), { warm: 20, measure: 100 })
-        timings.push(`benchmark:${Date.now() - t0}ms`)
-        results.benchmark = benchResult.fps
-        results.benchmarkStats = benchResult
-        if (benchResult.fps < 30) {
-            results.benchmarkFailed = true
-            console.log(`  ❌ benchmark: ${benchResult.fps} fps sustained (below 30 fps target) [mean ${benchResult.meanFps}, max frame ${benchResult.maxFrameMs}ms]`)
-        } else {
-            console.log(`  ✓ benchmark: ${benchResult.fps} fps sustained (mean ${benchResult.meanFps}, max frame ${benchResult.maxFrameMs}ms)`)
         }
     }
 
@@ -994,11 +972,60 @@ async function testEffect(session, effectId, options) {
 // MAIN
 // =========================================================================
 
+// =========================================================================
+// DESCRIBE MODE (no browser): the complete definition schema per effect.
+// =========================================================================
+
+/**
+ * Print each matched effect's COMPLETE definition schema (imported live,
+ * both Effect-instance and Effect-subclass exports) alongside the upstream
+ * regex-based parser projection and an audit of exactly what that
+ * projection drops. Informational and opt-in: nothing previously accepted
+ * is rejected, and no browser is launched.
+ */
+async function runDescribeMode(args) {
+    const allEffects = discoverEffectsFromDisk()
+    const matchedEffectsSet = new Set()
+    for (const pattern of args.effects) {
+        for (const m of matchEffects(allEffects, pattern)) {
+            matchedEffectsSet.add(m)
+        }
+    }
+    const matchedEffects = Array.from(matchedEffectsSet).sort()
+    if (matchedEffects.length === 0) {
+        console.log('No effects matched. Exiting.')
+        process.exit(1)
+    }
+
+    console.log(`\n[DESCRIBE MODE] Complete definition schema, no browser.\n`)
+    let loadFailures = 0
+    for (const effectId of matchedEffects) {
+        try {
+            const audit = await auditDefinitionLoss(path.join('shaders', 'effects', ...effectId.split('/')))
+            console.log(`\n=== ${effectId} (${audit.format}) ===`)
+            console.log(JSON.stringify(audit, null, 2))
+        } catch (error) {
+            loadFailures++
+            console.log(`❌ ${effectId}: schema unavailable: ${error.message}`)
+        }
+    }
+    if (loadFailures > 0) {
+        process.exit(1)
+    }
+    process.exit(0)
+}
+
 async function main() {
     const nag = "⚠️ This is a long-running, expensive test suite. Don't run it multiple times unless you really need to. Capture the results in a log and review the log."
     console.log(nag)
 
     const args = parseArgs()
+
+    // Describe mode: complete definition schemas, no browser, no backend
+    if (args.runDescribe) {
+        await runDescribeMode(args)
+        return
+    }
 
     // Validate backend
     if (!args.backend) {
@@ -1087,6 +1114,7 @@ async function main() {
             if (r.isMonochrome) return false
             if (r.isEssentiallyBlank) return false
             if (r.isAllTransparent) return false
+            if (r.isLowVarietyFailed) return false
             if (r.consoleErrors?.length > 0) return false
             if (r.uniformsFailed) return false
             if (r.passthroughFailed) return false
@@ -1108,6 +1136,7 @@ async function main() {
             if (r.isMonochrome) return true
             if (r.isEssentiallyBlank) return true
             if (r.isAllTransparent) return true
+            if (r.isLowVarietyFailed) return true
             if (r.consoleErrors?.length > 0) return true
             if (r.uniformsFailed) return true
             if (r.passthroughFailed) return true
@@ -1134,6 +1163,7 @@ async function main() {
                 if (r.isMonochrome) reasons.push('monochrome output')
                 if (r.isEssentiallyBlank) reasons.push('blank output')
                 if (r.isAllTransparent) reasons.push('transparent output')
+                if (r.isLowVarietyFailed) reasons.push('low-variety output')
                 if (r.consoleErrors?.length > 0) reasons.push(`${r.consoleErrors.length} console error(s)`)
                 if (r.uniformsFailed) reasons.push('uniforms unresponsive')
                 if (r.passthroughFailed) reasons.push('passthrough (no-op)')

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "classicNoisedeck/shapeMixer",
+  "sourceHash": "7a430f9e6ed03ab744b80641dba8bf470473e573b9eee1dc5da4fb51c7364210",
+  "caseHash": "1fdcb232368d737769b4f1b1d95c04e97de2ba017b7634cc9ebf65fcb9942a10",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 3966,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 986
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 3966,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 986
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

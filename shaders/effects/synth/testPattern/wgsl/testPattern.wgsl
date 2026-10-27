@@ -142,21 +142,14 @@ fn gridLines(uv: vec2f) -> vec4f {
     let n = max(uniforms.gridSize, 1);
     let cellUV = fract(uv * f32(n));
     let edge = min(cellUV, 1.0 - cellUV);
-    // Non-tiling: original fwidth-based AA (byte-identical baseline).
-    // Tiling: analytic AA width mirroring glsl/testPattern.glsl, which is
-    // seam-stable across tiles where screen-space derivatives are not.
-    let isTile = length(uniforms.tileOffset) > 0.0;
-    // fwidthFine must be evaluated in uniform control flow (function scope),
-    // so compute it unconditionally, then override only when tiling. The
-    // analytic-width divide is skipped entirely on the non-tile path.
-    var fw = fwidthFine(uv * f32(n));
-    var edgeMul = 1.5;
-    if (isTile) {
-        let fr = select(uniforms.resolution, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
-        fw = vec2f(1.0) / fr * f32(n);
-        edgeMul = 2.0;
-    }
-    let line = 1.0 - smoothstep(0.0, edgeMul * fw.x, edge.x) * smoothstep(0.0, edgeMul * fw.y, edge.y);
+
+    // Use direct calculation instead of fwidth() for tile-aware rendering.
+    // This maintains the same line thickness in normal rendering while ensuring
+    // continuity across tile boundaries during large-format print export.
+    let fr = select(uniforms.resolution, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
+    let fw = vec2f(1.0) / fr * f32(n);
+
+    let line = 1.0 - smoothstep(0.0, 2.0 * fw.x, edge.x) * smoothstep(0.0, 2.0 * fw.y, edge.y);
     return vec4f(vec3f(line), 1.0);
 }
 

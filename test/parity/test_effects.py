@@ -7,9 +7,12 @@ we are always testing parity with the current JS code base without relying on
 cached fixtures.
 """
 
+import subprocess
+
 import numpy as np
 import pytest
 from noisemaker import effects, generators, rng, value
+from noisemaker.constants import ValueMask
 
 from .seeds import PARITY_SEEDS
 from .utils import js_effect
@@ -67,7 +70,6 @@ EFFECTS = [
     ("erosion_worms", effects.erosion_worms),
     ("fibers", effects.fibers),
     ("frame", effects.frame),
-    ("glyph_map", effects.glyph_map),
     ("grime", effects.grime),
     ("jpeg_decimate", effects.jpeg_decimate),
     ("kaleido", effects.kaleido),
@@ -90,30 +92,18 @@ EFFECTS = [
     ("worms", effects.worms),
 ]
 
-# Keep tolerances as tight as observed parity gaps allow; large values should be
-# treated as temporary until the implementations converge.
-# Note: After fixing the time==0 animation bug in value.py, input tensors to effects
-# changed slightly, requiring tolerance adjustments for effects with cascading calculations.
+# js/doc/PY_JS_PARITY_SPEC.md allows at most 1/255 per channel when
+# floating-point differences appear. No tolerance may exceed it.
+SPEC_BOUND = 1.0 / 255.0
+
+# Keep tolerances as tight as observed parity gaps allow.
 ATOL = {
-    "default": 1e-4,  # Increased from 2e-6 due to cascading precision in color space conversions
-    "aberration": 2.3e-2,
-    "crt": 2.2e-1,
+    "default": 1e-4,
     "derivative": 5.5e-5,
     "glowing_edges": 1e-5,
-    "lens_distortion": 2.25e-2,
-    "light_leak": 7.6e-2,
-    "lens_warp": 7e-3,
     "outline": 2.5e-5,
     "sobel": 4e-5,
-    "reindex": 4.1e-3,
     "ripple": 4e-6,
-    "rotate": 1.2e-2,
-    "shadow": 2e-4,
-    "snow": 1.73e-1,
-    "vaseline": 5e-3,
-    "vhs": 2.7e-2,
-    "vignette": 9e-3,
-    "warp": 6.9e-3,
 }
 
 
@@ -132,4 +122,84 @@ def test_effect_parity(effect_name, fn, seed):
     assert tensor.shape == (128, 128, 3)
     js = js_effect(effect_name, seed)
     atol = ATOL.get(effect_name, ATOL["default"])
-    assert np.allclose(tensor.numpy(), js, atol=atol)
+    assert atol <= SPEC_BOUND
+    diff = np.abs(tensor.numpy().astype(np.float64) - js.astype(np.float64))
+    report = f"{effect_name} seed={seed}: mean error {diff.mean():.3g}, max error {diff.max():.3g}, tolerance {atol:.3g}"
+    print(report)
+    assert np.allclose(tensor.numpy(), js, atol=atol), report
+
+
+# With y_from_offset, value.refract takes the Y reference from the X reference
+# offset by half the image, and also moves its sample coordinates by half the
+# image. Compare both modes through the registered JavaScript effect.
+@pytest.mark.parametrize("y_from_offset", [True, False])
+@pytest.mark.parametrize("seed", SEEDS)
+def test_refract_y_from_offset_parity(seed, y_from_offset):
+    rng.set_seed(seed)
+    value.set_seed(seed)
+    shape = [128, 128, 3]
+    tensor = generators.basic(2, shape, hue_rotation=0)
+    tensor = value.refract(tensor, shape, y_from_offset=y_from_offset)
+    assert tensor.shape == (128, 128, 3)
+    js = js_effect("refract", seed, y_from_offset=y_from_offset)
+    atol = ATOL["default"]
+    assert atol <= SPEC_BOUND
+    diff = np.abs(tensor.numpy().astype(np.float64) - js.astype(np.float64))
+    report = f"refract y_from_offset={y_from_offset} seed={seed}: mean error {diff.mean():.3g}, max error {diff.max():.3g}, tolerance {atol:.3g}"
+    print(report)
+    assert np.allclose(tensor.numpy(), js, atol=atol), report
+
+
+# glyph_map draws its default truetype glyphs from .ttf files in the fonts
+# directory, and JavaScript draws them on a browser canvas; with neither, both
+# stop with an error. Every other mask renders the same glyphs in both ports.
+GLYPH_MAP_MASKS = [mask for mask in ValueMask if mask != ValueMask.truetype]
+
+
+@pytest.mark.parametrize("mask", GLYPH_MAP_MASKS, ids=[mask.name for mask in GLYPH_MAP_MASKS])
+@pytest.mark.parametrize("seed", SEEDS)
+def test_glyph_map_mask_parity(seed, mask):
+    rng.set_seed(seed)
+    value.set_seed(seed)
+    shape = [128, 128, 3]
+    tensor = generators.basic(2, shape, hue_rotation=0)
+    tensor = effects.glyph_map(tensor, shape, mask=mask)
+    js = js_effect("glyph_map", seed, mask=mask.value)
+    diff = np.abs(tensor.numpy().astype(np.float64) - js.astype(np.float64))
+    report = f"glyph_map mask={mask.name} seed={seed}: mean error {diff.mean():.3g}, max error {diff.max():.3g}"
+    print(report)
+    assert np.allclose(tensor.numpy(), js, atol=ATOL["default"]), report
+
+
+# A zoom above 1 makes fewer, larger glyph cells. invaders_large has 18 by 18
+# glyphs, so at 128 by 128 zoom 2 gives 3 by 3 cells and zooms 4 and 8 give one.
+GLYPH_MAP_ZOOM_MASKS = [ValueMask.invaders_large, ValueMask.fat_lcd_binary]
+
+
+@pytest.mark.parametrize("zoom", [2, 4, 8])
+@pytest.mark.parametrize("mask", GLYPH_MAP_ZOOM_MASKS, ids=[mask.name for mask in GLYPH_MAP_ZOOM_MASKS])
+@pytest.mark.parametrize("seed", SEEDS)
+def test_glyph_map_zoom_parity(seed, mask, zoom):
+    rng.set_seed(seed)
+    value.set_seed(seed)
+    shape = [128, 128, 3]
+    tensor = generators.basic(2, shape, hue_rotation=0)
+    tensor = effects.glyph_map(tensor, shape, mask=mask, zoom=zoom)
+    js = js_effect("glyph_map", seed, mask=mask.value, zoom=zoom)
+    diff = np.abs(tensor.numpy().astype(np.float64) - js.astype(np.float64))
+    report = f"glyph_map mask={mask.name} zoom={zoom} seed={seed}: mean error {diff.mean():.3g}, max error {diff.max():.3g}"
+    print(report)
+    assert np.allclose(tensor.numpy(), js, atol=ATOL["default"]), report
+
+
+def test_glyph_map_without_a_font_stops_in_both_ports(tmp_path, monkeypatch):
+    monkeypatch.setenv("NOISEMAKER_DIR", str(tmp_path))
+    shape = [128, 128, 3]
+    tensor = generators.basic(2, shape, hue_rotation=0)
+
+    with pytest.raises(ValueError, match="^glyph_map found no .ttf font in "):
+        effects.glyph_map(tensor, shape)
+
+    with pytest.raises(subprocess.CalledProcessError) as js_error:
+        js_effect("glyph_map", SEEDS[0])
+    assert "glyph_map found no font to draw glyphs with" in js_error.value.stderr

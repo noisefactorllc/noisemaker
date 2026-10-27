@@ -138,7 +138,6 @@ export default new Effect({
     celShadingColorTex: { width: "100%", height: "100%", format: "rgba16f" },
     celShadingEdgeTex: { width: "100%", height: "100%", format: "rgba16f" }
   },
-  paramAliases: { shadingStrength: 'strength', mixAmount: 'mix' },
   passes: [
     {
       name: "color",

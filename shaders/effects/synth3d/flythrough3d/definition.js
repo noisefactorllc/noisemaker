@@ -146,7 +146,6 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { fractalType: 'type' },
   passes: [
     {
       name: "precompute",

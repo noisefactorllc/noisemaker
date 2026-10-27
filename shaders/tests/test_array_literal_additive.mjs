@@ -1,14 +1,16 @@
 /**
  * Verification: the array-literal feature is purely additive — no existing
- * shader DSL program in the codebase contains `[` or `]`, so the new
- * lexer/parser/validator code paths cannot fire on any of them. Programs
+ * shader DSL program in the codebase contains `[` or `]`, except the default
+ * programs in ARRAY_LITERAL_PROGRAMS that use array literals on purpose, so
+ * the new lexer/parser/validator code paths cannot fire on any other. Programs
  * that round-tripped before this change continue to round-trip exactly
  * as they did before.
  *
  * Tests:
- *   1. Walk every effect's `defaultProgram` field. Assert no `[`/`]`.
+ *   1. Walk every effect's `defaultProgram` field. Assert no `[`/`]` outside
+ *      ARRAY_LITERAL_PROGRAMS, and bracket tokens in each listed program.
  *   2. Walk shader DSL test fixtures and confirm same.
- *   3. Lex every existing program and assert NO LBRACKET / RBRACKET
+ *   3. Lex every other existing program and assert NO LBRACKET / RBRACKET
  *      tokens appear in the token stream — the token stream is exactly
  *      what it was before this commit, byte for byte.
  *   4. For a representative sample, parse the program and assert the
@@ -79,11 +81,29 @@ function collectDefaultPrograms() {
 // before the feature shipped also lacked `[` because the lexer would
 // have thrown "Unexpected character".
 
-const allPrograms = collectDefaultPrograms()
-console.log(`Scanning ${allPrograms.length} existing shader DSL programs…`)
+// Default programs written to use array literals on purpose. Every other
+// default program must contain no `[` or `]` and lex to no bracket tokens.
+const ARRAY_LITERAL_PROGRAMS = new Set([
+    'synth/remap', // zone vertex lists (be6bb0eb)
+])
 
-test('No existing program text contains `[` or `]`', () => {
-    const offenders = allPrograms.filter(p =>
+const allPrograms = collectDefaultPrograms()
+const plainPrograms = allPrograms.filter(p => !ARRAY_LITERAL_PROGRAMS.has(p.label))
+console.log(`Scanning ${allPrograms.length} existing shader DSL programs (${ARRAY_LITERAL_PROGRAMS.size} use array literals on purpose)…`)
+
+test('Each program listed as using array literals exists and lexes to LBRACKET / RBRACKET tokens', () => {
+    for (const label of ARRAY_LITERAL_PROGRAMS) {
+        const program = allPrograms.find(p => p.label === label)
+        if (!program) throw new Error(`${label} has no defaultProgram`)
+        const tokens = lex(program.source)
+        if (!tokens.some(t => t.type === 'LBRACKET') || !tokens.some(t => t.type === 'RBRACKET')) {
+            throw new Error(`${label} is listed as using array literals, but lexes to no LBRACKET / RBRACKET token`)
+        }
+    }
+})
+
+test('No other existing program text contains `[` or `]`', () => {
+    const offenders = plainPrograms.filter(p =>
         p.source.includes('[') || p.source.includes(']')
     )
     if (offenders.length > 0) {
@@ -92,9 +112,9 @@ test('No existing program text contains `[` or `]`', () => {
     }
 })
 
-test('Lexing every existing program produces NO LBRACKET / RBRACKET tokens', () => {
+test('Lexing every other existing program produces NO LBRACKET / RBRACKET tokens', () => {
     const offenders = []
-    for (const p of allPrograms) {
+    for (const p of plainPrograms) {
         let tokens
         try {
             tokens = lex(p.source)

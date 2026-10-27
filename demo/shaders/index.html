@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="gray-dark">
 <head>
+    <link rel="icon" type="image/png" href="/favicon.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Noisemaker Shaders Demo</title>
@@ -10,16 +11,15 @@
       @font-face { font-family: 'Nunito Blank'; src: url('https://fonts.noisefactor.io/fonts/nunito/Nunito-Blank.woff2') format('woff2'); }
       @font-face { font-family: 'Noto Sans Mono Blank'; src: url('https://fonts.noisefactor.io/fonts/noto-sans-mono/NotoSansMono-Blank.woff2') format('woff2'); }
     </style>
-    <link rel="stylesheet" href="https://handfish.noisefactor.io/0.9.0/styles/index.css" />
-    <link rel="stylesheet" href="https://handfish.noisefactor.io/0.9.0/styles/themes/gray.css" />
+    <link rel="stylesheet" href="https://handfish.noisefactor.io/0/styles/index.css" />
+    <link rel="stylesheet" href="https://handfish.noisefactor.io/0/styles/themes/gray.css" />
     <link rel="stylesheet" href="../common.css" />
     <link rel="stylesheet" href="layout.css" />
     <script type="importmap">
     {
         "imports": {
             "noisemaker/shader-effects": "../../shaders/src/runtime/effect.js",
-            "gl-matrix": "../../node_modules/gl-matrix/esm/index.js",
-            "handfish": "https://handfish.noisefactor.io/0.9.0/handfish.esm.js"
+            "handfish": "https://handfish.noisefactor.io/0/handfish.esm.js"
         }
     }
     </script>
@@ -116,7 +116,7 @@
             import(demoUiPath),
             import(effectSelectPath),
             import('../../shaders/src/runtime/external-input.js'),
-            import('https://handfish.noisefactor.io/0.9.0/handfish.esm.js'),
+            import('https://handfish.noisefactor.io/0/handfish.esm.js'),
             import('./lib/handfish-control-factory.js')
         ]);
 
@@ -640,6 +640,8 @@
                 await renderer.compile(dsl);
 
                 window.__noisemakerRenderingPipeline = renderer.pipeline;
+                window.__noisemakerPipelineGeneration = (window.__noisemakerPipelineGeneration || 0) + 1;
+                syncBackendTabs();
 
                 renderer.buildUniformBindings(currentEffect);
                 renderer.applyParameterValues(currentEffect, ui.parameterValues);
@@ -695,6 +697,8 @@
                 await renderer.compile(dsl);
 
                 window.__noisemakerRenderingPipeline = renderer.pipeline;
+                window.__noisemakerPipelineGeneration = (window.__noisemakerPipelineGeneration || 0) + 1;
+                syncBackendTabs();
 
                 if (rebuildControls) {
                     // Try to sync values to existing controls first
@@ -721,6 +725,14 @@
         // Event Handlers
         // =====================================================================
 
+        // The tabs show the backend that renders: a WebGPU request runs WebGL2
+        // when this browser has no WebGPU adapter.
+        function syncBackendTabs() {
+            document.querySelectorAll('#backend-tabs .hf-tab').forEach(t => {
+                t.classList.toggle('active', t.dataset.backend === renderer.backend);
+            });
+        }
+
         // Backend selector (pill tabs)
         document.querySelectorAll('#backend-tabs .hf-tab').forEach(tab => {
             tab.addEventListener('click', async () => {
@@ -741,8 +753,6 @@
                 canvas = document.getElementById('canvas');
                 renderer._canvas = canvas;
 
-                ui.showStatus(`switched to ${renderer.backend}`, 'success');
-
                 const dsl = ui.getDsl();
                 if (dsl) {
                     await rebuildPipelineFromDsl({ rebuildControls: false });
@@ -752,6 +762,9 @@
 
                 // Re-upload media textures — old backend's GPU resources were destroyed
                 ui.reuploadAllMediaTextures();
+
+                // After the rebuild, backend names the backend that renders.
+                ui.showStatus(`switched to ${renderer.backend}`, 'success');
             });
         });
 

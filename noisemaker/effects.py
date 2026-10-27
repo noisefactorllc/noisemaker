@@ -1725,6 +1725,7 @@ def shadow(tensor: tf.Tensor, shape: list[int], alpha: float = 1.0, reference: t
         if channels == 4:
             a = tensor[:, :, 0]
             tensor = tf.stack([tensor[:, :, 0], tensor[:, :, 1], tensor[:, :, 2]], 2)
+            shade = shade[:, :, 0:3]
 
         # Limit effect to just the brightness channel
         tensor = tf.image.rgb_to_hsv([tensor])[0]
@@ -1785,6 +1786,9 @@ def glyph_map(
         glyph_shape = masks.mask_shape(ValueMask.truetype)
         glyphs = load_glyphs(glyph_shape)
 
+        if not glyphs:
+            raise ValueError(f"glyph_map found no .ttf font in {util.fonts_dir()}")
+
     else:
         glyph_shape = masks.mask_shape(mask)
 
@@ -1806,7 +1810,7 @@ def glyph_map(
     height, width, channels = in_shape
 
     # Figure out how many glyphs it will take approximately to cover the image
-    uv_shape = [int(in_shape[0] / glyph_shape[0]) or 1, int(in_shape[1] / glyph_shape[1] or 1), 1]
+    uv_shape = [int(in_shape[0] / glyph_shape[0]) or 1, int(in_shape[1] / glyph_shape[1]) or 1, 1]
 
     # Generate a value map, multiply by len(glyphs) to create glyph index offsets
     value_shape = value.value_shape(shape)
@@ -2558,7 +2562,9 @@ def scanline_error(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed
     error_freq = [int(value_shape[0] * 0.5) or 1, int(value_shape[1] * 0.5) or 1]
 
     error_line = tf.maximum(value.values(freq=error_freq, shape=value_shape, time=time, speed=speed * 10, distrib=ValueDistribution.exp) - 0.5, 0)
-    error_swerve = tf.maximum(value.values(freq=[int(height * 0.01), 1], shape=value_shape, time=time, speed=speed, distrib=ValueDistribution.exp) - 0.5, 0)
+    error_swerve = tf.maximum(
+        value.values(freq=[int(height * 0.01) or 1, 1], shape=value_shape, time=time, speed=speed, distrib=ValueDistribution.exp) - 0.5, 0
+    )
 
     error_line *= error_swerve
 
@@ -3014,7 +3020,7 @@ def spooky_ticker(tensor: tf.Tensor, shape: list[int], time: float = 0.0, speed:
         if time != 0.0:  # Make the ticker tick!
             row_mask = value.offset(row_mask, row_shape, int(time * width), 0)
 
-        row_mask = value.resample(row_mask, [mask_shape[0] * multiplier, shape[1]], spline_order=1)
+        row_mask = value.resample(row_mask, [mask_shape[0] * multiplier, shape[1], 1], spline_order=1)
 
         rendered_mask += tf.pad(row_mask, tf.stack([[shape[0] - mask_shape[0] * multiplier - bottom_padding, bottom_padding], [0, 0], [0, 0]]))
 

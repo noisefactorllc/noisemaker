@@ -18,6 +18,15 @@ import {
   getSeed as getSimplexSeed,
 } from './simplex.js'
 import { rgbToOklab } from './oklab.js'
+import {
+  cos32,
+  fma32,
+  packetEnd,
+  pow32,
+  powScalar32,
+  sin32,
+  sinScalar32,
+} from './float32.js'
 
 let _seed = 0x12345678
 
@@ -48,10 +57,10 @@ function rand2D(x, y, seed = 0, time = 0, speed = 1) {
   return fract(Math.sin(s) * 43758.5453)
 }
 
-function periodicValue(t, v) {
+function periodicValue(t, v, sin = sin32) {
   const delta = Math.fround(Math.fround(t) - Math.fround(v))
   const angle = Math.fround(delta * Math.fround(TAU))
-  return Math.fround((Math.fround(Math.sin(angle)) + 1) * 0.5)
+  return Math.fround((sin(angle) + 1) * 0.5)
 }
 
 function offsetTensor(tensor, shape, x = 0, y = 0) {
@@ -212,7 +221,7 @@ function generateCenterDistribution(
       const offset = Math.fround(tau * Math.fround(time) * Math.fround(roundedSpeed))
       for (let i = 0; i < total; i++) {
         const angle = Math.fround(Math.fround(baseData[i]) * freqF * tau - offset)
-        const sine = Math.fround(Math.sin(angle))
+        const sine = sin32(angle)
         const value = Math.fround(Math.fround(sine + 1) * 0.5)
         const base = i * channels
         for (let c = 0; c < channels; c++) {
@@ -375,7 +384,7 @@ export function values(freq, shape, opts = {}) {
         tensor = withTensorData(tensor, (data) => {
           const out = new Float32Array(data.length)
           for (let i = 0; i < data.length; i++) {
-            out[i] = Math.pow(data[i], 4)
+            out[i] = pow32(data[i], 4)
           }
           return Tensor.fromArray(ctx, out, [initHeight, initWidth, channels])
         })
@@ -389,11 +398,13 @@ export function values(freq, shape, opts = {}) {
       })
       const makeTensor = (valueData, timeData) => {
         const out = new Float32Array(size)
+        const tail = packetEnd(size)
         for (let i = 0; i < size; i++) {
-          const scaledTime = periodicValue(time, timeData[i]) * speed
-          let val = periodicValue(scaledTime, valueData[i])
+          const sin = i < tail ? sin32 : sinScalar32
+          const scaledTime = periodicValue(time, timeData[i], sin) * speed
+          let val = periodicValue(scaledTime, valueData[i], sin)
           if (distrib === ValueDistribution.exp) {
-            val = Math.pow(val, 4)
+            val = i < tail ? pow32(val, 4) : powScalar32(val, 4)
           }
           out[i] = val
         }
@@ -543,8 +554,8 @@ export function resample(tensor, shape, splineOrder = InterpolationType.bicubic)
 
     const blendCosine = (a, b, g) => {
       const gg = f32(g)
-      const angle = f32(gg * Math.PI)
-      const cos = f32(Math.cos(angle))
+      const angle = f32(gg * f32(Math.PI))
+      const cos = cos32(angle)
       const g2 = f32((1 - cos) / 2)
       const oneMinus = f32(1 - g2)
       const termA = f32(f32(a) * oneMinus)
@@ -668,6 +679,10 @@ export function proportionalDownsample(tensor, shape, newShape) {
   const [nh, nw] = newShape
   const kH = Math.max(1, Math.floor(h / nh))
   const kW = Math.max(1, Math.floor(w / nw))
+  // The reference box filter is a TensorFlow depthwise convolution strided by
+  // the kernel, which supports only equal row and column strides. With
+  // unequal strides the reference resamples the tensor without the filter.
+  if (kH !== kW) return resample(tensor, [nh, nw, c])
   const outH = Math.floor((h - kH) / kH + 1)
   const outW = Math.floor((w - kW) / kW + 1)
   const ctx = tensor.ctx
@@ -676,16 +691,17 @@ export function proportionalDownsample(tensor, shape, newShape) {
     for (let y = 0; y < outH; y++) {
       for (let x = 0; x < outW; x++) {
         for (let k = 0; k < c; k++) {
+          // Float32 row-major sum, as the reference box filter accumulates.
           let sum = 0
           for (let yy = 0; yy < kH; yy++) {
             for (let xx = 0; xx < kW; xx++) {
               const iy = y * kH + yy
               const ix = x * kW + xx
               const idx = (iy * w + ix) * c + k
-              sum += src[idx]
+              sum = Math.fround(src[idx] + sum)
             }
           }
-          out[(y * outW + x) * c + k] = sum / (kH * kW)
+          out[(y * outW + x) * c + k] = Math.fround(sum / (kH * kW))
         }
       }
     }
@@ -878,7 +894,12 @@ export function blend(a, b, t) {
           const aVal = da[baseA + k]
           const bVal = db[baseB + (k < bc ? k : 0)]
           const tVal = dt ? dt[baseT + (k < tc ? k : 0)] : t
-          out[baseA + k] = Math.fround(aVal * (1 - tVal) + bVal * tVal)
+          // Float32 operations of the reference: a * (1 - t) + b * t. A
+          // scalar t reaches the reference as a float64 (1 - t).
+          out[baseA + k] = Math.fround(
+            Math.fround(aVal * Math.fround(1 - tVal)) +
+              Math.fround(bVal * Math.fround(tVal)),
+          )
         }
       }
     }
@@ -929,7 +950,8 @@ export function normalize(tensor) {
     const out = new Float32Array(src.length)
     const minF = Math.fround(min)
     for (let i = 0; i < src.length; i++) {
-      out[i] = Math.fround((src[i] - minF) / range)
+      // Float32 subtraction, then float32 division, as the reference does.
+      out[i] = Math.fround(Math.fround(src[i] - minF) / range)
     }
     return Tensor.fromArray(ctx, out, [h, w, c])
   }
@@ -1089,6 +1111,11 @@ export function rgbToHsv(tensor) {
       f32buf[0] = x
       return f32buf[0]
     }
+    // Same float32 operations as tf.image.rgb_to_hsv, including inputs
+    // outside [0, 1].
+    const sixth = f32(1 / 6)
+    const twoSixths = f32(2 / 6)
+    const fourSixths = f32(4 / 6)
     for (let i = 0; i < h * w; i++) {
       const r = f32(src[i * c])
       const g = f32(src[i * c + 1])
@@ -1096,27 +1123,21 @@ export function rgbToHsv(tensor) {
       const max = f32(Math.max(r, g, b))
       const min = f32(Math.min(r, g, b))
       const d = f32(max - min)
-      let hVal
-      if (d === 0) {
-        hVal = f32(0)
-      } else if (max === r) {
-        const numer = f32(g - b)
-        const div = f32(numer / d)
-        let raw = f32(div % 6)
-        if (raw < 0) raw = f32(raw + 6)
-        hVal = raw
-      } else if (max === g) {
-        const numer = f32(b - r)
-        hVal = f32(numer / d + 2)
-      } else {
-        const numer = f32(r - g)
-        hVal = f32(numer / d + 4)
+      const sVal = max > 0 ? f32(d / max) : f32(0)
+      let hVal = f32(0)
+      if (d > 0) {
+        const norm = f32(f32(1 / d) * sixth)
+        if (r === max) {
+          hVal = f32(norm * f32(g - b))
+        } else if (g === max) {
+          hVal = f32(f32(norm * f32(b - r)) + twoSixths)
+        } else {
+          hVal = f32(f32(norm * f32(r - g)) + fourSixths)
+        }
+        if (hVal < 0) hVal = f32(hVal + 1)
       }
-      hVal = f32(hVal / 6)
-      if (hVal < 0) hVal = f32(hVal + 1)
-      const sVal = max === 0 ? f32(0) : f32(d / max)
-      out[i * 3] = f32(hVal)
-      out[i * 3 + 1] = f32(sVal)
+      out[i * 3] = hVal
+      out[i * 3 + 1] = sVal
       out[i * 3 + 2] = max
     }
     return Tensor.fromArray(ctx, out, [h, w, 3])
@@ -1125,36 +1146,113 @@ export function rgbToHsv(tensor) {
   return withTensorData(tensor, cpuRgbToHsv)
 }
 
+// Emulates the float32 kernel behind tf.image.adjust_hue: the hue moves in
+// the range [0, 6) between the minimum and maximum channel values.
 export function adjustHue(tensor, amount) {
   const shape = tensor.shape || [0, 0, 0]
   const [h, w, c] = shape
   if (c < 3) {
     return tensor
   }
-  const cpuAdjust = (inputTensor) => {
-    const hsvMaybe = rgbToHsv(inputTensor)
-    const process = (hsv) => {
-      const dataMaybe = hsv.read()
-      const shift = (data) => {
-        for (let i = 0; i < data.length; i += 3) {
-          let hue = data[i] + amount
-          hue = hue - Math.floor(hue)
-          if (hue < 0) hue += 1
-          data[i] = hue
+  const f32 = Math.fround
+  const deltaH = f32(amount)
+  return withTensorData(tensor, (src) => {
+    const out = new Float32Array(h * w * 3)
+    for (let i = 0; i < h * w; i++) {
+      const r = src[i * c]
+      const g = src[i * c + 1]
+      const b = src[i * c + 2]
+      let vMax
+      let vMid
+      let vMin
+      let category
+      if (r < g) {
+        if (b < r) {
+          vMax = g
+          vMid = r
+          vMin = b
+          category = 1
+        } else if (b > g) {
+          vMax = b
+          vMid = g
+          vMin = r
+          category = 3
+        } else {
+          vMax = g
+          vMid = b
+          vMin = r
+          category = 2
         }
-        return hsvToRgb(Tensor.fromArray(hsv.ctx, data, hsv.shape))
+      } else if (b < g) {
+        vMax = r
+        vMid = g
+        vMin = b
+        category = 0
+      } else if (b > r) {
+        vMax = b
+        vMid = r
+        vMin = g
+        category = 4
+      } else {
+        vMax = r
+        vMid = b
+        vMin = g
+        category = 5
       }
-      if (dataMaybe && typeof dataMaybe.then === 'function') {
-        return dataMaybe.then(shift)
+      let hue
+      if (vMax === vMin) {
+        hue = 0
+      } else {
+        const ratio = f32(f32(vMid - vMin) / f32(vMax - vMin))
+        hue = f32(category + ((category & 1) === 0 ? ratio : f32(1 - ratio)))
       }
-      return shift(dataMaybe)
+      hue = fma32(deltaH, 6, hue)
+      while (hue < 0) hue = f32(hue + 6)
+      while (hue >= 6) hue = f32(hue - 6)
+      const outCategory = Math.trunc(hue)
+      let ratio = f32(hue - outCategory)
+      if ((outCategory & 1) !== 0) ratio = f32(1 - ratio)
+      const mid = fma32(ratio, f32(vMax - vMin), vMin)
+      let ro
+      let go
+      let bo
+      switch (outCategory) {
+        case 0:
+          ro = vMax
+          go = mid
+          bo = vMin
+          break
+        case 1:
+          ro = mid
+          go = vMax
+          bo = vMin
+          break
+        case 2:
+          ro = vMin
+          go = vMax
+          bo = mid
+          break
+        case 3:
+          ro = vMin
+          go = mid
+          bo = vMax
+          break
+        case 4:
+          ro = mid
+          go = vMin
+          bo = vMax
+          break
+        default:
+          ro = vMax
+          go = vMin
+          bo = mid
+      }
+      out[i * 3] = ro
+      out[i * 3 + 1] = go
+      out[i * 3 + 2] = bo
     }
-    if (hsvMaybe && typeof hsvMaybe.then === 'function') {
-      return hsvMaybe.then(process)
-    }
-    return process(hsvMaybe)
-  }
-  return cpuAdjust(tensor)
+    return Tensor.fromArray(tensor.ctx, out, [h, w, 3])
+  })
 }
 
 export function randomHue(tensor, range = 0.05) {
@@ -1249,8 +1347,9 @@ export function toValueMap(tensor) {
 export function ridge(tensor) {
   return withTensorData(tensor, (data) => {
     const out = new Float32Array(data.length)
+    // Float32 operations of the reference: 1 - |t * 2 - 1|.
     for (let i = 0; i < data.length; i++) {
-      out[i] = 1 - Math.abs(data[i] * 2 - 1)
+      out[i] = Math.fround(1 - Math.abs(Math.fround(data[i] * 2 - 1)))
     }
     return Tensor.fromArray(tensor.ctx, out, tensor.shape)
   })
@@ -1327,12 +1426,13 @@ export function convolution(tensor, kernel, opts = {}) {
       for (let y = 0; y < outH; y++) {
         for (let x = 0; x < outW; x++) {
           for (let k = 0; k < c; k++) {
+            // Fused multiply-add in kernel row-major order, as the
+            // reference's depthwise convolution accumulates.
             let sum = 0
             for (let j = 0; j < kh; j++) {
               for (let i = 0; i < kw; i++) {
                 const val = offset[((y + j) * tileW + (x + i)) * c + k]
-                const contrib = Math.fround(kernel32[j][i] * val)
-                sum = Math.fround(sum + contrib)
+                sum = fma32(kernel32[j][i], val, sum)
               }
             }
             conv[(y * outW + x) * c + k] = Math.fround(sum)
@@ -1392,19 +1492,22 @@ export function refract(
     const ryChannels = ry?.shape?.[2] || 1
     const widthF = Math.fround(w)
     const heightF = Math.fround(h)
-    const baseScaleX = Math.fround(displacement * widthF)
-    const baseScaleY = Math.fround(displacement * heightF)
-    const scaleX = quadDirectional ? baseScaleX : Math.fround(baseScaleX * 2)
-    const scaleY = quadDirectional ? baseScaleY : Math.fround(baseScaleY * 2)
+    const displacementF = Math.fround(displacement)
+    // Float32 offsets in the reference's order: (v * displacement) * size,
+    // doubled when the range is unsigned.
+    const offsetOf = (v, size) => {
+      const scaled = Math.fround(Math.fround(v * displacementF) * size)
+      return quadDirectional ? scaled : Math.fround(scaled * 2)
+    }
+    const lerp = (a, b, g) =>
+      Math.fround(Math.fround(a * Math.fround(1 - g)) + Math.fround(b * g))
 
+    // tf.math.floormod: the exact remainder, moved into [0, limit) with a
+    // float32 addition.
     const floormod = (value, limit) => {
       if (limit === 0) return 0
-      const div = Math.floor(value / limit)
-      let result = Math.fround(value - div * limit)
-      if (result < 0) {
-        result = Math.fround(result + limit)
-      }
-      return result
+      const result = value % limit
+      return result < 0 ? Math.fround(result + limit) : result
     }
 
     const cpuRefract = (src, refx, refy) => {
@@ -1418,8 +1521,8 @@ export function refract(
             vx = Math.fround(vx * 2 - 1)
             vy = Math.fround(vy * 2 - 1)
           }
-          const dx = Math.fround(vx * scaleX)
-          const dy = Math.fround(vy * scaleY)
+          const dx = offsetOf(vx, widthF)
+          const dy = offsetOf(vy, heightF)
           const sampleX = Math.fround(x + dx)
           const sampleY = Math.fround(y + dy)
           const wrappedX = floormod(sampleX, widthF)
@@ -1454,9 +1557,9 @@ export function refract(
             const s10 = src[base10]
             const s01 = src[base01]
             const s11 = src[base11]
-            const x_y0 = Math.fround(s00 * (1 - tx) + s10 * tx)
-            const x_y1 = Math.fround(s01 * (1 - tx) + s11 * tx)
-            out[outBase + k] = Math.fround(x_y0 * (1 - ty) + x_y1 * ty)
+            const x_y0 = lerp(s00, s10, tx)
+            const x_y1 = lerp(s01, s11, tx)
+            out[outBase + k] = lerp(x_y0, x_y1, ty)
           }
         }
       }

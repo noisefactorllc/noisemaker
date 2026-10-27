@@ -98,7 +98,6 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { refractDir: 'direction', mixAmt: 'mix' },
   passes: [
     {
       name: "render",

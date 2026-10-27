@@ -2,6 +2,7 @@
 // 3 MRT outputs — matches pointsEmit layout
 
 struct Uniforms {
+    diffuseActive: f32,
     time: f32,
     resolution: vec2<f32>,
     seed: i32,
@@ -17,11 +18,32 @@ struct Uniforms {
 @group(0) @binding(1) var xyzTex: texture_2d<f32>;
 @group(0) @binding(3) var velTex: texture_2d<f32>;
 @group(0) @binding(5) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(6) var diffuseTex: texture_2d<f32>;
+@group(0) @binding(7) var baseColorTex: texture_2d<f32>;
+
+fn selectedDiffuse(uv: vec2f) -> vec4f {
+    let size = textureDimensions(diffuseTex, 0);
+    let pixel = clamp(vec2i(clamp(uv, vec2f(0.0), vec2f(0.999999)) * vec2f(size)), vec2i(0), vec2i(size) - vec2i(1));
+    return textureLoad(diffuseTex, pixel, 0);
+}
+
+// The agent's color without a diffuse map. baseColorTex keeps it (alpha > 0)
+// while a diffuse map is active and is cleared otherwise.
+fn baseColor(coord: vec2i, col: vec4f) -> vec4f {
+    let kept = textureLoad(baseColorTex, coord, 0);
+    return select(kept, col, kept.a == 0.0);
+}
+
+fn keptBaseColor(base: vec4f) -> vec4f {
+    return select(vec4f(0.0), vec4f(base.rgb, max(base.a, 1.0 / 255.0)), u.diffuseActive > 0.5);
+}
+
 
 struct Outputs {
     @location(0) outXYZ: vec4<f32>,
     @location(1) outVel: vec4<f32>,
     @location(2) outRGBA: vec4<f32>,
+    @location(3) baseColor: vec4<f32>,
 };
 
 fn hash_uint(seed: u32) -> u32 {
@@ -60,7 +82,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> Outputs {
     let col = textureLoad(rgbaTex, coord, 0);
 
     if (pos.w < 0.5) {
-        return Outputs(pos, vel, col);
+        return Outputs(pos, vel, col, keptBaseColor(baseColor(coord, col)));
     }
 
     let agentSeed = hash_uint(u32(coord.x + coord.y * stateSize))
@@ -78,6 +100,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> Outputs {
                 vec4<f32>(pos.xy, 0.0, 0.0),
                 vel,
                 vec4<f32>(0.0, 0.0, 0.0, 0.0),
+                vec4f(0.0),
             );
         }
 
@@ -117,6 +140,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> Outputs {
                 vec4<f32>(pos.xy, 0.0, 0.0),
                 vel,
                 vec4<f32>(0.0, 0.0, 0.0, 0.0),
+                vec4f(0.0),
             );
         }
 
@@ -126,7 +150,8 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> Outputs {
         return Outputs(
             vec4<f32>(screen, 0.5, 1.0),
             vec4<f32>(cRe, cIm, 1.0, escapeStep),
-            vec4<f32>(brightness, brightness, brightness, 1.0),
+            select(vec4<f32>(brightness, brightness, brightness, 1.0), vec4<f32>(selectedDiffuse(screen).rgb * brightness, 1.0), u.diffuseActive > 0.5),
+            keptBaseColor(vec4<f32>(brightness, brightness, brightness, 1.0)),
         );
     }
 
@@ -157,6 +182,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> Outputs {
                 vec4<f32>(pos.xy, 0.0, 0.0),
                 vec4<f32>(0.0, 0.0, step, 0.0),
                 vec4<f32>(0.0, 0.0, 0.0, 0.0),
+                vec4f(0.0),
             );
         }
 
@@ -167,9 +193,11 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> Outputs {
 
     let screen = complexToScreen(z);
 
+    let base = baseColor(coord, col);
     return Outputs(
         vec4<f32>(screen, 0.5, 1.0),
         vec4<f32>(cRe, cIm, step, escapeStep),
-        col,
+        select(base, vec4f(selectedDiffuse(screen).rgb * 0.03, 1.0), u.diffuseActive > 0.5),
+        keptBaseColor(base),
     );
 }

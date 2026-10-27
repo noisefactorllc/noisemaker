@@ -4,7 +4,7 @@
  * Agent format:
  * - state1: [x, y, z, rotRand]     - 3D position + rotation randomness
  * - state2: [r, g, b, seed]        - color + seed
- * - state3: [age, initialized, theta, phi] - age, init flag, spherical angles
+ * - state3: [age, initialized, strideRand, 0] - age, init flag, per-agent stride random
  */
 
 struct Outputs {
@@ -68,40 +68,10 @@ fn atlasTexel(p: vec3<i32>, volSize: i32) -> vec2<i32> {
     return vec2<i32>(clamped.x, clamped.y + clamped.z * volSize);
 }
 
-// Sample 3D volume with trilinear interpolation
-fn sampleVolume(pos: vec3<f32>, volSize: i32) -> vec4<f32> {
-    let volSizeF = f32(volSize);
-    let texelPos = clamp(pos, vec3<f32>(0.0), vec3<f32>(volSizeF - 1.0));
-    let texelFloor = floor(texelPos);
-    let frac = texelPos - texelFloor;
-    
-    let i0 = vec3<i32>(texelFloor);
-    let i1 = min(i0 + 1, vec3<i32>(volSize - 1));
-    
-    let c000 = textureLoad(mixerTex, atlasTexel(vec3<i32>(i0.x, i0.y, i0.z), volSize), 0);
-    let c100 = textureLoad(mixerTex, atlasTexel(vec3<i32>(i1.x, i0.y, i0.z), volSize), 0);
-    let c010 = textureLoad(mixerTex, atlasTexel(vec3<i32>(i0.x, i1.y, i0.z), volSize), 0);
-    let c110 = textureLoad(mixerTex, atlasTexel(vec3<i32>(i1.x, i1.y, i0.z), volSize), 0);
-    let c001 = textureLoad(mixerTex, atlasTexel(vec3<i32>(i0.x, i0.y, i1.z), volSize), 0);
-    let c101 = textureLoad(mixerTex, atlasTexel(vec3<i32>(i1.x, i0.y, i1.z), volSize), 0);
-    let c011 = textureLoad(mixerTex, atlasTexel(vec3<i32>(i0.x, i1.y, i1.z), volSize), 0);
-    let c111 = textureLoad(mixerTex, atlasTexel(vec3<i32>(i1.x, i1.y, i1.z), volSize), 0);
-    
-    let c00 = mix(c000, c100, frac.x);
-    let c10 = mix(c010, c110, frac.x);
-    let c01 = mix(c001, c101, frac.x);
-    let c11 = mix(c011, c111, frac.x);
-    
-    let c0 = mix(c00, c10, frac.y);
-    let c1 = mix(c01, c11, frac.y);
-    
-    return mix(c0, c1, frac.z);
-}
-
-fn getFallbackColor(pos: vec3<f32>, seed: u32) -> vec3<f32> {
-    var col = hash3(seed + u32(pos.x * 10.0 + pos.y * 100.0 + pos.z * 1000.0));
-    col = col * 0.5 + 0.25 + hash3(seed) * 0.25;
-    return clamp(col, vec3<f32>(0.0), vec3<f32>(1.0));
+// Sample 3D volume at integer voxel position (matching 2D texelFetch pattern)
+fn sampleVoxel(voxel: vec3<i32>, volSize: i32) -> vec4<f32> {
+    let clamped = clamp(voxel, vec3<i32>(0), vec3<i32>(volSize - 1));
+    return textureLoad(mixerTex, atlasTexel(clamped, volSize), 0);
 }
 
 fn srgb_to_linear(value: f32) -> f32 {
@@ -189,8 +159,7 @@ fn main(@builtin(position) position: vec4<f32>) -> Outputs {
     var seed_f = state2.w;
     var age = state3.x;
     var initialized = state3.y;
-    var theta = state3.z;
-    var phi = state3.w;
+    var strideRand = state3.z;  // Per-agent random [-0.5, 0.5] for stride variation
     
     let agentSeed = u32(coord.x + coord.y * width);
     let baseSeed = agentSeed + u32(time * 1000.0);
@@ -206,21 +175,16 @@ fn main(@builtin(position) position: vec4<f32>) -> Outputs {
         flow_z = pos.z * volSizeF;
         
         rotRand = hash(agentSeed + 200u);
-        theta = hash(agentSeed + 300u) * TAU;
-        phi = acos(2.0 * hash(agentSeed + 400u) - 1.0);
+        strideRand = hash(agentSeed + 300u) - 0.5;
         
-        let inputColor = sampleVolume(vec3<f32>(flow_x, flow_y, flow_z), volSize);
+        let xi = wrap_int(i32(flow_x), volSize);
+        let yi = wrap_int(i32(flow_y), volSize);
+        let zi = wrap_int(i32(flow_z), volSize);
+        let inputColor = sampleVoxel(vec3<i32>(xi, yi, zi), volSize);
         
-        if (length(inputColor.rgb) < 0.01) {
-            let fallbackCol = getFallbackColor(vec3<f32>(flow_x, flow_y, flow_z), agentSeed);
-            cr = fallbackCol.r;
-            cg = fallbackCol.g;
-            cb = fallbackCol.b;
-        } else {
-            cr = inputColor.r;
-            cg = inputColor.g;
-            cb = inputColor.b;
-        }
+        cr = inputColor.r;
+        cg = inputColor.g;
+        cb = inputColor.b;
         
         seed_f = f32(agentSeed);
         age = 0.0;
@@ -239,61 +203,46 @@ fn main(@builtin(position) position: vec4<f32>) -> Outputs {
         flow_z = pos.z * volSizeF;
         
         rotRand = hash(baseSeed + 200u);
-        theta = hash(baseSeed + 300u) * TAU;
-        phi = acos(2.0 * hash(baseSeed + 400u) - 1.0);
         
-        let inputColor = sampleVolume(vec3<f32>(flow_x, flow_y, flow_z), volSize);
+        let xi = wrap_int(i32(flow_x), volSize);
+        let yi = wrap_int(i32(flow_y), volSize);
+        let zi = wrap_int(i32(flow_z), volSize);
+        let inputColor = sampleVoxel(vec3<i32>(xi, yi, zi), volSize);
         
-        if (length(inputColor.rgb) < 0.01) {
-            let fallbackCol = getFallbackColor(vec3<f32>(flow_x, flow_y, flow_z), baseSeed);
-            cr = fallbackCol.r;
-            cg = fallbackCol.g;
-            cb = fallbackCol.b;
-        } else {
-            cr = inputColor.r;
-            cg = inputColor.g;
-            cb = inputColor.b;
-        }
+        cr = inputColor.r;
+        cg = inputColor.g;
+        cb = inputColor.b;
         
         age = 0.0;
     }
     
-    // Sample input for flow direction
-    let texel = sampleVolume(vec3<f32>(flow_x, flow_y, flow_z), volSize);
+    // Sample input texture at current position for flow direction
+    let xi = wrap_int(i32(flow_x), volSize);
+    let yi = wrap_int(i32(flow_y), volSize);
+    let zi = wrap_int(i32(flow_z), volSize);
+    let texel = sampleVoxel(vec3<i32>(xi, yi, zi), volSize);
     
-    var indexValue: f32;
-    if (length(texel.rgb) < 0.01) {
-        indexValue = hash(u32(flow_x * 10.0 + flow_y * 100.0 + flow_z * 1000.0 + time * 10.0));
-    } else {
-        indexValue = oklab_l(texel.rgb);
-    }
+    let indexValue = oklab_l(texel.rgb);
     
     let baseHeading = hash(0u) * TAU;
     let rotationBias = computeRotationBias(baseHeading, rotRand, time, agentIndex, totalAgents);
     
-    theta = theta + indexValue * TAU * kink * 0.1 + rotationBias * 0.1;
-    phi = phi + (indexValue - 0.5) * PI * kink * 0.1;
-    phi = clamp(phi, 0.01, PI - 0.01);
+    // For 3D: azimuth angle (XY plane) - direct extension of 2D angle
+    let azimuth = indexValue * TAU * kink + rotationBias;
+
+    // Elevation: use indexValue to modulate vertical movement
+    let elevation = (indexValue - 0.5) * PI * kink * 0.5;
     
-    let sinPhi = sin(phi);
-    let cosPhi = cos(phi);
-    let sinTheta = sin(theta);
-    let cosTheta = cos(theta);
+    let cosElev = cos(elevation);
     
-    let direction = vec3<f32>(
-        sinPhi * cosTheta,
-        sinPhi * sinTheta,
-        cosPhi
-    );
     
     let scale = max(volSizeF / 64.0, 1.0);
-    let strideRand = hash(agentSeed + 500u) - 0.5;
     let devFactor = 1.0 + strideRand * 2.0 * strideDeviation;
     let actualStride = max(0.1, stride * scale * devFactor);
     
-    var newX = flow_x + direction.x * actualStride;
-    var newY = flow_y + direction.y * actualStride;
-    var newZ = flow_z + direction.z * actualStride;
+    var newX = flow_x + sin(azimuth) * cosElev * actualStride;
+    var newY = flow_y + cos(azimuth) * cosElev * actualStride;
+    var newZ = flow_z + sin(elevation) * actualStride;
     
     newX = wrap_float(newX, volSizeF);
     newY = wrap_float(newY, volSizeF);
@@ -303,7 +252,7 @@ fn main(@builtin(position) position: vec4<f32>) -> Outputs {
     
     output.outState1 = vec4<f32>(newX, newY, newZ, rotRand);
     output.outState2 = vec4<f32>(cr, cg, cb, seed_f);
-    output.outState3 = vec4<f32>(age, initialized, theta, phi);
+    output.outState3 = vec4<f32>(age, initialized, strideRand, 0.0);
     
     return output;
 }

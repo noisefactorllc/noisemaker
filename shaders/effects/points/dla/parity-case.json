@@ -1,0 +1,17 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/noise",
+        "render/pointsEmit",
+        "points/dla",
+        "render/pointsRender"
+    ],
+    "dsl": "search synth, points, render\n\nnoise(seed: 1).pointsEmit(stateSize: x64).dla().pointsRender().write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true
+}

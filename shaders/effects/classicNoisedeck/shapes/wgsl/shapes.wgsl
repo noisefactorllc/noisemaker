@@ -5,7 +5,7 @@
  */
 
 struct Uniforms {
-    data : array<vec4<f32>, 7>,
+    data : array<vec4<f32>, 8>,
 };
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -31,6 +31,10 @@ var<private> cyclePalette : i32;
 var<private> rotatePalette : f32;
 var<private> repeatPalette : f32;
 var<private> aspectRatio : f32;
+var<private> tileOffset : vec2<f32>;
+var<private> fullResolution : vec2<f32>;
+// Fragment position, so diamonds() can read it like GLSL's gl_FragCoord.
+var<private> fragCoordXY : vec2<f32>;
 
 const PI : f32 = 3.14159265359;
 const TAU : f32 = 6.28318530718;
@@ -66,13 +70,8 @@ fn pcg(v_in: vec3<u32>) -> vec3<u32> {
     return v;
 }
 
-fn prng(p0: vec3<f32>) -> vec3<f32> {
-    var p = p0;
-    if (p.x >= 0.0) { p.x = p.x * 2.0; } else { p.x = -p.x * 2.0 + 1.0; }
-    if (p.y >= 0.0) { p.y = p.y * 2.0; } else { p.y = -p.y * 2.0 + 1.0; }
-    if (p.z >= 0.0) { p.z = p.z * 2.0; } else { p.z = -p.z * 2.0 + 1.0; }
-    let u = pcg(vec3<u32>(p));
-    return vec3<f32>(u) / f32(0xffffffffu);
+fn prng(p: vec3<f32>) -> vec3<f32> {
+    return vec3<f32>(pcg(vec3<u32>(p))) / f32(0xffffffffu);
 }
 
 fn random(st: vec2<f32>) -> f32 {
@@ -84,16 +83,65 @@ fn periodicFunction(p: f32) -> f32 {
     return map(sin(x), -1.0, 1.0, 0.0, 1.0);
 }
 
-fn constant(st_in: vec2<f32>, freq: f32, speed: f32) -> f32 {
-    var x = st_in.x * freq;
-    var y = st_in.y * freq;
-    if (wrap) {
-        x = modulo(x, freq);
-        y = modulo(y, freq);
+// Noisemaker value noise - MIT License
+// https://github.com/noisefactorllc/noisemaker/blob/main/noisemaker/value.py
+fn positiveModulo(value: i32, modulus: i32) -> i32 {
+    if (modulus == 0) {
+        return 0;
     }
-    x = x + seed;
-    let rand = prng(vec3<f32>(floor(vec2<f32>(x, y)), seed));
-    let scaledTime = periodicFunction(rand.x - time) * map(abs(speed), 0.0, 100.0, 0.0, 0.33);
+
+    let r = value % modulus;
+    return select(r, r + modulus, r < 0);
+}
+
+fn randomFromLatticeWithOffset(st: vec2<f32>, freq: f32, offset: vec2<i32>) -> vec3<f32> {
+    let lattice = st * freq;
+    let baseFloor = floor(lattice);
+    let base = vec2<i32>(baseFloor) + offset;
+    let frac = lattice - baseFloor;
+
+    let seedInt = i32(seed);
+    let seedFrac = 0.0;
+
+    let xCombined = frac.x + seedFrac;
+    var xi = base.x + seedInt + i32(floor(xCombined));
+    var yi = base.y;
+
+    if (wrap) {
+        let freqInt = i32(freq + 0.5);
+
+        if (freqInt > 0) {
+            xi = positiveModulo(xi, freqInt);
+            yi = positiveModulo(yi, freqInt);
+        }
+    }
+
+    let xBits = bitcast<u32>(xi);
+    let yBits = bitcast<u32>(yi);
+    let seedBits = bitcast<u32>(seedInt);
+    let fracBits = bitcast<u32>(seedFrac);
+
+    let jitter = vec3<u32>(
+        (fracBits * 374761393u) ^ 0x9E3779B9u,
+        (fracBits * 668265263u) ^ 0x7F4A7C15u,
+        (fracBits * 2246822519u) ^ 0x94D049B4u
+    );
+
+    let state = vec3<u32>(xBits, yBits, seedBits) ^ jitter;
+    let prngState = pcg(state);
+    let denom = f32(0xffffffffu);
+    return vec3<f32>(
+        f32(prngState.x) / denom,
+        f32(prngState.y) / denom,
+        f32(prngState.z) / denom
+    );
+}
+
+fn constant(st: vec2<f32>, freq: f32, speed: f32) -> f32 {
+    let randTime = randomFromLatticeWithOffset(st, freq, vec2<i32>(40, 0));
+    let scaledTime = periodicFunction(randTime.x - time) * map(abs(speed), 0.0, 100.0, 0.0, 0.33);
+
+    let rand = randomFromLatticeWithOffset(st, freq, vec2<i32>(0, 0));
     return periodicFunction(rand.y - scaledTime);
 }
 
@@ -410,7 +458,7 @@ fn rings(st: vec2<f32>, freq: f32) -> f32 {
 }
 
 fn diamonds(st: vec2<f32>, freq: f32) -> f32 {
-    var st2 = st;
+    var st2 = (fragCoordXY + tileOffset) / fullResolution.y;
     st2 = st2 - vec2<f32>(0.5 * aspectRatio, 0.5);
     st2 = st2 * freq;
     return cos(st2.x * PI) + cos(st2.y * PI);
@@ -591,10 +639,15 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     palettePhase = uniforms.data[6].xyz;
 
-    aspectRatio = resolution.x / resolution.y;
+    tileOffset = uniforms.data[7].xy;
+    fullResolution = uniforms.data[7].zw;
 
+    aspectRatio = fullResolution.x / fullResolution.y;
+
+    fragCoordXY = pos.xy;
+    let globalCoord = pos.xy + tileOffset;
     var color = vec4<f32>(0.0, 0.0, 1.0, 1.0);
-    var st = pos.xy / resolution.y;
+    var st = globalCoord / fullResolution.y;
 
     var lf1 = map(loopAScale, 1.0, 100.0, 6.0, 1.0);
     if (wrap) {
@@ -637,7 +690,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     }
     color = vec4<f32>(pal(d), color.a);
 
-    var st2 = pos.xy / resolution;
+    var st2 = globalCoord / fullResolution;
 
     return color;
 }

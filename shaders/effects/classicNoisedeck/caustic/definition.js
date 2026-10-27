@@ -99,7 +99,6 @@ export default new Effect({
       uniform: "intensity"
     }
   },
-  paramAliases: { loopAmp: 'speed' },
   passes: [
     {
       name: "render",

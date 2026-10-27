@@ -25,6 +25,8 @@ export default new Effect({
     trapShape:   { slot: 4, components: 'x' },
     lightAngle:  { slot: 4, components: 'y' },
     rotation:    { slot: 4, components: 'z' },
+    tileOffset:     { slot: 5, components: 'xy' },
+    fullResolution: { slot: 5, components: 'zw' },
   },
 
   globals: {
@@ -125,7 +127,8 @@ export default new Effect({
       ui: {
         label: "zoom speed",
         control: "slider",
-        category: "animation"
+        category: "animation",
+        enabledBy: { param: "zoomDepth", gt: 0 }
       }
     },
     zoomDepth: {
@@ -200,7 +203,6 @@ export default new Effect({
 
   openCategories: ["fractal", "animation"],
 
-  paramAliases: { poiMode: 'poi' },
 
   passes: [
     {

@@ -12,6 +12,7 @@ import {
     comparePixelFrames,
     computeEffectSourceHash,
     computeParitySourceHash,
+    isReadbackPerformanceWarning,
     matchesTargetEffectPass,
     registeredParityEffectIds,
     validateWgslTextureBindings,
@@ -22,6 +23,12 @@ import {
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'noisemaker-parity-attestation-'))
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+const readbackWarning = '[.WebGL-0x2400154e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels'
+assert.equal(isReadbackPerformanceWarning('warning', readbackWarning), true)
+assert.equal(isReadbackPerformanceWarning('error', readbackWarning), false)
+assert.equal(isReadbackPerformanceWarning('warning', 'GPU stall due to ReadPixels'), false)
+assert.equal(isReadbackPerformanceWarning('warning', readbackWarning.replace('Performance', 'Error')), false)
+assert.equal(isReadbackPerformanceWarning('warning', 'Texture binding failed'), false)
 
 const brightestSource = fs.readFileSync(path.join(
     repoRoot,
@@ -66,6 +73,26 @@ try {
     assert.deepEqual(registeredParityEffectIds(tempRoot), ['filter/example'],
         'full verification must select every effect with a registered parity case')
 
+    // A mesh fixture is part of the evidence: editing it invalidates the
+    // hash and selects the case that loads it.
+    fs.mkdirSync(path.join(tempRoot, 'share/meshes'), { recursive: true })
+    const meshFile = path.join(tempRoot, 'share/meshes/fixture.obj')
+    fs.writeFileSync(meshFile, 'v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n')
+    const meshCase = { effects: ['filter/example'], meshInputs: [{ mesh: 'mesh0', path: 'share/meshes/fixture.obj' }] }
+    const meshHash = computeParitySourceHash(tempRoot, meshCase)
+    assert.notEqual(meshHash, computeParitySourceHash(tempRoot, { effects: ['filter/example'] }),
+        'a mesh fixture must contribute to the evidence hash')
+    fs.writeFileSync(meshFile, 'v 0 0 0\nv 2 0 0\nv 0 1 0\nf 1 2 3\n')
+    assert.notEqual(computeParitySourceHash(tempRoot, meshCase), meshHash,
+        'editing a mesh fixture must invalidate its evidence')
+    const meshCasePath = path.join(effectDir, 'parity-case.json')
+    const exampleCase = fs.readFileSync(meshCasePath, 'utf8')
+    fs.writeFileSync(meshCasePath, `${JSON.stringify(meshCase)}\n`)
+    assert.deepEqual(affectedParityEffectIds(tempRoot, ['share/meshes/fixture.obj']), ['filter/example'],
+        'a changed mesh fixture must select the parity cases that load it')
+    fs.writeFileSync(meshCasePath, exampleCase)
+    fs.unlinkSync(meshFile)
+
     const completeParityCase = {
         schemaVersion: 1,
         effects: ['synth/dependency', 'filter/example'],
@@ -76,6 +103,26 @@ try {
         requireColorVariation: true,
     }
     assert.deepEqual(validateParityCase(completeParityCase, 'filter/example'), [])
+    const textureInput = { effect: 'filter/example', uniform: 'imageTex', width: 2, height: 2,
+        data: [255, 0, 0, 255, 0, 255, 0, 128, 0, 0, 255, 64, 128, 64, 32, 128] }
+    assert.deepEqual(validateParityCase({ ...completeParityCase, textureInputs: [textureInput] }, 'filter/example'), [])
+    for (const change of [{ width: 0 }, { data: [255] }, { data: new Array(16).fill(-1) },
+        { effect: 'unknown/effect' }, { uniform: 'bad.name' }]) {
+        assert.ok(validateParityCase({ ...completeParityCase, textureInputs: [{ ...textureInput, ...change }] },
+            'filter/example').some(error => error.includes('texture')), 'invalid texture evidence must be rejected')
+    }
+    const meshInput = { mesh: 'mesh0', path: 'share/meshes/cube.obj' }
+    assert.deepEqual(validateParityCase({ ...completeParityCase, meshInputs: [meshInput] }, 'filter/example'), [])
+    for (const change of [{ mesh: 'mesh8' }, { path: '../secret.obj' }, { path: 'share/meshes/cube.png' }]) {
+        assert.ok(validateParityCase({ ...completeParityCase, meshInputs: [{ ...meshInput, ...change }] },
+            'filter/example').some(error => error.includes('mesh input')), 'invalid mesh evidence must be rejected')
+    }
+    assert.deepEqual(validateParityCase({ ...completeParityCase, tiles: { size: [4, 8], renderScale: 2 } }, 'filter/example'), [])
+    for (const tiles of [{ size: [3, 8] }, { size: [8, 8] }, { size: [4] }, { size: [0, 8] }, { size: [4, 4], renderScale: 0 },
+        { size: [4, 4], renderScale: 'x' }, null]) {
+        assert.ok(validateParityCase({ ...completeParityCase, tiles }, 'filter/example').some(error => error.includes('tiles')),
+            'invalid tile plans must be rejected')
+    }
     assert.equal(matchesTargetEffectPass({
         effectKey: 'example',
         effectFunc: 'example',

@@ -1,38 +1,61 @@
 /**
  * Recursive-descent parser for the Polymorphic DSL.
  *
- * Grammar (EBNF):
- * Program        ::= SearchDirective? Statement* RenderDirective?
- * SearchDirective::= 'search' Ident (',' Ident)*
+ * Grammar (EBNF). docs/shaders/language.rst states the same grammar.
+ * Program        ::= Ignored SearchDirective ( Ignored Statement )* ( Ignored RenderDirective )? Ignored
+ * SearchDirective::= 'search' Namespace ( ',' Namespace )*    // Required (P004)
+ * Namespace      ::= Ident | Keyword                          // A registered namespace (P004)
  * Statement      ::= VarAssign | ChainStmt | IfStmt | Break | Continue | Return
  * RenderDirective::= 'render' '(' OutputRef ')'
- * Block          ::= '{' Statement* '}'
+ * Block          ::= '{' ( Statement ';'* )* '}'
  * IfStmt         ::= 'if' '(' Expr ')' Block ('elif' '(' Expr ')' Block)* ('else' Block)?
  * Break          ::= 'break'
  * Continue       ::= 'continue'
  * Return         ::= 'return' Expr?
  * VarAssign      ::= 'let' Ident '=' Expr
  * ChainStmt      ::= Chain
- * Chain          ::= ChainElement ('.' ChainElement)*
- * ChainElement   ::= Call | WriteNode | Write3DNode
- * WriteNode      ::= 'write' '(' OutputRef ')'     // Chainable - writes to surface & passes through
- * Write3DNode    ::= 'write3d' '(' Ident ',' Ident ')'
- * Expr           ::= Chain | NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | SourceRef | Func | '(' Expr ')'
+ * Chain          ::= Call ( Comment* '.' Comment* ChainElement )*
+ * ChainElement   ::= Call | WriteCall | Write3DCall | SubchainCall
+ * SubchainCall   ::= 'subchain' '(' SubchainArgs? ')' '{' ( Comment* '.' Comment* Call )+ Comment* '}'
+ * SubchainArgs   ::= String | SubchainPair ( ','? SubchainPair )* ','?
+ * SubchainPair   ::= Ident ':' String
+ * WriteCall      ::= 'write' '(' WriteTarget ')'       // Chainable - writes to surface & passes through
+ * WriteTarget    ::= OutputRef | XyzRef | VelRef | RgbaRef | MeshRef | 'none'
+ * Write3DCall    ::= 'write3d' '(' ( VolRef | OutputRef | Ident ) ',' ( GeoRef | OutputRef | Ident ) ')'
  * Call           ::= Ident '(' ArgList? ')'
- * ArgList        ::= Arg (',' Arg)* ','?
- * Arg            ::= NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | SourceRef | Func
- * NumberExpr     ::= Number | 'Math.PI' | '(' NumberExpr ')' | NumberExpr ( '+' | '-' | '*' | '/' ) NumberExpr
- * Member         ::= Ident ('.' Ident)+
+ * ArgList        ::= ( Expr | Kwarg ) ( ',' ( Expr | Kwarg ) )* ','?
+ * Kwarg          ::= Ident ':' Expr
+ * Expr           ::= Term ( ( '+' | '-' ) Term )*      // Operands must be numbers (P001)
+ * Term           ::= Unary ( ( '*' | '/' ) Unary )*
+ * Unary          ::= ( '+' | '-' )* Primary
+ * Primary        ::= Number | 'Math.PI' | String | Boolean | Color | Array | Func | Ident | Member
+ *                  | Chain | SurfaceRef | '(' Expr ')'   // A Chain here has no write (P005)
+ * Array          ::= '[' ( Expr ( ',' Expr )* )? ']'
+ * Member         ::= Ident ( '.' Segment )+
  * Func           ::= '(' ')' '=>' Expr
- * OutputRef      ::= 'o' Digit         // Global surface (o0-o7)
- * Ident          ::= Letter ( Letter | Digit | '_' )*
- * Number         ::= Digit+ ( '.' Digit+ )?
- * String         ::= '"' [^"\n]* '"'
+ * SurfaceRef     ::= OutputRef | SourceRef | VolRef | GeoRef | XyzRef | VelRef | RgbaRef | MeshRef
+ * OutputRef      ::= 'o' OutputDigit      // Global surface (o0-o7)
+ * VolRef         ::= 'vol' Digit+
+ * GeoRef         ::= 'geo' Digit+
+ * XyzRef         ::= 'xyz' Digit+
+ * VelRef         ::= 'vel' Digit+
+ * RgbaRef        ::= 'rgba' Digit+
+ * MeshRef        ::= 'mesh' Digit+
+ * SourceRef      ::= 's' Digit+
+ * Ident          ::= ( Letter | '_' ) ( Letter | Digit | '_' )*   // Never a Keyword
+ * Keyword        ::= 'let' | 'render' | 'write' | 'write3d' | 'true' | 'false' | 'if' | 'elif' | 'else'
+ *                  | 'break' | 'continue' | 'return' | 'search' | 'subchain'
+ * Segment        ::= Ident | SurfaceRef | ( Keyword - 'search' )
+ * Number         ::= Digit+ ( '.' Digit+ )? | '.' Digit+
+ * String         ::= '"' ( '\' AnyChar | [^"\\\n] )* '"' | "'" ( '\' AnyChar | [^'\\\n] )* "'" | '"""' .* '"""'
  * Digit          ::= '0'…'9'
+ * OutputDigit    ::= '0'…'7'
  * Letter         ::= 'A'…'Z' | 'a'…'z'
  * Boolean        ::= 'true' | 'false'
- * Color          ::= '#' HexDigit HexDigit HexDigit ( HexDigit HexDigit HexDigit )?
+ * Color          ::= '#' HexDigit{3} | '#' HexDigit{6} | '#' HexDigit{8}
  * HexDigit       ::= Digit | 'A'…'F' | 'a'…'f'
+ * Comment        ::= '//' [^\n]* | BlockComment    // A block comment runs to the first closing star-slash
+ * Ignored        ::= ( Comment | ';' )*
  *
  * Special Call Transformations:
  * - read(surface) → Read node for surface textures
@@ -43,9 +66,14 @@
  * @returns {object} AST
  */
 import { isValidNamespace, VALID_NAMESPACES } from '../runtime/tags.js'
+import diagnostics from './diagnostics.js'
 
-export function parse(tokens) {
+export function parse(tokens, options = {}) {
     let current = 0
+    // Opt-in strict subchain-argument validation. Default parsing
+    // acceptance is unchanged; strict mode rejects unknown keys, duplicate
+    // keys, and missing separators with stable diagnostic codes.
+    const strictSubchainArguments = options.subchainArguments === 'strict'
 
     // Track the search order for the program (set by search directive - REQUIRED)
     let programSearchOrder = null
@@ -58,10 +86,40 @@ export function parse(tokens) {
 
     const peek = () => tokens[current]
     const advance = () => tokens[current++]
+    const parserError = (code, message, token, severityOverride) => {
+        const error = new SyntaxError(message)
+        // Prefer the lexer's non-enumerable source-derived position when the
+        // token came from lex(source). Caller-supplied tokens fall back to
+        // their own positive-integer line/col with an explicitly null span.
+        const position = token && typeof token === 'object' ? token.position : null
+        const hasPosition = position
+            && Number.isInteger(position.line) && position.line > 0
+            && Number.isInteger(position.column) && position.column > 0
+            && Number.isInteger(position.start) && position.start >= 0
+            && Number.isInteger(position.end) && position.end >= position.start
+        const hasLocation = Number.isInteger(token?.line) && token.line > 0
+            && Number.isInteger(token?.col) && token.col > 0
+        Object.defineProperty(error, 'diagnostic', {
+            value: {
+                code,
+                stage: diagnostics[code].stage,
+                severity: severityOverride ?? diagnostics[code].severity,
+                message: error.message,
+                location: hasPosition
+                    ? { line: position.line, column: position.column }
+                    : (hasLocation ? { line: token.line, column: token.col } : null),
+                span: hasPosition
+                    ? { start: position.start, end: position.end }
+                    : null
+            }
+        })
+        return error
+    }
     const expect = (type, msg) => {
         const token = peek()
         if (token.type === type) return advance()
-        throw new SyntaxError(`${msg} at line ${token.line} col ${token.col}`)
+        throw parserError(type === 'RPAREN' ? 'P002' : 'P001',
+            `${msg} at line ${token.line} col ${token.col}`, token)
     }
 
     /**
@@ -157,7 +215,7 @@ export function parse(tokens) {
         // Validate kwargs - reject unknown parameters
         for (const key of Object.keys(kwargs)) {
             if (!validParams.has(key)) {
-                throw new SyntaxError(`osc() unknown parameter '${key}' at line ${nameToken.line} col ${nameToken.col}. Valid: ${paramOrder.join(', ')}`)
+                throw parserError('P003', `osc() unknown parameter '${key}' at line ${nameToken.line} col ${nameToken.col}. Valid: ${paramOrder.join(', ')}`, nameToken)
             }
         }
 
@@ -215,14 +273,14 @@ export function parse(tokens) {
 
         // Parameter order: channel, mode, min, max, sensitivity
         const paramOrder = ['channel', 'mode', 'min', 'max', 'sensitivity']
-        const keywordOnlyParams = ['name', 'id']
+        const keywordOnlyParams = ['name', 'id', 'cc', 'nrpn', 'zone', 'members']
         const validParams = [...paramOrder, ...keywordOnlyParams]
         if (args.length > paramOrder.length) {
-            throw new SyntaxError(`midi() name and id are keyword-only at line ${nameToken.line} col ${nameToken.col}`)
+            throw parserError('P003', `midi() name, id, cc, nrpn, zone and members are keyword-only at line ${nameToken.line} col ${nameToken.col}`, nameToken)
         }
         for (const key of Object.keys(kwargs)) {
             if (!validParams.includes(key)) {
-                throw new SyntaxError(`midi() unknown parameter '${key}' at line ${nameToken.line} col ${nameToken.col}. Valid: ${validParams.join(', ')}`)
+                throw parserError('P003', `midi() unknown parameter '${key}' at line ${nameToken.line} col ${nameToken.col}. Valid: ${validParams.join(', ')}`, nameToken)
             }
         }
         const defaults = {
@@ -234,11 +292,8 @@ export function parse(tokens) {
 
         const resolved = {}
 
-        // Resolve each parameter from positional args or kwargs
-        // Positionals are dense — a keyword does not occupy a slot in `args` —
-        // so they are consumed with their own cursor against the parameters a
-        // keyword has not filled. Indexing by slot drops every positional
-        // written after a keyword.
+        // Resolve each parameter from positional args or kwargs. Positionals
+        // are dense, so keyword arguments do not consume their slots.
         let posCursor = 0
         for (let i = 0; i < paramOrder.length; i++) {
             const paramName = paramOrder[i]
@@ -253,23 +308,29 @@ export function parse(tokens) {
         }
 
         if (posCursor < args.length) {
-            throw new SyntaxError(`midi() has an excess positional argument at line ${nameToken.line} col ${nameToken.col}`)
+            throw parserError('P003', `midi() has an excess positional argument at line ${nameToken.line} col ${nameToken.col}`, nameToken)
         }
 
-        if (!resolved.channel) {
-            throw new SyntaxError(`midi() requires 'channel' argument at line ${nameToken.line} col ${nameToken.col}`)
+        if (!resolved.channel && kwargs.zone === undefined) {
+            throw parserError('P003', `midi() requires 'channel' or 'zone' argument at line ${nameToken.line} col ${nameToken.col}`, nameToken)
+        }
+        if (resolved.channel && kwargs.zone !== undefined) {
+            throw parserError('P003', `midi() 'channel' and 'zone' are mutually exclusive at line ${nameToken.line} col ${nameToken.col}`, nameToken)
+        }
+        if (kwargs.members !== undefined && kwargs.zone === undefined) {
+            throw parserError('P003', `midi() 'members' requires 'zone' at line ${nameToken.line} col ${nameToken.col}`, nameToken)
         }
         if (kwargs.id !== undefined && kwargs.name === undefined) {
-            throw new SyntaxError(`midi() 'id' requires readable 'name' at line ${nameToken.line} col ${nameToken.col}`)
+            throw parserError('P003', `midi() 'id' requires readable 'name' at line ${nameToken.line} col ${nameToken.col}`, nameToken)
         }
-        for (const paramName of keywordOnlyParams) {
+        for (const paramName of ['name', 'id']) {
             const value = kwargs[paramName]
             if (value === undefined) continue
             if (value.type !== 'String') {
-                throw new SyntaxError(`midi() '${paramName}' requires a quoted string at line ${nameToken.line} col ${nameToken.col}`)
+                throw parserError('P003', `midi() '${paramName}' requires a quoted string at line ${nameToken.line} col ${nameToken.col}`, nameToken)
             }
             if (value.value.length === 0) {
-                throw new SyntaxError(`midi() '${paramName}' must not be empty at line ${nameToken.line} col ${nameToken.col}`)
+                throw parserError('P003', `midi() '${paramName}' must not be empty at line ${nameToken.line} col ${nameToken.col}`, nameToken)
             }
         }
 
@@ -280,6 +341,10 @@ export function parse(tokens) {
             min: resolved.min,
             max: resolved.max,
             sensitivity: resolved.sensitivity,
+            cc: kwargs.cc,
+            nrpn: kwargs.nrpn,
+            zone: kwargs.zone,
+            members: kwargs.members,
             name: kwargs.name,
             id: kwargs.id,
             loc: { line: nameToken.line, col: nameToken.col }
@@ -290,11 +355,14 @@ export function parse(tokens) {
      * Transform an audio() call into an Audio AST node.
      *
      * Audio signature:
-     * audio(band, min?, max?)
+     * audio(band, min?, max?, channel:?, name:?, id:?)
      *
-     * band: audioBand enum (required) - low, mid, high, vol
-     * min: low end of the normalized [0, 1] output sub-range (default 0)
-     * max: high end of the normalized [0, 1] output sub-range (default 1)
+     * band: audioBand enum (required) - low, mid, high, vol, raw
+     * min: minimum output value (default 0)
+     * max: maximum output value (default 1)
+     * channel: one-based channel on the selected device (keyword-only)
+     * name: readable MediaDeviceInfo.label selector (keyword-only)
+     * id: exact MediaDeviceInfo.deviceId selector (keyword-only, requires name)
      */
     function transformAudioInvocation(call, nameToken) {
         const args = Array.isArray(call.args) ? call.args : []
@@ -302,6 +370,16 @@ export function parse(tokens) {
 
         // Parameter order: band, min, max
         const paramOrder = ['band', 'min', 'max']
+        const keywordOnlyParams = ['channel', 'name', 'id']
+        const validParams = [...paramOrder, ...keywordOnlyParams]
+        if (args.length > paramOrder.length) {
+            throw parserError('P003', `audio() channel, name and id are keyword-only at line ${nameToken.line} col ${nameToken.col}`, nameToken)
+        }
+        for (const key of Object.keys(kwargs)) {
+            if (!validParams.includes(key)) {
+                throw parserError('P003', `audio() unknown parameter '${key}' at line ${nameToken.line} col ${nameToken.col}. Valid: ${validParams.join(', ')}`, nameToken)
+            }
+        }
         const defaults = {
             min: { type: 'Number', value: 0 },
             max: { type: 'Number', value: 1 }
@@ -309,11 +387,8 @@ export function parse(tokens) {
 
         const resolved = {}
 
-        // Resolve each parameter from positional args or kwargs
-        // Positionals are dense — a keyword does not occupy a slot in `args` —
-        // so they are consumed with their own cursor against the parameters a
-        // keyword has not filled. Indexing by slot drops every positional
-        // written after a keyword.
+        // Resolve each parameter from positional args or kwargs. Positionals
+        // are dense, so keyword arguments do not consume their slots.
         let posCursor = 0
         for (let i = 0; i < paramOrder.length; i++) {
             const paramName = paramOrder[i]
@@ -327,8 +402,28 @@ export function parse(tokens) {
             }
         }
 
+        if (posCursor < args.length) {
+            throw parserError('P003', `audio() has an excess positional argument at line ${nameToken.line} col ${nameToken.col}`, nameToken)
+        }
+
         if (!resolved.band) {
-            throw new SyntaxError(`audio() requires 'band' argument at line ${nameToken.line} col ${nameToken.col}`)
+            throw parserError('P003', `audio() requires 'band' argument at line ${nameToken.line} col ${nameToken.col}`, nameToken)
+        }
+        if (kwargs.id !== undefined && kwargs.name === undefined) {
+            throw parserError('P003', `audio() 'id' requires readable 'name' at line ${nameToken.line} col ${nameToken.col}`, nameToken)
+        }
+        if (kwargs.name !== undefined && kwargs.channel === undefined) {
+            throw parserError('P003', `audio() selected device requires both 'name' and 'channel' at line ${nameToken.line} col ${nameToken.col}`, nameToken)
+        }
+        for (const paramName of ['name', 'id']) {
+            const value = kwargs[paramName]
+            if (value === undefined) continue
+            if (value.type !== 'String') {
+                throw parserError('P003', `audio() '${paramName}' requires a quoted string at line ${nameToken.line} col ${nameToken.col}`, nameToken)
+            }
+            if (value.value.length === 0) {
+                throw parserError('P003', `audio() '${paramName}' must not be empty at line ${nameToken.line} col ${nameToken.col}`, nameToken)
+            }
         }
 
         return {
@@ -336,6 +431,9 @@ export function parse(tokens) {
             band: resolved.band,
             min: resolved.min,
             max: resolved.max,
+            channel: kwargs.channel,
+            name: kwargs.name,
+            id: kwargs.id,
             loc: { line: nameToken.line, col: nameToken.col }
         }
     }
@@ -343,9 +441,9 @@ export function parse(tokens) {
     function transformFromInvocation(call, nameToken) {
         const fail = (message) => {
             if (nameToken && typeof nameToken.line === 'number' && typeof nameToken.col === 'number') {
-                throw new SyntaxError(`${message} at line ${nameToken.line} col ${nameToken.col}`)
+                throw parserError('P007', `${message} at line ${nameToken.line} col ${nameToken.col}`, nameToken)
             }
-            throw new SyntaxError(message)
+            throw parserError('P007', message, nameToken)
         }
         if (call.kwargs && Object.keys(call.kwargs).length) {
             fail("'from' does not support named arguments")
@@ -410,7 +508,7 @@ export function parse(tokens) {
         advance()
         expect('LPAREN', "Expect '('")
         if (peek().type !== 'OUTPUT_REF') {
-            throw new SyntaxError('Expected output reference in render()')
+            throw parserError('P005', 'Expected output reference in render()', peek())
         }
         const out = { type: 'OutputRef', name: advance().lexeme }
         expect('RPAREN', "Expect ')'")
@@ -426,6 +524,9 @@ export function parse(tokens) {
         const appendStatement = (stmt) => {
             if (!stmt || typeof stmt !== 'object') { return }
             if (stmt.type === 'VarAssign') {
+                // Statement order: the number of plans written before this
+                // let. Non-enumerable, so the AST shape is unchanged.
+                Object.defineProperty(stmt, 'planIndex', { value: plans.length, enumerable: false })
                 vars.push(stmt)
             } else {
                 plans.push(stmt)
@@ -435,7 +536,7 @@ export function parse(tokens) {
         const consumeRender = () => {
             if (render) {
                 const t = peek()
-                throw new SyntaxError(`Duplicate render() directive at line ${t.line} col ${t.col}`)
+                throw parserError('P005', `Duplicate render() directive at line ${t.line} col ${t.col}`, t)
             }
             render = parseRenderDirective()
             while (peek().type === 'SEMICOLON') advance()
@@ -452,7 +553,7 @@ export function parse(tokens) {
         function parseSearchDirective() {
             if (programSearchOrder !== null) {
                 const t = peek()
-                throw new SyntaxError(`Only one search directive is allowed per program at line ${t.line} col ${t.col}`)
+                throw parserError('P004', `Only one search directive is allowed per program at line ${t.line} col ${t.col}`, t)
             }
             advance() // consume 'search'
             const namespaces = []
@@ -461,14 +562,14 @@ export function parse(tokens) {
             function validateNamespace(token) {
                 const ns = token.lexeme
                 if (!isValidNamespace(ns)) {
-                    throw new SyntaxError(`Invalid namespace '${ns}' at line ${token.line} col ${token.col}. Valid namespaces: ${VALID_NAMESPACES.join(', ')}`)
+                    throw parserError('P004', `Invalid namespace '${ns}' at line ${token.line} col ${token.col}. Valid namespaces: ${VALID_NAMESPACES.join(', ')}`, token)
                 }
             }
 
             // Expect at least one namespace identifier (allow keywords as namespace names)
             const firstToken = peek()
             if (!namespaceTokenTypes.has(firstToken.type)) {
-                throw new SyntaxError(`Expected namespace identifier after search at line ${firstToken.line} col ${firstToken.col}`)
+                throw parserError('P004', `Expected namespace identifier after search at line ${firstToken.line} col ${firstToken.col}`, firstToken)
             }
             advance()
             validateNamespace(firstToken)
@@ -478,7 +579,7 @@ export function parse(tokens) {
                 advance() // consume ','
                 const nsToken = peek()
                 if (!namespaceTokenTypes.has(nsToken.type)) {
-                    throw new SyntaxError(`Expected namespace identifier after comma at line ${nsToken.line} col ${nsToken.col}`)
+                    throw parserError('P004', `Expected namespace identifier after comma at line ${nsToken.line} col ${nsToken.col}`, nsToken)
                 }
                 advance()
                 validateNamespace(nsToken)
@@ -510,7 +611,7 @@ export function parse(tokens) {
             if (peek().type === 'SEARCH') {
                 if (plans.length || vars.length || render) {
                     const t = peek()
-                    throw new SyntaxError(`'search' directive must appear before other statements at line ${t.line} col ${t.col}`)
+                    throw parserError('P004', `'search' directive must appear before other statements at line ${t.line} col ${t.col}`, t)
                 }
                 parseSearchDirective()
                 continue
@@ -536,9 +637,9 @@ export function parse(tokens) {
             appendStatement(stmt)
             while (peek().type === 'SEMICOLON') advance()
         }
-        expect('EOF', 'Expected end of input')
+        const eof = expect('EOF', 'Expected end of input')
         if (!programSearchOrder || programSearchOrder.length === 0) {
-            throw new SyntaxError("Missing required 'search' directive. Every program must start with 'search <namespace>, ...' to specify namespace search order.")
+            throw parserError('P004', "Missing required 'search' directive. Every program must start with 'search <namespace>, ...' to specify namespace search order.", eof)
         }
 
         const program = { type: 'Program', plans, render }
@@ -563,8 +664,21 @@ export function parse(tokens) {
     function parseBlock() {
         expect('LBRACE', "Expect '{'")
         const body = []
-        while (peek().type !== 'RBRACE') {
+        while (true) {
+            // Comments attach to the next statement, as at top level
+            const leadingComments = collectComments()
+            if (peek().type === 'RBRACE') {
+                // Comments before '}' have no statement. Keep them on the
+                // block (non-enumerable, so the AST shape is unchanged).
+                if (leadingComments.length > 0) {
+                    Object.defineProperty(body, 'trailingComments', { value: leadingComments, enumerable: false })
+                }
+                break
+            }
             const stmt = parseStatement()
+            if (leadingComments.length > 0) {
+                stmt.leadingComments = leadingComments
+            }
             body.push(stmt)
             while (peek().type === 'SEMICOLON') advance()
         }
@@ -575,7 +689,7 @@ export function parse(tokens) {
     function parseStatement() {
         if (peek().type === 'SEARCH') {
             const t = peek()
-            throw new SyntaxError(`'search' directive is only allowed at the start of the program at line ${t.line} col ${t.col}`)
+            throw parserError('P004', `'search' directive is only allowed at the start of the program at line ${t.line} col ${t.col}`, t)
         }
         if (peek().type === 'LET') {
             advance()
@@ -583,7 +697,7 @@ export function parse(tokens) {
             expect('EQUAL', "Expect '='")
             if (!exprStartTokens.has(peek().type)) {
                 const t = peek()
-                throw new SyntaxError(`Expected expression after '=' at line ${t.line} col ${t.col}`)
+                throw parserError('P001', `Expected expression after '=' at line ${t.line} col ${t.col}`, t)
             }
             const expr = parseAdditive()
             return {type: 'VarAssign', name, expr}
@@ -673,7 +787,7 @@ export function parse(tokens) {
             if (nextType === 'WRITE' || nextType === 'WRITE3D') {
                 if (context === 'expression') {
                     const t = peek()
-                    throw new SyntaxError(`'.write()' is only allowed in statement context at line ${t.line} col ${t.col}`)
+                    throw parserError('P005', `'.write()' is only allowed in statement context at line ${t.line} col ${t.col}`, t)
                 }
                 // Parse write/write3d as a node in the chain (chainable)
                 const writeNode = parseWriteCall()
@@ -726,7 +840,7 @@ export function parse(tokens) {
                 // "none" is a valid target meaning "don't write to any surface"
                 surface = { type: 'OutputRef', name: advance().lexeme }
             } else {
-                throw new SyntaxError(`write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, mesh0, none) at line ${peek().line} col ${peek().col}`)
+                throw parserError('P005', `write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, mesh0, none) at line ${peek().line} col ${peek().col}`, peek())
             }
             expect('RPAREN', "Expect ')'")
             return {
@@ -747,7 +861,7 @@ export function parse(tokens) {
                         ? { type: 'VolRef', name: advance().lexeme }
                         : { type: 'Ident', name: advance().lexeme }
             } else {
-                throw new SyntaxError(`Expected tex3d reference in write3d() at line ${peek().line} col ${peek().col}`)
+                throw parserError('P005', `Expected tex3d reference in write3d() at line ${peek().line} col ${peek().col}`, peek())
             }
             expect('COMMA', "Expect ',' between tex3d and geo in write3d()")
             // Parse geo reference
@@ -760,7 +874,7 @@ export function parse(tokens) {
                         ? { type: 'GeoRef', name: advance().lexeme }
                         : { type: 'Ident', name: advance().lexeme }
             } else {
-                throw new SyntaxError(`Expected geo reference in write3d() at line ${peek().line} col ${peek().col}`)
+                throw parserError('P005', `Expected geo reference in write3d() at line ${peek().line} col ${peek().col}`, peek())
             }
             expect('RPAREN', "Expect ')'")
             return {
@@ -770,7 +884,7 @@ export function parse(tokens) {
                 loc: { line: tokenLine, col: tokenCol }
             }
         }
-        throw new SyntaxError(`Expected write or write3d at line ${tokenLine} col ${tokenCol}`)
+        throw parserError('P005', `Expected write or write3d at line ${tokenLine} col ${tokenCol}`, { line: tokenLine, col: tokenCol })
     }
 
     /**
@@ -788,12 +902,48 @@ export function parse(tokens) {
      * The inner chain elements start with dots and are chained together.
      * The subchain as a whole is chainable - it takes input and produces output.
      */
+    // Subchain arguments accept exactly these keyword keys. A single
+    // leading positional string literal is shorthand for `name`. Anything
+    // else is historically accepted but discarded, and is now reported.
+    const SUBCHAIN_KEYS = ['name', 'id']
+
     function parseSubchainCall() {
-        const tokenLine = peek().line
-        const tokenCol = peek().col
+        const nameToken = peek()
+        const tokenLine = nameToken.line
+        const tokenCol = nameToken.col
 
         advance() // consume 'subchain'
         expect('LPAREN', "Expect '(' after subchain")
+
+        // Machine-readable subchain-argument reports. Order follows the
+        // offending token in the source. Default mode collects them onto the
+        // Subchain node as non-enumerable metadata (surfaced by validate());
+        // strict mode throws with the same codes.
+        const argDiagnostics = []
+        const reportArgIssue = (code, message, token) => {
+            if (strictSubchainArguments) {
+                throw parserError(code, message, token, 'error')
+            }
+            const position = token && typeof token === 'object' ? token.position : null
+            const hasPosition = position
+                && Number.isInteger(position.line) && position.line > 0
+                && Number.isInteger(position.column) && position.column > 0
+                && Number.isInteger(position.start) && position.start >= 0
+                && Number.isInteger(position.end) && position.end >= position.start
+            const hasLocation = Number.isInteger(token?.line) && token.line > 0
+                && Number.isInteger(token?.col) && token.col > 0
+            argDiagnostics.push({
+                code,
+                message,
+                severity: diagnostics[code].severity,
+                ...(hasPosition
+                    ? {
+                        location: { line: position.line, column: position.column },
+                        span: { start: position.start, end: position.end }
+                    }
+                    : (hasLocation ? { location: { line: token.line, column: token.col } } : {}))
+            })
+        }
 
         // Parse subchain arguments (name and optional id)
         const kwargs = {}
@@ -805,14 +955,23 @@ export function parse(tokens) {
             } else if (peek().type === 'IDENT' && tokens[current + 1]?.type === 'COLON') {
                 // Keyword arguments: subchain(name: "...", id: "...")
                 while (peek().type === 'IDENT' && tokens[current + 1]?.type === 'COLON') {
-                    const key = advance().lexeme
+                    const keyToken = advance()
+                    const key = keyToken.lexeme
                     advance() // consume ':'
                     if (peek().type !== 'STRING') {
-                        throw new SyntaxError(`Expected string value for subchain ${key} at line ${peek().line} col ${peek().col}`)
+                        throw parserError('P006', `Expected string value for subchain ${key} at line ${peek().line} col ${peek().col}`, peek())
                     }
-                    kwargs[key] = { type: 'String', value: advance().lexeme }
+                    const value = advance().lexeme
+                    if (!SUBCHAIN_KEYS.includes(key)) {
+                        reportArgIssue('P008', `Unknown subchain argument '${key}' at line ${keyToken.line} col ${keyToken.col}. Valid keys: name, id. The value is discarded.`, keyToken)
+                    } else if (Object.hasOwn(kwargs, key)) {
+                        reportArgIssue('P009', `Duplicate subchain argument '${key}' at line ${keyToken.line} col ${keyToken.col}. The last value wins.`, keyToken)
+                    }
+                    kwargs[key] = { type: 'String', value: value }
                     if (peek().type === 'COMMA') {
                         advance() // consume ','
+                    } else if (peek().type === 'IDENT' && tokens[current + 1]?.type === 'COLON') {
+                        reportArgIssue('P010', `Missing ',' between subchain arguments at line ${peek().line} col ${peek().col}`, peek())
                     }
                 }
             }
@@ -832,7 +991,7 @@ export function parse(tokens) {
 
             // Each chain element must start with a dot
             if (peek().type !== 'DOT') {
-                throw new SyntaxError(`Expected '.' before chain element in subchain body at line ${peek().line} col ${peek().col}`)
+                throw parserError('P006', `Expected '.' before chain element in subchain body at line ${peek().line} col ${peek().col}`, peek())
             }
             advance() // consume '.'
 
@@ -851,16 +1010,25 @@ export function parse(tokens) {
         expect('RBRACE', "Expect '}' to end subchain body")
 
         if (body.length === 0) {
-            throw new SyntaxError(`Subchain body cannot be empty at line ${tokenLine} col ${tokenCol}`)
+            throw parserError('P006', `Subchain body cannot be empty at line ${tokenLine} col ${tokenCol}`, nameToken)
         }
 
-        return {
+        const node = {
             type: 'Subchain',
             name: kwargs.name?.value || null,
             id: kwargs.id?.value || null,
             body: body,
             loc: { line: tokenLine, col: tokenCol }
         }
+        if (argDiagnostics.length > 0) {
+            // Non-enumerable: keeps the public AST/serialized shape unchanged
+            // while validate() can surface the machine-readable reports.
+            Object.defineProperty(node, 'subchainArgumentDiagnostics', {
+                value: argDiagnostics,
+                enumerable: false
+            })
+        }
+        return node
     }
 
     function parseCall() {
@@ -872,10 +1040,12 @@ export function parse(tokens) {
             if (next && next.type === 'IDENT') {
                 const after = tokens[current + 2]
                 if (after?.type === 'LPAREN') {
-                    throw new SyntaxError(
+                    throw parserError(
+                        'P007',
                         `Inline namespace syntax '${nameToken.lexeme}.${next.lexeme}()' is not allowed. ` +
                         `Use 'search ${nameToken.lexeme}' at the start of the program instead, ` +
-                        `at line ${nameToken.line} col ${nameToken.col}`
+                        `at line ${nameToken.line} col ${nameToken.col}`,
+                        nameToken
                     )
                 }
             }
@@ -884,26 +1054,32 @@ export function parse(tokens) {
         const args = []
         const kwargs = {}
         let keyword = false
-
-        function parseNextArg() {
-            skipComments()
-            if (peek().type === 'IDENT' && tokens[current + 1]?.type === 'COLON') {
-                keyword = true
-                parseKwarg(kwargs)
-            } else {
-                args.push(parseArg())
-            }
-            skipComments()
-        }
-
+        let positional = false
+        const allowMixed = true
         skipComments()
         if (peek().type !== 'RPAREN') {
-            parseNextArg()
-            while (peek().type === 'COMMA') {
+            while (true) {
+                skipComments()
+                if (peek().type === 'IDENT' && tokens[current + 1]?.type === 'COLON') {
+                    if (positional && !allowMixed) {
+                        const t = peek()
+                        throw parserError('P007', `Cannot mix positional and keyword arguments at line ${t.line} col ${t.col}`, t)
+                    }
+                    keyword = true
+                    parseKwarg(kwargs)
+                } else {
+                    if (keyword && !allowMixed) {
+                        const t = peek()
+                        throw parserError('P007', `Cannot mix positional and keyword arguments at line ${t.line} col ${t.col}`, t)
+                    }
+                    positional = true
+                    args.push(parseArg())
+                }
+                skipComments()
+                if (peek().type !== 'COMMA') break
                 advance()
                 skipComments()
                 if (peek().type === 'RPAREN') break
-                parseNextArg()
             }
         }
         expect('RPAREN', "Expect ')'")
@@ -1062,6 +1238,7 @@ export function parse(tokens) {
                 // contains a literal `[`.
                 const startLine = token.line
                 const startCol = token.col
+                const bracketPosition = token.position
                 advance()
                 const elements = []
                 skipComments()
@@ -1078,10 +1255,22 @@ export function parse(tokens) {
                 }
                 if (peek().type !== 'RBRACKET') {
                     const t = peek()
-                    throw new SyntaxError(`Expected ']' at line ${t.line} col ${t.col}`)
+                    throw parserError('P001', `Expected ']' at line ${t.line} col ${t.col}`, t)
                 }
                 advance()
-                return {type: 'ArrayLiteral', elements, loc: { line: startLine, col: startCol }}
+                const arrayNode = {type: 'ArrayLiteral', elements, loc: { line: startLine, col: startCol }}
+                // Private source provenance for structured diagnostics; the public
+                // AST shape (loc line/col and enumeration) is unchanged.
+                if (bracketPosition) {
+                    Object.defineProperty(arrayNode, 'position', {
+                        value: {
+                            line: bracketPosition.line, column: bracketPosition.column,
+                            start: bracketPosition.start, end: bracketPosition.end
+                        },
+                        enumerable: false
+                    })
+                }
+                return arrayNode
             }
             case 'FUNC':
                 advance()
@@ -1116,7 +1305,7 @@ export function parse(tokens) {
                     if (!next) break
                     if (tokens[current + 2]?.type === 'LPAREN') break
                     if (!memberTokenTypes.has(next.type)) {
-                        throw new SyntaxError(`Expected identifier after '.' at line ${next.line} col ${next.col}`)
+                        throw parserError('P001', `Expected identifier after '.' at line ${next.line} col ${next.col}`, next)
                     }
                     advance() // consume '.'
                     advance() // consume segment token stored in next
@@ -1125,7 +1314,16 @@ export function parse(tokens) {
                 if (path.length > 1) {
                     return {type: 'Member', path}
                 }
-                return {type: 'Ident', name: path[0]}
+                const ident = {type: 'Ident', name: path[0]}
+                // Private source position for structured diagnostics; the
+                // public AST shape is unchanged.
+                if (token.position) {
+                    Object.defineProperty(ident, 'position', {
+                        value: { line: token.position.line, column: token.position.column, start: token.position.start, end: token.position.end },
+                        enumerable: false
+                    })
+                }
+                return ident
             }
             case 'OUTPUT_REF':
                 advance()
@@ -1182,13 +1380,20 @@ export function parse(tokens) {
                 return {type: 'Object', properties, loc: locOf(token)}
             }
             default:
-                throw new SyntaxError(`Unexpected token ${token.type} at line ${token.line} col ${token.col}`)
+                throw parserError('P001', `Unexpected token ${token.type} at line ${token.line} col ${token.col}`, token)
         }
     }
 
     function toNumber(node) {
         if (node.type !== 'Number') {
-            throw new SyntaxError('Expected number')
+            // Number coercion failures locate the offending AST node's private
+            // source position when present, its parser-authored loc otherwise,
+            // and are explicitly null when neither carries valid coordinates.
+            throw parserError('P001', 'Expected number', {
+                position: node.position,
+                line: node.loc?.line,
+                col: node.loc?.col
+            })
         }
         return node.value
     }
@@ -1199,7 +1404,7 @@ export function parse(tokens) {
         skipComments()
         if (!exprStartTokens.has(peek().type)) {
             const t = peek()
-            throw new SyntaxError(`Expected expression after '=' at line ${t.line} col ${t.col}`)
+            throw parserError('P001', `Expected expression after '=' at line ${t.line} col ${t.col}`, t)
         }
         obj[key] = parseArg()
     }

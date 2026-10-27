@@ -71,7 +71,8 @@ fn cloak(st : vec2<f32>) -> vec4<f32> {
         right = rightReflected;
     } else {
         left = leftReflected;
-        right = mix(rightReflected, rightRefracted, map_range(mixAmt, 0.0, 100.0, 0.0, 1.0));
+        // As the GLSL, the reference: right stays the refracted right input.
+        right = mix(rightRefracted, rightRefracted, map_range(mixAmt, 0.0, 100.0, 0.0, 1.0));
     }
 
     return mix(left, right, m);
@@ -298,8 +299,9 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
         rightUV.x = rightUV.x + cos(leftLen * TAU) * rb;
         rightUV.y = rightUV.y + sin(leftLen * TAU) * rb;
 
-        let color1 = textureSample(inputTex, samp, leftUV);
-        let color2 = textureSample(tex, samp, rightUV);
+        // Wrap refracted coordinates, as the GLSL does.
+        let color1 = textureSample(inputTex, samp, fract(leftUV));
+        let color2 = textureSample(tex, samp, fract(rightUV));
 
         color = vec4<f32>(blend_colors(color1, color2, blendMode, mixAmt), max(color1.a, color2.a));
     }

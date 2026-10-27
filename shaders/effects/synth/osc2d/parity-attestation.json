@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "synth/osc2d",
+  "sourceHash": "d7a9500592d1a1081dba12a3aa461322cccd366e8e26ff7808b3182c32c736c9",
+  "caseHash": "95be0b1aef36d71148b179ab86d616d3ba71518eb20a33b7561a406b906b0ea3",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4088,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 256
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4088,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 256
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

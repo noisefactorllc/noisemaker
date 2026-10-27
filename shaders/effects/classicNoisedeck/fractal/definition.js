@@ -361,7 +361,6 @@ export default class Fractal extends Effect {
     }
   }
 
-  paramAliases = { fractalType: 'type', backgroundColor: 'bgColor', backgroundOpacity: 'bgAlpha' }
 
 
   passes = [

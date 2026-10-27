@@ -384,7 +384,7 @@ IsoHit isosurfaceTrace(vec3 ro, vec3 rd) {
   shade: `// Shading for smooth isosurface - uses RGB from volume for coloring
 vec3 shade(vec3 p, vec3 rd) {
     vec3 n = calcNormal(p);
-    vec3 lightDir = normalize(vec3(1.0, 1.0, -1.0));
+    vec3 lightDir = normalize(vec3(MARCHER_LIGHT_X, 1.0, -1.0));
 
     // Diffuse lighting
     float diff = max(dot(n, lightDir), 0.0);
@@ -413,7 +413,7 @@ vec3 shade(vec3 p, vec3 rd) {
   /** Forward shading for the blocky voxel path. */
   shadeVoxel: `// Voxel shading with flat face normals
 vec3 shadeVoxel(vec3 p, vec3 rd, vec3 n, ivec3 voxel) {
-    vec3 lightDir = normalize(vec3(1.0, 1.0, -1.0));
+    vec3 lightDir = normalize(vec3(MARCHER_LIGHT_X, 1.0, -1.0));
 
     float diff = max(dot(n, lightDir), 0.0);
     float amb = 0.3;  // Higher ambient for voxel look
@@ -755,7 +755,7 @@ fn isosurfaceTrace(ro: vec3<f32>, rd: vec3<f32>) -> IsoHit {
   shade: `// Shading for smooth isosurface
 fn shade(p: vec3<f32>, rd: vec3<f32>) -> vec3<f32> {
     let n = calcNormal(p);
-    let lightDir = normalize(vec3<f32>(1.0, 1.0, -1.0));
+    let lightDir = normalize(vec3<f32>(MARCHER_LIGHT_X, 1.0, -1.0));
 
     let diff = max(dot(n, lightDir), 0.0);
     let amb: f32 = 0.15;
@@ -781,7 +781,7 @@ fn shade(p: vec3<f32>, rd: vec3<f32>) -> vec3<f32> {
   /** Forward shading for the blocky voxel path. */
   shadeVoxel: `// Voxel shading with flat face normals
 fn shadeVoxel(p: vec3<f32>, rd: vec3<f32>, n: vec3<f32>, voxel: vec3<i32>) -> vec3<f32> {
-    let lightDir = normalize(vec3<f32>(1.0, 1.0, -1.0));
+    let lightDir = normalize(vec3<f32>(MARCHER_LIGHT_X, 1.0, -1.0));
 
     let diff = max(dot(n, lightDir), 0.0);
     let amb: f32 = 0.3;

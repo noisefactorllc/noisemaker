@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "classicNoisedeck/moodscape",
+  "sourceHash": "56e3dab1d85e39ce2a8c8421d33cc90bb9a4ccb5cbc13fefa2c96ca4f3bb7af5",
+  "caseHash": "b455a67d36dbb60446d12a3476090c76a361a6a786dc7d5d8f434a5a59e6637d",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 3903,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 2133
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 3903,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 2133
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

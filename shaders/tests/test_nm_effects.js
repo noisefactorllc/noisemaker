@@ -1,15 +1,16 @@
 import { EffectHarness } from './harness_effect.js'
-import AdjustContrast from '../effects/nm/adjust_contrast/definition.js'
-import AdjustBrightness from '../effects/nm/adjust_brightness/definition.js'
-import AdjustHue from '../effects/nm/adjust_hue/definition.js'
-import AdjustSaturation from '../effects/nm/adjust_saturation/definition.js'
-import Bloom from '../effects/nm/bloom/definition.js'
-import Blur from '../effects/nm/blur/definition.js'
-import Clouds from '../effects/nm/clouds/definition.js'
-import Vignette from '../effects/nm/vignette/definition.js'
-import Aberration from '../effects/nm/aberration/definition.js'
-import Grain from '../effects/nm/grain/definition.js'
-import Worms from '../effects/nm/worms/definition.js'
+// The classic noisemaker effects this sample covered moved to filter/ or were
+// superseded there (440ba64c, af2f77eb). filter/adjust carries the contrast,
+// brightness, hue and saturation adjustments. nm/worms has no successor;
+// points/physarum stands in as the complex multi-pass agent sample.
+import Adjust from '../effects/filter/adjust/definition.js'
+import Bloom from '../effects/filter/bloom/definition.js'
+import Blur from '../effects/filter/blur/definition.js'
+import Clouds from '../effects/filter/clouds/definition.js'
+import Vignette from '../effects/filter/vignette/definition.js'
+import Aberration from '../effects/filter/simpleAberration/definition.js'
+import Grain from '../effects/filter/grain/definition.js'
+import Physarum from '../effects/points/physarum/definition.js'
 
 function testEffect(EffectClass, name) {
     console.log(`Testing ${name}...`)
@@ -45,17 +46,14 @@ console.log('Testing NM Effects')
 console.log('=' .repeat(60))
 
 const effectsToTest = [
-    [AdjustContrast, 'AdjustContrast'],
-    [AdjustBrightness, 'AdjustBrightness'],
-    [AdjustHue, 'AdjustHue'],
-    [AdjustSaturation, 'AdjustSaturation'],
+    [Adjust, 'Adjust (contrast, brightness, hue, saturation)'],
     [Bloom, 'Bloom'],
     [Blur, 'Blur'],
     [Clouds, 'Clouds'],
     [Vignette, 'Vignette'],
-    [Aberration, 'Aberration'],
+    [Aberration, 'Simple Aberration'],
     [Grain, 'Grain'],
-    [Worms, 'Worms (complex multi-pass)'],
+    [Physarum, 'Physarum (complex multi-pass)'],
 ]
 
 let passed = 0

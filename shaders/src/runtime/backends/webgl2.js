@@ -11,6 +11,8 @@ import {
 } from '../default-shaders.js'
 import { WebGL2FrameExportAdapter } from './webgl2-frame-export.js'
 
+import { DIAGNOSTIC_CODES, DiagnosticCollector, ShaderDiagnostic, parseGLSLInfoLog } from './diagnostics.js'
+
 // How many frames after a program compile or render-target (re)allocation
 // keep per-pass gl.getError() checks enabled. gl.getError() forces a
 // synchronous CPU/GPU round trip, so calling it per pass on every frame turns
@@ -19,6 +21,27 @@ import { WebGL2FrameExportAdapter } from './webgl2-frame-export.js'
 // or new allocations hit the driver, so checking is armed only for a short
 // window after each compile/allocation and skipped in steady state.
 const GL_ERROR_CHECK_FRAMES = 3
+
+/**
+ * Full mip chain length for a 2D texture dimension pair.
+ * @param {number} width
+ * @param {number} height
+ * @returns {number} level count (>= 1)
+ */
+function mipLevelCount(width, height) {
+    const maxDim = Math.max(1, Math.floor(width), Math.floor(height))
+    return Math.max(1, Math.floor(Math.log2(maxDim)) + 1)
+}
+
+/**
+ * Size (>= 1) of one mip level for a dimension.
+ * @param {number} dim - Level-0 dimension
+ * @param {number} level
+ * @returns {number}
+ */
+function mipLevelSize(dim, level) {
+    return Math.max(1, Math.floor(dim / Math.pow(2, level)))
+}
 
 export class WebGL2Backend extends Backend {
     constructor(context, canvas) {
@@ -40,6 +63,11 @@ export class WebGL2Backend extends Backend {
         // after endFrame()'s decrement in Pipeline.render(), and reading the
         // live counter there would silently skip the last armed frame.
         this._glCheckThisFrame = false
+        // Queryable structured diagnostics for the historically-silent
+        // unknown-format fallback; thrown failures use the
+        // ShaderDiagnostic union directly.
+        this.diagnostics = new DiagnosticCollector()
+        this._warnedFormatFallbacks = new Set()
 
         // Pre-allocated typed arrays for uniform setting (avoids per-frame allocations)
         this._vec2Buf = new Float32Array(2)
@@ -293,24 +321,51 @@ export class WebGL2Backend extends Backend {
         // Resolve format
         const glFormat = this.resolveFormat(spec.format)
 
-        // Allocate texture storage
-        gl.texImage2D(
-            gl.TEXTURE_2D,
-            0,
-            glFormat.internalFormat,
-            spec.width,
-            spec.height,
-            0,
-            glFormat.format,
-            glFormat.type,
-            null
-        )
+        // Allocate texture storage. With an opt-in mip chain, allocate every
+        // level up front: sampling an unallocated chain returns black and the
+        // per-level blits in generateMipmaps() would run against incomplete
+        // framebuffers, so the chain must exist before the first regeneration.
+        const mipLevels = spec.mipmaps ? mipLevelCount(spec.width, spec.height) : 1
+        if (mipLevels > 1) {
+            for (let level = 0; level < mipLevels; level++) {
+                gl.texImage2D(
+                    gl.TEXTURE_2D,
+                    level,
+                    glFormat.internalFormat,
+                    mipLevelSize(spec.width, level),
+                    mipLevelSize(spec.height, level),
+                    0,
+                    glFormat.format,
+                    glFormat.type,
+                    null
+                )
+            }
+        } else {
+            gl.texImage2D(
+                gl.TEXTURE_2D,
+                0,
+                glFormat.internalFormat,
+                spec.width,
+                spec.height,
+                0,
+                glFormat.format,
+                glFormat.type,
+                null
+            )
+        }
 
         // Set texture parameters
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+
+        // Opt-in mip chain: regenerate it from level 0 after each frame that
+        // renders to the texture (Pipeline calls generateMipmaps() with the
+        // mipmapped texture ids).
+        if (mipLevels > 1) {
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
+        }
 
         gl.bindTexture(gl.TEXTURE_2D, null)
 
@@ -319,7 +374,10 @@ export class WebGL2Backend extends Backend {
             width: spec.width,
             height: spec.height,
             format: spec.format,
-            glFormat
+            glFormat,
+            mipmaps: mipLevels > 1,
+            mipLevels,
+            persistent: !!spec.persistent
         })
 
         // Create FBO if this will be a render target
@@ -510,7 +568,8 @@ export class WebGL2Backend extends Backend {
             depth: spec.depth,
             format: spec.format,
             glFormat,
-            is3D: true
+            is3D: true,
+            filter: spec.filter || 'linear'
         })
 
         return texture
@@ -576,9 +635,14 @@ export class WebGL2Backend extends Backend {
      * Update a texture from an external source (video, image, canvas).
      * This is used for media input effects that need to display camera/video content.
      * @param {string} id - Texture ID
-     * @param {HTMLVideoElement|HTMLImageElement|HTMLCanvasElement|ImageBitmap} source - Media source
+     * @param {HTMLVideoElement|HTMLImageElement|HTMLCanvasElement|ImageBitmap|VideoFrame} source - Borrowed media source
      * @param {object} [options] - Update options
      * @param {boolean} [options.flipY=true] - Whether to flip the Y axis
+     * @returns {{width: number, height: number}} Submitted display dimensions; zero for an unusable source.
+     * VideoFrame crop, rotation, color and alpha follow TexImageSource semantics.
+     * Frames requiring display-size scaling are rejected: native WebGL uploads
+     * visible pixels without that scaling. Submission is synchronous; callers retain ownership and may
+     * close their frame after this method returns, before GPU work completes.
      */
     updateTextureFromSource(id, source, options = {}) {
         const gl = this.gl
@@ -589,7 +653,16 @@ export class WebGL2Backend extends Backend {
 
         // Get source dimensions
         let width, height
-        if (source instanceof HTMLVideoElement) {
+        if (typeof VideoFrame === 'function' && source instanceof VideoFrame) {
+            width = source.displayWidth
+            height = source.displayHeight
+            const rect = source.visibleRect
+            const rotated = source.rotation === 90 || source.rotation === 270
+            if (!rect || width !== (rotated ? rect.height : rect.width) ||
+                height !== (rotated ? rect.width : rect.height)) {
+                return { width: 0, height: 0 }
+            }
+        } else if (source instanceof HTMLVideoElement) {
             width = source.videoWidth
             height = source.videoHeight
         } else if (source instanceof HTMLImageElement) {
@@ -932,20 +1005,67 @@ export class WebGL2Backend extends Backend {
         gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null)
     }
 
+    /**
+     * Regenerate the mip chain of mipmapped 2D textures from level 0.
+     * Called by the Pipeline after each frame's passes for every texture
+     * authored with `mipmaps: true`. Uses a NEAREST blit chain between mip
+     * levels so the operation works for every renderable format, including
+     * non-filterable float formats where gl.generateMipmap() is invalid.
+     * Textures without a mip chain are skipped.
+     * @param {string[]} ids - Texture ids to regenerate
+     */
+    generateMipmaps(ids) {
+        const gl = this.gl
+        if (!this._mipReadFbo) {
+            this._mipReadFbo = gl.createFramebuffer()
+            this._mipDrawFbo = gl.createFramebuffer()
+        }
+
+        for (const id of ids) {
+            const tex = this.textures.get(id)
+            if (!tex || !tex.mipmaps || tex.is3D) continue
+
+            const { handle, width, height, mipLevels } = tex
+            gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this._mipReadFbo)
+            gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, this._mipDrawFbo)
+
+            for (let level = 1; level < mipLevels; level++) {
+                const srcW = mipLevelSize(width, level - 1)
+                const srcH = mipLevelSize(height, level - 1)
+                const dstW = mipLevelSize(width, level)
+                const dstH = mipLevelSize(height, level)
+                gl.framebufferTexture2D(gl.READ_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, handle, level - 1)
+                gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, handle, level)
+                gl.blitFramebuffer(0, 0, srcW, srcH, 0, 0, dstW, dstH, gl.COLOR_BUFFER_BIT, gl.NEAREST)
+            }
+
+            gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null)
+            gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null)
+        }
+    }
+
     async compileProgram(id, spec) {
         const gl = this.gl
 
         // Check for missing shader source
         const rawSource = spec.source || spec.glsl || spec.fragment
         if (!rawSource) {
-            throw new Error(`Shader source missing for program '${id}'. You may need to regenerate the shader manifest.`)
+            throw new ShaderDiagnostic({
+                code: 'ERR_SHADER_MISSING',
+                backend: 'webgl2',
+                stage: 'missing-source',
+                program: id,
+                detail: `Shader source missing for program '${id}'. You may need to regenerate the shader manifest.`
+            })
         }
 
         // Inject defines
         const source = this.injectDefines(rawSource, spec.defines || {})
 
         // Compile vertex shader
-        const vsSource = spec.vertex || DEFAULT_VERTEX_SHADER
+        const vsSource = spec.vertex && Object.keys(spec.defines || {}).length
+            ? this.injectDefines(spec.vertex, spec.defines)
+            : spec.vertex || DEFAULT_VERTEX_SHADER
         const usingDefaultVertex = !spec.vertex
         const vertShader = this.compileShader(gl.VERTEX_SHADER, vsSource)
 
@@ -965,11 +1085,14 @@ export class WebGL2Backend extends Backend {
 
         if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
             const log = gl.getProgramInfoLog(program)
-            throw {
+            throw new ShaderDiagnostic({
                 code: 'ERR_SHADER_LINK',
+                backend: 'webgl2',
+                stage: 'link',
+                program: id,
                 detail: log,
-                program: id
-            }
+                messages: parseGLSLInfoLog(log)
+            })
         }
 
         // Clean up shaders
@@ -1015,11 +1138,14 @@ export class WebGL2Backend extends Backend {
             console.error('[GLSL compile error]', log)
             console.error('[GLSL source]', source)
             gl.deleteShader(shader)
-            throw {
+            throw new ShaderDiagnostic({
                 code: 'ERR_SHADER_COMPILE',
+                backend: 'webgl2',
+                stage: 'compile',
                 detail: log,
+                messages: parseGLSLInfoLog(log),
                 source
-            }
+            })
         }
 
         return shader
@@ -1027,7 +1153,12 @@ export class WebGL2Backend extends Backend {
 
     injectDefines(source, defines) {
         if (!source) {
-            throw new Error('Shader source is missing. You may need to regenerate the shader manifest.')
+            throw new ShaderDiagnostic({
+                code: 'ERR_SHADER_MISSING',
+                backend: 'webgl2',
+                stage: 'missing-source',
+                detail: 'Shader source is missing. You may need to regenerate the shader manifest.'
+            })
         }
 
         let injected = '#version 300 es\nprecision highp float;\nprecision highp int;\n'
@@ -1067,6 +1198,27 @@ export class WebGL2Backend extends Backend {
         return uniforms
     }
 
+    /**
+     * Record a missing render target (FBO or MRT attachment) as a structured
+     * diagnostic. The legacy console warning is unchanged and still
+     * fires on every occurrence; the record is deduplicated per
+     * kind|output|pass so per-frame rendering cannot grow it unboundedly.
+     */
+    _recordMissingRenderTarget(kind, outputId, passId) {
+        if (!this._warnedMissingRenderTargets) this._warnedMissingRenderTargets = new Set()
+        const key = `${kind}|${outputId}|${passId}`
+        if (this._warnedMissingRenderTargets.has(key)) return
+        this._warnedMissingRenderTargets.add(key)
+        this.diagnostics.add({
+            code: DIAGNOSTIC_CODES.MISSING_RENDER_TARGET,
+            backend: 'webgl2',
+            stage: 'render',
+            kind,
+            pass: passId,
+            output: outputId
+        })
+    }
+
     extractUniformBlocks(program, spec) {
         const gl = this.gl
         const blocks = []
@@ -1082,11 +1234,14 @@ export class WebGL2Backend extends Backend {
             const layoutSize = this.getPackedUniformLayoutSize(spec.uniformLayout)
             const size = Math.max(declaredSize, layoutSize)
             if (size > maxBlockSize) {
-                throw {
-                    code: 'ERR_UNIFORM_BLOCK_TOO_LARGE',
+                throw new ShaderDiagnostic({
+                    code: DIAGNOSTIC_CODES.UNIFORM_BLOCK,
+                    backend: 'webgl2',
+                    stage: 'uniform-block',
                     detail: `Uniform block ${name} requires ${size} bytes; device limit is ${maxBlockSize}`,
+                    messages: parseGLSLInfoLog(`Uniform block ${name} requires ${size} bytes; device limit is ${maxBlockSize}`),
                     program
-                }
+                })
             }
 
             const bindingPoint = blocks.length
@@ -1215,6 +1370,7 @@ export class WebGL2Backend extends Backend {
                     if (!viewportTex) viewportTex = tex
                 } else {
                     console.warn(`[executePass MRT] Texture not found for ${currentOutputId} in pass ${effectivePass.id}`)
+                    this._recordMissingRenderTarget('mrt', currentOutputId, effectivePass.id)
                 }
             }
 
@@ -1239,6 +1395,7 @@ export class WebGL2Backend extends Backend {
             fbo = this.fbos.get(outputId)
             if (!fbo && outputId !== 'screen') {
                 console.warn(`[executePass] FBO not found for ${outputId} in pass ${effectivePass.id}`)
+                this._recordMissingRenderTarget('fbo', outputId, effectivePass.id)
             }
 
             viewportTex = this.textures.get(outputId)
@@ -1281,10 +1438,16 @@ export class WebGL2Backend extends Backend {
         // Set viewport
         if (viewportTex) {
             gl.viewport(0, 0, viewportTex.width, viewportTex.height)
-        } else if (effectivePass.viewport) {
-            gl.viewport(effectivePass.viewport.x, effectivePass.viewport.y, effectivePass.viewport.w, effectivePass.viewport.h)
         } else {
-            gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight)
+            // Authored viewport resolution: the pipeline-resolved
+            // numbers take precedence over a raw spec; a manually supplied
+            // numeric viewport keeps its legacy direct read.
+            const viewport = effectivePass.viewportResolved || effectivePass.viewport
+            if (viewport) {
+                gl.viewport(viewport.x, viewport.y, viewport.w, viewport.h)
+            } else {
+                gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight)
+            }
         }
 
         // Clear color buffer when requested by the pass
@@ -1399,6 +1562,8 @@ export class WebGL2Backend extends Backend {
             // Ensure FBO has depth buffer (null = default framebuffer, already has depth)
             if (fbo) {
                 this.ensureDepthBuffer(fbo, vpWidth, vpHeight)
+                // Initial depth allocation unbinds the framebuffer.
+                gl.bindFramebuffer(gl.FRAMEBUFFER, fbo)
             }
 
             // Enable depth testing (closer fragments win)
@@ -1489,6 +1654,16 @@ export class WebGL2Backend extends Backend {
                 const outputId = effectivePass.outputs?.color || Object.values(effectivePass.outputs || {})[0] || 'unknown'
                 const inputIds = effectivePass.inputs ? Object.entries(effectivePass.inputs).map(([k,v]) => `${k}=${v}`).join(', ') : 'none'
                 console.error(`WebGL Error ${error} in pass ${effectivePass.id} (effect: ${effectivePass.effectKey || 'unknown'}, program: ${effectivePass.program}, output: ${outputId}, inputs: ${inputIds})`)
+                this.diagnostics.add({
+                    code: DIAGNOSTIC_CODES.GL_ERROR,
+                    backend: 'webgl2',
+                    stage: 'render',
+                    pass: effectivePass.id,
+                    effect: effectivePass.effectKey || 'unknown',
+                    program: effectivePass.program,
+                    output: outputId,
+                    error
+                })
                 error = gl.getError()
             }
         }
@@ -1544,10 +1719,9 @@ export class WebGL2Backend extends Backend {
     bindTextures(pass, program, state) {
         const gl = this.gl
         let unit = 0
+        const inputs = pass.inputs || {}
 
-        if (!pass.inputs) return
-
-        for (const [samplerName, texId] of Object.entries(pass.inputs)) {
+        for (const [samplerName, texId] of Object.entries(inputs)) {
             if (unit >= this.maxTextureUnits) {
                 throw {
                     code: 'ERR_TOO_MANY_TEXTURES',
@@ -1608,6 +1782,20 @@ export class WebGL2Backend extends Backend {
                 gl.uniform1i(uniform.location, unit)
             }
 
+            unit++
+        }
+
+        // A declared sampler that the pass lists no input for gets the default
+        // texture (transparent black), as WebGPU binds its dummy texture. Left
+        // alone it would keep unit 0 and sample the first input instead.
+        for (const name in program.uniforms) {
+            if (name in inputs || name.endsWith(']')) continue
+            const uniform = program.uniforms[name]
+            if (uniform.type !== gl.SAMPLER_2D || uniform.size !== 1) continue
+            if (unit >= this.maxTextureUnits) break
+            gl.activeTexture(gl.TEXTURE0 + unit)
+            gl.bindTexture(gl.TEXTURE_2D, this.defaultTexture)
+            gl.uniform1i(uniform.location, unit)
             unit++
         }
     }
@@ -1998,7 +2186,40 @@ export class WebGL2Backend extends Backend {
             }
         }
 
-        return formats[format] || formats['rgba8']
+        // WebGPU spellings of the same formats, which definitions may use and
+        // the definition validator accepts.
+        const aliases = {
+            'rgba8unorm': 'rgba8',
+            'rgba16float': 'rgba16f',
+            'rgba32float': 'rgba32f',
+            'r8unorm': 'r8',
+            'r16float': 'r16f',
+            'r32float': 'r32f'
+        }
+
+        const resolved = formats[aliases[format] ?? format]
+        if (resolved) return resolved
+
+        // Unknown formats keep the historical silent rgba8 fallback (no new
+        // rejection of previously accepted input), but surface it as a
+        // structured diagnostic instead of pure silence. An absent
+        // format is the default, not a fallback.
+        if (format !== undefined && format !== null) {
+            const key = String(format)
+            if (!this._warnedFormatFallbacks.has(key)) {
+                this._warnedFormatFallbacks.add(key)
+                console.warn(`[WebGL2] Unknown texture format '${key}'; falling back to rgba8`)
+                this.diagnostics.add({
+                    code: DIAGNOSTIC_CODES.UNKNOWN_FORMAT_FALLBACK,
+                    backend: 'webgl2',
+                    stage: 'texture-create',
+                    format: key,
+                    fallback: 'rgba8'
+                })
+            }
+        }
+
+        return formats['rgba8']
     }
 
     /**

@@ -565,35 +565,36 @@ export default new Effect({
     }
   },
 
+  // Private stages carry straight sRGB and unchanged coverage. The primary
+  // pass unpremultiplies the public input; vignette premultiplies the output.
   textures: {
     _primaryTex: {
       width: "input",
       height: "input",
-      format: "rgba16float"
+      format: "rgba16f"
     },
     _creativeTex: {
       width: "input",
       height: "input",
-      format: "rgba16float"
+      format: "rgba16f"
     },
     _wheelsTex: {
       width: "input",
       height: "input",
-      format: "rgba16float"
+      format: "rgba16f"
     },
     _hslTex: {
       width: "input",
       height: "input",
-      format: "rgba16float"
+      format: "rgba16f"
     },
     _lutTex: {
       width: "input",
       height: "input",
-      format: "rgba16float"
+      format: "rgba16f"
     }
   },
 
-  paramAliases: { vignetteHighlightProtect: 'vigHiProtect' },
 
   passes: [
     {

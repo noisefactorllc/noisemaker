@@ -1,0 +1,22 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/navierStokes",
+        "synth/noise"
+    ],
+    "dsl": "search synth\n\nnoise(\n  type: hermite,\n  ridges: true,\n  speed: 30,\n  colorMode: mono\n)\n  .write(o0)\n\nnavierStokes(\n  tex: read(o0),\n  dyeDecay: 98,\n  inputForce: 0.5,\n  inputIntensity: 10\n)\n  .write(o1)\n\nrender(o1)",
+    "surface": "o1",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true,
+    "tiles": {
+        "size": [
+            32,
+            32
+        ],
+        "renderScale": 2
+    }
+}

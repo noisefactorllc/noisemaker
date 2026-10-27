@@ -31,7 +31,6 @@ The library is organised as ES modules inside `js/noisemaker/`.
 | `effectsRegistry.js` | Decorator‑like helper that stores effect metadata and callbacks. |
 | `effects.js` | Library of post‑processing effects built on top of `value.js` utilities. |
 | `composer.js` | Preset interpreter and pipeline orchestrator. |
-| `palettes.js` | Cosine palette definitions. |
 | `presets.js` | Declarative preset graph describing layered effect pipelines. |
 | `util.js` | Miscellaneous utilities: tensor helpers, canvas export, logging. |
 | `oklab.js` | RGB⇄OKLab colour‑space conversion routines. |
@@ -40,7 +39,7 @@ The library is organised as ES modules inside `js/noisemaker/`.
 ### 2.2 Data Representation
 
 * **Tensor** – wrapper around a TypedArray representing a 3‑D float array `[height, width, channels]`.
-* `Tensor.fromArray(Float32Array, shape)` creates a tensor from the provided data.
+* `Tensor.fromArray(ctx, array, shape)` creates a tensor from the provided data. `ctx` is a `Context` or `null`.
 * `Tensor.read()` returns the underlying typed array for tests or export.
 * All operations are performed on the CPU using TypedArrays.
 
@@ -48,7 +47,7 @@ The library is organised as ES modules inside `js/noisemaker/`.
 
 1. Operations accept and return `Tensor` instances wrapping Float32Arrays.
 2. Each operation performs calculations directly on typed arrays.
-3. Final output can be written to a canvas using the `save()` utility or converted to image data.
+3. `Preset.render()` writes the final output to the canvas of the `Context` passed as `ctx`. The `savePNG()` utility downloads a tensor as a PNG file.
 
 ## 3. Module Specifications
 
@@ -104,11 +103,13 @@ The library is organised as ES modules inside `js/noisemaker/`.
 
 ### 3.8 `composer.js`
 * `Preset` class holds resolved settings and ordered effect lists.
-* `render(presetName, seed, {width,height,colorSpace,withAlpha,time,speed})` constructs the generator pipeline, applies octave‑level and post effects, and presents the result to the canvas.
+* `render(presetOrName, seed = 0, opts = {})` is an async function. It accepts a `Preset` instance or a preset name. For a preset name, `opts.presets` must contain the preset table. `opts.settings` holds optional setting overrides. The function calls `Preset.render(seed, opts)`.
+* `Preset.render(seed = 0, opts = {})` reads `ctx`, `width`, `height`, `time`, `speed`, `withAlpha`, `withSupersample` and `withFxaa` from `opts`. The default size is 256 by 256. The method constructs the generator pipeline and applies the octave, post and final effects. If `ctx` has a canvas, the method draws the result on that canvas. The promise resolves to the output `Tensor`. With `debug` or `collectDebug`, it resolves to `{effects, rngCalls}` instead. The preset's `color_space` setting selects the color space. `opts` has no color space option.
 * Supports inheritance between presets, unique layers, and inline overrides.
 * Provides convenience wrappers `Effect(name, params)` for programmatic composition.
 
 ### 3.9 `palettes.js`
+* The module is `shaders/src/palettes.js`, outside `js/noisemaker/`. `js/noisemaker/index.js` re-exports it.
 * Export `PALETTES` object describing cosine palettes (`amp`, `freq`, `offset`, `phase`).
 * Utility `samplePalette(name, t)` returns RGB triplets.
 

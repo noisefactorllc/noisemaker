@@ -34,7 +34,9 @@ export default class Shapes extends Effect {
     rotatePalette: { slot: 4, components: 'w' },
     paletteFreq: { slot: 5, components: 'xyz' },
     repeatPalette: { slot: 5, components: 'w' },
-    palettePhase: { slot: 6, components: 'xyz' }
+    palettePhase: { slot: 6, components: 'xyz' },
+    tileOffset: { slot: 7, components: 'xy' },
+    fullResolution: { slot: 7, components: 'zw' }
   }
   globals = {
     loopAOffset: {
@@ -301,7 +303,6 @@ export default class Shapes extends Effect {
     }
   }
 
-  paramAliases = { loopAAmp: 'speedA', loopBAmp: 'speedB' }
 
   passes = [
     {

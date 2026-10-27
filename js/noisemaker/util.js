@@ -13,6 +13,7 @@ import {
   setSeed as setRNGSeed,
 } from './rng.js'
 import { setSeed as setSimplexSeed } from './simplex.js'
+import { pow32 } from './float32.js'
 
 export function setSeed(s) {
   setRNGSeed(s)
@@ -138,22 +139,26 @@ export function savePNG(tensor, filename = 'image.png') {
 }
 
 // --------------------- Colour helpers ---------------------
+// Float32 operations of the reference's from_srgb.
 export function srgbToLin(v) {
-  return Math.fround(
-    v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4),
-  )
+  const f32 = Math.fround
+  const value = f32(v)
+  if (value < f32(0.04045)) {
+    return f32(value / f32(12.92))
+  }
+  return pow32(f32(f32(value + f32(0.055)) / f32(1.055)), 2.4)
 }
 
+// Float32 operations of the reference's from_linear_rgb.
 export function linToSRGB(v) {
   const f32 = Math.fround
   const value = f32(v)
   const threshold = f32(0.0031308)
-  if (value <= threshold) {
+  if (value < threshold) {
     return f32(f32(value) * f32(12.92))
   }
-  const gamma = f32(1 / 2.4)
-  const pow = f32(Math.pow(value, gamma))
-  return f32(f32(f32(1.055) * pow) - 0.055)
+  const pow = pow32(value, 1 / 2.4)
+  return f32(f32(f32(1.055) * pow) - f32(0.055))
 }
 
 export function fromSRGB(tensor) {

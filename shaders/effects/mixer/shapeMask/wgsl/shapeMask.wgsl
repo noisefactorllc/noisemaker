@@ -10,6 +10,9 @@
 @group(0) @binding(9) var<uniform> invert : i32;
 @group(0) @binding(10) var<uniform> speed : i32;
 @group(0) @binding(11) var<uniform> time : f32;
+@group(0) @binding(12) var<uniform> tileOffset : vec2<f32>;
+@group(0) @binding(13) var<uniform> fullResolution : vec2<f32>;
+@group(0) @binding(14) var<uniform> resolution : vec2<f32>;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -77,9 +80,11 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let colorA = textureSample(inputTex, samp, st);
     let colorB = textureSample(tex, samp, st);
 
-    // Centered, aspect-correct coordinates
-    let aspect = dims.x / dims.y;
-    var p = (st - vec2<f32>(0.5, 0.5)) * 2.0;
+    // Centered, aspect-correct coordinates using full image dimensions
+    let fullRes = select(resolution, fullResolution, fullResolution.x > 0.0);
+    let aspect = fullRes.x / fullRes.y;
+    let globalUV = (position.xy + tileOffset) / fullRes;
+    var p = (globalUV - vec2<f32>(0.5, 0.5)) * 2.0;
     p.x = p.x * aspect;
 
     // Apply position offset

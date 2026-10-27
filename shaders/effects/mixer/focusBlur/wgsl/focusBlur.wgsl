@@ -11,6 +11,8 @@
 @group(0) @binding(4) var<uniform> aperture: f32;
 @group(0) @binding(5) var<uniform> sampleBias: f32;
 @group(0) @binding(6) var<uniform> depthSource: i32;
+@group(0) @binding(7) var<uniform> tileOffset: vec2f;
+@group(0) @binding(8) var<uniform> fullResolution: vec2f;
 
 // Convert RGB to luminosity for depth estimation
 fn getLuminosity(color: vec3f) -> f32 {
@@ -25,8 +27,9 @@ fn computeBlurFactor(depth: f32) -> f32 {
 }
 
 // depthSource 0: inputTex = depth, tex = scene
-fn applyFocusBlurAB(uv: vec2f, resolution: vec2f) -> vec4f {
-    let depthSample = textureSample(inputTex, samp, uv);
+// st: tile-local depth UV; uv: global UV in the full image
+fn applyFocusBlurAB(st: vec2f, uv: vec2f, resolution: vec2f) -> vec4f {
+    let depthSample = textureSample(inputTex, samp, st);
     let depth = getLuminosity(depthSample.rgb);
 
     let blurRadius = computeBlurFactor(depth) * sampleBias;
@@ -38,15 +41,16 @@ fn applyFocusBlurAB(uv: vec2f, resolution: vec2f) -> vec4f {
         let r = sqrt(f32(i) / 64.0);
         let theta = f32(i) * GOLDEN;
         let offset = vec2f(cos(theta), sin(theta)) * r * blurRadius / resolution;
-        color = color + textureSample(tex, samp, uv + offset);
+        color = color + textureSample(tex, samp, ((uv + offset) * fullResolution - tileOffset) / vec2f(textureDimensions(tex, 0)));
     }
 
     return color / 64.0;
 }
 
 // depthSource 1: tex = depth, inputTex = scene
-fn applyFocusBlurBA(uv: vec2f, resolution: vec2f) -> vec4f {
-    let depthSample = textureSample(tex, samp, uv);
+// st: tile-local depth UV; uv: global UV in the full image
+fn applyFocusBlurBA(st: vec2f, uv: vec2f, resolution: vec2f) -> vec4f {
+    let depthSample = textureSample(tex, samp, st);
     let depth = getLuminosity(depthSample.rgb);
 
     let blurRadius = computeBlurFactor(depth) * sampleBias;
@@ -58,7 +62,7 @@ fn applyFocusBlurBA(uv: vec2f, resolution: vec2f) -> vec4f {
         let r = sqrt(f32(i) / 64.0);
         let theta = f32(i) * GOLDEN;
         let offset = vec2f(cos(theta), sin(theta)) * r * blurRadius / resolution;
-        color = color + textureSample(inputTex, samp, uv + offset);
+        color = color + textureSample(inputTex, samp, ((uv + offset) * fullResolution - tileOffset) / vec2f(textureDimensions(inputTex, 0)));
     }
 
     return color / 64.0;
@@ -67,21 +71,23 @@ fn applyFocusBlurBA(uv: vec2f, resolution: vec2f) -> vec4f {
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let dims = vec2f(textureDimensions(inputTex, 0));
-    let uv = position.xy / dims;
+    let st = position.xy / dims;
+    let globalCoord = position.xy + tileOffset;
+    let uv = globalCoord / fullResolution;
 
     var color: vec4f;
 
     // depthSource: 0 = use inputTex (A) as depth map, blur tex (B)
     //              1 = use tex (B) as depth map, blur inputTex (A)
     if (depthSource == 0) {
-        color = applyFocusBlurAB(uv, dims);
+        color = applyFocusBlurAB(st, uv, dims);
     } else {
-        color = applyFocusBlurBA(uv, dims);
+        color = applyFocusBlurBA(st, uv, dims);
     }
 
     // Preserve maximum alpha from both sources
-    let alpha1 = textureSample(inputTex, samp, uv).a;
-    let alpha2 = textureSample(tex, samp, uv).a;
+    let alpha1 = textureSample(inputTex, samp, st).a;
+    let alpha2 = textureSample(tex, samp, st).a;
     color.a = max(alpha1, alpha2);
 
     return color;

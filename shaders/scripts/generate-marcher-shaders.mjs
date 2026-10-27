@@ -98,6 +98,7 @@ uniform float bgAlpha;
 uniform sampler2D volumeCache;`,
         GLSL_FRAGMENTS.outputs,
         GLSL_FRAGMENTS.constants,
+        `const float MARCHER_LIGHT_X = -1.0;`,
         marcherBodyGLSL(),
         `void main() {
     vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
@@ -109,13 +110,13 @@ uniform sampler2D volumeCache;`,
 
     // Camera setup - orbiting view
     float camDist = 3.5;
-    float angle = time * TAU * float(orbitSpeed);
+    float angle = -time * TAU * float(orbitSpeed);
     vec3 ro = vec3(sin(angle) * camDist, 0.5, cos(angle) * camDist);
     vec3 lookAt = vec3(0.0);
 
     vec3 forward = normalize(lookAt - ro);
-    vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), forward));
-    vec3 up = cross(forward, right);
+    vec3 right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
+    vec3 up = cross(right, forward);
 
     vec3 rd = normalize(forward + uv.x * right + uv.y * up);
 
@@ -189,6 +190,7 @@ uniform sampler2D volumeCache;`,
 @group(0) @binding(9) var<uniform> fullResolution: vec2<f32>;`,
         WGSL_FRAGMENTS.constants,
         WGSL_FRAGMENTS.outputs,
+        `const MARCHER_LIGHT_X: f32 = -1.0;`,
         marcherBodyWGSL(),
         `@fragment
 fn main(@builtin(position) position: vec4<f32>) -> FragmentOutput {
@@ -197,14 +199,14 @@ fn main(@builtin(position) position: vec4<f32>) -> FragmentOutput {
 
     let uv = ((position.xy + tileOffset) - 0.5 * fullRes) / fullRes.y;
 
-    let camAngle = time * TAU * f32(orbitSpeed);
+    let camAngle = -time * TAU * f32(orbitSpeed);
     let camDist: f32 = 3.5;
     let ro = vec3<f32>(sin(camAngle) * camDist, 0.5, cos(camAngle) * camDist);
     let lookAt = vec3<f32>(0.0);
 
     let forward = normalize(lookAt - ro);
-    let right = normalize(cross(vec3<f32>(0.0, 1.0, 0.0), forward));
-    let up = cross(forward, right);
+    let right = normalize(cross(forward, vec3<f32>(0.0, 1.0, 0.0)));
+    let up = cross(right, forward);
 
     let rd = normalize(forward + uv.x * right + uv.y * up);
 
@@ -281,6 +283,7 @@ uniform float bgAlpha;
 uniform sampler2D volumeCache;`,
         GLSL_FRAGMENTS.outputs,
         GLSL_FRAGMENTS.constants,
+        `const float MARCHER_LIGHT_X = 1.0;`,
         marcherBodyGLSL(),
         `void main() {
     // Square face: uv in [-1,1], 90-degree frustum. Camera at the volume center,
@@ -362,6 +365,7 @@ uniform sampler2D volumeCache;`,
 @group(0) @binding(8) var<uniform> fullResolution: vec2<f32>;`,
         WGSL_FRAGMENTS.constants,
         WGSL_FRAGMENTS.outputs,
+        `const MARCHER_LIGHT_X: f32 = 1.0;`,
         marcherBodyWGSL(),
         `@fragment
 fn main(@builtin(position) position: vec4<f32>) -> FragmentOutput {

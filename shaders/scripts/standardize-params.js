@@ -7,10 +7,9 @@
  * 1. Rename param keys (from param-rename-map.js)
  * 2. Fix non-standard types and cross-effect type consistency
  * 3. Standardize UI labels (lowercase, fill missing, fix divergences)
- * 4. Add paramAliases for effects that had renames
  *
  * CRITICAL: Does NOT change `uniform` field values. Only changes the
- * globals object key, `type`, `ui.label`, and adds `paramAliases`.
+ * globals object key, `type`, and `ui.label`.
  *
  * Usage:
  *   node shaders/scripts/standardize-params.js           # apply changes
@@ -236,9 +235,6 @@ function transformFile(filePath, text) {
   const changes = []
   let result = text
 
-  // Track all renames (old -> new) for paramAliases
-  const appliedRenames = {}
-
   // ── 1. Rename param keys ──
   // We process renames by replacing the key in the globals object.
   // We do this carefully, one at a time, re-reading positions after each change.
@@ -275,7 +271,6 @@ function transformFile(filePath, text) {
         const colonPart = match[2]
         const replacement = `${quote}${newKey}${quote}${colonPart}`
         result = result.substring(0, matchIdx) + replacement + result.substring(matchIdx + fullMatch.length)
-        appliedRenames[oldKey] = newKey
         changes.push(`rename: ${oldKey} -> ${newKey}`)
         break
       }
@@ -371,12 +366,6 @@ function transformFile(filePath, text) {
       result = addUiBlockWithLabel(result, param.key, newLabel)
       changes.push(`ui+: ${param.key} added ui with "${newLabel}"`)
     }
-  }
-
-  // ── 4. Add paramAliases ──
-  if (Object.keys(appliedRenames).length > 0) {
-    result = addParamAliases(result, appliedRenames)
-    changes.push(`aliases: added paramAliases for ${Object.keys(appliedRenames).length} renames`)
   }
 
   return { text: result, changes }
@@ -501,41 +490,6 @@ function addUiBlockWithLabel(text, paramKey, label) {
   } else {
     insertion = `\n${propIndent}ui: {\n${uiPropIndent}label: "${label}"\n${propIndent}}`
     return text.substring(0, blockEnd) + insertion + '\n' + baseIndent + text.substring(blockEnd)
-  }
-}
-
-/**
- * Add paramAliases field to an Effect definition.
- * Inserts right before the `passes` field.
- */
-function addParamAliases(text, renames) {
-  // Build the aliases object string (oldKey -> newKey)
-  const entries = Object.entries(renames)
-    .map(([oldKey, newKey]) => `${oldKey}: '${newKey}'`)
-    .join(', ')
-
-  const aliasLine = `paramAliases: { ${entries} },`
-
-  // Determine if this is a class-based or object-based definition
-  const isClass = /class \w+ extends Effect/.test(text)
-
-  if (isClass) {
-    // For class-based: insert `paramAliases = { ... }` before `passes = [`
-    const passesMatch = text.match(/(\n(\s*))passes\s*=\s*\[/)
-    if (!passesMatch) return text
-
-    const indent = passesMatch[2]
-    const classAliasLine = `\n${indent}paramAliases = { ${entries} }\n`
-    const insertIdx = passesMatch.index
-    return text.substring(0, insertIdx) + classAliasLine + text.substring(insertIdx)
-  } else {
-    // For object-based: insert `paramAliases: { ... },` before `passes: [`
-    const passesMatch = text.match(/(\n(\s*))passes\s*:\s*\[/)
-    if (!passesMatch) return text
-
-    const indent = passesMatch[2]
-    const insertIdx = passesMatch.index
-    return text.substring(0, insertIdx) + `\n${indent}${aliasLine}` + text.substring(insertIdx)
   }
 }
 

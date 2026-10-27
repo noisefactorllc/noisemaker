@@ -18,7 +18,7 @@
  * });
  */
 
-import { unparseCall, formatValue, formatDslError, isDslSyntaxError } from '../../../shaders/src/lang/index.js'
+import { lex, unparseCall, formatValue, formatDslError, isDslSyntaxError } from '../../../shaders/src/lang/index.js'
 import {
     getEffect,
     cloneParamValue,
@@ -76,7 +76,7 @@ export function formatEnumName(name) {
         return sanitized
     }
     // Can't be an identifier - quote it as a string
-    return `"${name.replace(/"/g, '\\"')}"`
+    return `"${name.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
 }
 
 /**
@@ -110,93 +110,78 @@ export function createEffectDefCallback(getEffect) {
 }
 
 /**
- * Extract effect names from DSL text without compiling (for lazy loading)
+ * Extract effect names from DSL text without compiling (for lazy loading).
+ *
+ * Reads the DSL with the language lexer, so comments and line breaks follow
+ * the language rules. Every call site resolves against the manifest in the
+ * validator's order: the namespace of a `from(namespace, call())`, else the
+ * `search` directive. A call through a `let` name resolves to the bound
+ * effect. Program fragments, such as a chain that starts with `.`, also work.
  * @param {string} dsl - DSL source
  * @param {object} manifest - Shader manifest
- * @returns {Array} Array of { effectId, namespace, name }
+ * @returns {Array} Array of { effectId, namespace, name }; empty when the DSL does not lex
  */
 export function extractEffectNamesFromDsl(dsl, manifest) {
     const effects = []
     if (!dsl || typeof dsl !== 'string') return effects
 
+    let tokens
+    try {
+        tokens = lex(dsl).filter(token => token.type !== 'COMMENT')
+    } catch (_err) {
+        // compile() reports the lexical error to the host.
+        return effects
+    }
 
-    const lines = dsl.split('\n')
-    let searchNamespaces = []
-
-    for (const line of lines) {
-        const trimmed = line.trim()
-
-        // Handle semicolon-separated statements on one line
-        // Split by semicolon and process each statement
-        const statements = trimmed.split(';').map(s => s.trim()).filter(s => s)
-
-        for (const stmt of statements) {
-            if (stmt.startsWith('search ')) {
-                searchNamespaces = stmt.slice(7).split(',').map(s => s.trim())
-                continue
-            }
-
-            if (!stmt || stmt.startsWith('//')) continue
-
-            // Handle from(namespace, call(...)) syntax
-            // Pattern: from(namespace, effectName(...))
-            const fromPattern = /\bfrom\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*,\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g
-            let fromMatch
-            while ((fromMatch = fromPattern.exec(stmt)) !== null) {
-                const namespace = fromMatch[1]
-                const name = fromMatch[2]
-                const effectId = `${namespace}/${name}`
-                if (manifest[effectId] && !effects.find(e => e.effectId === effectId)) {
-                    effects.push({ effectId, namespace, name })
-                }
-            }
-
-            const callPattern = /\b([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?)\s*\(/g
-            let match
-
-            while ((match = callPattern.exec(stmt)) !== null) {
-                const fullName = match[1]
-                let namespace = null
-                let name = fullName
-
-                if (fullName.includes('.')) {
-                    const parts = fullName.split('.')
-                    namespace = parts[0]
-                    name = parts[1]
-                }
-
-                // Skip 'from' itself as it's handled above
-                const builtins = ['read', 'out', 'vec2', 'vec3', 'vec4', 'from']
-                if (builtins.includes(name)) continue
-
-                if (!namespace && searchNamespaces.length > 0) {
-                    for (const ns of searchNamespaces) {
-                        const testId = `${ns}/${name}`
-                        if (manifest[testId]) {
-                            namespace = ns
-                            break
-                        }
-                    }
-                }
-
-                if (!namespace) {
-                    for (const ns of ['classicNoisedeck', 'filter', 'mixer', 'synth']) {
-                        const testId = `${ns}/${name}`
-                        if (manifest[testId]) {
-                            namespace = ns
-                            break
-                        }
-                    }
-                }
-
-                if (namespace) {
-                    const effectId = `${namespace}/${name}`
-                    if (!effects.find(e => e.effectId === effectId)) {
-                        effects.push({ effectId, namespace, name })
-                    }
-                }
-            }
+    // search ns1, ns2, ... (namespace names can be keywords, such as render)
+    const searchOrder = []
+    const searchIndex = tokens.findIndex(token => token.type === 'SEARCH')
+    if (searchIndex !== -1) {
+        for (let i = searchIndex + 1; i < tokens.length && tokens[i].type !== 'EOF'; i += 2) {
+            searchOrder.push(tokens[i].lexeme)
+            if (tokens[i + 1]?.type !== 'COMMA') break
         }
+    }
+
+    // let name = target  or  let name = target(...)
+    const symbols = new Map()
+    for (let i = 0; i + 3 < tokens.length; i++) {
+        if (tokens[i].type === 'LET' && tokens[i + 1].type === 'IDENT' &&
+            tokens[i + 2].type === 'EQUAL' && tokens[i + 3].type === 'IDENT') {
+            symbols.set(tokens[i + 1].lexeme, tokens[i + 3].lexeme)
+        }
+    }
+    const resolveSymbol = (name) => {
+        const seen = new Set()
+        while (symbols.has(name) && !seen.has(name)) {
+            seen.add(name)
+            name = symbols.get(name)
+        }
+        return name
+    }
+
+    const seenIds = new Set()
+    const addEffect = (name, namespaces) => {
+        const namespace = namespaces.find(ns => manifest[`${ns}/${name}`])
+        if (namespace === undefined) return
+        const effectId = `${namespace}/${name}`
+        if (seenIds.has(effectId)) return
+        seenIds.add(effectId)
+        effects.push({ effectId, namespace, name })
+    }
+
+    // A call site is an identifier followed by '('.
+    for (let i = 0; i + 1 < tokens.length; i++) {
+        if (tokens[i].type !== 'IDENT' || tokens[i + 1].type !== 'LPAREN') continue
+        if (tokens[i].lexeme === 'from' && tokens[i + 2]?.type === 'IDENT' &&
+            tokens[i + 3]?.type === 'COMMA' && tokens[i + 4]?.type === 'IDENT' &&
+            tokens[i + 5]?.type === 'LPAREN') {
+            // from(namespace, call()) resolves the call in that namespace only.
+            addEffect(tokens[i + 4].lexeme, [tokens[i + 2].lexeme])
+            i += 4
+            continue
+        }
+        addEffect(resolveSymbol(tokens[i].lexeme), searchOrder)
     }
 
     return effects
@@ -432,7 +417,8 @@ export class UIController {
         const applySize = (result) => {
             if (result.width > 0 && result.height > 0) {
                 const effectKey = `step_${stepIndex}`
-                this._programState.setValue(effectKey, 'imageSize', [result.width, result.height])
+                media.size = [result.width, result.height]
+                this._programState.setValue(effectKey, 'imageSize', media.size)
             }
         }
 
@@ -2365,11 +2351,31 @@ render(o1)`
         // This is critical for automation bindings (oscillator, midi, audio) which may have changed
         this._programState.fromDsl(dsl)
 
+        // fromDsl resets imageSize to its default (programs never carry it),
+        // and a still image is not uploaded again, so put back each media
+        // step's uploaded size or the image stretches across the frame
+        this._restoreMediaSizes()
+
         // Sync UI controls from the updated state
         // This ensures controls reflect new DSL values for effects that existed before paste
         this._syncControlValuesFromState()
 
         return true
+    }
+
+    /**
+     * Put each loaded media source's uploaded size back into its step's imageSize
+     * @private
+     */
+    _restoreMediaSizes() {
+        this._programState.batch(() => {
+            for (const [stepIndex, media] of this._mediaInputs) {
+                if (!media.source || !media.size) continue
+                const effectKey = `step_${stepIndex}`
+                if (!this._programState.getEffectDef(effectKey)?.globals?.imageSize) continue
+                this._programState.setValue(effectKey, 'imageSize', media.size)
+            }
+        })
     }
 
     /**
@@ -3302,12 +3308,21 @@ render(o1)`
         const dsl = this.getDsl()
         if (!dsl) return
 
+        const request = this._recompileRequest = Symbol()
         try {
             await this._renderer.compile(dsl, {
                 shaderOverrides: this._shaderOverrides
             })
+            // A later edit owns the controls while its compile is queued.
+            if (this._recompileRequest !== request) return
+            // Surface edits can remove inline producers and shift every later step.
+            // Rebind state and controls to the new graph before accepting another edit.
+            if (!this.checkStructureAndApplyState(dsl)) {
+                this.loadDslAndCreateControls(dsl)
+            }
             this.showStatus('pipeline updated', 'success')
         } catch (err) {
+            if (this._recompileRequest !== request) return
             console.error('Pipeline compilation failed:', this.formatCompilationError(err))
             this.showStatus('compilation error: ' + this.formatCompilationError(err), 'error')
         }
@@ -3872,7 +3887,10 @@ render(o1)`
 
         // Parse current value to get the surface ID
         let currentSurface = spec.default || 'o1'
-        if (value && typeof value === 'object' && value.name) {
+        if (value?.kind === 'temp') {
+            currentSurface = value
+            surfaces.unshift({ value, label: 'inline' })
+        } else if (value && typeof value === 'object' && value.name) {
             currentSurface = value.name
         } else if (typeof value === 'string') {
             const match = value.match(/read\(([^)]+)\)|^(o[0-7])$/)
@@ -3890,10 +3908,11 @@ render(o1)`
         })
 
         const select = handle.element
+        const surfaceValue = val => val?.kind === 'temp' || val === 'none' ? val : `read(${val})`
 
         select.addEventListener('change', async () => {
             const val = handle.getValue()
-            this._programState.setValue(effectKey, key, val === 'none' ? 'none' : `read(${val})`)
+            this._programState.setValue(effectKey, key, surfaceValue(val))
             this._updateDslFromEffectParams()
             await this._recompilePipeline()
             this._updateDependentControls()
@@ -3906,11 +3925,16 @@ render(o1)`
             element: select,
             getValue: () => {
                 const val = handle.getValue()
-                return val === 'none' ? 'none' : `read(${val})`
+                return surfaceValue(val)
             },
             setValue: (v) => {
                 let surfaceId = v
-                if (typeof v === 'object' && v.name) {
+                if (v?.kind === 'temp') {
+                    const inline = surfaces.findIndex(choice => choice.value?.kind === 'temp')
+                    if (inline >= 0) surfaces[inline] = { value: v, label: 'inline' }
+                    else surfaces.unshift({ value: v, label: 'inline' })
+                    handle.setChoices?.(surfaces)
+                } else if (v && typeof v === 'object' && v.name) {
                     surfaceId = v.name
                 } else if (typeof v === 'string') {
                     const match = v.match(/read\(([^)]+)\)|^(o[0-7])$/)
@@ -4140,12 +4164,17 @@ render(o1)`
      * @private
      */
     _updateDependentControls() {
+        // getStepValues unwraps a let-variable binding to its sampled value,
+        // which reads as a fixed number; the stored { _varRef } binding is what
+        // tells a condition the parameter is automated.
+        const allValues = this._programState.getAllStepValues()
         for (const dep of this._dependentControls) {
             const { element, effectKey, enabledBy } = dep
-            const params = this._programState.getStepValues(effectKey)
-            if (!params) continue
+            const params = allValues[effectKey] || {}
 
             const isEnabled = this._evaluateEnableCondition(enabledBy, params)
+            element.inert = !isEnabled
+            element.setAttribute('aria-disabled', String(!isEnabled))
 
             if (isEnabled) {
                 element.classList.remove('disabled')
@@ -4174,15 +4203,28 @@ render(o1)`
      * - { and: [condition1, condition2, ...] } - AND multiple conditions (explicit)
      * - { not: condition } - negate a condition
      *
+     * A parameter driven by an oscillator, MIDI, audio or a variable has no
+     * single value to test: a condition on it is unknown, and only a condition
+     * that is false whatever the source does disables the control.
+     *
      * @param {string|object} condition - The enabledBy condition
      * @param {object} params - Current parameter values
      * @returns {boolean} Whether the control should be enabled
      * @private
      */
     _evaluateEnableCondition(condition, params) {
+        return this._evaluateCondition(condition, params) !== false
+    }
+
+    /**
+     * @returns {boolean|null} null when the result depends on an automated value
+     * @private
+     */
+    _evaluateCondition(condition, params) {
         // Legacy string format: just a param name
         if (typeof condition === 'string') {
             const value = params[condition]
+            if (this._isAutomationValue(value)) return null
             return this._isControlEnabled(value)
         }
 
@@ -4193,17 +4235,22 @@ render(o1)`
 
         // Handle OR conditions
         if (Array.isArray(condition.or)) {
-            return condition.or.some(c => this._evaluateEnableCondition(c, params))
+            const results = condition.or.map(c => this._evaluateCondition(c, params))
+            if (results.includes(true)) return true
+            return results.includes(null) ? null : false
         }
 
         // Handle AND conditions (explicit)
         if (Array.isArray(condition.and)) {
-            return condition.and.every(c => this._evaluateEnableCondition(c, params))
+            const results = condition.and.map(c => this._evaluateCondition(c, params))
+            if (results.includes(false)) return false
+            return results.includes(null) ? null : true
         }
 
         // Handle NOT condition
         if (condition.not !== undefined) {
-            return !this._evaluateEnableCondition(condition.not, params)
+            const result = this._evaluateCondition(condition.not, params)
+            return result === null ? null : !result
         }
 
         // Standard condition object with param and operators
@@ -4213,6 +4260,7 @@ render(o1)`
         }
 
         const value = params[paramName]
+        if (this._isAutomationValue(value)) return null
 
         // If no operators specified, use legacy truthy check
         const operators = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'notIn']
@@ -4282,6 +4330,19 @@ render(o1)`
 
         // Default equality
         return a === b
+    }
+
+    /**
+     * Whether an oscillator, MIDI, audio source or let-variable binding drives a value
+     * @private
+     */
+    _isAutomationValue(value) {
+        return !!(value && typeof value === 'object' && (
+            value._varRef ||
+            value.type === 'Oscillator' || value._ast?.type === 'Oscillator' ||
+            value.type === 'Midi' || value._ast?.type === 'Midi' ||
+            value.type === 'Audio' || value._ast?.type === 'Audio'
+        ))
     }
 
     /**

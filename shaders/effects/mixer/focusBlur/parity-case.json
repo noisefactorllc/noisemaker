@@ -1,0 +1,23 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "mixer/focusBlur",
+        "synth/gradient",
+        "synth/noise"
+    ],
+    "dsl": "search synth, mixer\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\ngradient(seed: 1).focusBlur(tex: o0).write(o1)\nrender(o1)",
+    "surface": "o1",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true,
+    "tiles": {
+        "size": [
+            32,
+            32
+        ],
+        "renderScale": 2
+    }
+}

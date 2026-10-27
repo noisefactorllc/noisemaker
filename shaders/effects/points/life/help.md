@@ -10,6 +10,7 @@ Each particle has a type, and type pairs have randomly generated attraction/repu
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
+| diffuseTex | surface | none | - | Particle color; none preserves the existing input and type color behavior |
 | stateSize | int | 256 | - | - |
 | typeCount | int | 6 | 2-8 | Types |
 | attractionScale | float | 1 | 0-5 | Attraction |

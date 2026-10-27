@@ -44,3 +44,7 @@ the bundles are built without source comments.
 > LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 > OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 > THE SOFTWARE.
+
+## Media
+
+- [Philips PM5544 test card](https://commons.wikimedia.org/wiki/File:Philips_PM5544.svg) by Ebnz, modified by Tucvbif, licensed under [CC BY 2.5](https://creativecommons.org/licenses/by/2.5/) — rasterized to 768×576 as the demo's default media image (`demo/shaders/img/testcard.png`)

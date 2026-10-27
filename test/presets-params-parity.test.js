@@ -16,11 +16,9 @@ const JS_ONLY = [
   'shake-it',
   'shrink-triangulate',
   'cell-reflect',
-  'density-wave',
   'glom',
   'jorts',
   'jovian-clouds',
-  'paintball-party',
   'pearlescent',
   'posterize',
   'quadrants',
@@ -79,6 +77,15 @@ print(json.dumps(combined))`
   return JSON.parse(res.stdout)
 }
 
+// Resolve a layer list the way the Python side does with
+// _resolve_metadata_value(preset['layers'], {}). Random layer lists stay
+// unresolved in the preset table in both languages.
+function resolveLayers(value) {
+  if (typeof value === 'function') return resolveLayers(value({}))
+  if (Array.isArray(value)) return value.map(resolveLayers)
+  return value
+}
+
 function getJSPresetData() {
   const seeds = [0, 1, 2, 3, 4]
   const presetNames = Object.keys(JSPRESETS()).sort()
@@ -92,7 +99,7 @@ function getJSPresetData() {
       setSeed(seed)
       const preset = JSPRESETS()[name]
       if (layers === null && preset.layers) {
-        layers = preset.layers.slice()
+        layers = resolveLayers(preset.layers)
       }
       const rawSettings = preset.settings
         ? {

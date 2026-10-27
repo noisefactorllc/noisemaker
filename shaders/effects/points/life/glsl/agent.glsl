@@ -23,6 +23,7 @@ uniform int boundaryMode;
 uniform float matrixSeed;
 uniform bool symmetricForces;
 uniform bool useTypeColor;
+uniform float diffuseActive;
 
 // Input state from pipeline (from pointsEmit)
 uniform sampler2D xyzTex;      // [x, y, 0, alive] - normalized coords
@@ -31,6 +32,7 @@ uniform sampler2D rgbaTex;     // [r, g, b, a]
 uniform sampler2D dataTex;     // [typeId, mass, 0, 0] - internal
 uniform sampler2D forceMatrix; // [strength, prefDist, curveShape, 1]
 uniform sampler2D inputTex;    // Source texture for color sampling
+uniform sampler2D diffuseTex;
 
 // Output state (MRT with 4 outputs)
 layout(location = 0) out vec4 outXYZ;
@@ -296,7 +298,9 @@ void main() {
     outXYZ = vec4(pos, 0.0, 1.0);
     outVel = vec4(velocity, age, seed);
     
-    if (useTypeColor) {
+    if (diffuseActive > 0.5) {
+        outRGBA = texture(diffuseTex, pos);
+    } else if (useTypeColor) {
         outRGBA = vec4(typeColor(int(typeId), typeCount), 1.0);
     } else {
         outRGBA = texture(inputTex, pos);

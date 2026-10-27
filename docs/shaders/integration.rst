@@ -3,7 +3,7 @@
 Shader Pipeline Integration
 ===========================
 
-How to integrate Noisemaker's shader rendering engine into your own application with your own UI. Noisemaker separates rendering, state, and UI, so you can use the GPU pipeline without adopting a frontend framework.
+This guide explains how to integrate Noisemaker's shader rendering engine into your application with your own UI. Noisemaker separates rendering, state, and UI, so you can use the GPU pipeline without adopting a frontend framework.
 
 For release artifacts and versioning, see :doc:`../releases`.
 
@@ -52,7 +52,7 @@ Installation
 CDN (recommended)
 ^^^^^^^^^^^^^^^^^
 
-Import directly from the Noisemaker CDN. No build step, no vendoring. This is the same pattern we use for all of our production apps at Noise Factor.
+Import directly from the Noisemaker CDN. You do not need a build step or vendored files. This is the same pattern we use for all of our production apps at Noise Factor.
 
 .. code-block:: javascript
 
@@ -67,7 +67,7 @@ Add a preconnect hint in your HTML for faster loading:
 
     <link rel="preconnect" href="https://shaders.noisedeck.app" crossorigin>
 
-Per-effect bundles are served from ``${SHADER_CDN}/effects/`` and are fetched on demand via ``renderer.loadEffect(effectId)`` (or ``loadEffects([...])`` for multiple) before each ``compile()`` call (see Quick Start below).
+The CDN serves per-effect bundles from ``${SHADER_CDN}/effects/``. Before each ``compile()`` call, load the required effects with ``renderer.loadEffect(effectId)`` or ``loadEffects([...])`` for multiple effects. These methods fetch bundles on demand. See Quick Start below.
 
 Pinning levels
 """"""""""""""
@@ -82,7 +82,7 @@ The CDN exposes three URL shapes for every release. Pick the one that matches ho
      - Meaning
      - When to use
    * - ``shaders.noisedeck.app/1``
-     - Rolling latest within **major 1**. Auto-tracks every minor and patch release (e.g., ``1.0.0`` → ``1.0.1`` → ``1.1.0``) until a ``2.0`` ships, at which point this URL freezes and consumers explicitly migrate to ``/2``.
+     - Rolling latest within **major 1**. It automatically tracks every minor and patch release (e.g., ``1.0.0`` → ``1.0.1`` → ``1.1.0``) until ``2.0`` ships. Then this URL freezes and consumers explicitly migrate to ``/2``.
      - Most integrations. No code change needed for minor upgrades.
    * - ``shaders.noisedeck.app/1.0``
      - Rolling latest within the **1.0 minor series**. Stays on the 1.0.x line even if 1.1 or 2.0 ships.
@@ -123,12 +123,35 @@ For offline or self-hosted deployments. Each release (see :doc:`../releases`) pu
     tar -xzf noisemaker-shaders.tar.gz -C vendor/noisemaker
     rm noisemaker-shaders.tar.gz
 
-Then import from the local path instead of the CDN:
+The archive holds the engine and the manifest under ``shaders/``, and the
+effect bundles under ``effects/``:
+
+.. code-block:: none
+
+    vendor/noisemaker/shaders/noisemaker-shaders-core.esm.js
+    vendor/noisemaker/shaders/noisemaker-shaders-core.esm.min.js
+    vendor/noisemaker/shaders/noisemaker-shaders-core.min.js
+    vendor/noisemaker/shaders/effects/manifest.json      (and strings.<locale>.json)
+    vendor/noisemaker/shaders/share/meshes/<mesh>.obj
+    vendor/noisemaker/effects/<namespace>/<name>.js
+
+Then import from the local path instead of the CDN, and set both paths for
+this layout:
 
 .. code-block:: javascript
 
     const { CanvasRenderer } =
         await import('./vendor/noisemaker/shaders/noisemaker-shaders-core.esm.min.js')
+
+    const renderer = new CanvasRenderer({
+        canvas,
+        basePath: './vendor/noisemaker/shaders',  // fetch(): relative to the page
+        useBundles: true,
+        bundlePath: '../effects'                  // import(): relative to the engine module
+    })
+
+``basePath`` and ``bundlePath`` resolve against different bases. See
+**Path configuration** under ``CanvasRenderer`` below.
 
 The IIFE build (``noisemaker-shaders-core.min.js``) exposes everything on ``window.NoisemakerShadersCore``.
 
@@ -143,7 +166,7 @@ For development within the noisemaker repo, or when noisemaker is a git submodul
     import { compile, unparse } from '../../shaders/src/lang/index.js'
     import { ProgramState } from '../../demo/shaders/lib/program-state.js'
 
-In source mode, effects are loaded at runtime from the ``shaders/effects/`` directory. Set ``basePath`` to point at the ``shaders/`` directory.
+In source mode, the renderer loads effects at runtime from ``shaders/effects/``. Set ``basePath`` to an absolute URL of the ``shaders/`` directory, for example ``new URL('../../shaders', import.meta.url).href``. The renderer fetches the manifest and shader files with ``fetch()``, relative to the page, and it loads each ``definition.js`` with ``import()``, relative to ``canvas.js``. A relative ``basePath`` therefore points at two different directories.
 
 Quick Start
 -----------
@@ -177,6 +200,10 @@ Minimal (render only)
     `)
 
     renderer.start()
+
+The renderer sizes an unsized ``<canvas>`` element from ``width`` and
+``height`` at construction. A canvas that already has a size (attribute or
+property) keeps it.
 
 With State Management
 ^^^^^^^^^^^^^^^^^^^^^
@@ -236,20 +263,48 @@ Creates and manages the GPU rendering pipeline.
         useBundles: true,                  // Load effects from pre-built bundles
         bundlePath: `${SHADER_CDN}/effects`, // Path to effect bundles
         preferWebGPU: false,               // Use WebGPU backend if available
-        onFPS: (fps) => {},                // Called each frame with current FPS
+        onFPS: (fps) => {},                // Called about once per second with the rounded FPS
         onError: (err) => {},              // Called on pipeline errors
-        onFrame: (time) => {},             // Called each frame with normalized time
+        onFrame: (frameCount) => {},       // Called after each rendered frame with the frame count
         onLoadingStart: () => {},          // Called when effect loading begins
         onLoadingEnd: () => {}             // Called when effect loading finishes
     })
 
+**Canvas sizing:**
+
+``width`` and ``height`` set the render resolution. When the canvas element
+has no ``width``/``height`` attributes, the renderer sizes the element from
+these options at construction, so ``toDataURL`` and captures match the render
+resolution. When the element is already sized (attribute or property), the
+element's size wins; a diagnostic warns when it differs from the options.
+
 **Path configuration:**
 
 ``basePath``
-    Root URL for shader assets. Use any of the CDN pinning levels (e.g. ``https://shaders.noisedeck.app/1`` for rolling latest within major 1, ``/1.0`` for minor-pinned, or ``/1.0.1`` for an exact immutable pin — see `Pinning levels`_ above), a local vendor path, or a relative path to the ``shaders/`` directory for source mode.
+    Root URL for shader assets. Use one of these paths:
+
+    - A CDN URL from `Pinning levels`_, such as ``https://shaders.noisedeck.app/1``
+      for rolling latest within major 1
+    - A local vendor path, such as ``./vendor/noisemaker/shaders`` for the
+      layout in `Vendored Bundles`_
+    - An absolute URL of ``shaders/`` for source mode (see `Source Imports`_)
+
+    The CDN provides ``/1.0`` for minor pinning and ``/1.0.1`` for an exact immutable pin.
+
+    The renderer reads ``${basePath}/effects/manifest.json`` with ``fetch()``.
+    A relative ``basePath`` therefore resolves against the page URL. In source
+    mode (``useBundles: false``) the engine module also imports each
+    ``definition.js`` from ``basePath`` with ``import()``, which resolves a
+    relative path against the engine module URL.
 
 ``bundlePath``
-    Directory containing per-effect bundles and ``manifest.json``. Typically ``${basePath}/effects``.
+    Directory containing the per-effect bundles, ``<namespace>/<name>.js``.
+    For the CDN, use ``${SHADER_CDN}/effects``. For the vendored archive, use
+    ``'../effects'``.
+
+    The engine module loads each bundle with a dynamic ``import()``. A
+    relative ``bundlePath`` therefore resolves against the URL of the engine
+    module, not the page.
 
 ``useBundles``
     When ``true``, loads effects from pre-built JS bundles. When ``false``, loads from source directories.
@@ -271,15 +326,19 @@ Creates and manages the GPU rendering pipeline.
     renderer.applyStepParameterValues(values)  // Apply parameter values from state
 
     // Textures
-    renderer.updateTextureFromSource(id, source)  // Update texture from image/video/canvas
+    renderer.updateTextureFromSource(id, source)  // Update texture from image/video/canvas/VideoFrame
+    renderer.getMediaSteps()               // List per-step media texture ids (imageTex_step_N)
 
     // Backend
     await renderer.switchBackend('wgsl')   // Switch to WebGPU
     await renderer.switchBackend('glsl')   // Switch to WebGL2
+    renderer.preferredBackend              // 'wgsl' or 'glsl': the backend that preferWebGPU or switchBackend() asked for
+    renderer.backend                       // 'wgsl' or 'glsl': the backend that renders (WebGL2 when WebGPU is unavailable)
 
     // Output (after compile)
     const removeSink = renderer.addSink(sink)
     const exportQueue = renderer.createFrameExportQueue({ slots: 3 })
+    await renderer.pipeline.whenAsyncInitsSettled()  // Before a one-off capture: wait for async CPU effects (fibers, scratches, strayHair, ...) to finish drawing
 
     // Effect loading
     await renderer.loadEffects(['synth/noise', 'filter/bloom'])
@@ -299,6 +358,8 @@ Creates and manages the GPU rendering pipeline.
     renderer.lastRenderTime                // last pipeline frame, ms
     renderer.getFrameTimeStats()           // { mean, std, min, max, count } over the last 120 frames
     renderer.resetFrameTimeStats()
+
+``loadEffects()`` does not reject when an effect fails to load; the ``failed`` property of the array it returns lists ``{ effectId, error }`` for each effect that could not load.
 
 See :doc:`renderer-output` for sink lifecycle, asynchronous frame export, and
 the packed RGBA8 frame contract, and :ref:`shader-scene` for the scene tree
@@ -330,11 +391,9 @@ later compile succeeds; nothing is drawn to signal the failure.
 Scene programs
 ^^^^^^^^^^^^^^
 
-A program containing ``scene()`` is hosted the same way, with two additions:
-the 2D effects after the scene must be loaded before ``compile()`` (the scene
-nodes need nothing), and a page that imports the engine from source must
-provide an import map for ``gl-matrix``. Both are covered in
-:ref:`shader-scene`.
+A program containing ``scene()`` is hosted the same way. Load the 2D effects
+after the scene before ``compile()``; the scene nodes need no effect loading.
+See :ref:`shader-scene`.
 
 ProgramState
 ^^^^^^^^^^^^
@@ -411,9 +470,14 @@ Direct access to parsing and code generation, independent of state or rendering.
     // Generate DSL text from a compiled structure
     const dsl = unparse(compiled)
 
-    // Validate before compiling
+    // Check user input. compile() throws for lexer and parser errors
+    // (L and P codes). It returns semantic errors (S codes) in
+    // diagnostics and does not throw for them.
     try {
-        compile(userInput)
+        const { diagnostics } = compile(userInput)
+        for (const d of diagnostics.filter(d => d.severity === 'error')) {
+            console.error(`${d.code}: ${d.message}`)
+        }
     } catch (err) {
         console.error(err.message)
     }
@@ -421,7 +485,7 @@ Direct access to parsing and code generation, independent of state or rendering.
 Effect Registry
 ^^^^^^^^^^^^^^^
 
-Look up effect definitions to build parameter UIs. Effects must be loaded via ``loadManifest()`` and ``loadEffects()`` before querying.
+Query effect definitions to build parameter UIs. Load effects with ``loadManifest()`` and ``loadEffects()`` before querying.
 
 .. code-block:: javascript
 
@@ -434,18 +498,27 @@ Look up effect definitions to build parameter UIs. Effects must be loaded via ``
         console.log({ name, type: spec.type, default: spec.default, min: spec.min, max: spec.max })
     }
 
-    // Check if this is a generator (vs a filter)
-    isStarterEffect(noiseDef)  // true for generators
+    // Check if this is a generator (vs a filter). isStarterEffect() reads
+    // effect.instance, so pass a { namespace, instance } record, like the
+    // { namespace, name, instance } records in renderer.loadedEffects.
+    // A definition has no instance field, so isStarterEffect(noiseDef)
+    // returns false even for a generator. is3dGenerator() and
+    // is3dProcessor() take the same record.
+    isStarterEffect({ namespace: 'synth', instance: noiseDef })  // true for generators
 
-    // Iterate all loaded effects
+    // Iterate all loaded effects. getAllEffects() returns the registry Map,
+    // which holds each effect under up to four names: func, namespace.func,
+    // namespace/name and namespace.name. The namespace/name keys give one
+    // entry per effect.
     for (const [id, def] of getAllEffects()) {
+        if (!id.includes('/')) continue
         console.log(`${id}: ${def.description}`)
     }
 
 Loading Effects from a DSL
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-When the DSL isn't a literal string in your code (user input, saved presets, dynamically generated chains), use ``extractEffectNamesFromDsl`` to walk the DSL against the manifest and build the list of effect IDs to pass to ``loadEffects()``:
+Use ``extractEffectNamesFromDsl`` for DSL from user input, saved presets, or dynamically generated chains. It checks the DSL against the manifest and collects effect IDs. Pass that list to ``loadEffects()``:
 
 .. code-block:: javascript
 
@@ -460,7 +533,7 @@ When the DSL isn't a literal string in your code (user input, saved presets, dyn
     await renderer.loadEffects(effectIds)
     await renderer.compile(userDsl)
 
-Returns ``[{ effectId, namespace, name }, ...]`` for every call site in the DSL that resolves against ``renderer.manifest``. Unknown calls are skipped, so the resulting list is always safe to feed to ``loadEffects()``.
+Returns ``[{ effectId, namespace, name }, ...]`` for every call site in the DSL that resolves against ``renderer.manifest``. The helper skips unknown calls, so you can safely pass the resulting list to ``loadEffects()``.
 
 In source mode the helper is not exported by the engine entry points; it lives in ``demo/shaders/lib/demo-ui.js`` (which the bundle re-exports). A page that knows its program can pass the effect ids to ``loadEffects()`` directly instead.
 
@@ -473,7 +546,7 @@ The static-DSL quickstart at the top of this guide loads its single effect by ID
 Parameter Types
 ---------------
 
-Effect parameters are defined in each effect's ``globals``. Use these types to build UI controls.
+Each effect's ``globals`` defines its parameters. Use these types to build UI controls.
 
 .. list-table::
    :header-rows: 1
@@ -488,20 +561,38 @@ Effect parameters are defined in each effect's ``globals``. Use these types to b
    * - ``int``
      - ``number``
      - Slider (integer step)
+   * - ``boolean``
+     - ``boolean``
+     - Toggle/checkbox
    * - ``color``
      - ``[r, g, b]`` (0-1) or ``"#rrggbb"``
      - Color picker
-   * - ``bool``
-     - ``boolean``
-     - Toggle/checkbox
-   * - ``choice``
-     - ``string`` or ``number``
+   * - ``vec2``, ``vec3``, ``vec4``
+     - Array of 2, 3 or 4 numbers
+     - Vector input or sliders
+   * - ``mat3``
+     - Array of 9 numbers
+     - None (``ui.control: false``)
+   * - ``palette``
+     - ``number`` (palette index)
      - Dropdown/select
+   * - ``member``
+     - ``string`` enum path (``"channel.r"``)
+     - Dropdown/select
+   * - ``string``
+     - ``string``
+     - Text field
    * - ``surface``
-     - ``string`` (``"o0"``, ``"o1"``, ...)
+     - ``string`` (``"none"``, ``"o0"``, ``"o1"``, ...)
      - Surface picker
+   * - ``volume``
+     - ``string`` (``"vol0"``, ...)
+     - Volume picker
+   * - ``geometry``
+     - ``string`` (``"geo0"``, ...)
+     - Geometry picker
 
-Each parameter spec may include ``min``, ``max``, ``step``, ``default``, and ``choices`` (for choice types).
+Each parameter spec may include ``min``, ``max``, ``step``, ``default``, and ``choices``. ``choices`` maps labels to values, and such a parameter usually sets ``ui.control: 'dropdown'``. In the current effects, ``int``, ``float``, ``palette`` and ``string`` parameters use ``choices``.
 
 Media Inputs
 ------------
@@ -515,17 +606,42 @@ Some effects accept external textures (images, video, camera). Check for this vi
         // This effect expects a texture source
     }
 
+Each program step that uses a media effect binds its own texture, named
+``imageTex_step_N`` where ``N`` is the step's node index in the compiled
+program (every step counts, including ``.write()``). A bare ``'imageTex'``
+id binds nothing. List the current program's media textures with
+``renderer.getMediaSteps()``, and call it again after each ``compile()``
+since the ids follow the compiled program:
+
+.. code-block:: javascript
+
+    // [{ textureId: 'imageTex_step_0', uniform: 'imageTex', stepIndex: 0, effect: 'synth.media' }, ...]
+    const mediaSteps = renderer.getMediaSteps()
+
+Upload each step's source to its own texture id, then publish the returned
+dimensions into that step's ``imageSize`` uniform — the media shader places
+the image from ``imageSize``:
+
+.. code-block:: javascript
+
+    function uploadMediaStep(step, source) {
+        const { width, height } = renderer.updateTextureFromSource(step.textureId, source)
+        renderer.applyStepParameterValues({
+            [`step_${step.stepIndex}`]: { imageSize: [width, height] }
+        })
+    }
+
     // Image
     const img = new Image()
     img.src = 'photo.jpg'
-    img.onload = () => renderer.updateTextureFromSource('imageTex', img)
+    img.onload = () => uploadMediaStep(renderer.getMediaSteps()[0], img)
 
     // Video
     const video = document.createElement('video')
     video.src = 'clip.mp4'
     video.play()
     function tick() {
-        renderer.updateTextureFromSource('imageTex', video)
+        uploadMediaStep(renderer.getMediaSteps()[0], video)
         requestAnimationFrame(tick)
     }
     tick()
@@ -537,15 +653,23 @@ Some effects accept external textures (images, video, camera). Check for this vi
     await video.play()
     // Then feed frames via requestAnimationFrame as above
 
+    // VideoFrame (e.g. from MediaStreamTrackProcessor or WebCodecs)
+    // Synchronously uploaded; callers retain ownership and may close the frame immediately
+    uploadMediaStep(renderer.getMediaSteps()[0], frame)
+    frame.close()
+
 Undo/Redo
 ---------
 
-Use ``serialize()``/``deserialize()`` for undo/redo:
+Use ``serialize()``/``deserialize()`` for undo/redo. A snapshot can hold another program than the compiled one, for example after a step was added or removed. Then ``deserialize()`` makes the snapshot's program the renderer's ``currentDsl`` and emits ``recompileNeeded``, and the host compiles ``state.toDsl()``:
 
 .. code-block:: javascript
 
     const undoStack = []
     const redoStack = []
+
+    // Also emitted when a compile-time define parameter changes
+    state.on('recompileNeeded', () => renderer.compile(state.toDsl()))
 
     function pushUndo() {
         undoStack.push(state.serialize())
@@ -584,7 +708,13 @@ Build multi-effect pipelines using the DSL:
     await renderer.compile(dsl)
     state.fromDsl(dsl)
 
-Effects are chained with ``.``: generators at the start, filters in the middle, ``.write(oN)`` to assign to a surface, ``render(oN)`` to display. Multiple chains can write to different surfaces and be composited.
+Connect effects with ``.``. A chain follows this sequence:
+
+1. A generator produces the initial image.
+2. Filters process the image.
+3. The ``.write(oN)`` call assigns the result to a surface.
+
+The ``render(oN)`` directive displays a surface. Multiple chains can write to different surfaces for composition.
 
 Effect Directory Structure
 --------------------------
@@ -642,7 +772,7 @@ Effect Namespaces
 Custom Namespaces
 ^^^^^^^^^^^^^^^^^
 
-External integrations that ship their own effect collection can introduce a top-level namespace as a sibling to the built-ins, without vendoring the engine or sharing the ``user`` namespace.
+External integrations with their own effect collection can add a top-level namespace beside the built-ins. They need not vendor the engine or share the ``user`` namespace.
 
 .. code-block:: javascript
 
@@ -684,12 +814,85 @@ After registration, the DSL parser accepts the new namespace in the ``search`` d
 **Validation rules for namespace ids:**
 
 * Must match ``/^[a-z][a-zA-Z0-9]*$/`` (lowercase-leading identifier).
+* Must not start with a surface reference. The lexer reads ``o`` or ``s``, or ``vol``, ``geo``, ``xyz``, ``vel``, ``rgba`` or ``mesh``, followed by a digit as a surface reference (``o1``, ``s1``, ``vol0``, ``mesh6x``), and ``search`` cannot name it.
 * Must not be a DSL reserved keyword (``let``, ``render``, ``write``, ``write3d``, ``if``, ``elif``, ``else``, ``break``, ``continue``, ``return``, ``search``, ``subchain``, ``true``, ``false``).
 * Must not collide with an IO function name (``read``, ``write``, ``read3d``, ``write3d``, ``render``, ``render3d``).
 * Must not be a reserved function name (``from``, ``osc``, ``midi``, ``audio``, ``null``, ``undefined``).
 * Must not collide with a built-in namespace (``synth``, ``filter``, ``mixer``, ``render``, ``points``, ``synth3d``, ``filter3d``, ``classicNoisedeck``, ``io``, ``user``).
 
-Multiple integrations sharing the same engine instance are responsible for picking distinct namespace ids — ``registerNamespace`` throws on collision so the conflict is visible, not silent.
+Integrations sharing an engine instance must choose distinct namespace ids. The ``registerNamespace`` function throws an error on collision, making the conflict visible.
+
+Registering Portable Effect Packages
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The Portable Effects Format ships an effect as a plain ``definition.json``
+plus its GLSL and WGSL program sources — the same package the demo editor
+imports from a zip (see :doc:`../coding-agents`). Hosts that load effects
+programmatically register a loaded package through
+``CanvasRenderer.registerPortableEffect()`` and then compile DSL that calls
+it, without touching the built-in effect catalogs.
+
+The definition is the raw Portable JSON. Its shader sources must already be
+loaded as strings under ``shaders``, keyed by the ``program`` name each pass
+references:
+
+.. code-block:: javascript
+
+    definition.shaders = {
+      main: { glsl: glslSource, wgsl: wgslSource }
+    };
+
+    const effect = await renderer.registerPortableEffect(definition);
+    await renderer.compile('search user\nmyEffect().write(o0)');
+
+Registration returns the cached user effect with a live ``Effect``
+instance. ``renderer.loadEffect('user/<func>')`` returns that effect again
+afterwards.
+
+Registration belongs to the ``user`` namespace: the effect is reachable as
+``user.<func>`` and ``user/<func>`` in ``search`` directives and effect
+lookups. Whether it may start a program follows the usual rule: an explicit
+``starter`` value on the definition wins, and otherwise the effect is a
+starter when no pass consumes a pipeline input (``inputTex``,
+``inputTex3d``, ``inputGeo``, ``inputXyz``, ``inputVel``, ``inputRgba``,
+``src``, ``o0``..``o7``). Starter effects register their operation under
+``user.<func>``. The definition's enum ``choices`` and uniform layout behave exactly
+as for built-in effects, and choices merge into the shared enum registry
+under the effect's own path.
+
+``registerPortableEffect`` checks registration inputs and fails with a
+``Portable effect: ...`` error before anything is registered:
+
+- ``func`` (or ``name``) must be a DSL identifier that ``search user`` +
+  ``func()`` calls: not a reserved keyword, not a surface reference
+  (``o1``, ``s1``, ``vol2``, ...) and not a call that the parser handles
+  itself (``osc``, ``midi``, ``audio``, ``read``, ``read3d``, ``from``).
+  The namespace, when present, must be ``user``.
+- ``passes`` must be a nonempty array of passes that each name a program;
+  any supplied ``inputs``/``outputs`` mapping must map names to nonempty
+  texture references.
+- Every referenced program needs nonempty shader source. If any pass
+  carries a GLSL (or WGSL) source, every pass must carry that language's
+  source, so a backend never encounters a missing shader mid-pipeline.
+- ``globals`` must contain parameter objects. ``choices`` must map names to
+  numbers — or strings for string-typed parameters — or null.
+- ``paramAliases`` is retired and causes registration to fail.
+
+Registration does not compile shaders or verify backend support: a package
+that passes registration can still fail at ``compile()`` time like any
+other effect.
+
+Effect registries are shared within a JavaScript realm, so registration:
+
+- rejects a name that is already registered as ``user.<func>`` — a
+  duplicate package can never replace an accepted effect;
+- never displaces a built-in that owns the same bare name: a portable
+  effect called ``noise`` does not change what bare ``noise()`` resolves to;
+- rejects metadata keys that could reach object prototypes (``prototype``
+  and every own key of ``Object.prototype``) anywhere in the definition.
+
+Hosts that verify a replacement effect should do so in a fresh realm, so
+the accepted effect set cannot change underneath them.
 
 Bundle Exports Reference
 -------------------------
@@ -713,13 +916,14 @@ The core bundle (``noisemaker-shaders-core.esm.js``) exports:
    * - **Backends**
      - ``WebGL2Backend``, ``WebGPUBackend``
    * - **External Input**
-     - ``MidiInputManager``, ``AudioInputManager``
+     - ``MidiState``, ``MidiChannelState``, ``AudioState``,
+       ``MidiInputManager``, ``AudioInputManager``, ``ExternalInputManager``
    * - **State**
      - ``ProgramState``, ``Emitter``, ``extractEffectsFromDsl``, ``extractEffectNamesFromDsl``
 
 .. note::
 
-   UI components (``UIController``, ``EffectSelect``, ``ToggleSwitch``) are part of the demo app in ``demo/shaders/lib/`` and are not included in the core bundle. Import them directly from source if needed.
+   The core bundle also exports the demo app's UI components ``UIController``, ``EffectSelect`` and ``ToggleSwitch``. ``scripts/bundle-shaders.js`` adds them from ``demo/shaders/lib/``.
 
 Example: Vanilla JS
 --------------------

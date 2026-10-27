@@ -4,16 +4,23 @@ import { Effect } from '../../../src/runtime/effect.js'
  * synth/remap — Polygon-zone router.
  *
  * Renders up to eight polygonal zones, each routed to one engine surface
- * (any of o0..o7, written by an upstream effect). Companion to the Remap
- * web app at https://remap.noisedeck.app — the app produces a portable
- * JSON describing the zones, which fills the per-zone vertex uniforms
- * here. Each zone declares its source via a `zoneN_tex` surface input,
+ * (any of o0..o7, written by an upstream effect). Noisedeck's canvas editor
+ * and portable Remap map imports fill the per-zone vertex uniforms here.
+ * Each zone declares its source via a `zoneN_tex` surface input,
  * wired in DSL: `remap(zone0_tex: read(o0), zone1_tex: read(o3))`.
  *
  * Zone vertices are packed two per vec4 (xy = vert n, zw = vert n+1) for
- * eight zones × eight vertex pairs. Zones with vertexCount < 3 or with
+ * eight zones × 32 vertex pairs. Zones with vertexCount < 3 or with
  * zoneN_tex unwired (default "none") are skipped, and pixels falling
  * outside every active zone show the background color.
+ *
+ * Compositing: zones stack in index order — the last (highest-numbered)
+ * zone containing a pixel is on top, lower zones show through transparent
+ * areas of the zones above, and the background sits under everything.
+ * Sources are premultiplied and composited with their own alpha times the
+ * zone's alpha. Edge smoothing feathers each zone OUTWARD by
+ * `smoothEdge * 0.05 * min(canvas width, height)` pixels and never erodes
+ * the interior, so shared edges show no seam and canvas borders stay clean.
  *
  * Geometry correction (warping the rectangular projector output onto a
  * non-rectangular physical surface — e.g. a curved wall or a tilted
@@ -27,7 +34,7 @@ const MAX_ZONES = 8
 const MAX_VERTS_PER_ZONE = 64
 
 // Build the uniformLayout programmatically so the per-zone slots stay in sync.
-// Layout (267 vec4 slots total):
+// Layout (275 vec4 slots total):
 //   slot 0:      bgR, bgG, bgB, bgAlpha
 //   slot 1:      zoneCount, smoothEdge, _, time
 //   slot 2..9:   zone meta (xyzw = vertexCount, active, _, alpha) for zones 0..7
@@ -38,6 +45,12 @@ const MAX_VERTS_PER_ZONE = 64
 //                packed vec4 = (vert n.x, vert n.y, vert n+1.x, vert n+1.y)
 //   slot 266.xy: resolution (auto-filled by the runtime; needed because
 //                this is a starter effect with no inputTex binding)
+//   slot 267..274: zone bounds [minX, minY, maxX, maxY] for zones 0..7,
+//                normalized. The shader skips a zone for pixels outside
+//                its box (dilated by the feather). The default [0, 0, 1, 1]
+//                never rejects, so maps without bounds render as before,
+//                only slower. Noisedeck's canvas editor writes them.
+const BOUNDS_SLOT = 10 + MAX_ZONES * (MAX_VERTS_PER_ZONE / 2) + 1
 const uniformLayout = (() => {
     const layout = {
         bgColor:     { slot: 0, components: 'xyz' },
@@ -52,6 +65,7 @@ const uniformLayout = (() => {
         layout[`zone${z}_count`]  = { slot: metaSlot, components: 'x' }
         layout[`zone${z}_active`] = { slot: metaSlot, components: 'y' }
         layout[`zone${z}_alpha`]  = { slot: metaSlot, components: 'w' }
+        layout[`zone${z}_bounds`] = { slot: BOUNDS_SLOT + z, components: 'xyzw' }
         for (let pair = 0; pair < MAX_VERTS_PER_ZONE / 2; pair++) {
             const slot = 10 + z * (MAX_VERTS_PER_ZONE / 2) + pair
             layout[`zone${z}_v${pair}`] = { slot, components: 'xyzw' }
@@ -118,8 +132,8 @@ export default new Effect({
   },
 
   // Demo program — proves the effect compiles. Users populate real
-  // zones via the Remap app's loader UI in noisedeck.
-  defaultProgram: "search synth\n\nremap(bgColor: #336699, bgAlpha: 1)\n  .write(o0)",
+  // zones via canvas editing or portable map import in Noisedeck.
+  defaultProgram: "search synth\n\nnoise(ridges: true).write(o1)\nperlin(scale: 50).write(o2)\n\nremap(bgColor: #336699, bgAlpha: 1, zoneCount: 8, smoothEdge: 0.1,\n  zone0_tex: read(o1), zone0_count: 4, zone0_v0: [0.2, 0.44, 0.04, 0.46], zone0_v1: [0.06, 0.06, 0.22, 0.04],\n  zone1_tex: read(o2), zone1_count: 4, zone1_v0: [0.46, 0.44, 0.28, 0.44], zone1_v1: [0.28, 0.06, 0.46, 0.06],\n  zone2_tex: read(o1), zone2_count: 4, zone2_v0: [0.72, 0.44, 0.52, 0.42], zone2_v1: [0.5, 0.06, 0.7, 0.08],\n  zone3_tex: read(o2), zone3_count: 4, zone3_v0: [0.92, 0.44, 0.76, 0.46], zone3_v1: [0.78, 0.06, 0.94, 0.04],\n  zone4_tex: read(o1), zone4_count: 4, zone4_v0: [0.22, 0.94, 0.04, 0.94], zone4_v1: [0.04, 0.56, 0.22, 0.56],\n  zone5_tex: read(o2), zone5_count: 4, zone5_v0: [0.48, 0.94, 0.28, 0.92], zone5_v1: [0.26, 0.56, 0.46, 0.58],\n  zone6_tex: read(o1), zone6_count: 4, zone6_v0: [0.68, 0.94, 0.52, 0.96], zone6_v1: [0.54, 0.56, 0.7, 0.54],\n  zone7_tex: read(o2), zone7_count: 4, zone7_v0: [0.94, 0.94, 0.76, 0.94], zone7_v1: [0.76, 0.56, 0.94, 0.56]\n).write(o0)\nrender(o0)",
 
   passes: [
     {
@@ -173,6 +187,15 @@ function makeZoneGlobals() {
             max: 1,
             ui: { label: 'alpha', control: 'slider', category: cat, ...enabled }
         }
+        // Polygon bounding box, written by the canvas editor so the shader
+        // can skip the zone for pixels it cannot touch. The default box is
+        // the whole canvas, which never skips anything.
+        out[`zone${z}_bounds`] = {
+            type: 'vec4',
+            default: [0, 0, 1, 1],
+            uniform: `zone${z}_bounds`,
+            ui: { label: 'bounds', control: 'slider', hidden: true, format: 'vector', category: cat }
+        }
         for (let pair = 0; pair < MAX_VERTS_PER_ZONE / 2; pair++) {
             out[`zone${z}_v${pair}`] = {
                 type: 'vec4',
@@ -182,6 +205,7 @@ function makeZoneGlobals() {
                     label: `verts ${pair * 2}–${pair * 2 + 1}`,
                     control: 'slider',
                     hidden: true,
+                    format: 'vector',
                     category: cat
                 }
             }

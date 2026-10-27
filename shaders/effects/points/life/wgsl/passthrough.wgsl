@@ -1,16 +1,9 @@
 // Passthrough shader - copy input to output for 2D chain continuity
 
-struct Uniforms {
-    resolution: vec2f,
-    time: f32,
-}
-
-@group(0) @binding(0) var<uniform> u: Uniforms;
-@group(0) @binding(1) var inputTex: texture_2d<f32>;
-@group(0) @binding(2) var inputSampler: sampler;
+@group(0) @binding(0) var inputTex: texture_2d<f32>;
 
 @fragment
 fn main(@builtin(position) position: vec4f) -> @location(0) vec4f {
-    let uv = position.xy / u.resolution;
-    return textureSampleLevel(inputTex, inputSampler, vec2f(uv.x, 1.0 - uv.y), 0.0);
+    let coord = vec2<i32>(position.xy);
+    return textureLoad(inputTex, coord, 0);
 }

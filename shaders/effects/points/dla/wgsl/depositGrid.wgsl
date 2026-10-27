@@ -52,7 +52,8 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     }
     
     // Position from xyz (normalized [0,1])
-    let clip = xyz.xy * 2.0 - 1.0;
+    // WebGPU clip y runs opposite to GL's, so negate the GLSL's clip y
+    let clip = vec2<f32>(xyz.x * 2.0 - 1.0, 1.0 - xyz.y * 2.0);
     output.position = vec4<f32>(clip, 0.0, 1.0);
     
     return output;

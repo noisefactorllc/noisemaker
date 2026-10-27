@@ -4,6 +4,7 @@
 // Positions in normalized coords [0,1]
 
 struct Uniforms {
+    diffuseActive: f32,
     resolution: vec2f,
     time: f32,
     stride: f32,
@@ -11,6 +12,7 @@ struct Uniforms {
     kink: f32,
     quantize: f32,
     inputWeight: f32,
+    fieldActive: f32,
     behavior: f32,
 }
 
@@ -18,13 +20,45 @@ struct Outputs {
     @location(0) xyz: vec4f,
     @location(1) vel: vec4f,
     @location(2) rgba: vec4f,
+    @location(3) baseColor: vec4f,
 }
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
+@group(0) @binding(7) var heightTex: texture_2d<f32>;
 @group(0) @binding(3) var xyzTex: texture_2d<f32>;
 @group(0) @binding(4) var velTex: texture_2d<f32>;
 @group(0) @binding(5) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(6) var diffuseTex: texture_2d<f32>;
+@group(0) @binding(8) var baseColorTex: texture_2d<f32>;
+
+fn selectedDiffuse(uv: vec2f) -> vec4f {
+    let size = textureDimensions(diffuseTex, 0);
+    let pixel = clamp(vec2i(clamp(uv, vec2f(0.0), vec2f(0.999999)) * vec2f(size)), vec2i(0), vec2i(size) - vec2i(1));
+    return textureLoad(diffuseTex, pixel, 0);
+}
+
+// Color render/pointsEmit gives an agent spawned at pos.
+fn spawnColor(pos: vec2f) -> vec4f {
+    let dims = textureDimensions(inputTex);
+    let sampled = textureLoad(inputTex, vec2<i32>(pos * vec2<f32>(dims)), 0);
+    return select(vec4f(1.0), sampled, sampled.a > 0.0);
+}
+
+// The agent's color without a diffuse map. baseColorTex keeps it (alpha > 0)
+// while a diffuse map is active and is cleared otherwise, so this is rgba
+// unless the agent still carries a diffuse color and has not respawned.
+fn baseColor(coord: vec2i, rgba: vec4f, pos: vec2f) -> vec4f {
+    let kept = textureLoad(baseColorTex, coord, 0);
+    if (kept.a == 0.0) { return rgba; }
+    let spawnDelta = abs(round(rgba * 255.0) - round(clamp(spawnColor(pos), vec4f(0.0), vec4f(1.0)) * 255.0));
+    return select(kept, rgba, all(spawnDelta <= vec4f(1.0)));
+}
+
+fn keptBaseColor(base: vec4f) -> vec4f {
+    return select(vec4f(0.0), vec4f(base.rgb, max(base.a, 1.0 / 255.0)), u.diffuseActive > 0.5);
+}
+
 
 const TAU: f32 = 6.283185307179586;
 const RIGHT_ANGLE: f32 = 1.5707963267948966;
@@ -103,6 +137,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     let xyz = textureLoad(xyzTex, coord, 0);
     let vel = textureLoad(velTex, coord, 0);
     let rgba = textureLoad(rgbaTex, coord, 0);
+    let base = baseColor(coord, rgba, xyz.xy);
     
     // Extract components (positions in normalized coords [0,1])
     var px = xyz.x;
@@ -116,14 +151,14 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     
     // If not alive, pass through unchanged
     if (alive < 0.5) {
-        return Outputs(xyz, vel, rgba);
+        return Outputs(xyz, vel, rgba, keptBaseColor(base));
     }
     
     // Sample input texture at current position for flow direction
-    let texSize = textureDimensions(inputTex, 0);
-    var texCoord = vec2i(i32(px * f32(texSize.x)), i32((1.0 - py) * f32(texSize.y)));
+    let texSize = select(textureDimensions(inputTex, 0), textureDimensions(heightTex, 0), u.fieldActive > 0.5);
+    var texCoord = vec2i(i32(px * f32(texSize.x)), i32(py * f32(texSize.y)));
     texCoord = clamp(texCoord, vec2i(0), vec2i(texSize) - vec2i(1));
-    let texel = textureLoad(inputTex, texCoord, 0);
+    let texel = select(textureLoad(inputTex, texCoord, 0), textureLoad(heightTex, texCoord, 0), u.fieldActive > 0.5);
     let inputLuma = oklab_l(texel.rgb);
     
     // inputWeight controls how much the input texture influences flow direction
@@ -161,6 +196,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     return Outputs(
         vec4f(newX, newY, pz, 1.0),
         vec4f(0.0, 0.0, rotRand, strideRand),
-        rgba
+        select(base, selectedDiffuse(vec2f(newX, newY)), u.diffuseActive > 0.5),
+        keptBaseColor(base)
     );
 }

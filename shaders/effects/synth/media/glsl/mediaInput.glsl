@@ -11,6 +11,8 @@ precision highp float;
 uniform sampler2D imageTex;
 uniform vec2 imageSize;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform int position;
 uniform float rotation;
@@ -61,9 +63,34 @@ vec2 tile(vec2 st) {
     return st;
 }
 
+// External uploads use straight alpha. Interpolate premultiplied texels so
+// transparent pixels cannot darken edges or bleed their hidden RGB into them.
+vec4 mediaTexel(ivec2 p, ivec2 size) {
+    vec4 c = texelFetch(imageTex, clamp(p, ivec2(0), size - 1), 0);
+    return vec4(c.rgb * c.a, c.a);
+}
+
+vec4 sampleMedia(vec2 uv) {
+    ivec2 size = textureSize(imageTex, 0);
+    vec2 p = uv * vec2(size) - 0.5;
+    ivec2 lo = ivec2(floor(p));
+    vec2 f = fract(p);
+    return mix(mix(mediaTexel(lo, size), mediaTexel(lo + ivec2(1, 0), size), f.x),
+               mix(mediaTexel(lo + ivec2(0, 1), size), mediaTexel(lo + ivec2(1, 1), size), f.x), f.y);
+}
+
 vec4 getImage(vec2 st) {
     vec2 size = imageSize;
-    st = gl_FragCoord.xy / size;
+    // Under tiled print export gl_FragCoord is tile-local. Add the tile's
+    // global offset so every tile and the untiled reference sample the same
+    // absolute image pixel. Branch on the runtime offset so the untiled
+    // path keeps the original expression bit-for-bit across compilers with
+    // relaxed math (tileOffset is 0 when not tiling).
+    if (tileOffset.x == 0.0 && tileOffset.y == 0.0) {
+        st = gl_FragCoord.xy / size;
+    } else {
+        st = (gl_FragCoord.xy + tileOffset) / size;
+    }
     st.y = 1.0 - st.y;
 
     float scale = 100.0 / scaleAmt;
@@ -73,48 +100,92 @@ vec4 getImage(vec2 st) {
     }
     st *= scale;
 
-    // Position adjustments based on anchor point
-    if (position == 0) {
-        // top left
-        st.y += (resolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
-    } else if (position == 1) {
-        // top center
-        st.x -= (resolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
-        st.y += (resolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
-    } else if (position == 2) {
-        // top right
-        st.x -= (resolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
-        st.y += (resolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
-    } else if (position == 3) {
-        // mid left
-        st.y += (resolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
-    } else if (position == 4) {
-        // mid center
-        st.x -= (resolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
-        st.y += (resolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
-    } else if (position == 5) {
-        // mid right
-        st.x -= (resolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
-        st.y += (resolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
-    } else if (position == 6) {
-        // bottom left
-        st.y += 1.0 - (scale - (1.0 / size.y * scale));
-    } else if (position == 7) {
-        // bottom center
-        st.x -= (resolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
-        st.y += 1.0 - (scale - (1.0 / size.y * scale));
-    } else if (position == 8) {
-        // bottom right
-        st.x -= (resolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
-        st.y += 1.0 - (scale - (1.0 / size.y * scale));
-    }
+    // Keep the original untiled math exact on both backends.
+    if (fullResolution.x > 0.0 && (fullResolution.x != resolution.x || fullResolution.y != resolution.y)) {
+        // Position adjustments based on anchor point
+        if (position == 0) {
+            // top left
+            st.y += (fullResolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
+        } else if (position == 1) {
+            // top center
+            st.x -= (fullResolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
+            st.y += (fullResolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
+        } else if (position == 2) {
+            // top right
+            st.x -= (fullResolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
+            st.y += (fullResolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
+        } else if (position == 3) {
+            // mid left
+            st.y += (fullResolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
+        } else if (position == 4) {
+            // mid center
+            st.x -= (fullResolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
+            st.y += (fullResolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
+        } else if (position == 5) {
+            // mid right
+            st.x -= (fullResolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
+            st.y += (fullResolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
+        } else if (position == 6) {
+            // bottom left
+            st.y += 1.0 - (scale - (1.0 / size.y * scale));
+        } else if (position == 7) {
+            // bottom center
+            st.x -= (fullResolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
+            st.y += 1.0 - (scale - (1.0 / size.y * scale));
+        } else if (position == 8) {
+            // bottom right
+            st.x -= (fullResolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
+            st.y += 1.0 - (scale - (1.0 / size.y * scale));
+        }
 
-    st.x -= map(offsetX, -100.0, 100.0, -resolution.x / size.x * scale, resolution.x / size.x * scale) * 1.5;
-    st.y -= map(offsetY, -100.0, 100.0, -resolution.y / size.y * scale, resolution.y / size.y * scale) * 1.5;
+        st.x -= map(offsetX, -100.0, 100.0, -fullResolution.x / size.x * scale, fullResolution.x / size.x * scale) * 1.5;
+        st.y -= map(offsetY, -100.0, 100.0, -fullResolution.y / size.y * scale, fullResolution.y / size.y * scale) * 1.5;
+    } else {
+        // Position adjustments based on anchor point
+        if (position == 0) {
+            // top left
+            st.y += (resolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
+        } else if (position == 1) {
+            // top center
+            st.x -= (resolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
+            st.y += (resolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
+        } else if (position == 2) {
+            // top right
+            st.x -= (resolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
+            st.y += (resolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
+        } else if (position == 3) {
+            // mid left
+            st.y += (resolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
+        } else if (position == 4) {
+            // mid center
+            st.x -= (resolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
+            st.y += (resolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
+        } else if (position == 5) {
+            // mid right
+            st.x -= (resolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
+            st.y += (resolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
+        } else if (position == 6) {
+            // bottom left
+            st.y += 1.0 - (scale - (1.0 / size.y * scale));
+        } else if (position == 7) {
+            // bottom center
+            st.x -= (resolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
+            st.y += 1.0 - (scale - (1.0 / size.y * scale));
+        } else if (position == 8) {
+            // bottom right
+            st.x -= (resolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
+            st.y += 1.0 - (scale - (1.0 / size.y * scale));
+        }
+
+        st.x -= map(offsetX, -100.0, 100.0, -resolution.x / size.x * scale, resolution.x / size.x * scale) * 1.5;
+        st.y -= map(offsetY, -100.0, 100.0, -resolution.y / size.y * scale, resolution.y / size.y * scale) * 1.5;
+    }
 
     // Correct for aspect ratio before rotation
     st.x *= size.x / size.y;
-    st = rotate2D(st, rotation);
+    // Zero rotation is an exact identity. Avoid backend-dependent rounding
+    // in the remap/trigonometry path before bilinear texture filtering.
+    if (rotation != 0.0) st = rotate2D(st, rotation);
     st.x /= size.x / size.y;
 
     st = tile(st);
@@ -187,18 +258,11 @@ vec4 getImage(vec2 st) {
        }
     }
 
-    vec4 text = texture(imageTex, st);
+    vec4 text = sampleMedia(st);
 
     if (st.x < 0.0 || st.x > 1.0 || st.y < 0.0 || st.y > 1.0) {
         // Don't draw texture if out of coordinate bounds
-        return vec4(bgColor, bgAlpha);
-    }
-
-    // Un-premultiply to compensate for linear filtering on straight-alpha textures
-    // Linear filtering averages with black (0,0,0,0) transparent pixels, darkening edges
-    // Dividing by alpha restores the original RGB values
-    if (text.a > 0.0) {
-        text.rgb = text.rgb / text.a;
+        return vec4(bgColor * bgAlpha, bgAlpha);
     }
 
     return text;

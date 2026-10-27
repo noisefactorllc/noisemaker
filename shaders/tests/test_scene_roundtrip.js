@@ -374,5 +374,24 @@ test('a tiny number let binding round-trips as a plain decimal', () => {
     assert.ok(!/[eE][-+]?\d/.test(out), `emitted exponent notation:\n${out}`)
 })
 
+test('scene input selectors survive the first round-trip and compile', () => {
+    const src = `search synth
+scene(mesh("box", pos: [midi(channel: 1, mode: midiMode.cc, cc: 74), midi(zone: midiZone.upper, members: 4, mode: midiMode.nrpn, nrpn: 1234), audio(band: audioBand.low, channel: 2, name: "Interface", id: "right")])).write(o0)
+render(o0)`
+    const out = assertStable(src, 'scene selectors')
+    for (const text of ['cc: 74', 'zone: midiZone.upper', 'members: 4', 'nrpn: 1234', 'channel: 2', 'name: "Interface"', 'id: "right"']) {
+        assert.ok(out.includes(text), `selector ${text} was lost`)
+    }
+    const original = compileScene(compile(src))
+    const position = original.nodes.find(node => node.type === 'mesh').transform.position
+    assert.strictEqual(position[0].cc, 74)
+    assert.strictEqual(position[1].zone, 1)
+    assert.strictEqual(position[1].members, 4)
+    assert.strictEqual(position[1].nrpn, 1234)
+    assert.strictEqual(position[2].channel, 2)
+    assert.strictEqual(position[2].id, 'right')
+    assert.deepStrictEqual(compileScene(compile(out)), original)
+})
+
 console.log(`\nScene round-trip: ${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)

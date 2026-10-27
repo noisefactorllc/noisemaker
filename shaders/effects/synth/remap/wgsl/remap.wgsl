@@ -1,13 +1,26 @@
 /**
  * Remap — WGSL fragment shader
  *
- * Per-pixel: walk active zones, find the first matching polygon, sample
- * from that zone's wired source surface. Uniforms are packed into a
- * single vec4 array to match the JS uniformLayout.
+ * Polygon-zone router. Zones are composited TOP-DOWN: the last active zone
+ * (highest index) that contains a pixel is on top. A zone's coverage is 1
+ * everywhere inside its polygon and feathers OUTWARD over
+ * `smoothEdge * 0.05 * min(fullResolution)` pixels, so the interior is
+ * never eroded: adjacent zones meet without a seam and canvas borders
+ * stay clean. Sources are premultiplied and stacked with the premultiplied
+ * "under" operator, so a transparent source shows the zone below it, or
+ * the background.
+ *
+ * Per zone, ONE pass over the packed vertex pairs (one uniform fetch per
+ * two vertices) evaluates the even-odd inside test and the squared pixel
+ * distance to the boundary together. With smoothEdge 0 the walk carries no
+ * distance math at all, a host-supplied bounding box (zoneN_bounds) skips
+ * zones the pixel cannot touch, and the zone loop stops as soon as the
+ * pixel is opaque. Uniforms are packed into a single vec4 array to match
+ * the JS uniformLayout.
  */
 
 struct Uniforms {
-    data: array<vec4<f32>, 267>,
+    data: array<vec4<f32>, 275>,
     // slot 0:      bgR, bgG, bgB, bgAlpha
     // slot 1:      zoneCount, smoothEdge, _, time
     // slot 2..9:   per-zone meta (vertexCount, active, _, alpha)
@@ -15,6 +28,8 @@ struct Uniforms {
     // slot 10..265: per-zone polygons; 32 vec4s per zone (64 verts packed two
     //              per vec4 as v_2k.xy + v_2k+1.xy)
     // slot 266.xy: resolution (auto-filled by the runtime)
+    // slot 267..274: per-zone bounds [minX, minY, maxX, maxY], normalized;
+    //              default [0, 0, 1, 1] never rejects a pixel
 }
 
 @group(0) @binding(0) var samp: sampler;
@@ -32,122 +47,143 @@ struct Uniforms {
 @group(0) @binding(10) var<uniform> tileOffset: vec2<f32>;
 @group(0) @binding(11) var<uniform> fullResolution: vec2<f32>;
 
-const MAX_ZONES: u32 = 8u;
-const MAX_VERTS_PER_ZONE: u32 = 64u;
-const PAIRS_PER_ZONE: u32 = 32u;  // MAX_VERTS_PER_ZONE / 2
+const MAX_ZONES: i32 = 8;
+const MAX_PAIRS: i32 = 32;  // MAX_VERTS_PER_ZONE / 2
+const HEADER_SLOT: i32 = 0;
+const CONTROLS_SLOT: i32 = 1;
+const ZONE_META_SLOT: i32 = 2;
+const ZONE_VERTS_SLOT: i32 = 10;
+const RESOLUTION_SLOT: i32 = 266;
+const ZONE_BOUNDS_SLOT: i32 = 267;
 
-fn getZoneMeta(z: u32) -> vec4<f32> {
-    return uniforms.data[2u + z];
-}
-
-fn getVert(zoneIdx: u32, vertIdx: u32) -> vec2<f32> {
-    let pairIdx: u32 = vertIdx >> 1u;
-    let slot: u32 = 10u + zoneIdx * PAIRS_PER_ZONE + pairIdx;
-    let packed: vec4<f32> = uniforms.data[slot];
-    if ((vertIdx & 1u) == 0u) {
-        return packed.xy;
-    }
-    return packed.zw;
-}
-
-fn sampleZone(z: u32, uv: vec2<f32>) -> vec4<f32> {
+fn sampleZone(z: i32, uv: vec2<f32>) -> vec4<f32> {
     // textureSampleLevel (explicit LOD 0) — sampleZone is called from the
     // per-pixel, data-dependent zone loop (non-uniform control flow), which
     // disqualifies plain textureSample (it needs implicit derivatives /
     // uniform control flow). Zone surfaces are non-mipmapped render targets,
     // so LOD 0 is exactly GLSL's texture() here. Mirrors the mixer/shadow port.
-    if (z == 0u) { return textureSampleLevel(zone0_tex, samp, uv, 0.0); }
-    if (z == 1u) { return textureSampleLevel(zone1_tex, samp, uv, 0.0); }
-    if (z == 2u) { return textureSampleLevel(zone2_tex, samp, uv, 0.0); }
-    if (z == 3u) { return textureSampleLevel(zone3_tex, samp, uv, 0.0); }
-    if (z == 4u) { return textureSampleLevel(zone4_tex, samp, uv, 0.0); }
-    if (z == 5u) { return textureSampleLevel(zone5_tex, samp, uv, 0.0); }
-    if (z == 6u) { return textureSampleLevel(zone6_tex, samp, uv, 0.0); }
+    if (z == 0) { return textureSampleLevel(zone0_tex, samp, uv, 0.0); }
+    if (z == 1) { return textureSampleLevel(zone1_tex, samp, uv, 0.0); }
+    if (z == 2) { return textureSampleLevel(zone2_tex, samp, uv, 0.0); }
+    if (z == 3) { return textureSampleLevel(zone3_tex, samp, uv, 0.0); }
+    if (z == 4) { return textureSampleLevel(zone4_tex, samp, uv, 0.0); }
+    if (z == 5) { return textureSampleLevel(zone5_tex, samp, uv, 0.0); }
+    if (z == 6) { return textureSampleLevel(zone6_tex, samp, uv, 0.0); }
     return textureSampleLevel(zone7_tex, samp, uv, 0.0);
 }
 
-fn pointInZone(p: vec2<f32>, zoneIdx: u32) -> bool {
-    let zoneMeta = getZoneMeta(zoneIdx);
-    let n = i32(zoneMeta.x);
-    if (n < 3) { return false; }
-    var inside: bool = false;
-    var prev = getVert(zoneIdx, u32(n) - 1u);
-    for (var i: u32 = 0u; i < MAX_VERTS_PER_ZONE; i = i + 1u) {
-        if (i32(i) >= n) { break; }
-        let cur = getVert(zoneIdx, i);
-        let crosses: bool = (cur.y > p.y) != (prev.y > p.y);
-        if (crosses) {
-            let dy = prev.y - cur.y;
-            let denom = select(dy, 1e-9, abs(dy) < 1e-9);
-            let xCross = (prev.x - cur.x) * (p.y - cur.y) / denom + cur.x;
-            if (p.x < xCross) { inside = !inside; }
-        }
-        prev = cur;
-    }
-    return inside;
+// Polygon state accumulated over one zone's edges for the current pixel.
+struct ZoneTest {
+    inside: bool,   // even-odd crossing parity
+    d2: f32,        // squared pixel distance to the nearest boundary point
 }
 
-fn distToZoneEdge(p: vec2<f32>, zoneIdx: u32) -> f32 {
-    let zoneMeta = getZoneMeta(zoneIdx);
-    let n = i32(zoneMeta.x);
-    if (n < 3) { return 1e9; }
-    var d: f32 = 1e9;
-    var prev = getVert(zoneIdx, u32(n) - 1u);
-    for (var i: u32 = 0u; i < MAX_VERTS_PER_ZONE; i = i + 1u) {
-        if (i32(i) >= n) { break; }
-        let cur = getVert(zoneIdx, i);
-        let ab = cur - prev;
-        let len2 = max(dot(ab, ab), 1e-9);
-        let t = clamp(dot(p - prev, ab) / len2, 0.0, 1.0);
-        let closest = prev + t * ab;
-        d = min(d, length(p - closest));
-        prev = cur;
+// Folds the edge between vertex `a` and its predecessor `b` into `t0`.
+// All positions are global pixel coordinates (top-left origin).
+fn testEdge(t0: ZoneTest, a: vec2<f32>, b: vec2<f32>, q: vec2<f32>, needDist: bool) -> ZoneTest {
+    var t = t0;
+    let e = b - a;
+    let w = q - a;
+    // Even-odd crossing count along the +x ray from q, branch-free. The
+    // half-open scanline rule keeps an edge shared by two zones unambiguous.
+    let c = vec3<bool>((q.y >= a.y), (q.y < b.y), (e.x * w.y > e.y * w.x));
+    if (all(c) || !any(c)) { t.inside = !t.inside; }
+    if (needDist) {
+        let s = clamp(dot(w, e) / max(dot(e, e), 1e-6), 0.0, 1.0);
+        let r = w - e * s;
+        t.d2 = min(t.d2, dot(r, r));
     }
-    return d;
+    return t;
+}
+
+// Walks one zone's packed vertex pairs (one uniform fetch per two vertices)
+// and returns the inside parity plus the squared pixel distance to the
+// boundary. `needDist` is a constant at each call site in fragmentMain(),
+// so the smoothEdge-0 walk is compiled without any distance math.
+fn walkZone(base: i32, n: i32, q: vec2<f32>, needDist: bool) -> ZoneTest {
+    var t = ZoneTest(false, 1e30);
+    let last: i32 = n - 1;
+    let lastPack = uniforms.data[base + last / 2];
+    var prev = select(lastPack.zw, lastPack.xy, last % 2 == 0) * fullResolution;
+    let pairs: i32 = (n + 1) / 2;
+    for (var pair: i32 = 0; pair < MAX_PAIRS; pair = pair + 1) {
+        if (pair >= pairs) { break; }
+        let pack = uniforms.data[base + pair];
+        let v0 = pack.xy * fullResolution;
+        t = testEdge(t, v0, prev, q, needDist);
+        prev = v0;
+        if (pair * 2 + 1 < n) {
+            let v1 = pack.zw * fullResolution;
+            t = testEdge(t, v1, prev, q, needDist);
+            prev = v1;
+        }
+    }
+    return t;
 }
 
 @fragment
 fn fragmentMain(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
-    let resolution = uniforms.data[266].xy;
-    // Polygon tests use GLOBAL UV so zones land in the same image position
-    // regardless of which tile is rendering. WGSL @builtin(position) is
-    // top-left (Y-down); tileOffset is sent in GLSL (Y-from-bottom)
-    // convention, so convert: posFromBottom.y = resolution.y - pos.y,
-    // global = posFromBottom + tileOffset, then flip Y-down for the JSON.
-    let posFromBottom = vec2<f32>(fragCoord.x, fragCoord.y);
-    let globalYup = (posFromBottom + tileOffset) / fullResolution;
-    let p = vec2<f32>(globalYup.x, 1.0 - globalYup.y);
+    // Polygon tests use the GLOBAL pixel position so zones land in the same
+    // image position regardless of which tile is rendering. The y flip below
+    // is not a claim about the origin @builtin(position) uses — the WGSL spec
+    // does not settle that here. It is the flip that makes this backend agree
+    // with the GLSL one, which the orientation case in
+    // shaders/tests/test_remap_render.mjs and byte parity with GLSL
+    // (parity-attestation.json, maxDiff 0) both hold to.
+    let globalPx = fragCoord.xy + tileOffset;
+    let q = vec2<f32>(globalPx.x, fullResolution.y - globalPx.y);
+    let p = q / fullResolution;   // normalized, for the zone bounds test
     // Texture sampling stays TILE-LOCAL: each zoneN_tex is the current
     // tile's slice of its source surface, so sample at the tile-local
-    // pixel position (Y-down to match WGSL textureSampleLevel convention).
-    let sampleUv = fragCoord.xy / resolution;
+    // pixel position, not the global one.
+    let sampleUv = fragCoord.xy / uniforms.data[RESOLUTION_SLOT].xy;
 
-    let header = uniforms.data[0];
-    let header2 = uniforms.data[1];
-    let bgColor = vec3<f32>(header.x, header.y, header.z);
-    let bgAlpha = header.w;
-    let zoneCount: i32 = i32(header2.x);
-    let smoothEdge: f32 = header2.y;
+    let header = uniforms.data[HEADER_SLOT];
+    let controls = uniforms.data[CONTROLS_SLOT];
+    let activeCount: i32 = min(i32(controls.x), MAX_ZONES);
+    // Feather width in pixels, proportional to the shorter canvas side, so
+    // it is the same width on both axes whatever the aspect ratio. smoothEdge
+    // is clamped at 0: an automated negative value would otherwise make the
+    // bounds dilation negative and SHRINK every zone's reject box.
+    let featherPx: f32 = max(controls.y, 0.0) * 0.05 * min(fullResolution.x, fullResolution.y);
+    let needDist: bool = featherPx > 0.0;
+    let dilate = vec2<f32>(featherPx) / fullResolution;   // feather in normalized units per axis
 
-    var result = vec4<f32>(bgColor, bgAlpha);
-    let activeCount: i32 = min(zoneCount, i32(MAX_ZONES));
-    for (var z: u32 = 0u; z < MAX_ZONES; z = z + 1u) {
-        if (i32(z) >= activeCount) { break; }
-        let zoneMeta = getZoneMeta(z);
-        if (zoneMeta.y < 0.5) { continue; }  // zoneN_tex not wired
-        if (!pointInZone(p, z)) { continue; }
-        let src = sampleZone(z, sampleUv);
-        let zAlpha = zoneMeta.w;
-        // smoothEdge is user-facing 0..1; scale to the actual source-UV
-        // distance (0..0.05), beyond which the fade looks like washout.
-        let edgeWidth = smoothEdge * 0.05;
-        var edge: f32 = 1.0;
-        if (edgeWidth > 0.0) {
-            edge = smoothstep(0.0, edgeWidth, distToZoneEdge(p, z));
+    var result = vec4<f32>(0.0);
+    for (var k: i32 = 0; k < MAX_ZONES; k = k + 1) {
+        let z: i32 = activeCount - 1 - k;   // top-down: highest index first
+        if (z < 0) { break; }
+        let zoneMeta = uniforms.data[ZONE_META_SLOT + z];
+        // Clamped: a host-supplied count above the per-zone capacity would
+        // otherwise walk past this zone's slots into the next zone's.
+        let n: i32 = min(i32(zoneMeta.x), MAX_PAIRS * 2);
+        if (n < 3 || zoneMeta.y < 0.5) { continue; }   // degenerate, or source not wired
+        // Host-supplied bounding box [minX, minY, maxX, maxY], dilated by the
+        // feather. The default [0, 0, 1, 1] never rejects a canvas pixel.
+        let bounds = uniforms.data[ZONE_BOUNDS_SLOT + z];
+        if (any(p < bounds.xy - dilate) || any(p > bounds.zw + dilate)) { continue; }
+        let base: i32 = ZONE_VERTS_SLOT + z * MAX_PAIRS;
+
+        var t: ZoneTest;
+        if (needDist) {
+            t = walkZone(base, n, q, true);
+        } else {
+            t = walkZone(base, n, q, false);
         }
-        let a = zAlpha * edge;
-        result = vec4<f32>(mix(result.rgb, src.rgb, a), max(result.a, src.a * a));
+
+        var coverage: f32 = 1.0;
+        if (!t.inside) {
+            if (!needDist) { continue; }
+            coverage = 1.0 - smoothstep(0.0, featherPx, sqrt(t.d2));
+            if (coverage <= 0.0) { continue; }
+        }
+        // Premultiplied "under": this zone is above everything still to come.
+        let src = sampleZone(z, sampleUv) * (coverage * zoneMeta.w);
+        result = result + src * (1.0 - result.a);
+        if (result.a >= 0.999) { break; }
     }
+    // Background goes under whatever the zones left uncovered.
+    result = result + vec4<f32>(header.xyz * header.w, header.w) * (1.0 - result.a);
 
     return result;
 }

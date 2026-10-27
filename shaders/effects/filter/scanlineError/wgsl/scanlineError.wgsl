@@ -13,9 +13,12 @@ struct VertexOutput {
 @group(0) @binding(1) var<uniform> speed: f32;
 @group(0) @binding(2) var<uniform> timeOffset: f32;
 @group(0) @binding(3) var<uniform> distortion: f32;
-@group(0) @binding(4) var<uniform> noise_amount: f32;
+@group(0) @binding(4) var<uniform> noise: f32;
 @group(0) @binding(5) var<uniform> mode: f32;
 @group(0) @binding(6) var<uniform> time: f32;
+@group(0) @binding(7) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(8) var<uniform> fullResolution: vec2<f32>;
+@group(0) @binding(9) var<uniform> renderScale: f32;
 
 fn clamp01(value: f32) -> f32 {
     return clamp(value, 0.0, 1.0);
@@ -255,57 +258,70 @@ fn vhs_scanNoise(coord: vec2<f32>, freq: vec2<f32>, t: f32, spd: f32) -> f32 {
 
 @fragment
 fn main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let dims = vec2<f32>(textureDimensions(inputTex));
+    let input_size = vec2<f32>(textureDimensions(inputTex));
     let coord = vec2<i32>(in.position.xy);
 
-    let width = i32(dims.x);
-    let height = i32(dims.y);
+    let width = i32(input_size.x);
+    let height = i32(input_size.y);
 
     if (width == 0 || height == 0) {
         return vec4<f32>(0.0);
     }
 
-    let width_f = dims.x;
-    let height_f = dims.y;
+    // Compute canvas resolution for tile-aware rendering
+    let fullRes = select(input_size, fullResolution / renderScale, fullResolution.x > 0.0);
+    let width_f = fullRes.x;
+    let height_f = fullRes.y;
+    let dims = vec2<f32>(width_f, height_f);
+
+    // Global pixel coordinate for pattern generation and sampling
+    let globalGid_f = vec2<f32>(f32(coord.x) + tileOffset.x, f32(coord.y) + tileOffset.y);
+    let globalGid = vec2<u32>(u32(globalGid_f.x), u32(globalGid_f.y));
     let time_value = time + timeOffset;
     let speed_value = max(speed, 0.0);
     let m = i32(mode);
 
     if (m == 1) {
         // VHS mode
-        let yNorm = (f32(coord.y) + 0.5) / height_f;
-        let xNorm = (f32(coord.x) + 0.5) / width_f;
+        let yNorm = (f32(globalGid.y) + 0.5) / fullResolution.y;
+        let xNorm = (f32(globalGid.x) + 0.5) / fullResolution.x;
         let destCoord = vec2<f32>(xNorm, yNorm);
 
         let gradDest = vhs_gradValue(yNorm, 5.0, time_value, speed_value);
 
         let scanBase = floor(height_f * 0.5) + 1.0;
         let scanFreq = select(
-            vec2<f32>(scanBase * (height_f / width_f), scanBase),
             vec2<f32>(scanBase, scanBase * (width_f / height_f)),
+            vec2<f32>(scanBase * (height_f / width_f), scanBase),
             height_f < width_f
         );
 
         let scanDest = vhs_scanNoise(destCoord, scanFreq, time_value, speed_value * 100.0);
 
-        let shiftAmount = i32(floor(scanDest * width_f * gradDest * gradDest * distortion));
-        let srcX = wrap_coord(coord.x - shiftAmount, width);
+        let fullWidth = select(width_f, fullResolution.x, fullResolution.x > 0.0);
+        let shiftAmount = floor(scanDest * fullWidth * gradDest * gradDest * distortion);
 
-        let srcTexel = textureLoad(inputTex, vec2<i32>(srcX, coord.y), 0);
+        let globalSampleX = f32(globalGid.x) - shiftAmount;
+        let wrappedGlobalX = wrap_coord(i32(globalSampleX), i32(fullWidth));
+        var localSampleX = wrappedGlobalX - i32(tileOffset.x);
+        if (localSampleX < 0) { localSampleX = localSampleX + width; }
+        localSampleX = clamp(localSampleX, 0, width - 1);
 
-        let srcXNorm = (f32(srcX) + 0.5) / width_f;
+        let srcTexel = textureLoad(inputTex, vec2<i32>(localSampleX, coord.y), 0);
+
+        let srcXNorm = (f32(wrappedGlobalX) + 0.5) / fullResolution.x;
         let scanSource = vhs_scanNoise(vec2<f32>(srcXNorm, yNorm), scanFreq, time_value, speed_value * 100.0);
         let gradSource = vhs_gradValue(yNorm, 5.0, time_value, speed_value);
 
         let noiseColor = vec3<f32>(scanSource);
-        let blended = mix(srcTexel.rgb, noiseColor, gradSource * noise_amount);
+        let blended = mix(srcTexel.rgb, noiseColor, gradSource * noise);
 
         return vec4<f32>(blended, srcTexel.a);
     } else {
         // Scanline error mode (default)
         let input_texel = textureLoad(inputTex, coord, 0);
 
-        let coord_norm = (vec2<f32>(coord) + 0.5) / dims;
+        let coord_norm = (vec2<f32>(globalGid) + 0.5) / dims;
         let freq_line = vec2<f32>(max(floor(width_f * 0.5), 1.0), max(floor(height_f * 0.5), 1.0));
         let swerve_height = max(floor(height_f * 0.01), 1.0);
         let freq_swerve = vec2<f32>(1.0, swerve_height);
@@ -324,13 +340,19 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
         let white_weighted = white_base * swerve_weight;
 
         let combined_error = clamp01(line_weighted + white_weighted);
-        let shift_amount = combined_error * width_f * 0.025 * distortion;
+        let fullWidth = select(width_f, fullResolution.x, fullResolution.x > 0.0);
+        let shift_amount = combined_error * fullWidth * 0.025 * distortion;
         let shift_pixels = i32(floor(shift_amount));
-        let sample_x = wrap_coord(coord.x - shift_pixels, width);
 
-        let texel = textureLoad(inputTex, vec2<i32>(sample_x, coord.y), 0);
+        let globalSampleX = f32(globalGid.x) - f32(shift_pixels);
+        let wrappedGlobalX = wrap_coord(i32(globalSampleX), i32(fullWidth));
+        var localSampleX = wrappedGlobalX - i32(tileOffset.x);
+        if (localSampleX < 0) { localSampleX = localSampleX + width; }
+        localSampleX = clamp(localSampleX, 0, width - 1);
 
-        let additive = clamp(line_weighted * white_weighted * 4.0 * noise_amount, 0.0, 4.0);
+        let texel = textureLoad(inputTex, vec2<i32>(localSampleX, coord.y), 0);
+
+        let additive = clamp(line_weighted * white_weighted * 4.0 * noise, 0.0, 4.0);
         let boosted = clamp(texel.rgb + vec3<f32>(additive), vec3<f32>(0.0), vec3<f32>(1.0));
 
         return vec4<f32>(boosted, texel.a);

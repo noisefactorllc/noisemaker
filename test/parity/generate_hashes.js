@@ -1,5 +1,4 @@
 import crypto from 'crypto'
-import { spawnSync } from 'node:child_process'
 import { setSeed, random, randomInt, choice } from '../../js/noisemaker/rng.js'
 import { setSeed as setValueSeed, valueNoise } from '../../js/noisemaker/value.js'
 import { basic, multires } from '../../js/noisemaker/generators.js'
@@ -151,19 +150,9 @@ async function composerParity() {
             height: 128,
             collectDebug: true,
         })
-        const python = spawnSync(
-            'python3',
-            ['-'],
-            {
-                input: `from noisemaker import rng\nfrom noisemaker.composer import Preset\nfrom noisemaker.presets import PRESETS\n\nrng.set_seed(1)\npreset = Preset(${JSON.stringify(name)}, PRESETS())\nprint(preset.render(1, shape=[128, 128, 3], debug=True)['rng_calls'])\n`,
-                encoding: 'utf8',
-            },
-        )
-        if (python.status !== 0) {
-            throw new Error(python.stderr || 'Failed to compute Python RNG calls')
-        }
-        const rng_calls = parseInt(python.stdout.trim(), 10)
-        out[name] = { effects: result.effects, rng_calls }
+        // Both fields come from the JavaScript render, so test_composer.py
+        // compares the Python execution graph with the JavaScript one.
+        out[name] = { effects: result.effects, rng_calls: result.rngCalls }
     }
     return out
 }

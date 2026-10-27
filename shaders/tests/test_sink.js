@@ -327,3 +327,41 @@ test('SinkManager terminal close forwards one loss descriptor to every sink', ()
 
     assert.deepEqual(received, [options, options])
 })
+
+test('SinkManager defers rendering only when an active sink asks with true', () => {
+    const manager = new SinkManager()
+    let backlog = false
+    manager.add({ configure() {}, submit() { return true }, close() {} })
+    const remove = manager.add({
+        configure() {},
+        submit() { return true },
+        close() {},
+        deferRender() { return backlog }
+    })
+    manager.add({ configure() {}, submit() { return true }, close() {}, deferRender() { return 1 } })
+
+    assert.equal(manager.shouldDeferRender(), false)
+    backlog = true
+    assert.equal(manager.shouldDeferRender(), true)
+    remove()
+    assert.equal(manager.shouldDeferRender(), false)
+    manager.add({ configure() {}, submit() { return true }, close() {}, deferRender() { return true } })
+    manager.close()
+    assert.equal(manager.shouldDeferRender(), false)
+})
+
+test('SinkManager reports a throwing deferRender and does not defer', () => {
+    const reported = []
+    const manager = new SinkManager({ onError: (error, sink) => reported.push([error.message, sink]) })
+    const sink = {
+        configure() {},
+        submit() { return true },
+        close() {},
+        deferRender() { throw new Error('backlog probe failed') }
+    }
+    manager.add(sink)
+
+    assert.equal(manager.shouldDeferRender(), false)
+    assert.deepEqual(reported, [['backlog probe failed', sink]])
+    assert.equal(manager.stats.get(sink).failed, 1)
+})

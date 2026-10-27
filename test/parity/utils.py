@@ -67,17 +67,22 @@ def js_generator(name: str, seed: int, **options) -> tuple[np.ndarray, int]:
     return tensor, payload.get("callCount", 0)
 
 
-def js_effect(name: str, seed: int) -> np.ndarray:
+def js_effect(name: str, seed: int, **options) -> np.ndarray:
     """Invoke the JavaScript implementation for an effect and return its tensor.
 
     The effect is applied to a basic generator output with hueRotation=0 to
-    mirror the Python parity tests. The returned array has shape
-    (128, 128, 3) and dtype float32.
+    mirror the Python parity tests. Keyword options take the Python parameter
+    names and go to the registered JavaScript effect of the same name. The
+    returned array has shape (128, 128, 3) and dtype float32.
     """
 
     script = Path(__file__).with_name("run_effects.js")
+    cmd = ["node", str(script), name, str(seed)]
+    if options:
+        encoded = base64.b64encode(json.dumps(options).encode()).decode()
+        cmd.append(encoded)
     result = subprocess.run(
-        ["node", str(script), name, str(seed)],
+        cmd,
         check=True,
         capture_output=True,
         text=True,
@@ -108,6 +113,30 @@ def js_voronoi(params: dict) -> np.ndarray:
     )
     data = base64.b64decode(result.stdout)
     return np.frombuffer(data, dtype="<f4").reshape(128, 128, 3)
+
+
+def js_render(name: str, seed: int, width: int, height: int, speed: float | None) -> np.ndarray:
+    """Render a whole preset with the JavaScript port at the given speed and
+    return its pixels. With ``speed`` None, the render gets no speed.
+
+    The returned array has the shape of the JavaScript tensor and dtype
+    float32.
+    """
+
+    script = Path(__file__).with_name("run_renders.js")
+    cmd = ["node", str(script), name, str(seed), str(width), str(height)]
+    if speed is not None:
+        cmd.append(str(speed))
+    result = subprocess.run(
+        cmd,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    payload = json.loads(result.stdout)
+    return np.frombuffer(
+        base64.b64decode(payload["tensor"]), dtype="<f4"
+    ).reshape(tuple(payload["shape"]))
 
 
 def js_preset_settings(name: str, seed: int) -> dict:

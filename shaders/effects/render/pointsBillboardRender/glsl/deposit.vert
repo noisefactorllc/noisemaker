@@ -1,28 +1,40 @@
 #version 300 es
 precision highp float;
+precision highp sampler2D;
 
 // Billboard Deposit Vertex Shader - Scatter agents as billboard quads
 
 uniform sampler2D xyzTex;
 uniform sampler2D rgbaTex;
+uniform sampler2D orderTex;
 uniform vec2 resolution;
 uniform float density;
 uniform float pointSize;
 uniform float sizeVariation;
 uniform float rotationVar;
 uniform float seed;
+uniform int shapeMode;
+const int blendMode = BLEND_MODE;
+const int blurLayer = BLUR_LAYER;
 
 // 3D viewport uniforms
-uniform int viewMode;
+const int viewMode = VIEW_MODE;
 uniform float rotateX;
 uniform float rotateY;
 uniform float rotateZ;
 uniform float viewScale;
 uniform float posX;
 uniform float posY;
+uniform float posZ;
+uniform float fieldOfView;
+uniform float sizeDistance;
+uniform float brightnessDistance;
+uniform float aperture;
+uniform float focalDistance;
 
 out vec4 vColor;
 out vec2 vSpriteUV;
+out float vBlurRadius;
 
 uint hash_uint(uint s) {
     uint state = s * 747796405u + 2891336453u;
@@ -35,6 +47,15 @@ float hash(float n) {
 }
 
 void main() {
+    vBlurRadius = 0.0;
+#if BLUR_LAYER == 1
+    if (aperture <= 0.0) {
+        gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
+        vColor = vec4(0.0);
+        vSpriteUV = vec2(0.0);
+        return;
+    }
+#endif
     // Each quad uses 6 vertices (2 triangles)
     int particleID = gl_VertexID / 6;
     int vertexInQuad = gl_VertexID % 6;
@@ -52,6 +73,10 @@ void main() {
         return;
     }
     
+    if (blendMode == 1 && viewMode != 0) {
+        particleID = int(texelFetch(orderTex, ivec2(particleID % stateSize, particleID / stateSize), 0).g);
+    }
+
     // Density-based culling
     float cullThreshold = density / 100.0;
     float particleRandom = fract(float(particleID) * 0.618033988749895);
@@ -80,6 +105,9 @@ void main() {
     
     // Calculate clip-space center position (same as pointsRender)
     vec2 clipPos;
+    float cameraDepth = 80.0;
+    float cameraDistance = 0.0;
+    float projectedScale = 1.0;
     
     if (viewMode == 0) {
         // 2D mode: positions are normalized 0..1
@@ -89,7 +117,7 @@ void main() {
         vec3 p = pos.xyz;
         
         // Detect if this is a 2D system (coords in 0-1) or 3D attractor (coords ±40)
-        bool is2DSystem = abs(p.z) < 1.0 && p.x >= 0.0 && p.x <= 1.0 && p.y >= 0.0 && p.y <= 1.0;
+        bool is2DSystem = viewMode == 1 && abs(p.z) < 1.0 && p.x >= 0.0 && p.x <= 1.0 && p.y >= 0.0 && p.y <= 1.0;
         
         if (is2DSystem) {
             p.xy = p.xy - 0.5;
@@ -114,9 +142,24 @@ void main() {
         // Apply X/Y offset after rotation
         p.x += posX;
         p.y += posY;
+        p.z += posZ;
+        cameraDepth = 80.0 - p.z;
+        cameraDistance = length(vec3(p.xy, cameraDepth));
         
         // Orthographic projection with scale
-        if (is2DSystem) {
+        if (viewMode == 2) {
+            // Camera looks down -Z from z=80. Reject the near plane before division.
+            if (cameraDepth <= 0.1) {
+                gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
+                vColor = vec4(0.0);
+                vSpriteUV = vec2(0.0);
+                return;
+            }
+            float focalLength = 1.0 / tan(clamp(fieldOfView, 10.0, 150.0) * 0.00872664626);
+            clipPos = p.xy * focalLength * viewScale / cameraDepth;
+            clipPos.x *= resolution.y / resolution.x;
+            projectedScale = 80.0 * focalLength * viewScale / (1.732050808 * cameraDepth);
+        } else if (is2DSystem) {
             clipPos = p.xy * 3.5 * viewScale;
         } else {
             clipPos = p.xy / 40.0 * viewScale;
@@ -126,7 +169,35 @@ void main() {
     // Per-particle size variation (seeded deterministic)
     float sizeNoise = hash(float(particleID));
     float sizeMultiplier = 1.0 - (sizeVariation / 100.0) * (sizeNoise - 0.5);
-    float finalSize = pointSize * sizeMultiplier;
+    float sizeFade = 1.0;
+    float brightnessFade = 1.0;
+    float blurPixels = 0.0;
+    if (viewMode != 0) {
+        if (sizeDistance > 0.0) sizeFade = 1.0 - smoothstep(0.0, sizeDistance, cameraDistance);
+        if (brightnessDistance > 0.0) brightnessFade = 1.0 - smoothstep(0.0, brightnessDistance, cameraDistance);
+        blurPixels = min(32.0, aperture * abs(cameraDepth - focalDistance) / max(abs(cameraDepth), 0.1));
+    }
+    float baseSize = pointSize * sizeMultiplier * projectedScale;
+    // Textured blur integrates nodes across the whole source square. A
+    // procedural footprint needs only its center's displacement as padding.
+    float blurRadius = blurPixels / max(baseSize, 0.001);
+    // Match the normalized fragment kernel's minimum support. Keep the
+    // requested radius for interpolation and resolution-layer selection.
+    float supportRadius = blurPixels > 0.0 ? max(blurRadius, 0.62582015) : 0.0;
+    float supportPixels = blurPixels > 0.0 ? max(blurPixels, baseSize * 0.62582015) : 0.0;
+    // Only broad, fully softened additive footprints can use the smaller
+    // target. Complementary weights prevent a focus transition from popping.
+    float lowWeight = blendMode == 0 ? smoothstep(4.0, 8.0, blurPixels * sizeFade) * smoothstep(0.5, 1.0, blurRadius) : 0.0;
+    float layerWeight = blurLayer == 1 ? lowWeight : 1.0 - lowWeight;
+    float blurPadding = blurPixels > 0.0 ? (shapeMode == 0 ? 0.5 : (shapeMode == 5 ? 0.04 : 0.0)) : 0.0;
+    float finalSize = (baseSize * (1.0 + 2.0 * blurPadding) + 2.0 * supportPixels) * sizeFade;
+    if (finalSize <= 0.0 || brightnessFade <= 0.0 || layerWeight <= 0.0) {
+        gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
+        vColor = vec4(0.0);
+        vSpriteUV = vec2(0.0);
+        return;
+    }
+    vBlurRadius = blurRadius;
     
     // Per-particle rotation (seeded deterministic)
     float rotationNoise = hash(float(particleID) + 1234.5);
@@ -161,8 +232,8 @@ void main() {
     vec2 finalPos = clipPos + rotatedOffset * sizeClip;
     
     gl_Position = vec4(finalPos, 0.0, 1.0);
-    vColor = vec4(col.rgb, col.a);
+    vColor = col * brightnessFade * layerWeight;
     
     // Sprite UV coordinates (0-1 range)
-    vSpriteUV = offset * 0.5 + 0.5;
+    vSpriteUV = offset * (0.5 + blurPadding + supportRadius) + 0.5;
 }

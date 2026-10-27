@@ -1,9 +1,9 @@
 Demo UI
 =======
 
-The Noisemaker Shader Demo is an interactive browser-based playground for exploring GPU shader effects. It provides real-time rendering with live parameter controls, a DSL code editor, and support for both WebGL 2 and WebGPU backends.
+The Noisemaker Shader Demo lets you explore GPU shader effects in the browser. It renders in real time with live parameter controls and a DSL code editor. It supports both WebGL 2 and WebGPU backends.
 
-A hosted demo can be viewed at https://noisemaker.app/demo/shaders/
+View the hosted demo at https://noisemaker.app/demo/shaders/
 
 What the Demo Does
 ------------------
@@ -38,14 +38,16 @@ Quick Start
    <html>
    <head>
        <script type="module">
-           import { CanvasRenderer, UIController } from './lib/demo-ui.js';
+           import { CanvasRenderer } from '../../shaders/src/renderer/canvas.js';
 
            const canvas = document.getElementById('canvas');
            const renderer = new CanvasRenderer({
                canvas,
                width: 512,
                height: 512,
-               basePath: '../../shaders'
+               // Absolute URL: the manifest is fetched relative to the page,
+               // but definitions are imported relative to canvas.js
+               basePath: new URL('../../shaders', import.meta.url).href
            });
 
            await renderer.loadManifest();
@@ -75,7 +77,7 @@ The core rendering engine that manages the GPU pipeline:
        canvas: HTMLCanvasElement,     // Target canvas
        width: 1024,                   // Render resolution
        height: 1024,
-       basePath: '../../shaders',     // Path to shader assets
+       basePath: new URL('./shaders', import.meta.url).href,  // Absolute URL of shaders/
        preferWebGPU: false,           // Use WebGPU if available
        useBundles: false,             // Use pre-built effect bundles
        bundlePath: '../../dist/effects',
@@ -90,10 +92,9 @@ The core rendering engine that manages the GPU pipeline:
 
    renderer.start();
 
-   // Control playback
-   renderer.pause();
-   renderer.resume();
+   // Control playback: stop() ends the render loop, start() runs it again
    renderer.stop();
+   renderer.start();
 
 UIController
 ~~~~~~~~~~~~
@@ -114,8 +115,11 @@ Manages the demo UI — effect selection, controls, DSL editing:
        onRequestRecompile: () => { /* handle recompile requests */ }
    });
 
-   // Load an effect
-   await ui.loadEffect('synth/noise');
+   // Load an effect through the renderer, show its program, build its controls
+   const effect = await renderer.loadEffect('synth/noise');
+   ui.setDsl(ui.buildDslSource(effect));
+   await renderer.compile(ui.getDsl());
+   ui.loadDslAndCreateControls(ui.getDsl());
 
    // Get current DSL
    const dsl = ui.getDsl();
@@ -123,7 +127,7 @@ Manages the demo UI — effect selection, controls, DSL editing:
 DSL Language
 ~~~~~~~~~~~~
 
-Effects are composed using a chainable DSL:
+Compose effects using a chainable DSL:
 
 .. code-block:: text
 
@@ -134,9 +138,9 @@ Effects are composed using a chainable DSL:
 
    // Chained effects
    search synth, filter
-   noise(octaves: 4, scale: 2.0)
+   noise(octaves: 4, scaleX: 50, scaleY: 50)
      .posterize(levels: 8)
-     .bloom(radius: 0.5)
+     .bloom(radius: 16)
      .write(o0)
    render(o0)
 
@@ -144,15 +148,15 @@ Effects are composed using a chainable DSL:
    search synth, mixer
    noise().write(o0)
    noise(seed: 42).write(o1)
-   blend(tex: read(o1), amount: 0.5).write(o0)
-   render(o0)
+   read(o0).blendMode(tex: read(o1), mode: mix).write(o2)
+   render(o2)
 
 See :doc:`language` for full DSL specification.
 
 Bundling for Distribution
 -------------------------
 
-For production deployments, shader effects can be bundled into standalone JavaScript modules.
+You can bundle shader effects into standalone JavaScript modules for production deployments.
 
 Building Bundles
 ~~~~~~~~~~~~~~~~
@@ -174,12 +178,14 @@ Using Bundles
 
    import { CanvasRenderer, UIController } from './noisemaker-shaders-core.esm.js';
 
+   // This page sits next to the core module in dist/shaders/.
    const renderer = new CanvasRenderer({
        canvas,
        width: 512,
        height: 512,
+       basePath: '.',              // fetch(): ./effects/manifest.json, relative to the page
        useBundles: true,
-       bundlePath: './effects'
+       bundlePath: '../effects'    // import(): dist/effects/, relative to the engine module
    });
 
    await renderer.loadManifest();
@@ -192,14 +198,14 @@ URL Parameters
 
 The demo supports URL parameters for deep linking:
 
-- ``?effect=synth/noise`` — Load specific effect
-- ``?backend=webgpu`` — Select rendering backend
+- ``?effect=synth.noise`` — Load specific effect. Write ``namespace.name`` with a dot. Other forms, such as ``synth/noise``, are ignored.
+- ``?backend=wgsl`` — Select rendering backend: ``wgsl`` for WebGPU or ``glsl`` for WebGL 2. Other values, such as ``webgpu``, are ignored.
 - ``?bundles=1`` — Use pre-built effect bundles
 
 Pluggable Controls
 ------------------
 
-The UI system is designed to be **pluggable** — downstream projects can substitute custom web components for the default HTML elements.
+Downstream projects can substitute custom web components for the default HTML elements.
 
 Overview
 ~~~~~~~~
@@ -219,7 +225,7 @@ Architecture
 Control Handle Interface
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Each control is represented by a **ControlHandle** object:
+A **ControlHandle** object represents each control:
 
 .. code-block:: javascript
 
@@ -229,7 +235,7 @@ Each control is represented by a **ControlHandle** object:
        setValue: (value) => void // Set display value
    }
 
-The ``UIController`` stores these handles on control group elements (``controlGroup._controlHandle``) so that ``checkStructureAndApplyState()`` can update controls without knowing their implementation details.
+The ``UIController`` stores these handles on control group elements (``controlGroup._controlHandle``). The ``checkStructureAndApplyState()`` method uses them to update controls without knowing their implementation details.
 
 Control Factory
 ~~~~~~~~~~~~~~~
@@ -324,11 +330,11 @@ Downstream projects can provide custom control implementations by extending ``Co
 ProgramState
 ------------
 
-``ProgramState`` is a decoupled state management layer that sits between the UI and the renderer. It provides:
+``ProgramState`` manages state independently between the UI and the renderer. It provides:
 
 - **Centralized state access** via ``getValue()``/``setValue()``
 - **Event-driven updates** - emits ``change``, ``structurechange``, ``reset`` events
-- **Batching** - multiple changes can be batched to emit a single event
+- **Batching** - combines multiple changes into a single event
 - **Serialization** - ``serialize()``/``deserialize()`` for undo/redo and persistence
 - **Media metadata** - stores metadata about media and text inputs
 
@@ -378,26 +384,26 @@ When a control value changes:
 1. The control's ``change`` event fires
 2. ``programState.setValue()`` updates the state
 3. ``_updateDslFromEffectParams()`` regenerates the DSL text
-4. The DSL editor is updated
+4. The UI updates the DSL editor
 
 DSL → Controls
 ~~~~~~~~~~~~~~
 
 When DSL text changes (e.g., user edits the text):
 
-1. ``checkStructureAndApplyState(dsl)`` is called
+1. The UI calls ``checkStructureAndApplyState(dsl)``
 2. For each parameter, the method finds the control group
-3. If ``controlGroup._controlHandle.setValue`` exists, it's called
-4. Otherwise, falls back to native element queries (backward compatibility)
+3. If ``controlGroup._controlHandle.setValue`` exists, the method calls it
+4. Otherwise, the method queries native elements for backward compatibility
 
-This design ensures that custom web components are updated correctly when DSL text changes, solving the common problem where custom dropdowns don't sync from DSL edits.
+This design updates custom web components when DSL text changes. Custom dropdowns therefore stay synchronized with DSL edits.
 
 Module Controls Reset Hook
 --------------------------
 
-When a module's "reset" button is clicked, the UIController rebuilds that module's controls from scratch. Downstream projects that apply custom UI transformations (e.g., rearranging mixer A/B sliders into a special layout) need to re-apply those transformations after the rebuild.
+When you click a module's "reset" button, the UIController rebuilds that module's controls. Downstream projects need to repeat any custom UI transformations after the rebuild. These transformations can include a custom layout for mixer A/B sliders.
 
-The ``onModuleControlsReset`` callback fires after a module's controls are rebuilt:
+The ``onModuleControlsReset`` callback fires after the UIController rebuilds a module's controls:
 
 .. code-block:: javascript
 
@@ -466,7 +472,6 @@ The ``demo-ui.js`` module exports:
        // Utilities
        camelToSpaceCase,
        formatEnumName,
-       formatValue,
        extractEffectsFromDsl,
 
        // Re-exported from canvas.js
@@ -531,4 +536,4 @@ With this setup:
 1. Controls render using ``<select-dropdown>`` instead of ``<select>``
 2. User interactions update the DSL text correctly
 3. DSL text edits update the dropdown via ``setValue()``
-4. No need to override ``checkStructureAndApplyState()`` or other internal methods
+4. You do not need to override ``checkStructureAndApplyState()`` or other internal methods

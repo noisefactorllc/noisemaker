@@ -1,7 +1,7 @@
 Noisemaker CLI
 ==============
 
-The ``noisemaker`` command-line interface provides tools for generating procedural art, creating animations, and applying effects to images using `Composer Presets <composer.html>`_.
+The ``noisemaker`` command-line interface uses `Composer Presets <composer.html>`_ to generate procedural art, create animations, and apply effects to images.
 
 Overview
 --------
@@ -13,6 +13,33 @@ The CLI includes five main commands:
 - ``apply`` - Apply an effect preset to an existing image
 - ``mashup`` - Blend multiple images together
 - ``magic-mashup`` - Create animated collages from directories of frames
+
+.. _cli-install:
+
+Installation
+------------
+
+The ``noisemaker`` command is part of the Noisemaker Python package. Install the package from a clone of the repository.
+
+Use Python 3.11, 3.12 or 3.13. CI tests these three versions, and ``pyproject.toml`` sets ``requires-python = ">=3.11,<3.14"``. The Docker image uses Python 3.13.
+
+To install the package, run these commands:
+
+.. code-block:: bash
+
+    git clone https://github.com/noisefactorllc/noisemaker.git
+    cd noisemaker
+    python3.12 -m venv venv
+    source venv/bin/activate
+    pip install .
+
+These commands use Python 3.12. For Python 3.11 or 3.13, change ``python3.12`` to ``python3.11`` or ``python3.13``.
+
+The ``pip install .`` command installs TensorFlow and the other dependencies. It also installs the ``noisemaker`` and ``mood`` commands. To make sure that the installation is correct, run ``noisemaker --help``.
+
+The ``animate`` and ``magic-mashup`` commands use ``ffmpeg`` to write MP4 and GIF files. ``pip`` does not install ``ffmpeg``. Install ``ffmpeg`` with the package manager of your operating system. Make sure that the ``ffmpeg`` command is on your ``PATH``. If ``ffmpeg`` is not on your ``PATH``, these commands render all frames and then stop with an error.
+
+The Docker image includes ``ffmpeg``. To use the CLI in a container, see the `Docker guide <https://github.com/noisefactorllc/noisemaker/blob/main/README-DOCKER.md>`_.
 
 Quick Start
 -----------
@@ -86,19 +113,19 @@ Generate a .png or .jpg image from a preset.
 .. code-block:: bash
 
     # Generate a basic image with custom dimensions
-    noisemaker generate multires --width 2048 --height 2048 -o noise.png
+    noisemaker generate multires --width 2048 --height 2048 --filename noise.png
 
     # Generate with a specific seed for reproducibility
-    noisemaker generate acid --seed 12345 -o acid.png
+    noisemaker generate acid --seed 12345 --filename acid.png
 
     # Generate with anti-aliasing
-    noisemaker generate voronoi --with-fxaa -o smooth.png
+    noisemaker generate voronoi --with-fxaa --filename smooth.png
 
     # Generate and apply AI upscaling
-    noisemaker generate fractal-smoke --with-upscale -o hires.png
+    noisemaker generate fractal-smoke --with-upscale --filename hires.png
 
     # Use a custom presets file
-    noisemaker generate my-preset --presets ~/my-presets.dsl -o custom.png
+    noisemaker generate my-preset --presets ~/my-presets.dsl --filename custom.png
 
 animate
 ~~~~~~~
@@ -126,9 +153,9 @@ Generate an animation (MP4 or GIF) from a preset.
 **Advanced Options:**
 
 - ``--save-frames PATH`` - Directory to save individual frames
-- ``--watermark TEXT`` - Add watermark text to frames
+- ``--watermark TEXT`` - Add watermark text to frames. It needs the font file ``Nunito-VariableFont_wght.ttf`` in ``$NOISEMAKER_DIR/fonts``, or in ``~/.noisemaker/fonts`` when ``NOISEMAKER_DIR`` is not set.
 - ``--preview-filename PATH`` - Save a preview image
-- ``--target-duration FLOAT`` - Stretch output to specified duration (seconds) using motion-compensated interpolation
+- ``--target-duration FLOAT`` - Stretch MP4 output to the specified duration (seconds) using motion-compensated interpolation
 
 **Quality Options:**
 
@@ -141,16 +168,36 @@ Generate an animation (MP4 or GIF) from a preset.
 .. code-block:: bash
 
     # Create a basic animation
-    noisemaker animate acid --frame-count 100 -o acid-loop.mp4
+    noisemaker animate acid --frame-count 100 --filename acid-loop.mp4
 
     # Create animation with effect applied
-    noisemaker animate voronoi --effect-preset glitchin-out -o glitchy.mp4
+    noisemaker animate voronoi --effect-preset glitchin-out --filename glitchy.mp4
 
     # Save individual frames
-    noisemaker animate multires --save-frames ./frames/ -o anim.mp4
+    mkdir -p frames
+    noisemaker animate multires --save-frames ./frames/ --filename anim.mp4
 
     # Create animation with specific duration
-    noisemaker animate timeworms --target-duration 5.0 -o timed.mp4
+    noisemaker animate timeworms --target-duration 5.0 --filename timed.mp4
+
+Strobe safety verdict
+^^^^^^^^^^^^^^^^^^^^^
+
+After rendering, ``animate`` prints a machine-readable
+``strobe-warning: yes`` or ``strobe-warning: no`` line. Before adding any watermark, the command checks an 8×8 sampling grid against
+the WCAG general flash threshold. The ``yes`` verdict means that more than
+three flashes occur in a one-second window in either measurement:
+
+- The whole-frame mean
+- At least one quarter of the sampled grid cells
+
+The command still writes the animation. Callers can use the verdict to add a
+photosensitivity warning or hold the output for review.
+
+When ``--target-duration`` is set, the detector uses
+``frame-count / target-duration`` as the playback rate. MP4 encoding applies
+the same requested timing. GIF encoding does not. For a verdict that reflects
+actual GIF playback, omit ``--target-duration``.
 
 apply
 ~~~~~
@@ -185,19 +232,19 @@ Apply an effect preset to an existing .png or .jpg image.
 .. code-block:: bash
 
     # Apply a glitch effect
-    noisemaker apply glitchin-out photo.jpg -o glitched.jpg
+    noisemaker apply glitchin-out photo.jpg --filename glitched.jpg
 
     # Apply effect without resizing
-    noisemaker apply vignette-dark image.png --no-resize -o output.png
+    noisemaker apply vignette-dark image.png --no-resize --filename output.png
 
     # Apply with anti-aliasing
-    noisemaker apply bloom input.jpg --with-fxaa -o bloomed.jpg
+    noisemaker apply bloom input.jpg --with-fxaa --filename bloomed.jpg
 
     # Apply time-based effect
-    noisemaker apply worms photo.png --time 0.5 -o warped.png
+    noisemaker apply worms photo.png --time 0.5 --filename warped.png
 
     # Use a custom presets file
-    noisemaker apply my-effect photo.jpg --presets ~/my-presets.dsl -o custom.png
+    noisemaker apply my-effect photo.jpg --presets ~/my-presets.dsl --filename custom.png
 
 mashup
 ~~~~~~
@@ -225,10 +272,10 @@ Blend multiple images from a directory into a single composite.
 .. code-block:: bash
 
     # Blend all images in a directory
-    noisemaker mashup --input-dir ./images/ -o combined.png
+    noisemaker mashup --input-dir ./images/ --filename combined.png
 
     # Blend with control image
-    noisemaker mashup --input-dir ./photos/ --control-filename mask.png -o blend.png
+    noisemaker mashup --input-dir ./photos/ --control-filename mask.png --filename blend.png
 
 magic-mashup
 ~~~~~~~~~~~~
@@ -243,6 +290,11 @@ Create an animated collage from multiple directories of image sequences.
 
 - ``--input-dir DIRECTORY`` - Directory containing subdirectories of frames
 
+The input directory must contain at least four usable subdirectories. A usable
+subdirectory contains at least ``--frame-count`` PNG files. Shorter directories
+and non-PNG files do not count. The command exits with an error when fewer than
+four usable subdirectories remain.
+
 **Common Options:**
 
 - ``--width INTEGER`` - Output width in pixels (default: 512)
@@ -255,24 +307,28 @@ Create an animated collage from multiple directories of image sequences.
 **Advanced Options:**
 
 - ``--save-frames PATH`` - Directory to save individual frames
-- ``--watermark TEXT`` - Add watermark text
+- ``--watermark TEXT`` - Add watermark text. It needs the font file ``Nunito-VariableFont_wght.ttf`` in ``$NOISEMAKER_DIR/fonts``, or in ``~/.noisemaker/fonts`` when ``NOISEMAKER_DIR`` is not set.
 - ``--preview-filename PATH`` - Save a preview image
-- ``--target-duration FLOAT`` - Stretch output to specified duration (seconds)
+- ``--target-duration FLOAT`` - Stretch MP4 output to the specified duration (seconds)
+
+Like ``animate``, this command prints a ``strobe-warning: yes|no`` verdict
+after it scores the rendered frames against the WCAG general flash
+threshold described above.
 
 **Examples:**
 
 .. code-block:: bash
 
     # Create collage animation
-    noisemaker magic-mashup --input-dir ./sequences/ -o collage.mp4
+    noisemaker magic-mashup --input-dir ./sequences/ --filename collage.mp4
 
     # Create collage with effect
-    noisemaker magic-mashup --input-dir ./frames/ --effect-preset vortex -o magic.mp4
+    noisemaker magic-mashup --input-dir ./frames/ --effect-preset vortex --filename magic.mp4
 
 Working with Presets
 --------------------
 
-Presets are predefined combinations of layers, effects, and settings. They are defined in ``share/dsl/presets.dsl``.
+Presets are predefined combinations of layers, effects, and settings. The ``share/dsl/presets.dsl`` file defines them.
 
 Common generator presets include:
 
@@ -304,8 +360,8 @@ Use ``--seed`` to generate reproducible results:
 
 .. code-block:: bash
 
-    noisemaker generate acid --seed 42 -o output1.png
-    noisemaker generate acid --seed 42 -o output2.png
+    noisemaker generate acid --seed 42 --filename output1.png
+    noisemaker generate acid --seed 42 --filename output2.png
     # output1.png and output2.png will be identical
 
 **Performance:**
@@ -326,20 +382,23 @@ Use ``--debug-print`` to see what settings a preset uses:
 
 .. code-block:: bash
 
-    noisemaker generate acid --debug-print -o test.png
+    noisemaker generate acid --debug-print --filename test.png
 
 API Keys
 --------
 
-Some features require API keys set as environment variables:
+Some features require API keys. The CLI reads each key from a file in the Noisemaker directory:
 
-- **Stability AI** (for ``--with-upscale``): Set ``STABILITY_API_KEY``
-- **OpenAI** (for ``--with-alt-text``): Set ``OPENAI_API_KEY``
+- **Stability AI** (for ``--with-upscale``): ``$NOISEMAKER_DIR/.creds/.stability``
+- **OpenAI** (for ``--with-alt-text``): ``$NOISEMAKER_DIR/.creds/.openai``
+
+The Noisemaker directory is the value of the ``NOISEMAKER_DIR`` environment variable, or ``~/.noisemaker`` when that variable is not set. Each file contains only the key.
 
 .. code-block:: bash
 
-    export STABILITY_API_KEY="your-key-here"
-    export OPENAI_API_KEY="your-key-here"
+    mkdir -p ~/.noisemaker/.creds
+    echo "your-key-here" > ~/.noisemaker/.creds/.stability
+    echo "your-key-here" > ~/.noisemaker/.creds/.openai
 
 Complete Command Reference
 ---------------------------

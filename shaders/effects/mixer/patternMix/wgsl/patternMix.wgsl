@@ -7,6 +7,9 @@
 @group(0) @binding(6) var<uniform> smoothness : f32;
 @group(0) @binding(7) var<uniform> rotation : f32;
 @group(0) @binding(8) var<uniform> invert : i32;
+@group(0) @binding(9) var<uniform> tileOffset : vec2<f32>;
+@group(0) @binding(10) var<uniform> fullResolution : vec2<f32>;
+@group(0) @binding(11) var<uniform> resolution : vec2<f32>;
 
 const PI: f32 = 3.14159265359;
 const SQRT3: f32 = 1.7320508075688772;
@@ -39,7 +42,7 @@ fn checkerboard(p: vec2<f32>, sm: f32) -> f32 {
     let f = fract(p);
     let d = min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y));
     let cell = floor(p);
-    let check = ((cell.x + cell.y) % 2.0 + 2.0) % 2.0;
+    let check = (cell.x + cell.y) - 2.0 * floor((cell.x + cell.y) / 2.0);
     let edge = smoothstep(0.0, sm * 0.5, d);
     return mix(1.0 - check, check, edge);
 }
@@ -132,9 +135,11 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let colorA = textureSample(inputTex, samp, st);
     let colorB = textureSample(tex, samp, st);
 
-    // Center and aspect-correct
-    let aspect = dims.x / dims.y;
-    var p = (st - vec2<f32>(0.5, 0.5)) * 2.0;
+    // Center and aspect-correct using full image coordinates
+    let fullRes = select(resolution, fullResolution, fullResolution.x > 0.0);
+    let aspect = fullRes.x / fullRes.y;
+    let globalUV = (position.xy + tileOffset) / fullRes;
+    var p = (globalUV - vec2<f32>(0.5, 0.5)) * 2.0;
     p.x = p.x * aspect;
 
     // Apply rotation

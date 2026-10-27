@@ -49,17 +49,20 @@ export default new Effect({
         "control": "dropdown"
       }
     },
+    // Neither shader reads a color mode: the volume is always grayscale. The
+    // dead control is gone from the UI; the argument is still accepted (and
+    // ignored) so saved programs that set it and positional arguments after
+    // it keep compiling.
     colorMode: {
       type: "int",
       default: 0,
-      uniform: "colorMode",
       choices: {
         "mono": 0,
         "rgb": 1
       },
       ui: {
         label: "color mode",
-        control: "dropdown"
+        control: false
       }
     },
     loopAOffset: {

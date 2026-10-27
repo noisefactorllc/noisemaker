@@ -32,8 +32,15 @@ export default new Effect({
 
   description: "Strange attractors: chaotic dynamic systems visualization",
 
-  // No local textures - we use shared global_xyz/vel/rgba textures
-  textures: {},
+  // global_xyz/vel/rgba are shared from pointsEmit. global_attractor_base_color
+  // keeps each agent's own color while a diffuse map recolors it.
+  textures: {
+    global_attractor_base_color: {
+      width: { param: 'stateSize', inherit: true, default: 256 },
+      height: { param: 'stateSize', inherit: true, default: 256 },
+      format: "rgba8"
+    }
+  },
 
   // Expose outputs to pipeline for downstream effects
   outputXyz: "global_xyz",
@@ -41,6 +48,10 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    diffuseTex: {
+      type: "surface", default: "none", colorModeUniform: "diffuseActive",
+      ui: { label: "diffuse map", category: "general" }
+    },
     // stateSize parameter for texture sizing (must match pointsEmit)
     stateSize: {
       type: "int",
@@ -96,14 +107,17 @@ export default new Effect({
     {
       name: "agent",
       program: "agent",
-      drawBuffers: 3,
+      drawBuffers: 4,
       inputs: {
         // Read from shared global textures
         xyzTex: "global_xyz",
         velTex: "global_vel",
-        rgbaTex: "global_rgba"
+        rgbaTex: "global_rgba",
+        diffuseTex: "diffuseTex",
+        baseColorTex: "global_attractor_base_color"
       },
       uniforms: {
+        diffuseActive: "diffuseActive",
         attractor: "attractor",
         speed: "speed"
       },
@@ -111,7 +125,8 @@ export default new Effect({
         // Write to shared global textures (ping-pong for next frame)
         outXYZ: "global_xyz",
         outVel: "global_vel",
-        outRGBA: "global_rgba"
+        outRGBA: "global_rgba",
+        outBaseColor: "global_attractor_base_color"
       }
     },
 

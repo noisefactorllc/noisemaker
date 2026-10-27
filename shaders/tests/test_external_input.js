@@ -5,7 +5,8 @@
  * that provide real-time input state for midi() and audio() functions.
  */
 
-import { MidiState, MidiChannelState, MidiInputManager, AudioState } from '../src/runtime/external-input.js'
+import { MidiState, MidiChannelState, MidiInputManager, AudioInputManager, AudioState } from '../src/runtime/external-input.js'
+import { Pipeline } from '../src/runtime/pipeline.js'
 
 let passCount = 0
 let failCount = 0
@@ -51,6 +52,24 @@ function assertApprox(actual, expected, tolerance = 0.001, message) {
         throw new Error(`${message || 'Assertion failed'}: expected ~${expected}, got ${actual}`)
     }
 }
+
+test('AudioState reuses its analyser frequency buffer between frames', () => {
+    const audio = new AudioState({ deviceRegistry: false })
+    const buffers = []
+    const analyser = {
+        frequencyBinCount: 128,
+        getByteFrequencyData(buffer) {
+            buffers.push(buffer)
+            buffer.fill(0)
+        }
+    }
+
+    audio.updateFromAnalyser(analyser)
+    audio.updateFromAnalyser(analyser)
+
+    assertEqual(buffers.length, 2, 'both frames should be analyzed')
+    assert(buffers[0] === buffers[1], 'unchanged FFT size should reuse one typed array')
+})
 
 // ============================================================================
 // MidiChannelState Tests
@@ -521,6 +540,217 @@ await asyncTest('stale port-open rejection cannot disconnect a newer generation'
     }
 })
 
+await asyncTest('a stale hot-plug open cannot resurrect a disconnected port', async () => {
+    let resolveOpen
+    const openPromise = new Promise(resolve => { resolveOpen = resolve })
+    const input = {
+        id: 'slow-hotplug-port',
+        name: 'Slow Hotplug Controller',
+        type: 'input',
+        state: 'connected',
+        connection: 'closed',
+        onmidimessage: null,
+        open: () => openPromise
+    }
+    const access = { inputs: new Map(), outputs: new Map(), onstatechange: null }
+    const previousNavigator = globalThis.navigator
+    Object.defineProperty(globalThis, 'navigator', {
+        configurable: true,
+        value: { requestMIDIAccess: async () => access }
+    })
+
+    try {
+        const manager = new MidiInputManager({ setMidiState: () => new MidiState() })
+        assertEqual(await manager.enable(), true, 'manager should enable without initial ports')
+
+        access.inputs.set(input.id, input)
+        const connecting = access.onstatechange({ port: input })
+        await Promise.resolve()
+
+        input.state = 'disconnected'
+        access.inputs.delete(input.id)
+        await access.onstatechange({ port: input })
+        resolveOpen(input)
+        await connecting
+
+        assertEqual(manager.getStatus().state, 'disconnected',
+            'stale open completion must not overwrite disconnected status')
+        assertEqual(manager.getPorts().length, 1,
+            'physical inventory should retain the encountered input')
+        assertEqual(manager.getPorts()[0].connected, false,
+            'stale open completion must not reconnect the physical inventory entry')
+        assertEqual(input.onmidimessage, null,
+            'stale open completion must not restore the message listener')
+    } finally {
+        Object.defineProperty(globalThis, 'navigator', {
+            configurable: true,
+            value: previousNavigator
+        })
+    }
+})
+
+await asyncTest('MIDI physical inventory keeps failed-open duplicate names ambiguous', async () => {
+    const a = { id: 'twin-a', name: 'Twin', type: 'input', state: 'connected', connection: 'closed',
+        onmidimessage: null, async open() { this.connection = 'open'; return this } }
+    const b = { id: 'twin-b', name: 'Twin', type: 'input', state: 'connected', connection: 'closed',
+        onmidimessage: null, async open() { throw new Error('busy') } }
+    const access = { inputs: new Map([[a.id, a], [b.id, b]]), onstatechange: null }
+    const previousNavigator = globalThis.navigator
+    Object.defineProperty(globalThis, 'navigator', { configurable: true,
+        value: { requestMIDIAccess: async () => access } })
+    const midi = new MidiState()
+    const manager = new MidiInputManager({ setMidiState: () => midi })
+    try {
+        let inventoryEvents = 0
+        manager.onPortsChange(() => { inventoryEvents++ })
+        assertEqual(await manager.enable(), true, 'access succeeds despite one failed open')
+        const beforeMessages = inventoryEvents
+        a.onmidimessage({ data: new Uint8Array([0xb0, 74, 127]) })
+        assert(midi.getPortState({ name: 'Twin' }) === null, 'physical duplicate remains ambiguous')
+        assertEqual(midi.getPortState({ id: a.id }).getChannel(1).cc[74], 127, 'available exact input works')
+        assertEqual(midi.getPortState({ id: b.id }), null, 'failed exact input stays inert')
+        const pipeline = new Pipeline(null, null)
+        pipeline.setMidiState(midi)
+        assertEqual(pipeline.resolveUniformValue({ type: 'Midi', mode: 8, channel: 1,
+            name: b.name, id: b.id, min: 0.2, max: 1 }, 0), 0.2,
+        'failed-open bend must not expose initialized center as a live value')
+        assertEqual(manager.getPorts().filter(port => port.connected).length, 2, 'inventory includes inaccessible physical input')
+        assertEqual(inventoryEvents, beforeMessages, 'messages do not publish inventory')
+    } finally {
+        manager.disable()
+        Object.defineProperty(globalThis, 'navigator', { configurable: true, value: previousNavigator })
+    }
+})
+
+await asyncTest('MIDI disconnect during startup clears state before another input finishes opening', async () => {
+    let releaseOpen
+    let signalOpening
+    const opening = new Promise(resolve => { signalOpening = resolve })
+    const a = { id: 'ready-a', name: 'Ready', type: 'input', state: 'connected', connection: 'closed',
+        onmidimessage: null, async open() { this.connection = 'open'; return this } }
+    const b = { id: 'pending-b', name: 'Pending', type: 'input', state: 'connected', connection: 'closed',
+        onmidimessage: null, open() {
+            signalOpening()
+            return new Promise(resolve => { releaseOpen = () => { this.connection = 'open'; resolve(this) } })
+        } }
+    const access = { inputs: new Map([[a.id, a], [b.id, b]]), onstatechange: null }
+    const previousNavigator = globalThis.navigator
+    Object.defineProperty(globalThis, 'navigator', { configurable: true,
+        value: { requestMIDIAccess: async () => access } })
+    const midi = new MidiState()
+    const manager = new MidiInputManager({ setMidiState: () => midi })
+    let enabling
+    try {
+        enabling = manager.enable()
+        await opening
+        const pipeline = new Pipeline(null, null)
+        pipeline.setMidiState(midi)
+        assertEqual(pipeline.resolveUniformValue({ type: 'Midi', mode: 8, channel: 1,
+            name: b.name, id: b.id, min: 0.2, max: 1 }, 0), 0.2,
+        'pending bend must remain inert')
+        const staleHandler = a.onmidimessage
+        staleHandler({ data: new Uint8Array([0xb0, 74, 127]) })
+        a.state = 'disconnected'
+        access.inputs.delete(a.id)
+        assert(typeof access.onstatechange === 'function', 'lifecycle listener must exist before opens complete')
+        await access.onstatechange({ port: a })
+        assertEqual(a.onmidimessage, null, 'disconnect detaches handler immediately')
+        assertEqual(midi.getPortState({ id: a.id }), null, 'disconnect invalidates exact source immediately')
+        assertEqual(midi.getChannel(1).cc[74], 0, 'disconnect clears aggregate origin immediately')
+        staleHandler({ data: new Uint8Array([0xb0, 74, 127]) })
+        assertEqual(midi.getPortState({ id: a.id }), null, 'queued stale callback cannot resurrect input')
+        releaseOpen()
+        assertEqual(await enabling, true, 'remaining input can finish enabling')
+        assertEqual(midi.getPortState({ id: a.id }), null, 'final startup reconciliation preserves disconnect')
+        assertEqual(midi.getChannel(1).cc[74], 0, 'final startup has no stale signal')
+    } finally {
+        releaseOpen?.()
+        manager.disable()
+        await enabling
+        Object.defineProperty(globalThis, 'navigator', { configurable: true, value: previousNavigator })
+    }
+})
+
+await asyncTest('MIDI startup tracks hot-plug inputs and disable cleans objects removed from access', async () => {
+    let releaseOpen
+    let signalOpening
+    const opening = new Promise(resolve => { signalOpening = resolve })
+    const initial = { id: 'initial', name: 'Initial', type: 'input', state: 'connected', connection: 'closed',
+        onmidimessage: null, open() {
+            signalOpening()
+            return new Promise(resolve => { releaseOpen = () => resolve(this) })
+        } }
+    const added = { id: 'added', name: 'Added', type: 'input', state: 'connected', connection: 'closed',
+        onmidimessage: null, async open() { this.connection = 'open'; return this } }
+    const access = { inputs: new Map([[initial.id, initial]]), onstatechange: null }
+    const previousNavigator = globalThis.navigator
+    Object.defineProperty(globalThis, 'navigator', { configurable: true,
+        value: { requestMIDIAccess: async () => access } })
+    const midi = new MidiState()
+    const manager = new MidiInputManager({ setMidiState: () => midi })
+    let enabling
+    try {
+        enabling = manager.enable()
+        await opening
+        access.inputs.set(added.id, added)
+        assert(typeof access.onstatechange === 'function', 'startup must observe hot-plug events')
+        await access.onstatechange({ port: added })
+        const staleHandler = added.onmidimessage
+        staleHandler({ data: new Uint8Array([0xd0, 127]) })
+        access.inputs.delete(added.id)
+        manager.disable()
+        assertEqual(added.onmidimessage, null, 'disable detaches known objects missing from access map')
+        assertEqual(midi.getPortState({ id: added.id }), null, 'disable disconnects removed object state')
+        staleHandler({ data: new Uint8Array([0xd0, 127]) })
+        assertEqual(midi.getChannel(1).pressure, 0, 'stale message after disable is ignored')
+        releaseOpen()
+        assertEqual(await enabling, false, 'disabled startup must not complete as enabled')
+    } finally {
+        releaseOpen?.()
+        manager.disable()
+        await enabling
+        Object.defineProperty(globalThis, 'navigator', { configurable: true, value: previousNavigator })
+    }
+})
+
+await asyncTest('MIDI reconnect using the same port object supersedes its pending open', async () => {
+    const completions = []
+    const input = { id: 'reused', name: 'Reused', type: 'input', state: 'connected', connection: 'closed',
+        onmidimessage: null, open() { return new Promise(resolve => { completions.push(() => resolve(this)) }) } }
+    const access = { inputs: new Map(), onstatechange: null }
+    const previousNavigator = globalThis.navigator
+    Object.defineProperty(globalThis, 'navigator', { configurable: true,
+        value: { requestMIDIAccess: async () => access } })
+    const midi = new MidiState()
+    const manager = new MidiInputManager({ setMidiState: () => midi })
+    const operations = []
+    try {
+        await manager.enable()
+        access.inputs.set(input.id, input)
+        operations.push(access.onstatechange({ port: input }))
+        input.state = 'disconnected'
+        access.inputs.delete(input.id)
+        await access.onstatechange({ port: input })
+        input.state = 'connected'
+        access.inputs.set(input.id, input)
+        operations.push(access.onstatechange({ port: input }))
+        assertEqual(completions.length, 2, 'reconnect must start a current operation even for the same object')
+        completions[1]()
+        await operations[1]
+        completions[0]()
+        await operations[0]
+        assert(typeof input.onmidimessage === 'function', 'current reconnect owns the live handler')
+        input.onmidimessage({ data: new Uint8Array([0xb0, 74, 90]) })
+        assertEqual(midi.getPortState({ id: input.id }).getChannel(1).cc[74], 90,
+            'stale open completion cannot detach the current reconnect')
+    } finally {
+        completions.forEach(resolve => resolve())
+        await Promise.all(operations)
+        manager.disable()
+        Object.defineProperty(globalThis, 'navigator', { configurable: true, value: previousNavigator })
+    }
+})
+
 // ============================================================================
 // AudioState Tests
 // ============================================================================
@@ -564,6 +794,102 @@ test('AudioState.reset clears all values', () => {
     assertEqual(audio.mid, 0, 'mid should be 0')
     assertEqual(audio.high, 0, 'high should be 0')
     assertEqual(audio.vol, 0, 'vol should be 0')
+    assertEqual(audio.raw, 0, 'raw signal should be centered at zero')
+})
+
+test('AudioState.resetAggregate clears legacy samples and smoothing without disturbing selected channels', () => {
+    const audio = new AudioState()
+    audio.registerDevice({ id: 'selected', name: 'Selected', channelCount: 1 })
+    audio.registerDefaultChannels(1)
+    const selected = audio.getDeviceChannelState({ id: 'selected', channel: 1 })
+    const defaultChannel = audio.getDefaultChannelState(1)
+    let sample = 128
+    const analyser = { frequencyBinCount: 128, getByteFrequencyData(data) { data.fill(sample) } }
+    audio.updateFromAnalyser(analyser)
+    selected.updateFromAnalyser(analyser)
+    audio.setRaw(0.8)
+    selected.setRaw(-0.25)
+    defaultChannel.setRaw(0.5)
+    audio.setSpectrum(new Uint8Array(128).fill(128))
+    audio.setWaveform(new Uint8Array(128).fill(255))
+    audio.resetAggregate()
+    for (const field of ['low', 'mid', 'high', 'vol', 'raw']) assertEqual(audio[field], 0, `${field} should clear`)
+    assertEqual(audio.rawReady, false, 'aggregate raw readiness clears')
+    assert(audio.fft.every(value => value === 0), 'aggregate fft clears')
+    assert(audio.spectrum.every(value => value === 0), 'aggregate spectrum clears')
+    assert(audio.waveform.every(value => value === 0.5), 'aggregate waveform returns to silence')
+    assertEqual(selected.raw, -0.25, 'named channel remains live')
+    assertEqual(defaultChannel.raw, 0.5, 'default channel remains live')
+    assertEqual(selected.rawReady, true, 'named readiness is preserved')
+    assertEqual(defaultChannel.rawReady, true, 'default readiness is preserved')
+    sample = 32
+    audio.updateFromAnalyser(analyser)
+    selected.updateFromAnalyser(analyser)
+    assertApprox(audio.low, 32 / 255, 1e-12, 'new aggregate source has no previous smoothing history')
+    assertApprox(selected.low, 80 / 255, 1e-12, 'selected smoothing history is preserved')
+    audio.reset()
+    assertEqual(selected.rawReady, false, 'full reset still clears named channels')
+    assertEqual(defaultChannel.rawReady, false, 'full reset still clears default channels')
+})
+
+test('AudioState stores bipolar raw signal without losing its sign', () => {
+    const audio = new AudioState()
+    audio.setRaw(-0.75)
+    assertEqual(audio.raw, -0.75, 'negative CV should stay negative')
+    audio.setRaw(2)
+    assertEqual(audio.raw, 1, 'raw signal should clamp at positive full scale')
+    audio.setRaw(-2)
+    assertEqual(audio.raw, -1, 'raw signal should clamp at negative full scale')
+})
+
+test('AudioState can invalidate raw readiness without inventing a zero sample', () => {
+    const audio = new AudioState()
+    audio.registerDevice({ id: 'interface-a', name: 'Interface', channelCount: 2 })
+    audio.setChannelValues('interface-a', 1, { raw: 0 })
+    audio.setChannelValues('interface-a', 2, { raw: -0.5 })
+
+    assertEqual(audio.getDeviceChannelState({ id: 'interface-a', channel: 1 }).rawReady, true,
+        'real zero should be marked ready')
+    audio.setDeviceRawUnavailable('interface-a')
+    assertEqual(audio.getDeviceChannelState({ id: 'interface-a', channel: 1 }).rawReady, false,
+        'device invalidation should clear zero readiness')
+    assertEqual(audio.getDeviceChannelState({ id: 'interface-a', channel: 2 }).rawReady, false,
+        'device invalidation should clear every channel')
+})
+
+test('AudioState isolates analysis by input device and one-based channel', () => {
+    const audio = new AudioState()
+    audio.registerDevice({ id: 'left', name: 'Interface', channelCount: 2 })
+    audio.registerDevice({ id: 'right', name: 'Interface', channelCount: 4 })
+    audio.setChannelValues('left', 2, { low: 0.2, mid: 0.3, high: 0.4, vol: 0.5, raw: -0.6 })
+    audio.setChannelValues('right', 2, { low: 0.8, mid: 0.7, high: 0.6, vol: 0.5, raw: 0.4 })
+
+    const selected = audio.getDeviceChannelState({ name: 'Interface', id: 'right', channel: 2 })
+    assertEqual(selected.low, 0.8, 'exact id should select the right device')
+    assertEqual(selected.raw, 0.4, 'selected channel should retain bipolar raw signal')
+    assertEqual(audio.getDeviceChannelState({ name: 'Interface', channel: 2 }), null,
+        'duplicate readable names should be ambiguous')
+})
+
+test('AudioState resolves a unique readable device name and disconnects inertly', () => {
+    const audio = new AudioState()
+    audio.registerDevice({ id: 'solo', name: 'Unique Interface', channelCount: 2 })
+    audio.setChannelValues('solo', 1, { low: 0.9, raw: 0.25 })
+
+    assertEqual(audio.getDeviceChannelState({ name: 'Unique Interface', channel: 1 }).low, 0.9,
+        'unique readable name should resolve')
+    audio.disconnectDevice('solo')
+    assertEqual(audio.getDeviceChannelState({ name: 'Unique Interface', id: 'solo', channel: 1 }), null,
+        'disconnected exact device should not resolve')
+    assertEqual(audio.getDevices()[0].connected, false,
+        'device inventory should retain disconnected identity')
+})
+
+test('AudioState rejects unavailable channels without falling back', () => {
+    const audio = new AudioState()
+    audio.registerDevice({ id: 'stereo', name: 'Stereo', channelCount: 2 })
+    assertEqual(audio.getDeviceChannelState({ name: 'Stereo', id: 'stereo', channel: 3 }), null,
+        'channel 3 must not fall back to channel 1')
 })
 
 test('AudioState smoothing accumulates over multiple updates', () => {
@@ -750,6 +1076,398 @@ test('MidiState.updateNoteGrid handles multiple channels', () => {
     // Ch6, key 72: row 5
     const offset6 = (5 * 128 + 72) * 4
     assertApprox(midi.noteGrid[offset6], 80 / 127, 0.01, 'Ch6 key 72 velocity')
+})
+
+// AudioInputManager Tests
+// ============================================================================
+
+console.log('\n=== AudioInputManager Tests ===\n')
+
+const FIXTURE_DEVICES = [
+    { deviceId: 'fixture-device', label: 'Fixture Microphone' },
+    { deviceId: 'other-device', label: 'Other Interface' },
+    { deviceId: 'stack-a', label: 'Stacked Input' },
+    { deviceId: 'stack-b', label: 'Stacked Input' }
+]
+
+function createAudioManagerFixtures() {
+    // Distinct per-analyser frequency content: the main analyser of each
+    // capture, then one analyser per captured channel, each with its own
+    // band levels in a repeating pattern.
+    let analyserOrdinal = 0
+    const freqLevels = [64, 200, 10, 128]
+    const timeLevels = [255, 128, 160, 96]
+    const openedStreams = []
+    class MockAudioContext {
+        constructor() {
+            this.closed = false
+        }
+
+        createAnalyser() {
+            const index = analyserOrdinal++
+            const frequencyData = new Uint8Array(128).fill(freqLevels[index % freqLevels.length])
+            const timeData = new Uint8Array(256).fill(timeLevels[index % timeLevels.length])
+            return {
+                fftSize: 256,
+                frequencyBinCount: 128,
+                smoothingTimeConstant: 0.8,
+                getByteFrequencyData: buf => buf.set(frequencyData.subarray(0, buf.length)),
+                getByteTimeDomainData: buf => buf.set(timeData.subarray(0, buf.length))
+            }
+        }
+
+        createMediaStreamSource() {
+            return { connect() {}, disconnect() {} }
+        }
+
+        createChannelSplitter() {
+            return { connect() {} }
+        }
+
+        close() {
+            this.closed = true
+        }
+    }
+    const getUserMedia = async constraints => {
+        const requestedId = constraints?.audio?.deviceId?.exact
+        const device = requestedId
+            ? FIXTURE_DEVICES.find(entry => entry.deviceId === requestedId)
+            : FIXTURE_DEVICES[0]
+        if (requestedId && !device) {
+            const error = new Error('device not found')
+            error.name = 'OverconstrainedError'
+            throw error
+        }
+        const track = {
+            label: device.label,
+            getSettings: () => ({ deviceId: device.deviceId, channelCount: 2 }),
+            stop: () => {}
+        }
+        const stream = {
+            getAudioTracks: () => [track],
+            getTracks: () => [track]
+        }
+        openedStreams.push(stream)
+        return stream
+    }
+    const enumerateDevices = async () => FIXTURE_DEVICES.map(device => ({
+        kind: 'audioinput',
+        deviceId: device.deviceId,
+        label: device.label
+    }))
+    return { MockAudioContext, getUserMedia, enumerateDevices, openedStreams }
+}
+
+async function withAudioManagerEnvironment({ warnings, getUserMedia, enumerateDevices } = {}, fn) {
+    const fixtures = createAudioManagerFixtures()
+    const openStream = getUserMedia || fixtures.getUserMedia
+    const listDevices = enumerateDevices || fixtures.enumerateDevices
+    const previousNavigator = globalThis.navigator
+    const previousAudioContext = globalThis.AudioContext
+    const rafCallbacks = []
+    const cancelled = []
+    const previousRaf = globalThis.requestAnimationFrame
+    const previousCancel = globalThis.cancelAnimationFrame
+    const previousWarn = console.warn
+    if (warnings) console.warn = message => warnings.push(message)
+    Object.defineProperty(globalThis, 'navigator', {
+        configurable: true,
+        value: { mediaDevices: { getUserMedia: openStream, enumerateDevices: listDevices } }
+    })
+    globalThis.AudioContext = fixtures.MockAudioContext
+    globalThis.requestAnimationFrame = callback => rafCallbacks.push(callback)
+    globalThis.cancelAnimationFrame = id => cancelled.push(id)
+
+    try {
+        return await fn({ rafCallbacks, cancelled, openedStreams: fixtures.openedStreams })
+    } finally {
+        Object.defineProperty(globalThis, 'navigator', {
+            configurable: true,
+            value: previousNavigator
+        })
+        if (previousAudioContext === undefined) delete globalThis.AudioContext
+        else globalThis.AudioContext = previousAudioContext
+        globalThis.requestAnimationFrame = previousRaf
+        globalThis.cancelAnimationFrame = previousCancel
+        console.warn = previousWarn
+    }
+}
+
+function tick(rafCallbacks) {
+    const callback = rafCallbacks.shift()
+    rafCallbacks.length = 0
+    callback()
+}
+
+await asyncTest('AudioInputManager populates the captured device, default channels, and raw readiness', async () => {
+    const audioState = new AudioState()
+    const manager = new AudioInputManager({ setAudioState: () => audioState })
+    await withAudioManagerEnvironment({}, async ({ rafCallbacks }) => {
+        assertEqual(await manager.enable(), true, 'manager should enable')
+        assertEqual(manager.enabled, true, 'manager should report enabled')
+
+        // One update tick from the captured rAF callback chain.
+        assertEqual(rafCallbacks.length, 1, 'enable should schedule exactly one update tick')
+        tick(rafCallbacks)
+        assertEqual(rafCallbacks.length, 1, 'the update loop should keep scheduling')
+
+        // Default-channel state is populated per channel, not the aggregate.
+        const channelOne = audioState.getDefaultChannelState(1)
+        const channelTwo = audioState.getDefaultChannelState(2)
+        assert(channelOne, 'channel 1 default state should be registered')
+        assert(channelTwo, 'channel 2 default state should be registered')
+        assertApprox(channelOne.low, 200 / 255, 0.001, 'channel 1 low band')
+        assertApprox(channelTwo.low, 10 / 255, 0.001, 'channel 2 low band')
+        assert(channelOne.rawReady, 'channel 1 raw sample should be ready')
+        assertApprox(channelOne.raw, 0, 1e-9, 'channel 1 raw is a real zero sample, not unavailable')
+        assertApprox(channelTwo.raw, (160 - 128) / 127.5, 0.01, 'channel 2 raw maps the time-domain mean')
+
+        // The captured (browser-selected) device is registered and populated.
+        const deviceChannel = audioState.getDeviceChannelState({ id: 'fixture-device', channel: 2 })
+        assert(deviceChannel, 'the captured device channel should be registered')
+        assertApprox(deviceChannel.high, 10 / 255, 0.001, 'captured device channel 2 high band')
+        assert(deviceChannel.rawReady, 'captured device channel raw sample should be ready')
+
+        // The named captured device resolves without host inventory work.
+        assert(audioState.getDeviceChannelState({ name: 'Fixture Microphone', channel: 1 }),
+            'the captured device should resolve by its unique name')
+
+        // Aggregate raw readiness is populated from the main analyser.
+        assert(audioState.rawReady, 'aggregate raw sample should be ready')
+        assertApprox(audioState.raw, (255 - 128) / 127.5, 0.01, 'aggregate raw maps the time-domain mean')
+    })
+})
+
+await asyncTest('AudioInputManager opens and populates every selected-device requirement', async () => {
+    const audioState = new AudioState()
+    const requirements = {
+        needsLegacy: true,
+        needsLegacyRaw: false,
+        selected: [
+            { id: null, name: null, channel: 1, needsRaw: false },
+            { id: 'other-device', name: 'Other Interface', channel: 2, needsRaw: true },
+            { name: 'Fixture Microphone', channel: 1, needsRaw: false }
+        ]
+    }
+    const manager = new AudioInputManager({
+        setAudioState: () => audioState,
+        pipeline: { getAudioInputRequirements: () => requirements }
+    })
+    const warnings = []
+    await withAudioManagerEnvironment({ warnings }, async ({ rafCallbacks, openedStreams }) => {
+        assertEqual(await manager.enable(), true, 'manager should enable')
+        assertEqual(openedStreams.length, 2,
+            'the manager should open one stream per required device (default + selected)')
+        tick(rafCallbacks)
+
+        // The selected device is captured and populated per channel.
+        const selected = audioState.getDeviceChannelState({ id: 'other-device', channel: 2 })
+        assert(selected, 'the selected device should be registered and connected')
+        assertApprox(selected.low, 64 / 255, 0.001, 'selected device channel 2 low band')
+        assert(selected.rawReady, 'selected device raw sample should be ready')
+        assertApprox(selected.raw, (255 - 128) / 127.5, 0.01, 'selected device channel 2 raw value')
+
+        // No warning when every requirement is captured.
+        assertEqual(warnings.length, 0, 'a fully captured graph should not warn')
+    })
+})
+
+await asyncTest('AudioInputManager re-syncs captures when the compiled graph changes', async () => {
+    const audioState = new AudioState()
+    let selected = []
+    const manager = new AudioInputManager({
+        setAudioState: () => audioState,
+        pipeline: { getAudioInputRequirements: () => ({ needsLegacy: true, needsLegacyRaw: false, selected }) }
+    })
+    await withAudioManagerEnvironment({}, async ({ rafCallbacks, openedStreams }) => {
+        assertEqual(await manager.enable(), true, 'manager should enable')
+        assertEqual(openedStreams.length, 1, 'only the default stream should be open initially')
+
+        selected = [{ id: 'other-device', name: 'Other Interface', channel: 1, needsRaw: false }]
+        // 60 ticks trigger the periodic re-sync; it resolves asynchronously.
+        for (let i = 0; i < 60; i++) tick(rafCallbacks)
+        await new Promise(resolve => setTimeout(resolve, 0))
+        assertEqual(openedStreams.length, 2, 'the re-sync should open the newly required device')
+        assert(audioState.getDeviceChannelState({ id: 'other-device', channel: 1 }),
+            'the newly required device should be registered')
+
+        selected = []
+        for (let i = 0; i < 60; i++) tick(rafCallbacks)
+        await new Promise(resolve => setTimeout(resolve, 0))
+        assertEqual(audioState.getDeviceChannelState({ id: 'other-device', channel: 1 }), null,
+            'the released device should be disconnected')
+        assert(openedStreams[1].getTracks().every(track => track.stopped !== false),
+            'teardown should stop the released stream tracks')
+    })
+})
+
+await asyncTest('AudioInputManager warns instead of silently dropping uncapturable requirements', async () => {
+    const audioState = new AudioState()
+    const requirements = {
+        needsLegacy: true,
+        needsLegacyRaw: false,
+        selected: [
+            { id: 'missing-device', name: 'Ghost Interface', channel: 1, needsRaw: true },
+            { name: 'Stacked Input', channel: 1, needsRaw: true }
+        ]
+    }
+    const manager = new AudioInputManager({
+        setAudioState: () => audioState,
+        // An inventory with two devices of the same name makes the name-only
+        // requirement ambiguous.
+        pipeline: { getAudioInputRequirements: () => requirements }
+    })
+    const warnings = []
+    await withAudioManagerEnvironment({ warnings }, async ({ rafCallbacks }) => {
+        assertEqual(await manager.enable(), true, 'manager should enable even with unmet requirements')
+        tick(rafCallbacks)
+        assert(warnings.some(message => message.includes('missing-device (failed to open)')),
+            'an unknown device id should be attempted and its failure warned about')
+        assert(warnings.some(message => message.includes('Stacked Input') &&
+            message.includes('multiple devices')),
+            'an ambiguous name should be warned about, never silently captured')
+        assertEqual(audioState.getDeviceChannelState({ id: 'missing-device', channel: 1 }), null,
+            'an uncapturable device must not resolve')
+    })
+})
+
+await asyncTest('AudioInputManager warns when an already-captured device lacks the requested channel', async () => {
+    const audioState = new AudioState()
+    // Every fixture capture exposes 2 channels, so channel-3 requirements
+    // against devices that are already captured would silently evaluate to
+    // `min` without a warning.
+    const requirements = {
+        needsLegacy: true,
+        needsLegacyRaw: false,
+        selected: [
+            { id: null, name: null, channel: 3, needsRaw: false },
+            { id: 'other-device', name: 'Other Interface', channel: 3, needsRaw: true },
+            { id: 'other-device', name: 'Other Interface', channel: 2, needsRaw: true },
+            { name: 'Fixture Microphone', channel: 3, needsRaw: false },
+            { name: 'Fixture Microphone', channel: 2, needsRaw: false }
+        ]
+    }
+    const manager = new AudioInputManager({
+        setAudioState: () => audioState,
+        pipeline: { getAudioInputRequirements: () => requirements }
+    })
+    const warnings = []
+    await withAudioManagerEnvironment({ warnings }, async ({ rafCallbacks }) => {
+        assertEqual(await manager.enable(), true, 'manager should enable')
+        tick(rafCallbacks)
+        assert(warnings.some(message => message.includes('default input channel 3') &&
+            message.includes('only exposes 2')),
+            'a default-channel requirement beyond the captured channel count should warn')
+        assert(warnings.some(message => message.includes('Other Interface channel 3') &&
+            message.includes('only exposes 2')),
+            'an id-selected requirement beyond the captured channel count should warn')
+        assert(warnings.some(message => message.includes('Fixture Microphone channel 3') &&
+            message.includes('only exposes 2')),
+            'a name-selected requirement beyond the captured channel count should warn')
+        const shortfallText = warnings.join('\n')
+        assertEqual((shortfallText.match(/only exposes 2/g) || []).length, 3,
+            'exactly the three beyond-range requirements should be named as unmet')
+        assert(audioState.getDeviceChannelState({ id: 'other-device', channel: 2 }),
+            'the in-range captured channel should still resolve')
+        assertEqual(audioState.getDeviceChannelState({ id: 'other-device', channel: 3 }), null,
+            'the beyond-range channel must not resolve')
+    })
+})
+
+await asyncTest('AudioInputManager name-only binding without an enumerable deviceId warns', async () => {
+    const audioState = new AudioState()
+    // The default track reports a label but no deviceId in its settings, so
+    // the manager cannot register it; a matching name-only requirement must
+    // warn rather than be treated as captured.
+    const warnings = []
+    await withAudioManagerEnvironment({
+        warnings,
+        enumerateDevices: async () => [],
+        getUserMedia: async () => {
+            const track = { label: 'Fixture Microphone', getSettings: () => ({}), stop() {} }
+            const stream = { getAudioTracks: () => [track], getTracks: () => [track] }
+            return stream
+        }
+    }, async ({ rafCallbacks }) => {
+        const requirements = { needsLegacy: true, needsLegacyRaw: false, selected: [] }
+        const piped = new AudioInputManager({
+            setAudioState: () => audioState,
+            pipeline: {
+                getAudioInputRequirements: () => ({
+                    ...requirements,
+                    selected: [{ id: null, name: 'Fixture Microphone', channel: 1, needsRaw: true }]
+                })
+            }
+        })
+        assertEqual(await piped.enable(), true, 'manager should enable')
+        tick(rafCallbacks)
+        assert(warnings.some(message => message.includes('Fixture Microphone')),
+            'a name-only requirement without a capturable deviceId should be warned about')
+        assertEqual(audioState.getDeviceChannelState({ name: 'Fixture Microphone', channel: 1 }), null,
+            'without a registered device the name-only binding must not resolve')
+    })
+})
+
+await asyncTest('AudioInputManager warns when the deviceless selected capture lacks a requested default channel', async () => {
+    const audioState = new AudioState()
+    // The selected track reports no deviceId, so its capture is stored under
+    // the null key; a default-channel requirement beyond the capture's single
+    // channel must still warn rather than silently evaluate to `min`.
+    const requirements = {
+        needsLegacy: true,
+        needsLegacyRaw: false,
+        selected: [
+            { id: null, name: null, channel: 2, needsRaw: false },
+            { id: null, name: null, channel: 1, needsRaw: false }
+        ]
+    }
+    const manager = new AudioInputManager({
+        setAudioState: () => audioState,
+        pipeline: { getAudioInputRequirements: () => requirements }
+    })
+    const warnings = []
+    await withAudioManagerEnvironment({
+        warnings,
+        getUserMedia: async () => {
+            const track = { label: 'Fixture Microphone', getSettings: () => ({}), stop() {} }
+            const stream = { getAudioTracks: () => [track], getTracks: () => [track] }
+            return stream
+        }
+    }, async ({ rafCallbacks }) => {
+        assertEqual(await manager.enable(), true, 'manager should enable')
+        tick(rafCallbacks)
+        const shortfallText = warnings.join('\n')
+        assert(shortfallText.includes('default input channel 2 (captured device only exposes 1 channel(s))'),
+            'a default-channel requirement beyond the deviceless capture should warn')
+        assert(!shortfallText.includes('channel 1 (captured device'),
+            'the in-range default channel must not warn')
+        assert(audioState.getDefaultChannelState(1), 'the in-range default channel should resolve')
+        assertEqual(audioState.getDefaultChannelState(2), null,
+            'the beyond-range default channel must not resolve')
+    })
+})
+
+await asyncTest('AudioInputManager disable clears default channels, devices, and raw readiness', async () => {
+    const audioState = new AudioState()
+    const requirements = { needsLegacy: true, needsLegacyRaw: false, selected: [] }
+    const manager = new AudioInputManager({
+        setAudioState: () => audioState,
+        pipeline: { getAudioInputRequirements: () => requirements }
+    })
+    await withAudioManagerEnvironment({}, async ({ rafCallbacks, cancelled }) => {
+        assertEqual(await manager.enable(), true, 'manager should enable')
+        tick(rafCallbacks)
+        assert(audioState.getDefaultChannelState(1).rawReady, 'raw should be ready before disable')
+
+        manager.disable()
+        assertEqual(audioState.getDefaultChannelState(1), null,
+            'disable should clear default-channel availability')
+        assertEqual(audioState.getDeviceChannelState({ id: 'fixture-device', channel: 1 }), null,
+            'disable should mark the captured device unavailable')
+        assertEqual(audioState.rawReady, false, 'disable should clear aggregate raw readiness')
+        assertEqual(cancelled.length, 1, 'disable should cancel the update loop')
+        assertEqual(manager.enabled, false, 'manager should report disabled')
+    })
 })
 
 // ============================================================================

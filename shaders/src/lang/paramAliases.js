@@ -1,13 +1,12 @@
 /**
  * Manages deprecated parameter name aliases for shader effects.
  *
- * Part of the parameter standardization effort. Old param names are
- * remapped to new names at runtime with deprecation warnings. All
- * aliases will be hard-removed on ALIAS_EOL_DATE.
+ * Old param names are remapped to new names at runtime with deprecation
+ * warnings. All aliases will be hard-removed on ALIAS_EOL_DATE.
  */
 
 /** Hard removal date for all parameter aliases. */
-export const ALIAS_EOL_DATE = '2026-09-01'
+export const ALIAS_EOL_DATE = '2027-06-01'
 
 /**
  * Internal registry.  Shape: { [opName]: { oldName: newName, ... } }
@@ -26,6 +25,17 @@ export function registerParamAliases(opName, aliases) {
         registry[opName] = Object.create(null)
     }
     Object.assign(registry[opName], aliases)
+}
+
+/**
+ * Read the alias map registered for an op (read-only; no mutation).
+ *
+ * @param {string} opName   Fully-qualified op name, e.g. 'synth.noise'
+ * @returns {Object<string, string>} { oldName: newName } (empty when none)
+ */
+export function getParamAliases(opName) {
+    const aliases = registry[opName]
+    return aliases ? { ...aliases } : {}
 }
 
 /**
