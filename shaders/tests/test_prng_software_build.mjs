@@ -39,7 +39,7 @@ const prngEffects = [
     'classicNoisedeck/caustic', 'classicNoisedeck/cellNoise', 'classicNoisedeck/moodscape',
     'classicNoisedeck/noise', 'classicNoisedeck/noise3d', 'classicNoisedeck/splat',
     'filter/corrupt', 'filter/lensWarp', 'filter/warp', 'mixer/cellSplit',
-    'synth/cell', 'synth/gabor', 'synth/gradient', 'synth/noise', 'synth/perlin',
+    'synth/cell', 'synth/gabor', 'synth/gradient', 'synth/noise', 'synth/perlin', 'synth/shape',
 ]
 
 const CASES = [
@@ -111,6 +111,7 @@ try {
     for (const file of glslSources) {
         const body = fs.readFileSync(path.join(effectsDir, file), 'utf8').match(PRNG)?.[1]
         if (body?.includes('?')) failures.push(`${file}: prng() folds with a float ternary`)
+        if (body && /\bif\s*\(/.test(body)) failures.push(`${file}: prng() folds with an if/else branch`)
     }
     for (const testCase of CASES) {
         try {
