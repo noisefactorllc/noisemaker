@@ -54,5 +54,8 @@
     "jpeg-js": "^0.4.4",
     "pngjs": "^7.0.0",
     "postject": "^1.0.0-alpha.6"
+  },
+  "overrides": {
+    "minimatch": "^11.0.1"
   }
 }
