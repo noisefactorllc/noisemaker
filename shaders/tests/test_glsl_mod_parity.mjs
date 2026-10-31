@@ -68,13 +68,21 @@ const cases = [
 // same contract: its rgb2hsv was fixed the same way (glslMod since
 // 1fa5942), and its shadow() consumer re-wraps the hue through hsv2rgb's
 // fract() too, so a revert to the truncating % would be invisible in renders.
-const contractEffects = ['classicNoisedeck/kaleido', 'classicNoisedeck/effects']
+// The other WGSL copies of rgb2hsv carry it as well; each consumer re-wraps
+// the hue (hsv2rgb's fract() or a hue offset's fract()), so under ANGLE and
+// Dawn on SwiftShader the truncating % only surfaced as a one-level colorLab
+// pixel, and on Metal not beyond its relaxed-math residual.
+const contractEffects = [
+    'classicNoisedeck/kaleido', 'classicNoisedeck/effects', 'classicNoisedeck/cellRefract',
+    'classicNoisedeck/coalesce', 'classicNoisedeck/colorLab', 'classicNoisedeck/lensDistortion',
+    'classicNoisedeck/shapeMixer', 'filter/tetraColorArray',
+]
 for (const effect of contractEffects) {
     const wgslSource = fs.readFileSync(path.join(root, `shaders/effects/${effect}/wgsl/${effect.split('/')[1]}.wgsl`), 'utf8')
     const glslSource = fs.readFileSync(path.join(root, `shaders/effects/${effect}/glsl/${effect.split('/')[1]}.glsl`), 'utf8')
-    assert.match(glslSource, /mod\(\(g - b\) \/ delta, 6\.0\) \/ 6\.0/,
+    assert.match(glslSource, /mod\(\((?:c\.)?g - (?:c\.)?b\) \/ delta, 6\.0\) \/ 6\.0/,
         `${effect}/glsl rgb2hsv must keep the floored-mod hue this contract mirrors`)
-    assert.match(wgslSource, /glslMod\(\(rgb\.g - rgb\.b\) \/ delta, 6\.0\) \/ 6\.0/,
+    assert.match(wgslSource, /glslMod\(\((?:rgb\.|c\.)?g - (?:rgb\.|c\.)?b\) \/ delta, 6\.0\) \/ 6\.0/,
         `${effect} wgsl rgb2hsv must compute the red-dominant hue with the GLSL's floored mod`)
     assert.doesNotMatch(wgslSource, /% 6\.0/,
         `${effect} wgsl must not take the red-dominant hue with the truncating %`)

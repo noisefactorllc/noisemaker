@@ -87,13 +87,20 @@ fn hsv2rgb(hsv: vec3f) -> vec3f {
     return rgb + vec3f(m);
 }
 
+// GLSL mod(x, y) = x - y * floor(x / y); WGSL `%` truncates toward zero, so a
+// red-dominant hue with g < b came out negative. rgb2hsv takes that hue with
+// the GLSL definition, as the GLSL's mod((g - b) / delta, 6.0) does.
+fn glslMod(x: f32, y: f32) -> f32 {
+    return x - y * floor(x / y);
+}
+
 fn rgb2hsv(rgb: vec3f) -> vec3f {
     let maxC = max(rgb.r, max(rgb.g, rgb.b));
     let minC = min(rgb.r, min(rgb.g, rgb.b));
     let delta = maxC - minC;
     var h = 0.0;
     if (delta != 0.0) {
-        if (maxC == rgb.r) { h = ((rgb.g - rgb.b) / delta) % 6.0 / 6.0; }
+        if (maxC == rgb.r) { h = glslMod((rgb.g - rgb.b) / delta, 6.0) / 6.0; }
         else if (maxC == rgb.g) { h = ((rgb.b - rgb.r) / delta + 2.0) / 6.0; }
         else { h = ((rgb.r - rgb.g) / delta + 4.0) / 6.0; }
     }
