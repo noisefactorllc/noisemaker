@@ -3,7 +3,7 @@
 Shader Pipeline Integration
 ===========================
 
-This guide explains how to integrate Noisemaker's shader rendering engine into your application with your own UI. Noisemaker separates rendering, state, and UI, so you can use the GPU pipeline without adopting a frontend framework.
+This guide shows how to integrate Noisemaker's shader engine with your own UI. It separates rendering, state, and UI. You can use its shader pipeline without a frontend framework.
 
 For release artifacts and versioning, see :doc:`../releases`.
 
@@ -18,7 +18,7 @@ Architecture
     │                                                             │
     │   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
     │   │  Your UI     │───▶│ ProgramState │───▶│CanvasRenderer│  │
-    │   │  (React,     │◀───│  (state)     │◀───│  (GPU)       │  │
+    │   │  (React,     │◀───│  (state)     │◀───│ (shader)     │  │
     │   │   Vue, etc)  │    │              │    │              │  │
     │   └──────────────┘    └──────────────┘    └──────────────┘  │
     │                              │                    │         │
@@ -37,7 +37,7 @@ Architecture
      - Purpose
      - Required?
    * - **CanvasRenderer**
-     - GPU rendering pipeline (WebGL2 or WebGPU)
+     - WebGL2 or WebGPU shader pipeline
      - Yes
    * - **ProgramState**
      - Centralized state with event-driven updates
@@ -247,7 +247,7 @@ Core API
 CanvasRenderer
 ^^^^^^^^^^^^^^
 
-Creates and manages the GPU rendering pipeline.
+Creates and manages the WebGL2 or WebGPU rendering pipeline.
 
 **Constructor options:**
 
@@ -263,6 +263,7 @@ Creates and manages the GPU rendering pipeline.
         useBundles: true,                  // Load effects from pre-built bundles
         bundlePath: `${SHADER_CDN}/effects`, // Path to effect bundles
         preferWebGPU: false,               // Use WebGPU backend if available
+        softwareRendering: 'off',           // 'off', 'auto', or 'on'
         onFPS: (fps) => {},                // Called about once per second with the rounded FPS
         onError: (err) => {},              // Called on pipeline errors
         onFrame: (frameCount) => {},       // Called after each rendered frame with the frame count
@@ -321,6 +322,8 @@ element's size wins; a diagnostic warns when it differs from the options.
     renderer.start()                       // Start the render loop
     renderer.stop()                        // Stop the render loop
     renderer.render(0.5)                   // Render a single frame (time 0-1)
+    renderer.stepFrame()                   // Advance one frame when the loop is stopped
+    renderer.softwareRendering             // { mode, active, report }
 
     // Parameters
     renderer.applyStepParameterValues(values)  // Apply parameter values from state
@@ -346,6 +349,7 @@ element's size wins; a diagnostic warns when it differs from the options.
 
 ``loadEffects()`` does not reject when an effect fails to load; the ``failed`` property of the array it returns lists ``{ effectId, error }`` for each effect that could not load.
 
+See :doc:`software-rendering` for detection and single-frame mode behavior.
 See :doc:`renderer-output` for sink lifecycle, asynchronous frame export, and
 the packed RGBA8 frame contract.
 
