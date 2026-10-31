@@ -54,7 +54,6 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',  # Support for Google-style docstrings
     'sphinx.ext.intersphinx',  # Link to other project docs
-    'sphinx.ext.autodoc.typehints',  # Better type hint rendering
     'sphinxcontrib.programoutput',
     'noisemaker_live',  # Custom extension for live examples
 ]
@@ -86,10 +85,6 @@ autodoc_default_options = {
 autodoc_typehints = 'signature'  # Show type hints in function signature
 autodoc_typehints_description_target = 'documented'
 autodoc_typehints_format = 'short'  # Use short form for type hints
-autodoc_type_aliases = {
-    'Tensor': 'tf.Tensor',
-    'tf.Tensor': 'Tensor',
-}
 
 # Intersphinx mapping
 intersphinx_mapping = {
@@ -253,6 +248,7 @@ class Mock(MagicMock):
 
 MOCK_MODULES = ['PIL', 'colorthief', 'loguru', 'numpy', 'opensimplex', 'pyfastnoisesimd', 'tensorflow', 'tensorflow_addons', 'tensorflow_graphics', 'tensorflow_graphics.image', 'tensorflow_graphics.image.color_space', 'tensorflow_graphics.image.color_space.linear_rgb', 'tensorflow_graphics.image.color_space.srgb', 'skimage.transform', 'skimage.util']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+sys.modules['tensorflow'].Tensor = type('Tensor', (), {'__module__': 'builtins', '__qualname__': 'tf.Tensor'})
 
 
 def setup(app):
