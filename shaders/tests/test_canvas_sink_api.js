@@ -302,6 +302,13 @@ class ReplaceableCanvasElement extends FakeCanvasElement {
     }
 }
 
+/** A canvas in a parent node that records its context-loss listeners in `listeners`. */
+function restorableCanvas(listeners) {
+    const canvas = new FakeParentNode().appendChild(new ReplaceableCanvasElement())
+    canvas.addEventListener = (name, listener) => { listeners.set(name, listener) }
+    return canvas
+}
+
 test('preferredBackend reports the requested backend while WebGL2 renders in its place', () => {
     const renderer = bareRenderer({ backend: { getName: () => 'WebGL2' } })
     assert.equal(renderer.preferredBackend, 'glsl')
@@ -448,10 +455,7 @@ test('failed fallback recreation retains the active old pipeline without closing
 
 test('context restoration disposes the dead pipeline in backendLost mode before rebuilding', async () => {
     const listeners = new Map()
-    const canvas = {
-        addEventListener(name, listener) { listeners.set(name, listener) },
-        removeEventListener() {}
-    }
+    const canvas = restorableCanvas(listeners)
     const events = []
     const oldPipeline = {
         backend: {},
@@ -489,6 +493,10 @@ test('context restoration disposes the dead pipeline in backendLost mode before 
         ['compile replacement']
     ])
     assert.equal(renderer.pipeline, replacement)
+    const parent = renderer.canvas.parentNode
+    assert.notEqual(renderer.canvas, canvas, 'the restore rebuilds on a fresh canvas')
+    assert.deepEqual(parent.children, [renderer.canvas], 'the fresh canvas takes the restored canvas\'s place')
+    assert.equal(canvas.parentNode, null)
 })
 
 test('dispose during awaited initial creation invalidates and normally disposes the stale result', async () => {
@@ -595,10 +603,7 @@ function restorationFixture() {
         backend: {},
         dispose(options) { events.push(['dead dispose', options]) }
     })
-    renderer._canvas = {
-        addEventListener(name, listener) { listeners.set(name, listener) },
-        removeEventListener() {}
-    }
+    renderer._canvas = restorableCanvas(listeners)
     renderer._currentDsl = 'search synth\nrender(o0)'
     renderer._onContextLost = null
     renderer._onContextRestored = () => { events.push(['restored callback']) }
@@ -784,10 +789,7 @@ test('context restore after a rejected compile rebuilds the last accepted source
     const restored = retainedStubPipeline(events, 'restored')
     const listeners = new Map()
     const renderer = bareRenderer()
-    renderer._canvas = {
-        addEventListener(name, listener) { listeners.set(name, listener) },
-        removeEventListener() {}
-    }
+    renderer._canvas = restorableCanvas(listeners)
     renderer._currentDsl = ''
     renderer._onContextLost = null
     renderer._onContextRestored = () => { events.push(['restored callback']) }
@@ -805,6 +807,9 @@ test('context restore after a rejected compile rebuilds the last accepted source
 
     await renderer.compile(ACCEPTED_DSL)
     renderer.start()
+    // The accepted program has been rendering; a program that loses the
+    // context before its second frame is not rebuilt.
+    renderer._frameCount = 60
     await withSilencedConsole(async () => {
         await assert.rejects(renderer.compile(REJECTED_DSL), (err) => err.code === 'ERR_COMPILATION_FAILED')
         listeners.get('webglcontextlost')({ preventDefault() {} })
