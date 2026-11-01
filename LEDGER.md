@@ -1181,6 +1181,30 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-01 — candidate delivery pair: Noisemaker
+    `c0aa621a53976729d9d598295701f895a68badb7` and Shade MCP
+    `43d2b942cdba795c99e4a7a820570987d0b5437a`. The configured immutable
+    MCP pin is that Shade commit. Release `v0.5.2` resolves to the same
+    Shade source; the Noisemaker import at `c0aa621a` matches its downloaded
+    release in all vendored directories. The configured Git installation
+    built and initialized server `0.5.2`, protocol `2025-11-25`, with SDK
+    `1.32.2`. The worked requests were recaptured in one session: WebGL2 and
+    WebGPU compilation and rendering succeeded, and pixel parity returned
+    zero maximum and mean difference. `testNoPassthrough` reported
+    `skipped: Not a filter effect` for the generator; this is not a filter
+    acceptance result. The immutable-pin and delivery/parity contract tests
+    pass. The checkpoint-to-source audit corrected the stale replacement-cloning
+    statement and removed an absent configuration-file citation. The prescribed
+    `scripts/test-shade-mcp` consumer gate passed with its unchanged Linux
+    browser driver; octaveWarp returned exact GLSL/WGSL parity. Shade's
+    `browser-smoke.mjs` and `authored-dsl-smoke.mjs` passed against this pair,
+    including genuine WebGPU rendering. A separate NVIDIA OpenGL override
+    experiment failed octaveWarp parity with maximum difference 233; its
+    WebGPU adapter identity was not captured, and this pass makes no claim
+    of cross-driver octaveWarp parity. Candidate validation also includes
+    `node scripts/run-js-tests.js --skip-parity` and the repository ESLint
+    targets. Exact-source CI and live contract readback remain pending; the
+    completed checkpoint above has not advanced.
   - 2026-10-15 — completed delivery pair for work queue item 1116. Audited the
     complete Noisemaker range `b319e794..7e6c6130` and Shade MCP range
     `f36a5f62..830603b5`. The source identities are Noisemaker
