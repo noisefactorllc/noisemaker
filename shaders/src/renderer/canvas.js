@@ -342,6 +342,7 @@ export class CanvasRenderer {
         this._wasRunningBeforeContextLoss = false
         this._contextLostBeforeSecondFrame = false
         this._contextRecoveryTimer = null
+        this._isDisposed = false
         this._lifecycleGeneration = 0
         this._lastBackendInvalidationGeneration = -1
 
@@ -465,6 +466,7 @@ export class CanvasRenderer {
         this._boundContextLost = (e) => {
             e.preventDefault() // Signal browser we will handle restore
             this._isContextLost = true
+            if (this._isDisposed) return
             this._wasRunningBeforeContextLoss = this._isRunning
             // A program whose build stalls the GPU process past the browser's
             // watchdog loses the context while drawing its first frame.
@@ -486,6 +488,7 @@ export class CanvasRenderer {
         }
 
         this._boundContextRestored = async () => {
+            if (this._isDisposed) return
             this._clearContextRecovery()
             console.log('[Canvas] WebGL context restored, rebuilding pipeline...')
 
@@ -567,10 +570,12 @@ export class CanvasRenderer {
     _scheduleContextRecovery() {
         this._clearContextRecovery()
         const canvas = this._canvas
+        const generation = this._lifecycleGeneration ?? 0
         this._contextRecoveryTimer = setTimeout(() => {
             this._contextRecoveryTimer = null
             this._queueCompile(async () => {
-                if (!this._isContextLost || canvas !== this._canvas || !this._rebuildsAfterContextLoss()) return null
+                if (this._isDisposed || !this._isLifecycleCurrent(generation) ||
+                    !this._isContextLost || canvas !== this._canvas || !this._rebuildsAfterContextLoss()) return null
                 try {
                     return await this._compile(this._currentDsl)
                 } catch (err) {
@@ -1184,6 +1189,7 @@ export class CanvasRenderer {
      */
     async dispose(options = {}) {
         const { loseContext = false, resetCanvas = false } = options
+        this._isDisposed = true
         this._clearContextRecovery()
         this._advanceLifecycle({ backendLost: loseContext || resetCanvas })
 
@@ -1223,7 +1229,20 @@ export class CanvasRenderer {
      */
     async compile(dsl, options = {}) {
         const generation = this._lifecycleGeneration ?? 0
-        return this._queueCompile(() => this._isLifecycleCurrent(generation) ? this._compile(dsl, options) : null)
+        return this._queueCompile(async () => {
+            if (!this._isLifecycleCurrent(generation)) return null
+            const wasDisposed = this._isDisposed
+            this._isDisposed = false
+            try {
+                return await this._compile(dsl, options)
+            } catch (error) {
+                if (wasDisposed && this._isLifecycleCurrent(generation) && !this._pipeline) {
+                    this._isDisposed = true
+                    this._clearContextRecovery()
+                }
+                throw error
+            }
+        })
     }
 
     /**

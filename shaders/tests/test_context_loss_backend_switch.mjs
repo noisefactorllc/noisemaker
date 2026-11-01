@@ -207,6 +207,7 @@ async function rejectedCompileRestoreChecks(browser, baseUrl, check) {
 
         const beforeLoss = await documentedFrame(page)
         check(beforeLoss.max > 16, `the accepted program still renders before the loss (max=${beforeLoss.max})`)
+        await page.waitForFunction(() => window.__doc.renderer.frameCount >= 2)
 
         const restore = await page.evaluate(async () => {
             const doc = window.__doc
@@ -214,6 +215,7 @@ async function rejectedCompileRestoreChecks(browser, baseUrl, check) {
             const errorsBefore = doc.errors.length
             const ext = r.pipeline.backend.gl.getExtension('WEBGL_lose_context')
             const restored = doc.nextRestore()
+            const framesAtLoss = r.frameCount
             ext.loseContext()
             await new Promise(resolve => setTimeout(resolve, 300))
             const lost = r.isContextLost
@@ -222,11 +224,13 @@ async function rejectedCompileRestoreChecks(browser, baseUrl, check) {
             const framesBefore = r.frameCount
             await new Promise(resolve => setTimeout(resolve, 500))
             return {
+                framesAtLoss,
                 lost,
                 restoreErrors: doc.errors.slice(errorsBefore),
                 framesAdvanced: r.frameCount - framesBefore
             }
         })
+        check(restore.framesAtLoss >= 2, `the established program is past its first frame before loss (frames=${restore.framesAtLoss})`)
         check(restore.lost === true, 'WEBGL_lose_context loses the context (precondition)')
         check(restore.restoreErrors.length === 0, `the restore calls onError zero times (${JSON.stringify(restore.restoreErrors)})`)
         check(restore.framesAdvanced > 0, `the render loop runs after the restore (frames=${restore.framesAdvanced})`)

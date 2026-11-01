@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { mock } from 'node:test'
 
 import {
     CanvasRenderer,
@@ -620,6 +621,109 @@ function restorationFixture() {
     renderer._reuploadCachedMeshes = async () => {}
     renderer._setupContextLossHandlers()
     return { renderer, listeners, creation, events }
+}
+
+test('late loss and restore events cannot revive an intentionally disposed renderer', async () => {
+    const { renderer, listeners, events } = restorationFixture()
+    const canvas = renderer.canvas
+    renderer._contextRecoveryTimer = null
+    let creations = 0
+    renderer._createRuntime = async () => {
+        creations++
+        return retainedStubPipeline(events, 'unexpected')
+    }
+    await renderer.dispose({ loseContext: true })
+    try {
+        await withSilencedConsole(async () => {
+            await Promise.resolve()
+            listeners.get('webglcontextlost')({ preventDefault() {} })
+            assert.equal(renderer._contextRecoveryTimer, null, 'disposal must not schedule another build')
+            await listeners.get('webglcontextrestored')()
+        })
+        assert.equal(creations, 0)
+        assert.equal(renderer.pipeline, null)
+        assert.equal(renderer.canvas, canvas)
+        assert.equal(renderer.isRunning, false)
+        assert.deepEqual(events, [['dead dispose', { loseContext: true }]])
+    } finally {
+        renderer._clearContextRecovery()
+    }
+})
+
+test('disposal invalidates a recovery already queued behind another compile', async () => {
+    const { renderer, listeners } = restorationFixture()
+    const canvas = renderer.canvas
+    let recoveryAttempts = 0
+    renderer._replaceLostContext = async () => { recoveryAttempts++; return false }
+    const pending = deferred()
+    renderer._compileQueue = pending.promise
+    renderer._contextRecoveryTimer = null
+    mock.timers.enable({ apis: ['setTimeout'] })
+    try {
+        await withSilencedConsole(async () => {
+            listeners.get('webglcontextlost')({ preventDefault() {} })
+            mock.timers.tick(3000)
+            const recovery = renderer._compileQueue
+            await renderer.dispose()
+            pending.resolve()
+            await recovery
+        })
+        assert.equal(recoveryAttempts, 0, 'queued recovery must not enter context replacement after disposal')
+        assert.equal(renderer.canvas, canvas, 'queued recovery must not replace the disposed canvas')
+        assert.equal(renderer.pipeline, null)
+    } finally {
+        mock.timers.reset()
+    }
+})
+
+test('explicit compile after disposal re-enables unexpected context-loss recovery', async () => {
+    const { renderer, listeners, events } = restorationFixture()
+    const created = []
+    renderer._createRuntime = async (dsl) => {
+        created.push(dsl)
+        return retainedStubPipeline(events, `pipeline ${created.length}`)
+    }
+    await renderer.dispose()
+    await renderer.compile(ACCEPTED_DSL)
+    renderer.start()
+    renderer._frameCount = 10
+    await withSilencedConsole(async () => {
+        listeners.get('webglcontextlost')({ preventDefault() {} })
+        await listeners.get('webglcontextrestored')()
+    })
+    assert.deepEqual(created, [ACCEPTED_DSL, ACCEPTED_DSL])
+    assert.notEqual(renderer.pipeline, null)
+    assert.equal(renderer.isRunning, true)
+})
+
+for (const lossDuringCompile of [false, true]) {
+    test(`rejected explicit compile after disposal stays disposed with loss ${lossDuringCompile ? 'during' : 'after'} compilation`, async () => {
+        const { renderer, listeners, events } = restorationFixture()
+        const canvas = renderer.canvas
+        renderer._contextRecoveryTimer = null
+        let creations = 0
+        renderer._createRuntime = async () => {
+            creations++
+            if (lossDuringCompile) listeners.get('webglcontextlost')({ preventDefault() {} })
+            throw rejectedCompileError()
+        }
+        await renderer.dispose()
+        try {
+            await withSilencedConsole(async () => {
+                await assert.rejects(renderer.compile(REJECTED_DSL), (err) => err.code === 'ERR_COMPILATION_FAILED')
+                if (!lossDuringCompile) listeners.get('webglcontextlost')({ preventDefault() {} })
+                assert.equal(renderer._contextRecoveryTimer, null, 'a rejected compile must not leave automatic recovery scheduled')
+                await listeners.get('webglcontextrestored')()
+            })
+            assert.equal(creations, 1)
+            assert.equal(renderer.currentDsl, ACCEPTED_DSL)
+            assert.equal(renderer.pipeline, null)
+            assert.equal(renderer.canvas, canvas)
+            assert.deepEqual(events, [['dead dispose', { loseContext: false }]])
+        } finally {
+            renderer._clearContextRecovery()
+        }
+    })
 }
 
 test('dispose during restoration cancels stale completion without an error or render-loop resurrection', async () => {

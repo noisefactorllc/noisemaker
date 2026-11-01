@@ -125,6 +125,57 @@ async function openRenderer(target = browser) {
     return { page, pageErrors, warnings }
 }
 
+async function disposedBeforeLossEvent(rejectCompile = false) {
+    console.log(`-- intentional disposal does not rebuild after the delayed loss event (rejected compile: ${rejectCompile})`)
+    const { page, pageErrors } = await openRenderer()
+    try {
+        const result = await page.evaluate(async (rejectCompile) => {
+            const doc = window.__doc
+            const r = doc.renderer
+            await r.compile(doc.programs[0])
+            r.start()
+            await doc.waitFor(() => r.frameCount >= 10, 5000)
+            const canvas = r.canvas
+            const ext = r.pipeline.backend.gl.getExtension('WEBGL_lose_context')
+            const lost = new Promise((resolve) => canvas.addEventListener('webglcontextlost', resolve, { once: true }))
+            await r.dispose({ loseContext: !rejectCompile })
+            let rejection = null
+            if (rejectCompile) {
+                try {
+                    await r.compile('search synth\nnoise(notAParam: 1).write(o0)\nrender(o0)')
+                } catch (error) {
+                    rejection = error.code
+                }
+                ext.loseContext()
+            }
+            const lossDelivered = await Promise.race([
+                lost.then(() => true),
+                new Promise((resolve) => setTimeout(() => resolve(false), 2000))
+            ])
+            // Observe beyond the normal context-recovery delay.
+            await new Promise((resolve) => setTimeout(resolve, 3500))
+            const disposed = {
+                lossDelivered,
+                pipeline: !!r.pipeline,
+                sameCanvas: r.canvas === canvas,
+                restored: doc.restored,
+            }
+            await r.compile(doc.programs[1])
+            const ran = await doc.waitFor(() => r.isRunning && r.frameCount >= 10, 5000)
+            return { disposed, rejection, ran, max: await doc.frame(), errors: doc.errors }
+        }, rejectCompile)
+        if (rejectCompile) check(result.rejection === 'ERR_COMPILATION_FAILED', 'the explicit invalid program is rejected')
+        check(result.disposed.lossDelivered, 'the browser delivered the asynchronous loss event')
+        check(!result.disposed.pipeline && result.disposed.sameCanvas && result.disposed.restored === 0,
+            `disposal remains effective beyond the recovery delay (${JSON.stringify(result.disposed)})`)
+        check(result.ran && result.max > 16, `an explicit compile can render again (max=${result.max})`)
+        check(result.errors.length === 0, `onError is not called (${JSON.stringify(result.errors)})`)
+        check(pageErrors.length === 0, `no page errors (${pageErrors.join('; ')})`)
+    } finally {
+        await page.close()
+    }
+}
+
 async function lostWithoutRestore() {
     console.log('-- lost without a restore event: rebuilt on a fresh canvas')
     const { page, pageErrors } = await openRenderer()
@@ -364,6 +415,8 @@ async function realGpuProcessExit() {
 }
 
 try {
+    await disposedBeforeLossEvent()
+    await disposedBeforeLossEvent(true)
     await lostWithoutRestore()
     await compileAfterLoss()
     await lostBeforeSecondFrame()
