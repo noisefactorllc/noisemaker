@@ -43,7 +43,7 @@ dev = [
     "black>=26.10.1",
     "ruff>=0.17.2",
     "mypy>=2.4.0",
-    "types-requests>=2.33.0.20261006",
+    "types-requests>=2.33.0.20261030",
     "pre-commit>=4.7.0",
 ]
 docs = [
