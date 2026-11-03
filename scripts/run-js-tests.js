@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
+import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
@@ -89,7 +90,82 @@ const skipParity = process.argv.includes('--skip-parity')
 const skipDocs = process.argv.includes('--skip-docs')
 const forwardedArgs = process.argv.filter((arg) => arg !== '--skip-parity' && arg !== '--skip-docs')
 
-for (const entry of testEntries) {
+/**
+ * Operator rule: when NM_CHANGED_FILES lists the candidate's changed paths
+ * (one per line), run only the test modules that exercise those paths, and
+ * keep every such module. Unset, the runner executes the whole suite exactly
+ * as before. When a selection would still exceed one invocation's time
+ * budget, NM_SHARD_COUNT and NM_SHARD_INDEX (from 0) split the selection
+ * deterministically by original list position, so the shards together run
+ * every selected module. Sharding applies only when NM_CHANGED_FILES is set,
+ * so behavior without that variable never changes.
+ */
+const changedPaths = parseChangedPaths(process.env.NM_CHANGED_FILES)
+
+function parseChangedPaths(value) {
+  if (value === undefined) {
+    return null
+  }
+
+  return String(value)
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+}
+
+function shardSpec() {
+  const count = Number.parseInt(process.env.NM_SHARD_COUNT ?? '', 10)
+  const index = Number.parseInt(process.env.NM_SHARD_INDEX ?? '', 10)
+
+  if (!Number.isInteger(count) || count < 1 || !Number.isInteger(index) || index < 0 || index >= count) {
+    return null
+  }
+
+  return { count, index }
+}
+
+function changedPathKeys(changedPath) {
+  const segments = path.relative(repoRoot, path.resolve(repoRoot, changedPath)).split(path.sep)
+  const relative = segments.join('/')
+  const base = segments[segments.length - 1]
+
+  return [relative, relative.replace(/\.[^.]+$/, ''), base, base.replace(/\.[^.]+$/)]
+}
+
+function entryExercises(entry, keys) {
+  if (keys.includes(entry.file)) {
+    return true
+  }
+
+  let content = ''
+
+  try {
+    content = fs.readFileSync(path.resolve(repoRoot, entry.file), 'utf8')
+  } catch {
+    return false
+  }
+
+  return keys.some((key) => content.includes(key))
+}
+
+let entries = testEntries
+
+if (changedPaths !== null) {
+  const keys = changedPaths.flatMap((changedPath) => changedPathKeys(changedPath))
+
+  entries = testEntries.filter((entry) => entryExercises(entry, keys))
+
+  const shard = shardSpec()
+
+  if (shard) {
+    entries = entries.filter((entry) => testEntries.indexOf(entry) % shard.count === shard.index)
+  }
+
+  const shardNote = shard ? `, shard ${shard.index}/${shard.count}` : ''
+  console.log(`NM_CHANGED_FILES: ${entries.length} of ${testEntries.length} test modules${shardNote}`)
+}
+
+for (const entry of entries) {
   if ((skipParity && entry.parity) || (skipDocs && entry.docs)) {
     continue
   }
