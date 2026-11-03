@@ -70,7 +70,7 @@ async function renderBackend(browser, baseUrl, preferWebGPU) {
 
     try {
         if (preferWebGPU) {
-            await page.goto(`${baseUrl}/shaders/manifest.json`, { waitUntil: 'load' })
+            await page.goto(`${baseUrl}/shaders/effects/manifest.json`, { waitUntil: 'load' })
             consoleMessages.length = 0
         }
         await page.setContent(`<!doctype html>

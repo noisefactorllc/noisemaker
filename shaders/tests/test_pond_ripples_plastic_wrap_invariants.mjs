@@ -192,7 +192,7 @@ async function render(page, dsl, expectedBackend, tileRegion = null) {
 async function assertBackend(browser, baseUrl, preferWebGPU, expectedBackend) {
     const page = await browser.newPage({ viewport: { width, height } })
     const diagnostics = []
-    if (preferWebGPU) await page.goto(`${baseUrl}/shaders/manifest.json`, { waitUntil: 'load' })
+    if (preferWebGPU) await page.goto(`${baseUrl}/shaders/effects/manifest.json`, { waitUntil: 'load' })
     page.on('console', message => {
         if (!['error', 'warning'].includes(message.type())) return
         if (message.type() === 'warning' && message.text().includes('GL Driver Message (OpenGL, Performance')) return
@@ -262,7 +262,7 @@ async function assertTileParity(browser, baseUrl, preferWebGPU, expectedBackend,
     const tileHeight = 64
     const offset = [16, 16]
     const page = await browser.newPage({ viewport: { width: tileWidth, height: tileHeight } })
-    if (preferWebGPU) await page.goto(`${baseUrl}/shaders/manifest.json`, { waitUntil: 'load' })
+    if (preferWebGPU) await page.goto(`${baseUrl}/shaders/effects/manifest.json`, { waitUntil: 'load' })
     await installHarness(page, baseUrl, preferWebGPU, tileWidth, tileHeight)
     const tile = await render(page, plasticDsl(60, 40, 30, [0.4, -0.6, 0.7]), expectedBackend,
         { offset, fullResolution: [width, height] })
