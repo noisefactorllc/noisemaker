@@ -2225,6 +2225,11 @@ export class CanvasRenderer {
      * @param {HTMLVideoElement|HTMLImageElement|HTMLCanvasElement|ImageBitmap} source - Media source
      * @param {object} [options] - Update options
      * @param {boolean} [options.flipY=true] - Whether to flip the Y axis
+     * @param {CanvasRenderingContext2D} [options.context2d] - The source
+     *   canvas's 2D context. A willReadFrequently context uploads its
+     *   getImageData() bytes on WebGPU, as WebGL2 uploads them. Uploading
+     *   never asks the source for a context: that would give a canvas with
+     *   none yet a 2D context for good.
      * @returns {{ width: number, height: number }} Source dimensions
      */
     updateTextureFromSource(texId, source, options = {}) {

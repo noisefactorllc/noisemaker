@@ -579,6 +579,8 @@ export class WebGPUBackend extends Backend {
      * @param {HTMLVideoElement|HTMLImageElement|HTMLCanvasElement|ImageBitmap|VideoFrame} source - Borrowed media source
      * @param {object} [options] - Update options
      * @param {boolean} [options.flipY=true] - Whether to flip the Y axis
+     * @param {CanvasRenderingContext2D} [options.context2d] - The source
+     *   canvas's 2D context, when the caller holds one
      * @returns {{ width: number, height: number }} Source dimensions
      *
      * Must stay synchronous to match WebGL2Backend and the documented
@@ -655,7 +657,11 @@ export class WebGPUBackend extends Backend {
         // getImageData and both backends sample the same bytes. GPU-backed
         // canvases stay on copyExternalImageToTexture, which avoids a GPU
         // readback on every upload.
-        const context2d = source instanceof HTMLCanvasElement ? source.getContext('2d') : null
+        // The caller hands over the 2D context. Asking the canvas for one
+        // here created a 2D context on a canvas that had none yet, and a
+        // canvas keeps the first context type it gets, so the renderer that
+        // owned it could no longer take a WebGPU or WebGL2 context.
+        const context2d = options.context2d?.canvas === source ? options.context2d : null
         if (context2d?.getContextAttributes?.().willReadFrequently) {
             const pixels = context2d.getImageData(0, 0, width, height).data
             const rowBytes = width * 4
@@ -677,11 +683,23 @@ export class WebGPUBackend extends Backend {
         }
 
         // Use copyExternalImageToTexture for efficient video/image upload
-        this.device.queue.copyExternalImageToTexture(
-            { source, flipY },
-            { texture: tex.handle },
-            { width, height }
-        )
+        try {
+            this.device.queue.copyExternalImageToTexture(
+                { source, flipY },
+                { texture: tex.handle },
+                { width, height }
+            )
+        } catch (err) {
+            // A canvas without a rendering context has no pixels and cannot
+            // be copied. WebGL2 uploads it as transparent black; so does this.
+            if (!(source instanceof HTMLCanvasElement) || err?.name !== 'OperationError') throw err
+            this.device.queue.writeTexture(
+                { texture: tex.handle },
+                new Uint8Array(width * height * 4),
+                { bytesPerRow: width * 4, rowsPerImage: height },
+                { width, height }
+            )
+        }
 
         return { width, height }
     }

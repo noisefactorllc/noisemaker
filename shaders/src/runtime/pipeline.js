@@ -989,7 +989,10 @@ export class Pipeline {
                 if (cancelled) return
                 // Map effect-local texture name to graph-scoped name
                 const texId = `${nodeId}_${texName}`
-                this.backend.updateTextureFromSource(texId, canvas, { flipY: true })
+                // An overlay canvas is the effect's own 2D canvas: its
+                // context tells WebGPU to upload a willReadFrequently overlay
+                // with the bytes WebGL2 uploads.
+                this.backend.updateTextureFromSource(texId, canvas, { flipY: true, context2d: canvas.getContext('2d') })
             },
             width: this.width,
             height: this.height,
