@@ -12,7 +12,7 @@ Generates regular polygons with configurable sides, radius, rotation, and colors
 |-----------|------|---------|-------|-------------|
 | sides | int | 3 | 3-64 | Sides |
 | radius | float | 0.5 | 0-1 | Size |
-| smooth | float | 0.01 | 0-1 | Edge smoothness |
+| smooth | float | 0.01 | 0-1 | Edge smoothness. Zero gives a hard edge. |
 | rotation | float | 0 | -180-180 | Rotation |
 | fgColor | vec3 | 1,1,1 | - | Foreground Color |
 | fgAlpha | float | 1 | 0-1 | Foreground Opacity |

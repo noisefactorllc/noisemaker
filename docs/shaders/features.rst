@@ -13,3 +13,4 @@ Features
    demo-ui
    tile-rendering
    software-rendering
+   context-recovery

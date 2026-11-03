@@ -264,6 +264,8 @@ Creates and manages the WebGL2 or WebGPU rendering pipeline.
         bundlePath: `${SHADER_CDN}/effects`, // Path to effect bundles
         preferWebGPU: false,               // Use WebGPU backend if available
         softwareRendering: 'off',           // 'off', 'auto', or 'on'
+        onContextLost: () => {},             // Called when a WebGL context or WebGPU device is lost
+        onContextRestored: () => {},         // Called after context restore or fresh-canvas recovery
         onFPS: (fps) => {},                // Called about once per second with the rounded FPS
         onError: (err) => {},              // Called on pipeline errors
         onFrame: (frameCount) => {},       // Called after each rendered frame with the frame count
