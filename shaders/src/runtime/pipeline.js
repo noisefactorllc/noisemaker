@@ -991,8 +991,9 @@ export class Pipeline {
                 const texId = `${nodeId}_${texName}`
                 // An overlay canvas is the effect's own 2D canvas: its
                 // context tells WebGPU to upload a willReadFrequently overlay
-                // with the bytes WebGL2 uploads.
-                this.backend.updateTextureFromSource(texId, canvas, { flipY: true, context2d: canvas.getContext('2d') })
+                // with the bytes WebGL2 uploads. Other sources (an
+                // ImageBitmap) have no context to pass.
+                this.backend.updateTextureFromSource(texId, canvas, { flipY: true, context2d: canvas.getContext?.('2d') })
             },
             width: this.width,
             height: this.height,
