@@ -622,7 +622,7 @@ async function testEffect(session, effectId, options) {
 
     // Algorithmic equivalence test (uses filesystem + AI)
     if (options.runAlgEquiv) {
-        await loadAIDeps()
+        if (options.withAi) await loadAIDeps()
         if (!options.withAi) {
             console.log(`  ⊘ alg-equiv: skipped (--with-ai not specified)`)
         } else if (!getAIProvider({ projectRoot: PROJECT_ROOT })) {
@@ -660,7 +660,7 @@ async function testEffect(session, effectId, options) {
 
     // Branching analysis (uses filesystem + AI)
     if (options.runBranching) {
-        await loadAIDeps()
+        if (options.withAi) await loadAIDeps()
         if (!options.withAi) {
             console.log(`  ⊘ branching: skipped (--with-ai not specified)`)
         } else if (!getAIProvider({ projectRoot: PROJECT_ROOT })) {
@@ -1015,8 +1015,36 @@ async function runDescribeMode(args) {
     process.exit(0)
 }
 
+const SOFTWARE_ADAPTER = /swiftshader|llvmpipe|lavapipe|softpipe|software|basic render|\bwarp\b/i
+
+/**
+ * Print the WebGPU adapter the session's browser gets, and return why its
+ * results cannot count (no adapter, a fallback adapter or a software
+ * rasterizer), or null for a hardware adapter.
+ */
+async function checkWebGpuAdapter(session) {
+    const adapter = await session.page.evaluate(async () => {
+        const gpu = await navigator.gpu?.requestAdapter()
+        if (!gpu) return null
+        const info = gpu.info || {}
+        return {
+            vendor: info.vendor || '',
+            architecture: info.architecture || '',
+            device: info.device || '',
+            description: info.description || '',
+            fallback: info.isFallbackAdapter === true || gpu.isFallbackAdapter === true,
+        }
+    })
+    if (!adapter) return 'WebGPU adapter: none available'
+    const { vendor, architecture, device, description, fallback } = adapter
+    console.log(`WebGPU adapter: vendor=${vendor} architecture=${architecture} device=${device} description="${description}" fallback=${fallback}`)
+    if (fallback) return 'WebGPU adapter is a fallback adapter'
+    if (SOFTWARE_ADAPTER.test(`${vendor} ${architecture} ${device} ${description}`)) return 'WebGPU adapter is a software rasterizer'
+    return null
+}
+
 async function main() {
-    const nag = "⚠️ This is a long-running, expensive test suite. Don't run it multiple times unless you really need to. Capture the results in a log and review the log."
+    const nag ="⚠️ This is a long-running, expensive test suite. Don't run it multiple times unless you really need to. Capture the results in a log and review the log."
     console.log(nag)
 
     const args = parseArgs()
@@ -1044,16 +1072,10 @@ async function main() {
 
     console.log(`\nStarting browser session (backend: ${args.backend})...`)
 
-    // Pixel parity tests require headed mode for WebGPU support
-    const needsHeaded = args.runPixelParity
-    if (needsHeaded) {
-        console.log('  (headed mode for WebGPU pixel parity testing)')
-    }
-
     // Setup: Create browser session
     const session = new BrowserSession({
         backend: args.backend,
-        headless: !needsHeaded,  // Headed for pixel parity, headless otherwise
+        headless: true,
         globals: NOISEMAKER_GLOBALS,
         viewerRoot: PROJECT_ROOT,
         viewerPath: '/demo/shaders/?effect=synth/noise',
@@ -1062,6 +1084,17 @@ async function main() {
 
     try {
         await session.setup()
+
+        // WebGPU results count only from a hardware adapter
+        if (args.backend === 'webgpu' || args.runPixelParity) {
+            const adapterProblem = await checkWebGpuAdapter(session)
+            if (adapterProblem) {
+                console.log(`❌ ${adapterProblem}`)
+                await session.teardown()
+                console.log(`\n❌ TEST RUN FAILED - WebGPU needs a hardware adapter`)
+                process.exit(1)
+            }
+        }
 
         // Resolve effect patterns from disk
         const allEffects = discoverEffectsFromDisk()
