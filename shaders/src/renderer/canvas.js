@@ -465,26 +465,7 @@ export class CanvasRenderer {
 
         this._boundContextLost = (e) => {
             e.preventDefault() // Signal browser we will handle restore
-            this._isContextLost = true
-            if (this._isDisposed) return
-            this._wasRunningBeforeContextLoss = this._isRunning
-            // A program whose build stalls the GPU process past the browser's
-            // watchdog loses the context while drawing its first frame.
-            // Rebuilding it stalls the new GPU process too, and after a second
-            // exit Chrome blocks the page from WebGL and never restores it.
-            this._contextLostBeforeSecondFrame = this._isRunning && this._frameCount < 2
-
-            if (this._pipeline?.backend) {
-                this._pipeline.backend.isContextLost = true
-            }
-
-            this.stop()
-            this._scheduleContextRecovery()
-
-            console.warn('[Canvas] WebGL context lost')
-            if (this._onContextLost) {
-                this._onContextLost()
-            }
+            this._onBackendLost('[Canvas] WebGL context lost')
         }
 
         this._boundContextRestored = async () => {
@@ -550,6 +531,49 @@ export class CanvasRenderer {
     }
 
     /**
+     * @private Stop on a lost WebGL context or WebGPU device, notify the host
+     * and schedule the rebuild on a fresh canvas.
+     * @param {string} message - Warning to log
+     */
+    _onBackendLost(message) {
+        this._isContextLost = true
+        if (this._isDisposed) return
+        this._wasRunningBeforeContextLoss = this._isRunning
+        // A program whose build stalls the GPU process past the browser's
+        // watchdog loses the context while drawing its first frame.
+        // Rebuilding it stalls the new GPU process too, and after a second
+        // exit Chrome blocks the page from WebGL and never restores it.
+        this._contextLostBeforeSecondFrame = this._isRunning && this._frameCount < 2
+
+        if (this._pipeline?.backend) {
+            this._pipeline.backend.isContextLost = true
+        }
+
+        this.stop()
+        this._scheduleContextRecovery()
+
+        console.warn(message)
+        if (this._onContextLost) {
+            this._onContextLost()
+        }
+    }
+
+    /**
+     * @private Watch the WebGPU device of a new pipeline. A lost device (a GPU
+     * process exit, a driver reset, device.destroy()) is never restored, and
+     * the canvas gets no event for it. The loop kept running on the dead
+     * device, the canvas froze on its last frame and every read of it came
+     * back empty until a reload.
+     * @param {object} pipeline - The pipeline just made current
+     */
+    _watchDeviceLoss(pipeline) {
+        pipeline?.backend?.device?.lost?.then((info) => {
+            if (this._isDisposed || this._pipeline !== pipeline) return
+            this._onBackendLost(`[Canvas] WebGPU device lost: ${info?.message || info?.reason || 'unknown reason'}`)
+        })
+    }
+
+    /**
      * @private Whether to rebuild the current program after a context loss.
      * Not when the context was lost while the running program drew its first
      * frame: it may be what stalled the GPU. The next compile() builds again.
@@ -564,8 +588,9 @@ export class CanvasRenderer {
     }
 
     /**
-     * @private When the browser does not restore the lost context in time,
-     * rebuild the current program on a fresh canvas (see _compileSource).
+     * @private When the browser does not restore the lost WebGL context in
+     * time, or the WebGPU device is lost (no event restores one), rebuild the
+     * current program on a fresh canvas (see _compileSource).
      */
     _scheduleContextRecovery() {
         this._clearContextRecovery()
@@ -1309,6 +1334,7 @@ export class CanvasRenderer {
                 return null
             }
             this._pipeline = initialPipeline
+            this._watchDeviceLoss(initialPipeline)
             // Apply external input state to new pipeline
             if (this._midiState) {
                 this._pipeline.setMidiState(this._midiState)
@@ -1342,6 +1368,7 @@ export class CanvasRenderer {
                         return null
                     }
                     this._pipeline = replacementPipeline
+                    this._watchDeviceLoss(replacementPipeline)
                     try {
                         previousPipeline?.dispose?.()
                     } catch (err) {
