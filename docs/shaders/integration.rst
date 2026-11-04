@@ -331,7 +331,7 @@ element's size wins; a diagnostic warns when it differs from the options.
     renderer.applyStepParameterValues(values)  // Apply parameter values from state
 
     // Textures
-    renderer.updateTextureFromSource(id, source)  // Update texture from image/video/canvas/VideoFrame
+    renderer.updateTextureFromSource(id, source, options = {})  // Update texture from image/video/canvas/VideoFrame
     renderer.getMediaSteps()               // List per-step media texture ids (imageTex_step_N)
 
     // Backend
@@ -350,6 +350,11 @@ element's size wins; a diagnostic warns when it differs from the options.
     renderer.getEffectsFromManifest('synth')  // List effects in a namespace
 
 ``loadEffects()`` does not reject when an effect fails to load; the ``failed`` property of the array it returns lists ``{ effectId, error }`` for each effect that could not load.
+
+Create the source canvas's 2D context with ``willReadFrequently: true``.
+Pass that context as ``options.context2d``.
+WebGPU uploads the context's pixel bytes, as WebGL2 does.
+The renderer does not create a context on the source canvas.
 
 See :doc:`software-rendering` for detection and single-frame mode behavior.
 See :doc:`renderer-output` for sink lifecycle, asynchronous frame export, and
