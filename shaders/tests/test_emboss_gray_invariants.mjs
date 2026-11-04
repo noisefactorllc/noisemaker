@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
 import { PNG } from 'pngjs'
 
@@ -16,8 +16,8 @@ const embossDir = path.join(effectsDir, 'filter', 'emboss')
 process.env.SHADE_EFFECTS_DIR = effectsDir
 process.env.SHADE_PROJECT_ROOT = repoRoot
 
-const { acquireServer, releaseServer } = await import(path.join(repoRoot, 'vendor/shade-mcp/harness/index.js'))
-const { default: embossDefinition } = await import(path.join(embossDir, 'definition.js'))
+const { acquireServer, releaseServer } = await import(pathToFileURL(path.join(repoRoot, 'vendor/shade-mcp/harness/index.js')).href)
+const { default: embossDefinition } = await import(pathToFileURL(path.join(embossDir, 'definition.js')).href)
 
 const width = 128
 const height = 128

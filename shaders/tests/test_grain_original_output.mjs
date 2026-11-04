@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
 import { PNG } from 'pngjs'
 
@@ -12,10 +12,10 @@ const effectsDir = path.join(repoRoot, 'shaders/effects')
 process.env.SHADE_EFFECTS_DIR = effectsDir
 process.env.SHADE_PROJECT_ROOT = repoRoot
 
-const { default: definition } = await import(path.join(effectsDir, 'filter/grain/definition.js'))
+const { default: definition } = await import(pathToFileURL(path.join(effectsDir, 'filter/grain/definition.js')).href)
 assert.deepEqual(Object.keys(definition.globals), ['alpha', 'pause'])
 
-const { acquireServer, releaseServer } = await import(path.join(repoRoot, 'vendor/shade-mcp/harness/index.js'))
+const { acquireServer, releaseServer } = await import(pathToFileURL(path.join(repoRoot, 'vendor/shade-mcp/harness/index.js')).href)
 const baseUrl = await acquireServer(undefined, repoRoot, effectsDir)
 const browser = await chromium.launch({
     headless: true,

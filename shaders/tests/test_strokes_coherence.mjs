@@ -2,11 +2,11 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const dir = path.resolve(__dirname, '../effects/filter/strokes')
-const { default: definition } = await import(path.join(dir, 'definition.js'))
+const { default: definition } = await import(pathToFileURL(path.join(dir, 'definition.js')).href)
 
 assert.deepEqual(definition.passes.map(pass => pass.program), ['stkSmear', 'stkPost'],
     'Strokes must not execute a preparation pass that is a no-op for four of its five modes')

@@ -6,7 +6,7 @@
 // shifts the entire pattern, so the interior comparison fails decisively.
 import assert from 'node:assert/strict'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
 import { PNG } from 'pngjs'
 
@@ -16,7 +16,7 @@ const effectsDir = path.join(repoRoot, 'shaders/effects')
 process.env.SHADE_EFFECTS_DIR = effectsDir
 process.env.SHADE_PROJECT_ROOT = repoRoot
 
-const { acquireServer, releaseServer } = await import(path.join(repoRoot, 'vendor/shade-mcp/harness/index.js'))
+const { acquireServer, releaseServer } = await import(pathToFileURL(path.join(repoRoot, 'vendor/shade-mcp/harness/index.js')).href)
 const baseUrl = await acquireServer(undefined, repoRoot, effectsDir)
 const browser = await chromium.launch({
     headless: true,

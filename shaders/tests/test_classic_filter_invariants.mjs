@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
 import { PNG } from 'pngjs'
 
@@ -14,8 +14,8 @@ const effectsDir = path.join(repoRoot, 'shaders', 'effects')
 process.env.SHADE_EFFECTS_DIR = effectsDir
 process.env.SHADE_PROJECT_ROOT = repoRoot
 
-const { acquireServer, releaseServer } = await import(path.join(repoRoot, 'vendor/shade-mcp/harness/index.js'))
-const { default: halftoneDefinition } = await import(path.join(effectsDir, 'filter', 'halftone', 'definition.js'))
+const { acquireServer, releaseServer } = await import(pathToFileURL(path.join(repoRoot, 'vendor/shade-mcp/harness/index.js')).href)
+const { default: halftoneDefinition } = await import(pathToFileURL(path.join(effectsDir, 'filter', 'halftone', 'definition.js')).href)
 
 const width = 128
 const height = 128

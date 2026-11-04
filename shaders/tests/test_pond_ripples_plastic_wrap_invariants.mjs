@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
 import { PNG } from 'pngjs'
 
@@ -17,9 +17,9 @@ const plasticDir = path.join(effectsDir, 'filter', 'plasticWrap')
 process.env.SHADE_EFFECTS_DIR = effectsDir
 process.env.SHADE_PROJECT_ROOT = repoRoot
 
-const { acquireServer, releaseServer } = await import(path.join(repoRoot, 'vendor/shade-mcp/harness/index.js'))
-const { default: pondDefinition } = await import(path.join(pondDir, 'definition.js'))
-const { default: plasticDefinition } = await import(path.join(plasticDir, 'definition.js'))
+const { acquireServer, releaseServer } = await import(pathToFileURL(path.join(repoRoot, 'vendor/shade-mcp/harness/index.js')).href)
+const { default: pondDefinition } = await import(pathToFileURL(path.join(pondDir, 'definition.js')).href)
+const { default: plasticDefinition } = await import(pathToFileURL(path.join(plasticDir, 'definition.js')).href)
 
 const width = 96
 const height = 96

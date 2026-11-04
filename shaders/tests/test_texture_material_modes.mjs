@@ -2,13 +2,13 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const textureDir = path.resolve(__dirname, '../effects/filter/texture')
 const grainDir = path.resolve(__dirname, '../effects/filter/grain')
-const { default: texture } = await import(path.join(textureDir, 'definition.js'))
-const { default: grain } = await import(path.join(grainDir, 'definition.js'))
+const { default: texture } = await import(pathToFileURL(path.join(textureDir, 'definition.js')).href)
+const { default: grain } = await import(pathToFileURL(path.join(grainDir, 'definition.js')).href)
 
 assert.deepEqual(Object.keys(grain.globals), ['alpha', 'pause'],
     'Grain must remain the focused film-grain effect')
