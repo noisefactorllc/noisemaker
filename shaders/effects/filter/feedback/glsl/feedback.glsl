@@ -40,6 +40,35 @@ uniform bool resetState;
 
 out vec4 fragColor;
 
+// The min/max clamp keeps the value it wraps from being rearranged or fused
+// into the next operation. Its bound comes from the resolution uniform (at
+// least one pixel), so it is value-exact for every value this shader computes,
+// and the compiler cannot prove it away.
+float pin(float x) {
+    float bound = 1e30 * resolution.x;
+    return min(max(x, -bound), bound);
+}
+
+// Error of the product a * b against its rounded value p (Dekker). The clamps
+// keep the splitting exact.
+float productError(float a, float b, float p) {
+    float sa = pin(4097.0 * a);
+    float ah = pin(sa - pin(sa - a));
+    float al = a - ah;
+    float sb = pin(4097.0 * b);
+    float bh = pin(sb - pin(sb - b));
+    float bl = b - bh;
+    return pin(pin(pin(pin(ah * bh) - p) + pin(ah * bl)) + pin(al * bh)) + pin(al * bl);
+}
+
+// a / b with correct rounding, computed in the same steps as the WGSL shader.
+float divRound(float a, float b) {
+    float q = pin(a / b);
+    float p = pin(q * b);
+    float r = pin(pin(a - p) - productError(q, b, p));
+    return q + pin(r / b);
+}
+
 #define PI 3.14159265359
 #define TAU 6.28318530718
 #define aspectRatio (resolution.x / resolution.y)
@@ -347,7 +376,10 @@ void main() {
 
     // hue rotation
     vec3 hsv = rgb2hsv(color.rgb);
-    hsv[0] = mod(hsv[0] + map(hueRotation, -180.0, 180.0, -0.05, 0.05), 1.0);
+    // Compute the shift on its own, in the same steps as the WGSL shader, so
+    // both backends add the same correctly rounded value to the hue.
+    float hueShift = pin(-0.05 + divRound(pin(0.1 * (hueRotation + 180.0)), 360.0));
+    hsv[0] = fract(hsv[0] + hueShift);
     color.rgb = hsv2rgb(hsv);
 
     // brightness/contrast
