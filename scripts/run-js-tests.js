@@ -101,7 +101,8 @@ const forwardedArgs = process.argv.filter((arg) => arg !== '--skip-parity' && ar
  * budget, NM_SHARD_COUNT and NM_SHARD_INDEX (from 0) split the selection
  * deterministically by original list position, so the shards together run
  * every selected module. Sharding applies only when NM_CHANGED_FILES is set,
- * so behavior without that variable never changes.
+ * so behavior without that variable never changes. A selection that matches
+ * no module fails the run instead of passing with zero coverage.
  */
 const changedPaths = parseChangedPaths(process.env.NM_CHANGED_FILES)
 
@@ -172,6 +173,15 @@ if (changedPaths !== null) {
 
   const shardNote = shard ? `, shard ${shard.index}/${shard.count}` : ''
   console.log(`NM_CHANGED_FILES: ${entries.length} of ${testEntries.length} test modules${shardNote}`)
+
+  // Zero selected modules would run nothing and exit 0, so a change could
+  // receive no coverage and still pass. Fail instead: the caller then fixes
+  // the paths or the module mapping. The operator rule requires every changed
+  // path's tests to run; an empty selection cannot honor it.
+  if (entries.length === 0) {
+    console.error(`NM_CHANGED_FILES: no test module exercises the changed paths; fix the paths or the module list in ${runnerPath}`)
+    process.exit(1)
+  }
 }
 
 for (const entry of entries) {
