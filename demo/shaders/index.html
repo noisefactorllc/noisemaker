@@ -171,6 +171,9 @@
             ? new URL('../../dist/shaders', import.meta.url).href
             : new URL('../../shaders', import.meta.url).href;
         const bundleBasePath = new URL('../../dist/effects', import.meta.url).href;
+        // Built-in meshes ("share/meshes/x.obj") live at the repo root in the source tree.
+        // Like shaderBasePath, the base has no trailing slash.
+        const meshBasePath = useBundles ? shaderBasePath : new URL('../..', import.meta.url).href.replace(/\/$/, '');
         
         /**
          * Compute optimal canvas size based on container dimensions.
@@ -417,7 +420,8 @@
             loadingDialogProgress,
             onControlChange: renderSingleFrameIfPaused,
             onRequestRecompile: () => rebuildPipelineFromDsl({ rebuildControls: false }),
-            controlFactory: new HandfishControlFactory()
+            controlFactory: new HandfishControlFactory(),
+            meshBasePath
         });
 
         // =====================================================================

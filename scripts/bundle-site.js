@@ -182,6 +182,15 @@ function transformShadersDemoHtml() {
         `const bundleBasePath = new URL('../../effects', import.meta.url).href;`
     )
 
+    // Built-in meshes are copied under lib/shaders/share/meshes, so they
+    // resolve against shaderBasePath in every site mode. A missed rewrite
+    // would point them at the site root, where no meshes exist.
+    const meshBasePathPattern = /const meshBasePath = useBundles \? shaderBasePath : new URL\('\.\.\/\.\.', import\.meta\.url\)\.href\.replace\(\/\\\/\$\/, ''\);/
+    if (!meshBasePathPattern.test(html)) {
+        throw new Error('demo/shaders/index.html: meshBasePath declaration not found')
+    }
+    html = html.replace(meshBasePathPattern, 'const meshBasePath = shaderBasePath;')
+
     fs.mkdirSync(path.dirname(destPath), { recursive: true })
     fs.writeFileSync(destPath, html)
     console.log('  ✓ demo/shaders/index.html')
