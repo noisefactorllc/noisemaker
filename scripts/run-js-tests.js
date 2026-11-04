@@ -93,7 +93,9 @@ const forwardedArgs = process.argv.filter((arg) => arg !== '--skip-parity' && ar
 /**
  * Operator rule: when NM_CHANGED_FILES lists the candidate's changed paths
  * (one per line), run only the test modules that exercise those paths, and
- * keep every such module. Unset, the runner executes the whole suite exactly
+ * keep every such module. A change to this runner itself exercises every
+ * module, so a changed path naming this runner selects the whole suite.
+ * Unset, the runner executes the whole suite exactly
  * as before. When a selection would still exceed one invocation's time
  * budget, NM_SHARD_COUNT and NM_SHARD_INDEX (from 0) split the selection
  * deterministically by original list position, so the shards together run
@@ -151,9 +153,15 @@ function entryExercises(entry, keys) {
 let entries = testEntries
 
 if (changedPaths !== null) {
-  const keys = changedPaths.flatMap((changedPath) => changedPathKeys(changedPath))
+  const runnerPath = path.relative(repoRoot, __filename).split(path.sep).join('/')
 
-  entries = testEntries.filter((entry) => entryExercises(entry, keys))
+  if (changedPaths.includes(runnerPath)) {
+    entries = testEntries
+  } else {
+    const keys = changedPaths.flatMap((changedPath) => changedPathKeys(changedPath))
+
+    entries = testEntries.filter((entry) => entryExercises(entry, keys))
+  }
 
   const shard = shardSpec()
 
