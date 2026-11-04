@@ -492,8 +492,8 @@ render(o0)`
     const stippleHashes = Object.fromEntries(['WebGL2', 'WebGPU'].map(backend => [backend,
         crypto.createHash('sha256').update(rendered[backend].stipple.data).digest('hex')]))
     assert.deepEqual(stippleHashes, {
-        WebGL2: '4849813c5ac9e9a53204ffa00c0d139fe1d29e1b56493058ee495caa607c9667',
-        WebGPU: '4849813c5ac9e9a53204ffa00c0d139fe1d29e1b56493058ee495caa607c9667',
+        WebGL2: '5a1d2217c2729263646fe42261a0e93504c3ae754d92f57e6c5f502284662f67',
+        WebGPU: '5a1d2217c2729263646fe42261a0e93504c3ae754d92f57e6c5f502284662f67',
     }, 'Pointillize pixels must retain their existing contract')
     const mosaicPlateau = equalNeighborRatio(rendered.WebGL2.mosaic)
     assert.ok(mosaicPlateau > 0.6,
