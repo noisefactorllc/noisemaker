@@ -1181,6 +1181,54 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-06 — candidate delivery pair: Noisemaker
+    `6f98d26ab84f17ba7fb154bb74252d6362736f89` and Shade MCP
+    `63e53ad89dc43526335da6e947ed31667929e43b`. Audited the Noisemaker range
+    `c0aa621a..6f98d26a` and the Shade MCP range `43d2b942..63e53ad8`. The
+    configured immutable MCP pin in `.mcp.json` is that Shade commit. Release
+    `v0.5.3` resolves to the same Shade source. Its downloaded
+    `shade-mcp-dist.tar.gz` has SHA-256
+    `66d61d3e5d4ecf6fb5c9524fb25dc1496dc523c9397d2da60a94d75757dab804`. The
+    automatic Noisemaker import at `d4613d7d` matches the extracted release in
+    all four vendored directories, and the vendored tree is unchanged through
+    `6f98d26a`. A fresh `npx` installation of the configured pin built a
+    `dist` byte-identical to the release, loaded SDK `1.32.2` (the lockfile
+    also pins `1.32.2`), and initialized server `shade-mcp` / `0.5.3` /
+    `2025-11-25` with 21 tools. Separate initializations echoed `2025-11-25`,
+    `2025-06-18`, `2025-03-26`, `2024-11-05` and `2024-10-07`, and answered
+    `2025-11-25` to an unlisted version. One configured-pin session ran all
+    eight worked calls without MCP `isError`, on an Apple silicon macOS host
+    with headless Chromium; the WebGPU adapter identity was not captured. Both
+    compilers succeeded, the WebGL2 render was nonblank, parity returned
+    `maxDiff=0` with `frames: 8` and `stateReset: true`, and the benchmark
+    measured 60.48 FPS against a 30 FPS target. In the same session
+    `runDslProgram` rendered an asymmetric `uvMap` program on WebGL2 and
+    WebGPU; the two contact sheets were byte-identical, with high `uv.y` at
+    the top. The Noisemaker range changed the WebGPU canvas upload (a
+    caller-passed `context2d`, transparent black for a canvas without a
+    context), WebGPU device-loss recovery, demo mesh paths and effect
+    shaders. The Shade MCP range added the program rebuild, the fixed-frame
+    parity capture with `frames` and `stateReset`, uniform reset mode, the
+    `neq` gate start value and the WebGPU `runDslProgram` row flip. The
+    contract now states the canvas-upload change and every Shade MCP runtime
+    change; the six-frame live warmup and its `30000` ms bound are removed.
+    The device-loss, mesh-path and effect-shader changes touch no contract
+    statement. Shade checks ran on source exported with
+    `git archive 63e53ad`: `npm ci` (exit 0; its `prepare` build passed
+    `check:dist` and `check:drop`, and the built `dist` is byte-identical to
+    the release), `npm run typecheck` (exit 0), `npm test` (exit 0),
+    `NOISEMAKER=<noisemaker checkout> node scripts/browser-smoke.mjs` (exit 0,
+    every check passed, including the genuine WebGPU DSL render and the
+    WebGPU grid orientation) and
+    `NOISEMAKER=<noisemaker checkout> PORTABLE=<portable source> node scripts/authored-dsl-smoke.mjs`
+    (exit 0, with Portable `86c638a1`). Noisemaker checks:
+    `sh scripts/test-shade-mcp` (exit 0),
+    `node shaders/tests/test_contract_delivery_pair.mjs` (exit 0),
+    `node --test test/mcp-config.test.js` (exit 0),
+    `node scripts/run-js-tests.js --skip-parity` (exit 0), `npm run lint`
+    (exit 0) and `node shaders/tests/test_texture_upload_source_context.mjs`
+    (exit 0, both backends). Exact-source CI and live contract readback
+    remain pending; the completed checkpoint above has not advanced.
   - 2026-11-01 — completed delivery pair: Noisemaker
     `c0aa621a53976729d9d598295701f895a68badb7` and Shade MCP
     `43d2b942cdba795c99e4a7a820570987d0b5437a`. The configured immutable

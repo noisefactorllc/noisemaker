@@ -14,20 +14,20 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `c0aa621a53976729d9d598295701f895a68badb7`.
-- Shade MCP: `43d2b942cdba795c99e4a7a820570987d0b5437a`.
-- Shade MCP protocol: server name `shade-mcp`, server version `0.5.2`. Its
-  lockfile pins `@modelcontextprotocol/sdk` 1.32.1; the `npx` install below
-  resolves the package's `^1.32.1` range when it installs, and loaded 1.32.2
-  for the session recorded below. Both accept the protocol versions
+- Noisemaker: `6f98d26ab84f17ba7fb154bb74252d6362736f89`.
+- Shade MCP: `63e53ad89dc43526335da6e947ed31667929e43b`.
+- Shade MCP protocol: server name `shade-mcp`, server version `0.5.3`. Its
+  lockfile pins `@modelcontextprotocol/sdk` 1.32.2; the `npx` install below
+  resolves the package's `^1.32.2` range when it installs, and loaded 1.32.2
+  for the session recorded below. That SDK accepts the protocol versions
   `2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05` and `2024-10-07`,
-  echo the version the client requests, and answer `2025-11-25` to any other
-  request; 21 tools are returned by `tools/list`.
+  echoes the version the client requests, and answers `2025-11-25` to any
+  other request; 21 tools are returned by `tools/list`.
 - The repository config runs
-  `npx -y github:noisedeck/shade-mcp#43d2b942cdba795c99e4a7a820570987d0b5437a`,
-  matching release v0.5.2 delivered to `vendor/shade-mcp/` by Noisemaker
-  `c0aa621a`. Tag `v0.5.2` resolves to the Shade MCP snapshot above;
-  `c0aa621a` imports its vendored bundle.
+  `npx -y github:noisedeck/shade-mcp#63e53ad89dc43526335da6e947ed31667929e43b`,
+  matching release v0.5.3 delivered to `vendor/shade-mcp/` by Noisemaker
+  `d4613d7`. Tag `v0.5.3` resolves to the Shade MCP snapshot above;
+  `d4613d7` imports its vendored bundle.
 
 Primary source roots:
 
@@ -37,7 +37,7 @@ Primary source roots:
 - backend behavior: `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`.
 - repository validation policy: `shaders/tests/test-harness.js`.
 - Shade MCP source for the pinned snapshot:
-  `https://github.com/noisefactorllc/shade-mcp/tree/43d2b942cdba795c99e4a7a820570987d0b5437a/src`.
+  `https://github.com/noisefactorllc/shade-mcp/tree/63e53ad89dc43526335da6e947ed31667929e43b/src`.
 
 ## Freshness and maintenance
 
@@ -1509,10 +1509,22 @@ stray hairs) that falls between the grid pixels.
 
 For each control the tool captures a fresh reference twice; the second capture
 against the first is the output's own change between renders. When that
-change itself exceeds the thresholds (a simulation steps on every render), the
-control responds only when one measure exceeds twice that change plus its
-threshold; otherwise it gets no verdict (`name:unstable`, `responds: null`,
-with the reference change as `noise`).
+change exceeds the thresholds (a feedback, temporal or simulation effect draws
+each frame from the frames before it) and the renderer can rebuild its
+program, the tool measures that control again in reset mode, which stays on
+for the rest of the run. In reset mode every capture starts from the same
+state: the program rebuild described under `testPixelParity` (a fresh pipeline
+with no frame history and no feedback, temporal or persistent texture
+contents; the page's parameter values and uploaded inputs kept), then every
+value the check set is applied again, async overlays settle, 60 frames render
+at the loop phases `i / (60 * loopDuration)` (one second of the loop at 60 fps
+steps), and paused time returns to zero before the t=0 and t=0.37 captures. A
+rebuild that fails in reset mode reports the control as `error`. An output
+that does not change on its own, or whose renderer cannot rebuild its program,
+is captured as it runs. When the change between the two references still
+exceeds the thresholds, the control responds only when one measure exceeds
+twice that change plus its threshold; otherwise it gets no verdict
+(`name:unstable`, `responds: null`, with the reference change as `noise`).
 
 Up to two test values are tried, never the starting value (the value the
 loaded program set, read from the effect's pass uniforms, to which every
@@ -1526,14 +1538,21 @@ that moves the output is reported as `test_value`. A control with no other
 value to set at run time (a surface input, an int with neither range nor
 choices) is reported `name:untested` with the reason.
 
-Before measuring a uniform whose `ui.enabledBy` condition is false at
-defaults, the tool sets the condition's params to values that satisfy it
-(`eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `notIn`, `and`/`or`) and reports
-them as `enabled_with`; it restores them afterwards. A threshold gate opens
-halfway into its open range first, so a control whose effect scales with its
-gate is measured at a visible strength; a member-enum gate sets the enum's
-value, and values compare per component and within 1e-4, as the UI compares
-them. A uniform whose gate cannot be opened at run time (the gate is a
+Before measuring a uniform with a `ui.enabledBy` condition, the tool sets the
+condition's params to values that satisfy it (`eq`, `neq`, `gt`, `gte`, `lt`,
+`lte`, `in`, `notIn`, `and`/`or`) and reports them as `enabled_with`; it
+restores them afterwards. A threshold gate opens halfway into its open range
+first, so a control whose effect scales with its gate is measured at a visible
+strength; a member-enum gate sets the enum's value, and values compare per
+component and within 1e-4, as the UI compares them. A `neq` or `notIn` gate
+on a non-vector param keeps its starting value when that value already
+satisfies the condition (a blend mode that is not `cloak` stays at `mix`);
+otherwise it takes the first allowed value among its choices, or among its
+minimum and maximum (0 and 1 when it declares none). Another choice can change
+the frame so much (an additive blend that saturates it) that the gated control
+cannot show. A vector `neq` or `notIn` gate (a tint that must differ from
+neutral) opens with each component moved a quarter of its range toward the far
+end. A uniform whose gate cannot be opened at run time (the gate is a
 compile-time `define`, an unknown param, or a `not`), and a compile-time
 `define` param itself, are reported `gated` (`name:gated`, `responds: null`)
 and are not measured.
@@ -1567,7 +1586,8 @@ state; `shaders/src/runtime/pipeline.js` - automation evaluation and capture
 requirements; `shaders/tests/test_midi_audio_parser.js`,
 `test_external_input.js`, and `test_nested_automation.js`; Shade MCP
 `src/tools/browser/uniforms.ts` -
-`testUniformResponsiveness()`.
+`testUniformResponsiveness()`, `resetState()`, `satisfy()`; Shade MCP
+`src/harness/program-rebuild.ts` - `installProgramRebuild()`.
 
 ### Diagnose
 
@@ -2196,7 +2216,15 @@ A 2D canvas created with `willReadFrequently` keeps its pixels in CPU memory, so
 uploads it from `getImageData()` through `queue.writeTexture()` (rows reversed for
 `flipY`), the same unpremultiplied bytes WebGL2's `texImage2D` stores;
 `copyExternalImageToTexture` would unpremultiply on the GPU and round low-alpha texels
-differently.
+differently. WebGPU takes this path only when the caller passes the source
+canvas's own 2D context as `options.context2d` (`context2d.canvas === source`);
+`CanvasRenderer.updateTextureFromSource()` forwards its options, and the
+pipeline passes an async overlay canvas's 2D context. The upload never asks
+the source canvas for a context: a canvas keeps the first context type it
+gets, so a 2D context created there would lock out a later WebGPU or WebGL2
+context. Any other canvas takes the `copyExternalImageToTexture()` path. A
+canvas with no rendering context has no pixels to copy; WebGPU catches the
+copy's `OperationError` and writes transparent black, as WebGL2 uploads it.
 Unknown or zero-sized sources return zero dimensions. Canvas/media callers may
 therefore read the dimensions directly on either backend rather than awaiting a
 backend-specific promise.
@@ -2265,12 +2293,14 @@ specs may author a filtering policy:
 
 Sources: `shaders/src/runtime/pipeline.js` - `resolveDimension()`,
 `clampVolumeSize()`, `clampGraphVolumeSizes()`, `applyMrtFormatBudget()`,
-`setUniform()`, `broadcastChainScopedParam()`;
+`setUniform()`, `broadcastChainScopedParam()`, `_startAsyncInit()` overlay
+upload;
 `shaders/src/runtime/expander.js` - `write3d`/`read3d` volume/geometry
 dimension-handoff resolution (`writtenVolumes`, `readVolumes`,
 `exportedTextures`, `resolveVolume()`, `resolveExport()`) and per-step
 external-texture binding recording (`mediaSteps`);
-`shaders/src/renderer/canvas.js` - `applyStepParameterValues()`;
+`shaders/src/renderer/canvas.js` - `applyStepParameterValues()`,
+`updateTextureFromSource()`;
 `shaders/src/runtime/backends/webgl2.js` - `createTexture()`,
 `createTexture3D()`, `resolveFormat()`, `probeColorBytesPerSample()`,
 `updateTextureFromSource()`;
@@ -3033,11 +3063,40 @@ testPixelParity({
 The tool performs these steps:
 
 1. Select WebGL2.
-2. Wait for a post-selection graph for the requested effect and backend.
-3. Render six live frames for warmup.
-4. Capture the offscreen render surface at time zero.
-5. Select WebGPU.
-6. Repeat steps 2-4.
+2. Pause the viewer's render loop and install the program rebuild
+   (`installProgramRebuild()`), before the selection uploads its media and
+   text inputs.
+3. Select the effect and wait for a post-selection graph for the requested
+   effect and backend.
+4. Wait six animation frames without rendering, so the page can finish
+   setting up the selection.
+5. Rebuild the program into a fresh pipeline.
+6. Set paused time zero, write the seed, and render eight frames
+   (`PARITY_FRAMES`) at the loop phases `i / (60 * loopDuration)` for
+   `i` = 0 to 7: 60 fps steps from time zero. `loopDuration` is 10 when
+   the renderer reports no positive value.
+7. Drain the WebGPU queue and read the offscreen render surface. A read
+   that finds no texture is retried up to six times, 80 ms apart, without
+   rendering again.
+8. Select WebGPU.
+9. Repeat steps 2-7.
+10. Resume the render loop.
+
+The program rebuild disposes the renderer's pipeline
+(`dispose({ loseContext: false, resetCanvas: false })`) and compiles its
+current program (`currentDsl`) again. The fresh pipeline has no frame history
+and no feedback, temporal or persistent texture contents. The rebuild then
+sets the global uniform values (except the uniforms the pipeline writes every
+frame) and the per-pass uniform values that differ from the new program's,
+uploads again the textures the page uploaded through the renderer after the
+rebuild was installed, and waits for async CPU overlays
+(`whenAsyncInitsSettled()`) up to the session timeout. A paused selection
+alone is not a reset: the viewer renders a frame for each control it builds
+while paused. Both legs therefore render the same frames at the same times
+from the same state, including feedback, temporal and simulation effects. A
+renderer that cannot rebuild its program (no `dispose()` or `compile()`, or
+no current program) is captured from the pipeline its selection built, and
+the result reports `stateReset: false`.
 
 The tool writes the seed to pipeline/pass uniforms. WebGPU rows are vertically
 flipped to the same top-down orientation as WebGL before comparison.
@@ -3059,9 +3118,12 @@ The tool does not compare a fallback frame.
 If the browser obtains an adapter, both legs use the same comparison method.
 
 Sources: Shade MCP `src/tools/browser/parity.ts` - `testPixelParity()`,
-`warmUp()`, `captureSurface()`; Shade MCP
+`PARITY_FRAMES`, `prepareLeg()`, `captureSurface()`; Shade MCP
+`src/harness/program-rebuild.ts` - `installProgramRebuild()`; Shade MCP
 `src/harness/browser-session.ts` - `selectEffect()`; Noisemaker
-`demo/shaders/index.html` - `selectEffect()`.
+`demo/shaders/index.html` - `selectEffect()`; Noisemaker
+`shaders/src/renderer/canvas.js` - `dispose()`, `compile()`, `currentDsl`,
+`loopDuration`.
 
 ### Validate
 
@@ -3128,6 +3190,10 @@ type ParitySuccessOrMismatch = {
   yFlipMismatchPercent: number
   yFlipMeanDiff: number
   yFlipRatio: number
+  frames: number                  // PARITY_FRAMES (8): frames each leg rendered
+                                  // at fixed loop times before its capture
+  stateReset: boolean             // true only when both legs rebuilt their
+                                  // program into a fresh pipeline first
   issues: string[]
   details: string
   console_errors?: string[]
@@ -3158,6 +3224,12 @@ Issues include `GLSL SOLID COLOR (mean=...)`, `WGSL SOLID COLOR (mean=...)`, and
 change `status`. Status depends only on mismatch percentage. A strict gate must
 also assert both solid flags false and `yFlipDetected === false` unless the
 effect is intentionally solid.
+
+`frames` and `stateReset` do not change `status` and add no issue. With
+`stateReset: false`, at least one leg was captured from the pipeline its
+selection built, so the two legs need not start from the same state. A strict
+gate for a feedback, temporal or simulation effect must also assert
+`stateReset === true`.
 
 Selection failures, backend-switch failures, and identity mismatches return
 `status:"error"` with the failed leg in `details` and the page-confirmed
@@ -3270,8 +3342,9 @@ Chromium's software rasterizer.
 
 `SHADE_TIMEOUT_MS` supplies the session default
 for Playwright operations that honor it and is also used explicitly by backend,
-status, and graph readiness polls. The parity six-frame warmup instead retains
-an explicit `30000` ms bound.
+status, and graph readiness polls. The program rebuild that `testPixelParity`
+and `testUniformResponsiveness` use bounds its wait for async CPU overlays with
+the same session timeout.
 
 `SHADE_AI_TIMEOUT_MS` bounds AI provider requests. Both configurable timeouts
 are parsed with `parseInt(value, 10)` and default to `120000` ms when that result
@@ -3307,7 +3380,7 @@ Sources: `.mcp.json`; Shade MCP `package.json`;
 `tsup.config.ts`; `scripts/check-dist-selfcontained.mjs`; `src/config.ts`;
 `src/ai/provider.ts`; `src/harness/browser-session.ts`;
 `src/harness/live-sessions.ts`; `src/harness/server-manager.ts`;
-`src/tools/browser/parity.ts` - warmup timeout.
+`src/harness/program-rebuild.ts` - rebuild timeout.
 
 ### Act
 
@@ -3640,7 +3713,11 @@ under `SHADE_VIEWER_ROOT`) with `SHADE_DSL_ASSETS_BASE` and
 `SHADE_DSL_USE_BUNDLES` (defaults compatible with a Noisemaker repository
 root), `renderer.compile(dsl)` runs the program, `renderer.stop()` ends the
 loop, and each capture frame is read per written surface through the backend's
-async `readPixels`. The whole batch is bounded by `session.timeoutMs`
+async `readPixels`. The WebGL2 reader returns rows top-down; the verb flips
+the bottom-up WebGPU readback rows to top-down before it computes metrics and
+draws the grid. Both backends therefore return upright captures and grid
+cells, and the same program gives the same orientation on WebGL2 and WebGPU.
+The whole batch is bounded by `session.timeoutMs`
 (`SHADE_TIMEOUT_MS`, default `120000` ms). Each capture carries the full
 `ImageMetrics` record; `metrics` repeats the final capture of the render
 target. The per-surface PNG contact sheet (`grid` dimensions with
@@ -4752,13 +4829,13 @@ program expansion.
 
 <!-- WORKED:MCP-REQUESTS -->
 
-One configured-pin session returned server `shade-mcp` version `0.5.2` and
+One configured-pin session returned server `shade-mcp` version `0.5.3` and
 listed 21 tools. The worked calls ran in that session, none returning MCP
 `isError`; the passthrough call returned the expected domain status `skipped`
 (`outcome:"skipped"`) because this is a source effect. On hosts where the
 parity verb's browser cannot obtain a WebGPU adapter, its WebGPU leg fails
-closed (see the parity tool contract). Page console-message arrays are omitted
-from the transcript responses.
+closed (see the parity tool contract). No response in this session carried a
+page console-message array (`console_errors`).
 
 ```json
 {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"checkEffectStructure","arguments":{"effect_id":"synth/testPattern"}}}
@@ -4783,8 +4860,8 @@ capture; these are the values from this session):
 {"outcome":"ok","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"image_uri":null,"width":256,"height":256},"metrics":{"mean_rgb":[0.5034687809712587,0.5034687809712587,0.5034687809712587],"mean_alpha":1,"std_rgb":[0.4999879674137903,0.4999879674137903,0.4999879674137903],"luma_variance":0.24998796755857344,"unique_sampled_colors":2,"is_all_zero":false,"is_all_transparent":false,"is_essentially_blank":false,"is_monochrome":false},"effect_id":"synth/testPattern","page_effect_id":"synth/testPattern"}
 {"outcome":"ok","status":"ok","tested_uniforms":["pattern:pass","gridSize:pass"],"uniforms":[{"name":"pattern","uniform":"pattern","default_value":0,"test_value":1,"luma_diff":0.0031082153320312056,"max_channel_diff":0.0031082153320312056,"pixel_diff":0.37701416015625,"strong_fraction":0.875299072265625,"responds":true},{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":12,"luma_diff":0.002946472167968728,"max_channel_diff":0.002946472167968728,"pixel_diff":0.39990234375,"strong_fraction":0.48483123779296877,"responds":true,"enabled_with":{"pattern":0}}],"threshold":0.002,"strong_threshold":0.0005,"details":"Uniforms affect output","measured_size":[1024,640],"backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern"}
 {"outcome":"skipped","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern"}
-{"outcome":"ok","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
-{"outcome":"ok","status":"ok","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":61.65,"meets_target":true,"stats":{"frame_count":61,"avg_frame_time_ms":16.22,"jitter_ms":2.42,"min_frame_time_ms":2,"max_frame_time_ms":19.9}}
+{"outcome":"ok","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"frames":8,"stateReset":true,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
+{"outcome":"ok","status":"ok","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":60.48,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.54,"jitter_ms":1.55,"min_frame_time_ms":8.8,"max_frame_time_ms":18.7}}
 ```
 
 The structure scan has no issues and reports the one declared effect pass.
@@ -4792,9 +4869,10 @@ Both compile results report the two expanded passes and the page-confirmed
 backend. The rendered frame is nonblank (`mean_alpha = 1`,
 `luma_variance = 0.24998796755857344`) at the returned 256×256 resolution.
 `gridSize` responds to the tested change (`luma_diff = 0.002946472167968728`,
-above the `0.002` threshold). The parity comparison reports zero mismatches;
-the benchmark meets 30 FPS at the 256×256 render size. These results apply to
-the identified effect and backends.
+above the `0.002` threshold). The parity comparison reports zero mismatches
+after both legs rendered eight frames from a rebuilt program (`frames: 8`,
+`stateReset: true`); the benchmark meets 30 FPS at the 256×256 render size.
+These results apply to the identified effect and backends.
 
 Sources: the checked-in effect definition, shader programs, and graph expander;
 Shade MCP browser tools and harness helpers at the pinned source commit.
