@@ -66,7 +66,7 @@ float divRound(float a, float b) {
     float q = pin(a / b);
     float p = pin(q * b);
     float r = pin(pin(a - p) - productError(q, b, p));
-    return q + pin(r / b);
+    return pin(q + pin(r / b));
 }
 
 #define PI 3.14159265359
