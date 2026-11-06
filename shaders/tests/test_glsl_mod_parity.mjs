@@ -87,6 +87,26 @@ for (const effect of contractEffects) {
     assert.doesNotMatch(wgslSource, /% 6\.0/,
         `${effect} wgsl must not take the red-dominant hue with the truncating %`)
 }
+
+// filter/feedback's hsv2rgb must wrap the hue. fract() returns 1.0 for a hue
+// just below a whole number, and the GLSL took its last sector only below 1.0
+// and gave black above it. Mesa folds hsv2rgb's fract() into the fract() that
+// wraps hue + shift before the call, so there a hue shift just below zero
+// rendered saturated red as black. ANGLE and Dawn keep both calls, so the
+// renders below cannot show it; the contract pins that the last sector takes
+// every hue from 5/6 up, 1.0 included, as the WGSL does.
+{
+    const dir = path.join(root, 'shaders/effects/filter/feedback')
+    const hsv2rgb = (source, header, next) => source.slice(source.indexOf(header), source.indexOf(next))
+    const glsl = hsv2rgb(fs.readFileSync(path.join(dir, 'glsl/feedback.glsl'), 'utf8'), 'vec3 hsv2rgb(', 'vec3 rgb2hsv(')
+    const wgsl = hsv2rgb(fs.readFileSync(path.join(dir, 'wgsl/feedback.wgsl'), 'utf8'), 'fn hsv2rgb(', 'fn rgb2hsv(')
+    assert.match(glsl, /float h = fract\(hsv\.x\);/, 'filter/feedback glsl hsv2rgb must wrap the hue with fract()')
+    assert.doesNotMatch(glsl, /h < 1\.0\)/, 'filter/feedback glsl hsv2rgb must not leave h = 1.0 out of the last sector')
+    assert.match(glsl, /\} else \{\n(?:\s*\/\/[^\n]*\n)*\s*rgb = vec3\(c, 0\.0, x\);\n\s*\}\n\n\s*return rgb/,
+        'filter/feedback glsl hsv2rgb must give the last sector to every hue the earlier sectors leave')
+    assert.match(wgsl, /\} else \{\n\s*rgb = vec3<f32>\(c, 0\.0, x\);\n\s*\}\n\n\s*return rgb/,
+        'filter/feedback wgsl hsv2rgb must give the last sector to every hue the earlier sectors leave')
+}
 const strictTolerance = { pixels: 0, maxDiff: 0 }
 function toleranceForCase(id) {
     return measuredTolerance[id]?.tolerance ?? strictTolerance

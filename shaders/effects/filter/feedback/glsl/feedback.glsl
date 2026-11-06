@@ -248,10 +248,11 @@ vec3 hsv2rgb(vec3 hsv) {
         rgb = vec3(0.0, x, c);
     } else if (4.0/6.0 <= h && h < 5.0/6.0) {
         rgb = vec3(x, 0.0, c);
-    } else if (5.0/6.0 <= h && h < 1.0) {
-        rgb = vec3(c, 0.0, x);
     } else {
-        rgb = vec3(0.0, 0.0, 0.0);
+        // The last sector also takes h = 1.0, which fract() returns for a hue
+        // just below a whole number. There x is 0, the colour of h = 0.0, so
+        // the hue wraps whatever range the compiler assumes for fract().
+        rgb = vec3(c, 0.0, x);
     }
 
     return rgb + vec3(m, m, m);
