@@ -14,5 +14,5 @@ Random per-pixel scatter with darken/lighten/anisotropic/clumped modes (Diffuse,
 ## Notes
 
 - Two passes: `scatterJitter` computes the random per-pixel offset and mode dispatch (min/max/projection/quantization), `scatterSmooth` re-blends with the tent blur.
-- The jitter hash uses each pixel's global (tile-aware) coordinate and the seed, so the scatter field stays continuous across CLI render tiles.
+- The jitter hash uses each pixel's global (tile-aware) coordinate and the seed, so the scatter field stays continuous across CLI render tiles. It uses PCG3D integer hashes, so WebGL2 and WebGPU produce identical offsets.
 - Covers Diffuse (all four modes) and Spatter (Brush Strokes), plus general frosted-glass looks. Distinct from `filter/spatter`, which is an unrelated paint-splat overlay effect.
