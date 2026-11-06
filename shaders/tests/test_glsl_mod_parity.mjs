@@ -88,24 +88,54 @@ for (const effect of contractEffects) {
         `${effect} wgsl must not take the red-dominant hue with the truncating %`)
 }
 
-// filter/feedback's hsv2rgb must wrap the hue. fract() returns 1.0 for a hue
-// just below a whole number, and the GLSL took its last sector only below 1.0
-// and gave black above it. Mesa folds hsv2rgb's fract() into the fract() that
-// wraps hue + shift before the call, so there a hue shift just below zero
-// rendered saturated red as black. ANGLE and Dawn keep both calls, so the
-// renders below cannot show it; the contract pins that the last sector takes
-// every hue from 5/6 up, 1.0 included, as the WGSL does.
-{
-    const dir = path.join(root, 'shaders/effects/filter/feedback')
-    const hsv2rgb = (source, header, next) => source.slice(source.indexOf(header), source.indexOf(next))
-    const glsl = hsv2rgb(fs.readFileSync(path.join(dir, 'glsl/feedback.glsl'), 'utf8'), 'vec3 hsv2rgb(', 'vec3 rgb2hsv(')
-    const wgsl = hsv2rgb(fs.readFileSync(path.join(dir, 'wgsl/feedback.wgsl'), 'utf8'), 'fn hsv2rgb(', 'fn rgb2hsv(')
-    assert.match(glsl, /float h = fract\(hsv\.x\);/, 'filter/feedback glsl hsv2rgb must wrap the hue with fract()')
-    assert.doesNotMatch(glsl, /h < 1\.0\)/, 'filter/feedback glsl hsv2rgb must not leave h = 1.0 out of the last sector')
-    assert.match(glsl, /\} else \{\n(?:\s*\/\/[^\n]*\n)*\s*rgb = vec3\(c, 0\.0, x\);\n\s*\}\n\n\s*return rgb/,
-        'filter/feedback glsl hsv2rgb must give the last sector to every hue the earlier sectors leave')
-    assert.match(wgsl, /\} else \{\n\s*rgb = vec3<f32>\(c, 0\.0, x\);\n\s*\}\n\n\s*return rgb/,
-        'filter/feedback wgsl hsv2rgb must give the last sector to every hue the earlier sectors leave')
+// hsv2rgb must wrap the hue. fract() returns 1.0 for a hue just below a whole
+// number, and these conversions took their last sector only below 1.0 and gave
+// black above it. Mesa folds hsv2rgb's fract() into a fract() that wraps the
+// hue before the call, so there filter/feedback rendered saturated red as
+// black for a hue shift just below zero. ANGLE and Dawn keep both calls, so
+// the renders below cannot show it; the contract pins that each conversion
+// wraps with fract() and that its last sector takes every hue from 5/6 up,
+// 1.0 included.
+const hueWrapSources = {
+    'classicNoisedeck/bitEffects': ['glsl', 'wgsl'],
+    'classicNoisedeck/caustic': ['glsl', 'wgsl'],
+    'classicNoisedeck/cellNoise': ['glsl', 'wgsl'],
+    'classicNoisedeck/cellRefract': ['glsl'],
+    'classicNoisedeck/coalesce': ['glsl'],
+    'classicNoisedeck/colorLab': ['glsl'],
+    'classicNoisedeck/composite': ['glsl'],
+    'classicNoisedeck/effects': ['glsl', 'wgsl'],
+    'classicNoisedeck/fractal': ['glsl', 'wgsl'],
+    'classicNoisedeck/kaleido': ['glsl'],
+    'classicNoisedeck/lensDistortion': ['glsl'],
+    'classicNoisedeck/moodscape': ['glsl', 'wgsl'],
+    'classicNoisedeck/noise': ['glsl'],
+    'classicNoisedeck/noise3d': ['glsl'],
+    'classicNoisedeck/shapeMixer': ['glsl'],
+    'classicNoisedeck/shapes': ['glsl', 'wgsl'],
+    'classicNoisedeck/shapes3d': ['glsl', 'wgsl'],
+    'filter/feedback': ['glsl', 'wgsl'],
+    'filter/prismaticAberration': ['glsl'],
+}
+function hsv2rgbSource(source, file) {
+    const start = source.search(/^(?:vec3 |fn )hsv2rgb\(/m)
+    assert.ok(start >= 0, `${file} has no hsv2rgb`)
+    let depth = 0
+    for (let i = source.indexOf('{', start); i < source.length; i++) {
+        if (source[i] === '{') depth++
+        if (source[i] === '}' && --depth === 0) return source.slice(start, i + 1)
+    }
+    throw new Error(`${file} hsv2rgb has no closing brace`)
+}
+for (const [effect, languages] of Object.entries(hueWrapSources)) {
+    for (const language of languages) {
+        const file = `${effect}/${language}/${effect.split('/')[1]}.${language}`
+        const body = hsv2rgbSource(fs.readFileSync(path.join(root, 'shaders/effects', file), 'utf8'), file)
+        assert.match(body, /(?:float|let|var) h(?:: f32)? = fract\(hsv\.x\);/, `${file} hsv2rgb must wrap the hue with fract()`)
+        assert.doesNotMatch(body, /h < 1\.0\)/, `${file} hsv2rgb must not leave h = 1.0 out of the last sector`)
+        assert.match(body, /\belse \{\s*(?:\/\/[^\n]*\n\s*)*rgb = vec3(?:<f32>|f)?\(c, 0\.0, x\);\s*\}\s*return rgb/,
+            `${file} hsv2rgb must give the last sector to every hue the earlier sectors leave`)
+    }
 }
 const strictTolerance = { pixels: 0, maxDiff: 0 }
 function toleranceForCase(id) {

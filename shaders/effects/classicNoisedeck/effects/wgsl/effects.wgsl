@@ -150,8 +150,7 @@ fn hsv2rgb(hsv: vec3f) -> vec3f {
     else if (2.0/6.0 <= h && h < 3.0/6.0) { rgb = vec3f(0.0, c, x); }
     else if (3.0/6.0 <= h && h < 4.0/6.0) { rgb = vec3f(0.0, x, c); }
     else if (4.0/6.0 <= h && h < 5.0/6.0) { rgb = vec3f(x, 0.0, c); }
-    else if (5.0/6.0 <= h && h < 1.0) { rgb = vec3f(c, 0.0, x); }
-    else { rgb = vec3f(0.0, 0.0, 0.0); }
+    else { rgb = vec3f(c, 0.0, x); }
     return rgb + vec3f(m);
 }
 
