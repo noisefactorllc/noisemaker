@@ -1097,7 +1097,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `c0aa621a53976729d9d598295701f895a68badb7` / shade-mcp `43d2b942cdba795c99e4a7a820570987d0b5437a`, 2026-11-01
+- **Checkpoint:** noisemaker `6f98d26ab84f17ba7fb154bb74252d6362736f89` / shade-mcp `63e53ad89dc43526335da6e947ed31667929e43b`, 2026-11-06
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -1181,7 +1181,7 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
-  - 2026-11-06 — candidate delivery pair: Noisemaker
+  - 2026-11-06 — completed delivery pair: Noisemaker
     `6f98d26ab84f17ba7fb154bb74252d6362736f89` and Shade MCP
     `63e53ad89dc43526335da6e947ed31667929e43b`. Audited the Noisemaker range
     `c0aa621a..6f98d26a` and the Shade MCP range `43d2b942..63e53ad8`. The
@@ -1227,8 +1227,14 @@ work, verify it, then update the checkpoint and append a log line.
     `node --test test/mcp-config.test.js` (exit 0),
     `node scripts/run-js-tests.js --skip-parity` (exit 0), `npm run lint`
     (exit 0) and `node shaders/tests/test_texture_upload_source_context.mjs`
-    (exit 0, both backends). Exact-source CI and live contract readback
-    remain pending; the completed checkpoint above has not advanced.
+    (exit 0, both backends). Candidate publication
+    `8902e6951c1c5915a23aa862900015c54c4d8f2d` passed JavaScript CI
+    (`42299528825`), main-push analysis (`42299527879`), site dispatch
+    (`42299528785`) and downstream notification (`42299528705`). The live
+    deployment reported that candidate SHA, and the complete served
+    `llms-full.txt` matched its published bytes with SHA-256
+    `231d84165fe944b7b0b6153f68a084f4a74e5f0bad7bae65c6921f04aa733ca3`.
+    The checkpoint now matches the audited runtime snapshots above.
   - 2026-11-01 — completed delivery pair: Noisemaker
     `c0aa621a53976729d9d598295701f895a68badb7` and Shade MCP
     `43d2b942cdba795c99e4a7a820570987d0b5437a`. The configured immutable
