@@ -3,8 +3,7 @@
  * Bundle the Noisemaker demo site for deployment.
  *
  * Creates a self-contained site in dist/site/ with:
- * - index.html (landing page)
- * - site.css, site.js, llms.txt, llms-full.txt
+ * - llms.txt, llms-full.txt
  * - demo/common.css, demo/common-colors.css, demo/common-layout.css
  * - demo/font/Nunito/ (fonts)
  * - demo/js/ (JS demo, pointing at bundled noisemaker.min.js)
@@ -52,23 +51,6 @@ function copyDir(src, dest) {
             copyFile(srcPath, destPath)
         }
     }
-}
-
-/**
- * Transform index.html for bundled site
- */
-function transformIndexHtml() {
-    const srcPath = path.join(repoRoot, 'index.html')
-    const destPath = path.join(siteDir, 'index.html')
-
-    let html = fs.readFileSync(srcPath, 'utf8')
-
-    // Remove the comment about launching local server
-    html = html.replace(/<!--[\s\S]*?To view the Noisemaker demos[\s\S]*?-->\s*/, '')
-
-    fs.mkdirSync(path.dirname(destPath), { recursive: true })
-    fs.writeFileSync(destPath, html)
-    console.log('  ✓ index.html')
 }
 
 /**
@@ -221,12 +203,10 @@ function copyCssFiles() {
 }
 
 /**
- * Copy root-level homepage assets.
+ * Copy the root-level agent context files.
  */
 function copyRootSiteFiles() {
     const files = [
-        'site.css',
-        'site.js',
         'llms.txt',
         'llms-full.txt'
     ]
@@ -341,26 +321,9 @@ function copyShaderDemoImages() {
 }
 
 /**
- * Copy logo image for landing page
+ * Copy the site-wide favicons.
  */
-function copyLogoImage() {
-    for (const logo of ['noisemaker.png', 'noisemaker.svg']) {
-        const src = path.join(repoRoot, logo)
-        const dest = path.join(siteDir, logo)
-        if (fs.existsSync(src)) {
-            copyFile(src, dest)
-            console.log(`  ✓ ${logo}`)
-        }
-    }
-
-    // Copy OG image
-    const ogSrc = path.join(repoRoot, 'og-image.png')
-    const ogDest = path.join(siteDir, 'og-image.png')
-    if (fs.existsSync(ogSrc)) {
-        copyFile(ogSrc, ogDest)
-        console.log('  ✓ og-image.png')
-    }
-
+function copyFavicons() {
     // Copy the raster favicon used by the site pages.
     copyFile(path.join(repoRoot, 'favicon.png'), path.join(siteDir, 'favicon.png'))
 
@@ -472,14 +435,13 @@ async function main() {
     console.log('\nCopying and transforming files...')
 
     // Transform HTML files
-    transformIndexHtml()
     transformJsDemoHtml()
     transformShadersDemoHtml()
 
     // Copy CSS
     copyCssFiles()
 
-    // Copy homepage assets
+    // Copy agent context files
     copyRootSiteFiles()
 
     // Copy fonts
@@ -489,8 +451,8 @@ async function main() {
     copyShaderDemoLib()
     copyShaderDemoImages()
 
-    // Copy logo image
-    copyLogoImage()
+    // Copy favicons
+    copyFavicons()
 
     // Copy bundled libraries
     copyBundledLibs()
@@ -507,7 +469,7 @@ async function main() {
     console.log('\n✓ Site bundle written to dist/site/')
     console.log('\nTo test locally:')
     console.log('  cd dist/site && python3 -m http.server 8080')
-    console.log('  open http://localhost:8080/')
+    console.log('  open http://localhost:8080/demo/shaders/')
 }
 
 main().catch((err) => {
