@@ -29,7 +29,10 @@ The mixer program is five lines: [V2]_
    ].join('\n')
 
 The mixer pipeline does not know the deck programs.
-On each mixer frame, it uploads the current deck canvases with ``updateTextureFromSource()``.
+On each mixer frame, it uploads the current deck frames with ``updateTextureFromSource()``.
+With WebGL2, it reads the deck canvases.
+A WebGPU canvas keeps its frame only during the task that drew it.
+With WebGPU, each deck copies every frame to a 2D canvas, and the mixer reads that copy. [V2]_ [V4]_
 It sets ``imageSize`` on both media steps to the mixer's output size, not to the deck buffer size. [V2]_
 
 After each compile, the wrapper finds the step numbers in ``renderer._pipeline.graph.passes``.
@@ -70,8 +73,9 @@ Work outside the engine
 -----------------------
 
 ``MainCompositor`` draws the final output on a 2D canvas.
-It draws the mixer canvas after the mixer receives one frame from each deck.
-Before that, it crossfades the two deck canvases with the 2D canvas API.
+It draws the mixer output after the mixer receives one frame from each deck.
+Before that, it crossfades the two deck frames with the 2D canvas API.
+With WebGPU, it reads the same 2D frame copies.
 It also stays on this 2D crossfade when the mixer fails to start. [V2]_ [V3]_ [V6]_
 Recording and the projector window both read the final canvas. [V1]_
 
@@ -97,20 +101,20 @@ Limits
 Sources
 -------
 
-All links point to visualize revision ``1c1bfed``.
+All links point to visualize revision ``5ba3b81``.
 
-.. [V1] `README <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/README.md>`_.
+.. [V1] `README <https://github.com/noisefactorllc/visualize/blob/5ba3b81a0ca4317ecef833b16b9789934952940f/README.md>`_.
 
-.. [V2] `Shader mixer (mixer.js) <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/js/mixer.js>`_.
+.. [V2] `Shader mixer (mixer.js) <https://github.com/noisefactorllc/visualize/blob/5ba3b81a0ca4317ecef833b16b9789934952940f/js/mixer.js>`_.
 
-.. [V3] `Final compositor (compositor.js) <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/js/compositor.js>`_.
+.. [V3] `Final compositor (compositor.js) <https://github.com/noisefactorllc/visualize/blob/5ba3b81a0ca4317ecef833b16b9789934952940f/js/compositor.js>`_.
 
-.. [V4] `Deck renderer (deck.js) <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/js/noisemaker/deck.js>`_.
+.. [V4] `Deck renderer (deck.js) <https://github.com/noisefactorllc/visualize/blob/5ba3b81a0ca4317ecef833b16b9789934952940f/js/noisemaker/deck.js>`_.
 
-.. [V5] `Mixer definitions (mixers.js) <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/js/mixers.js>`_.
+.. [V5] `Mixer definitions (mixers.js) <https://github.com/noisefactorllc/visualize/blob/5ba3b81a0ca4317ecef833b16b9789934952940f/js/mixers.js>`_.
 
-.. [V6] `Application setup (app.js) <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/js/app.js>`_.
+.. [V6] `Application setup (app.js) <https://github.com/noisefactorllc/visualize/blob/5ba3b81a0ca4317ecef833b16b9789934952940f/js/app.js>`_.
 
-.. [V7] `MIDI soft takeover (midi.js) <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/js/midi.js>`_.
+.. [V7] `MIDI soft takeover (midi.js) <https://github.com/noisefactorllc/visualize/blob/5ba3b81a0ca4317ecef833b16b9789934952940f/js/midi.js>`_.
 
-.. [V8] `Recorder (recorder.js) <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/js/recorder.js>`_.
+.. [V8] `Recorder (recorder.js) <https://github.com/noisefactorllc/visualize/blob/5ba3b81a0ca4317ecef833b16b9789934952940f/js/recorder.js>`_.

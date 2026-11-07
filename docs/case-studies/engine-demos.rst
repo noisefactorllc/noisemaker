@@ -28,6 +28,7 @@ The demo then updates the DSL and compiles again, at most once for each user act
 
 The demo starts on WebGL2.
 The ``glsl`` and ``wgsl`` tabs switch between the WebGL2 and WebGPU backends.
+If the browser has no WebGPU adapter, the demo renders with WebGL2 and selects the ``glsl`` tab again.
 An FPS counter shows the frame rate. [D4]_
 
 The Classic Composer
@@ -51,7 +52,7 @@ Other CPU options
 -----------------
 
 The demo index also lists Noisemaker for CPU.
-That port runs shader programs without a GPU, in JavaScript, Python, Ruby, or Rust.
+That port runs shader programs without a GPU, in JavaScript, Python, or Rust.
 It is a different engine from the Classic Composer. [D1]_
 
 Limits
@@ -64,12 +65,12 @@ Limits
 Sources
 -------
 
-D2 and D3 point to noisemaker revision ``135688f``.
+D2 and D3 point to noisemaker revision ``0f62657``.
 
 .. [D1] `Noisemaker demo index <https://demos.noisemaker.app/>`_.
 
-.. [D2] `Shader demo UI controller (demo-ui.js) <https://github.com/noisefactorllc/noisemaker/blob/135688f4cba948305ac169c60645626719dc52b8/demo/shaders/lib/demo-ui.js>`_.
+.. [D2] `Shader demo UI controller (demo-ui.js) <https://github.com/noisefactorllc/noisemaker/blob/0f626573624721a60d0fe7813f8e79ce4d463112/demo/shaders/lib/demo-ui.js>`_.
 
-.. [D3] `Classic Composer page (index.html) <https://github.com/noisefactorllc/noisemaker/blob/135688f4cba948305ac169c60645626719dc52b8/demo/js/index.html>`_.
+.. [D3] `Classic Composer page (index.html) <https://github.com/noisefactorllc/noisemaker/blob/0f626573624721a60d0fe7813f8e79ce4d463112/demo/js/index.html>`_.
 
 .. [D4] `Live shader demo page <https://noisemaker.app/demo/shaders/>`_.

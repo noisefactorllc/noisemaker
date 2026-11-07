@@ -4,26 +4,26 @@ Case Studies
 These pages show how real applications use the Noisemaker shader engine.
 Each page shows the engine calls that the application makes and the work that the application does itself.
 Each page lists its sources.
-Links to public repositories point to the revision that we checked on 13 October 2026.
+Links to public repositories point to the revision that we checked on 7 November 2026.
 
 How the applications start the engine
 -------------------------------------
 
-The nine web integrations on these pages start the engine in the same way:
+The web integrations on these pages that use the shader engine start it in the same way:
 
 #. Create a ``CanvasRenderer`` for a canvas.
 #. Load the effect manifest with ``loadManifest()``.
-#. Find the effects that the DSL program names. Most applications use ``extractEffectNamesFromDsl()``. Layers uses its own parser.
+#. Find the effects that the DSL program names. Most applications use ``extractEffectNamesFromDsl()``. Layers uses its own parser. The Visualize mixer writes its own program, so it loads its effects by name.
 #. Load those effects with ``loadEffects()``.
 #. Compile the program with ``compile()`` and start rendering with ``start()``.
 
-After that, the applications use three calls:
+After that, the applications use these calls as they need them:
 
 * ``updateTextureFromSource('imageTex_step_N', source, options)`` sends a camera frame, an image, a video frame, or a canvas to a ``media()`` step.
 * ``applyStepParameterValues({ step_N: { ... } })`` changes parameter values with no compile.
 * ``resize(width, height)`` changes the render size.
 
-The HD4 page shows the complete start sequence in one method.
+The HD4 page shows the start sequence in ``ChannelRenderer.compile()`` and the methods that it calls.
 
 Example apps
 ------------

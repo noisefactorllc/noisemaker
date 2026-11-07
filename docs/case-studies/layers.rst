@@ -89,18 +89,20 @@ Work outside the engine
 Limits
 ------
 
-* An online session connects only to other Layers sessions, and it does not support image or video layers. [L1]_
+* An online session connects only to other Layers sessions. It shares image layers. Layers does not take a composition online while it has a video layer or an effect mask. [L1]_ [L5]_
 * Video clip layers use best-effort frame seeking, so exported frames can be slightly different from the live preview. [L4]_
 
 Sources
 -------
 
-L1 to L3 point to layers revision ``a4ab4e7``.
+L1 to L3 and L5 point to layers revision ``a54fe2f``.
 
-.. [L1] `README <https://github.com/noisefactorllc/layers/blob/a4ab4e7e2b45e9ebd8a75ee5c9113d1049795853/README.md>`_.
+.. [L1] `README <https://github.com/noisefactorllc/layers/blob/a54fe2f15a3b0878fd4a372af050cf264dfcc1ef/README.md>`_.
 
-.. [L2] `Layer renderer (renderer.js) <https://github.com/noisefactorllc/layers/blob/a4ab4e7e2b45e9ebd8a75ee5c9113d1049795853/public/js/noisemaker/renderer.js>`_.
+.. [L2] `Layer renderer (renderer.js) <https://github.com/noisefactorllc/layers/blob/a54fe2f15a3b0878fd4a372af050cf264dfcc1ef/public/js/noisemaker/renderer.js>`_.
 
-.. [L3] `Full-resolution export (full-resolution.js) <https://github.com/noisefactorllc/layers/blob/a4ab4e7e2b45e9ebd8a75ee5c9113d1049795853/public/js/noisemaker/full-resolution.js>`_.
+.. [L3] `Full-resolution export (full-resolution.js) <https://github.com/noisefactorllc/layers/blob/a54fe2f15a3b0878fd4a372af050cf264dfcc1ef/public/js/noisemaker/full-resolution.js>`_.
 
 .. [L4] `Layers application page <https://layers.noisefactor.io/>`_ (export dialog text).
+
+.. [L5] `Online collaboration (onlineAdapter.js) <https://github.com/noisefactorllc/layers/blob/a54fe2f15a3b0878fd4a372af050cf264dfcc1ef/public/js/collab/onlineAdapter.js>`_.

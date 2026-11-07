@@ -24,23 +24,38 @@ A camera, video, or image channel compiles this program: [H5]_
    render(o0)
 
 ``ChannelRenderer.compile()`` shows the load order.
-It loads the effect manifest once, loads the effects that the program names, and then compiles: [H2]_
+It loads the effects that the program names, compiles the program, and starts the renderer.
+``init()`` loads the effect manifest once, before the first compile: [H2]_
 
 .. code-block:: javascript
    :caption: ChannelRenderer.compile() in channelRenderer.js
 
    async compile(dsl) {
+       const seq = ++this._compileSeq
+       const superseded = () => seq !== this._compileSeq
        if (!this._initialized) await this.init()
        try {
-           const ids = extractEffectNamesFromDsl(dsl, this._renderer.manifest || {})
-               .map((e) => e.effectId)
-           if (ids.length) await this._renderer.loadEffects(ids)
-           await this._renderer.compile(dsl)
+           const engineDsl = stripMediaUrls(dsl)
+           await this._loadEffectsFor(engineDsl)
+           if (superseded()) return { success: false, superseded: true }
+           // The limit counts from this turn's start, not from when it queued.
+           const prior = this._engineTurn
+           let timer
+           const limit = prior.then(() => new Promise((resolve) => { timer = setTimeout(resolve, ENGINE_TURN_LIMIT_MS) }))
+           const turn = prior.then(() => (superseded() ? null : this._renderer.compile(engineDsl)))
+           const settled = turn
+               .catch(() => { /* the compile reports its own error below */ })
+               .finally(() => clearTimeout(timer))
+           this._engineTurn = Promise.race([settled, limit])
+           await turn
+           if (superseded()) return { success: false, superseded: true }
            this._currentDsl = dsl
+           this._compiled++
            this._mediaStep = this._discoverMediaStep(dsl)
            this._lastSize = null
+           const missingImages = await bindProgramImages(this._renderer, dsl, extractEffectsFromDsl, () => !superseded())
            if (!this._renderer.isRunning) this._renderer.start()
-           return { success: true }
+           return missingImages.length ? { success: true, missingImages } : { success: true }
        } catch (err) {
            const msg = typeof err === 'string' ? err : err?.message || err?.error || 'compile error'
            this.onError(msg)
@@ -48,7 +63,31 @@ It loads the effect manifest once, loads the effects that the program names, and
        }
    }
 
-If the compile fails, the wrapper passes the message to ``onError`` and returns it to the caller. [H2]_
+``_loadEffectsFor()`` finds the effect names and loads the effects: [H2]_
+
+.. code-block:: javascript
+   :caption: ChannelRenderer._loadEffectsFor() in channelRenderer.js
+
+   async _loadEffectsFor(dsl) {
+       const ids = extractEffectNamesFromDsl(dsl, this._renderer.manifest || {})
+           .map((e) => e.effectId)
+       if (ids.length) await this._renderer.loadEffects(ids)
+   }
+
+The wrapper sends one compile at a time to the engine, in order.
+If a compile does not finish in 10 seconds, the next compile starts anyway.
+If a newer compile starts while an older one waits, the wrapper drops the older one and returns ``superseded: true``. [H2]_
+
+If the compile fails, the wrapper passes the message to ``onError`` and returns it to the caller.
+The engine keeps the previous program, and the channel goes back to its previous source. [H2]_ [H6]_
+
+A program can name an image as ``media(url: "image:<sha256>")``.
+The engine's ``media()`` has no ``url`` argument, so the wrapper removes it before the compile.
+After the compile, the wrapper uploads each image to its ``media()`` step with ``updateTextureFromSource()`` and sets ``imageSize`` to the image size. [H2]_ [H7]_
+
+Before a pasted program replaces a channel's source, ``ChannelRenderer.check()`` loads its effects and runs the engine's ``compile()`` function.
+That function returns diagnostics and does not run the program.
+A program with an error does not replace the source. [H2]_ [H8]_
 
 The wrapper finds the ``media()`` step in the program text.
 It does not assume that ``media()`` is step 0. [H2]_
@@ -58,6 +97,9 @@ The ``cover`` fit fills the frame and crops the overflow.
 The ``contain`` fit shows the whole source on a black background.
 The wrapper then uploads the buffer with ``updateTextureFromSource('imageTex_step_N', buffer, { flipY: false })``.
 It sets ``imageSize`` only when the buffer size changes. [H2]_
+
+After each frame, ``ProgramOutput`` hands the program canvas to the engine's ``SinkManager``.
+The sinks send it to the viewport window and to Noisedeck Sync. [H4]_ [H9]_
 
 Work outside the engine
 -----------------------
@@ -84,14 +126,22 @@ Sizes and limits
 Sources
 -------
 
-All links point to hd4 revision ``90afc97``.
+All links point to hd4 revision ``deac57c``.
 
-.. [H1] `README <https://github.com/noisefactorllc/hd4/blob/90afc9759d34bf11c762f9b383514350d6830f6a/README.md>`_.
+.. [H1] `README <https://github.com/noisefactorllc/hd4/blob/deac57c8b2a36a8d150090eb2c1ec69dd127a344/README.md>`_.
 
-.. [H2] `Channel renderer (channelRenderer.js) <https://github.com/noisefactorllc/hd4/blob/90afc9759d34bf11c762f9b383514350d6830f6a/js/channelRenderer.js>`_.
+.. [H2] `Channel renderer (channelRenderer.js) <https://github.com/noisefactorllc/hd4/blob/deac57c8b2a36a8d150090eb2c1ec69dd127a344/js/channelRenderer.js>`_.
 
-.. [H3] `Program compositor (programCompositor.js) <https://github.com/noisefactorllc/hd4/blob/90afc9759d34bf11c762f9b383514350d6830f6a/js/programCompositor.js>`_.
+.. [H3] `Program compositor (programCompositor.js) <https://github.com/noisefactorllc/hd4/blob/deac57c8b2a36a8d150090eb2c1ec69dd127a344/js/programCompositor.js>`_.
 
-.. [H4] `Application setup (app.js) <https://github.com/noisefactorllc/hd4/blob/90afc9759d34bf11c762f9b383514350d6830f6a/js/app.js>`_.
+.. [H4] `Application setup (app.js) <https://github.com/noisefactorllc/hd4/blob/deac57c8b2a36a8d150090eb2c1ec69dd127a344/js/app.js>`_.
 
-.. [H5] `Media source driver (mediaSource.js) <https://github.com/noisefactorllc/hd4/blob/90afc9759d34bf11c762f9b383514350d6830f6a/js/sources/mediaSource.js>`_.
+.. [H5] `Media source driver (mediaSource.js) <https://github.com/noisefactorllc/hd4/blob/deac57c8b2a36a8d150090eb2c1ec69dd127a344/js/sources/mediaSource.js>`_.
+
+.. [H6] `Shader source driver (shaderSource.js) <https://github.com/noisefactorllc/hd4/blob/deac57c8b2a36a8d150090eb2c1ec69dd127a344/js/sources/shaderSource.js>`_.
+
+.. [H7] `Program images (programImages.js) <https://github.com/noisefactorllc/hd4/blob/deac57c8b2a36a8d150090eb2c1ec69dd127a344/js/programImages.js>`_.
+
+.. [H8] `Program paste (programPaste.js) <https://github.com/noisefactorllc/hd4/blob/deac57c8b2a36a8d150090eb2c1ec69dd127a344/js/programPaste.js>`_.
+
+.. [H9] `Program output (programOutput.js) <https://github.com/noisefactorllc/hd4/blob/deac57c8b2a36a8d150090eb2c1ec69dd127a344/js/programOutput.js>`_.

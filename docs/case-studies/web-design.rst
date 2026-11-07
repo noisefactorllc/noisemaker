@@ -11,7 +11,7 @@ Both sites use a helper module, ``shader-renderer.js``, that exports ``createBac
 The helper
 ----------
 
-``createBackgroundShader(canvas, program, size)`` runs these steps: [W1]_
+``createBackgroundShader(canvas, program, options)`` runs these steps. ``options`` gives the canvas width and height. [W1]_
 
 #. Import ``CanvasRenderer`` from ``https://shaders.noisedeck.app/1/noisemaker-shaders-core.esm.js``.
 #. Create a ``CanvasRenderer`` with ``preferWebGPU: false``.

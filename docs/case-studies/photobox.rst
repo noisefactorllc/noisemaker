@@ -61,7 +61,7 @@ When the user returns, the grid starts them again without a new compile. [P2]_ [
 Work outside the engine
 -----------------------
 
-* A photo is a PNG from ``canvas.toBlob()``, after a 3-2-1 countdown. [P4]_
+* A photo is a PNG from ``canvas.toBlob()``, after a 3-2-1 countdown. Leaving the full-size view during the countdown cancels the photo. [P4]_ [P6]_
 * A video uses ``canvas.captureStream(30)`` and ``MediaRecorder``, with the first supported format from WebM with VP9, WebM with VP8, WebM, and MP4. [P4]_
 * Photobox stores each capture in an IndexedDB gallery and also downloads it. [P1]_ [P6]_
 * Users can switch between the front and rear cameras. [P1]_
@@ -77,16 +77,16 @@ Limits
 Sources
 -------
 
-All links point to photobox revision ``685ea04``.
+All links point to photobox revision ``4d50b67``.
 
-.. [P1] `README <https://github.com/noisefactorllc/photobox/blob/685ea04e6a91c65033ce22f1010914891ed48f03/README.md>`_.
+.. [P1] `README <https://github.com/noisefactorllc/photobox/blob/4d50b67ad6d39d73aeec7a9f3fb685f3c86c89b6/README.md>`_.
 
-.. [P2] `Preview grid (grid.js) <https://github.com/noisefactorllc/photobox/blob/685ea04e6a91c65033ce22f1010914891ed48f03/public/js/grid.js>`_.
+.. [P2] `Preview grid (grid.js) <https://github.com/noisefactorllc/photobox/blob/4d50b67ad6d39d73aeec7a9f3fb685f3c86c89b6/public/js/grid.js>`_.
 
-.. [P3] `Renderer wrapper (renderer.js) <https://github.com/noisefactorllc/photobox/blob/685ea04e6a91c65033ce22f1010914891ed48f03/public/js/noisemaker/renderer.js>`_.
+.. [P3] `Renderer wrapper (renderer.js) <https://github.com/noisefactorllc/photobox/blob/4d50b67ad6d39d73aeec7a9f3fb685f3c86c89b6/public/js/noisemaker/renderer.js>`_.
 
-.. [P4] `Capture (capture.js) <https://github.com/noisefactorllc/photobox/blob/685ea04e6a91c65033ce22f1010914891ed48f03/public/js/capture.js>`_.
+.. [P4] `Capture (capture.js) <https://github.com/noisefactorllc/photobox/blob/4d50b67ad6d39d73aeec7a9f3fb685f3c86c89b6/public/js/capture.js>`_.
 
-.. [P5] `Effect programs (effects.js) <https://github.com/noisefactorllc/photobox/blob/685ea04e6a91c65033ce22f1010914891ed48f03/public/js/effects.js>`_.
+.. [P5] `Effect programs (effects.js) <https://github.com/noisefactorllc/photobox/blob/4d50b67ad6d39d73aeec7a9f3fb685f3c86c89b6/public/js/effects.js>`_.
 
-.. [P6] `Application controller (app.js) <https://github.com/noisefactorllc/photobox/blob/685ea04e6a91c65033ce22f1010914891ed48f03/public/js/app.js>`_.
+.. [P6] `Application controller (app.js) <https://github.com/noisefactorllc/photobox/blob/4d50b67ad6d39d73aeec7a9f3fb685f3c86c89b6/public/js/app.js>`_.
