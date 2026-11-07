@@ -60,6 +60,31 @@ function resolveGlobalSurfaceRef(name) {
     return name
 }
 
+/** Find globals deliberately shared by different effects in a chain. */
+function collectGlobalTextureUsers(chain) {
+    const users = new Map()
+    const effects = new Set(chain.filter(step => !step.builtin && step.args?._skip !== true)
+        .map(step => getEffect(step.op)).filter(Boolean))
+    for (const effect of effects) {
+        const refs = [
+            ...Object.keys(effect.textures || {}),
+            ...Object.keys(effect.textures3d || {}),
+            ...Object.values(effect.globals || {}).map(spec => spec.default),
+            effect.outputTex, effect.outputTex3d, effect.outputGeo,
+            effect.outputXyz, effect.outputVel, effect.outputRgba
+        ]
+        for (const pass of effect.passes || []) {
+            refs.push(...Object.values(pass.inputs || {}), ...Object.values(pass.outputs || {}))
+        }
+        for (const ref of refs) {
+            if (typeof ref !== 'string' || !ref.startsWith('global_')) continue
+            if (!users.has(ref)) users.set(ref, new Set())
+            users.get(ref).add(effect)
+        }
+    }
+    return users
+}
+
 /**
  * Expands the Logical Graph (plans) into a Render Graph (passes).
  *
@@ -170,6 +195,9 @@ export function expand(compilationResult, options = {}) {
         const pipelineUniforms = {}
         const chainScopeId = `chain_${compilationResult.plans.indexOf(plan)}`
         const volumeSizeParam = `volumeSize_${chainScopeId}`
+        const globalTextureUsers = collectGlobalTextureUsers(plan.chain)
+        const seenEffects = new Set()
+        const sizeParamOwners = new Map() // chain-scoped sizing param -> first node that sizes from it
 
         for (const step of plan.chain) {
             // Handle builtin read operations - these just set the current input
@@ -362,6 +390,28 @@ export function expand(compilationResult, options = {}) {
                 continue
             }
 
+            const nodeId = `node_${step.temp}`
+            // Preserve legacy IDs for the first instance. Repeated private state
+            // gets a node suffix; cooperating effects retain the shared chain scope.
+            const instanceScopeId = seenEffects.has(effectDef) ? `${chainScopeId}_${nodeId}` : chainScopeId
+            seenEffects.add(effectDef)
+            const ownedTextures = new Set([
+                ...Object.keys(effectDef.textures || {}),
+                ...Object.keys(effectDef.textures3d || {}),
+                ...(effectDef.passes || []).flatMap(pass => Object.values(pass.outputs || {}))
+            ])
+            // Read-only globals can be external uploads, whose bindings retain chain IDs.
+            const isPrivateGlobal = texName => ownedTextures.has(texName) && globalTextureUsers.get(texName)?.size === 1
+            const globalScope = texName => isPrivateGlobal(texName) ? instanceScopeId : chainScopeId
+            // The first node to size private state from a param keeps the legacy
+            // chain-scoped name; any other node, of the same or another effect, gets its own.
+            const claimSizeParam = (scopedParam, isPrivate) => {
+                const owner = sizeParamOwners.get(scopedParam)
+                if (owner === undefined) sizeParamOwners.set(scopedParam, nodeId)
+                return isPrivate && owner !== undefined && owner !== nodeId
+                    ? `${scopedParam}_${nodeId}` : scopedParam
+            }
+
             // Helper to scope particle textures to current pipeline
             const scopeParticleTex = (texName) => {
                 if (!currentParticlePipelineId) return texName
@@ -371,19 +421,15 @@ export function expand(compilationResult, options = {}) {
                 return texName
             }
 
-            // Helper to scope global state textures to chain level.
-            // Particle scoping takes priority; all other global_ textures get chain scoping.
+            // Particle scoping takes priority over private state and shared chain state.
             const scopeChainTex = (texName) => {
                 const particleResult = scopeParticleTex(texName)
                 if (particleResult !== texName) return particleResult
                 if (texName.startsWith('global_')) {
-                    return `${texName}_${chainScopeId}`
+                    return `${texName}_${globalScope(texName)}`
                 }
                 return texName
             }
-
-            // Generate a unique ID for this effect instance
-            const nodeId = `node_${step.temp}`
 
             // Track scoped params for this node's particle textures
             // Maps original param names to scoped names (e.g., 'stateSize' -> 'stateSize_node_1')
@@ -473,12 +519,7 @@ export function expand(compilationResult, options = {}) {
                     const shouldScopeAsChain = texName.startsWith('global_') && !isParticleTex
 
                     if (texName.startsWith('global_')) {
-                        if (shouldScopeAsParticle) {
-                            virtualTexId = `${texName}_${currentParticlePipelineId}`
-                        } else {
-                            // Chain-scope all non-particle global textures
-                            virtualTexId = `${texName}_${chainScopeId}`
-                        }
+                        virtualTexId = scopeChainTex(texName)
                     } else {
                         // Node-local texture - add node prefix
                         virtualTexId = `${nodeId}_${texName}`
@@ -510,14 +551,18 @@ export function expand(compilationResult, options = {}) {
                         hasParamRef
                     if (shouldScopeParams) {
                         const scopeSuffix = shouldScopeAsParticle ? currentParticlePipelineId : chainScopeId
+                        const isPrivateTex = !texName.startsWith('global_') || isPrivateGlobal(texName)
+                        const chainSizeParam = (scopedParam, inherit) => shouldScopeAsParticle || inherit
+                            ? scopedParam : claimSizeParam(scopedParam, isPrivateTex)
                         // Helper to scope a dimension spec's param reference to this pipeline/chain
                         // and track the mapping for uniform propagation
                         const scopeDimSpec = (dimSpec) => {
                             if (typeof dimSpec === 'object' && dimSpec.param !== undefined) {
                                 const originalParam = dimSpec.param
-                                const dimensionScope = originalParam === 'stateSize' && currentParticlePipelineId && !texName.startsWith('global_')
-                                    ? currentParticlePipelineId : scopeSuffix
-                                const scopedParam = originalParam === 'volumeSize' ? volumeSizeParam : `${originalParam}_${dimensionScope}`
+                                const scopedParam = originalParam === 'volumeSize' ? volumeSizeParam
+                                    : originalParam === 'stateSize' && currentParticlePipelineId && !texName.startsWith('global_')
+                                        ? `${originalParam}_${currentParticlePipelineId}`
+                                        : chainSizeParam(`${originalParam}_${scopeSuffix}`, dimSpec.inherit)
                                 // Track this mapping so we can copy uniform values later.
                                 // An inherited dimension reads the scope's value and never
                                 // writes this effect's own value over it.
@@ -529,7 +574,7 @@ export function expand(compilationResult, options = {}) {
                             }
                             if (typeof dimSpec === 'object' && dimSpec.screenDivide !== undefined) {
                                 const originalParam = dimSpec.screenDivide
-                                const scopedParam = `${originalParam}_${scopeSuffix}`
+                                const scopedParam = chainSizeParam(`${originalParam}_${scopeSuffix}`, false)
                                 scopedParamMap.set(originalParam, scopedParam)
                                 return {
                                     ...dimSpec,

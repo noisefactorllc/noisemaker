@@ -41,7 +41,8 @@ Compilation occurs when the DSL code changes. See :ref:`Compiler Specification <
    Expansion scopes these textures per chain, for example ``global_rd_state_chain_0``.
    Instances of the same stateful effect in separate chains therefore have independent state.
    Expansion further scopes particle textures (``global_xyz``, ``global_vel``, etc.) per pipeline to their creating node.
-   Effects within a chain share state. Patterns such as ``loopBegin``/``loopEnd`` require this sharing for ``global_accum``.
+   Different effects within a chain that name the same texture share it. Patterns such as ``loopBegin``/``loopEnd`` require this sharing for ``global_accum``.
+   Each further instance of an effect in a chain keeps its own state, for example ``global_rd_state_chain_0_node_3``.
    Despite the prefix, these textures are not global to the program. See :ref:`global-texture-scope`.
 #. **Resource Analysis:** Determine the first and last use of each non-global
    virtual texture and compute a linear-scan allocation map.
@@ -415,9 +416,14 @@ program to the ID. In this program, the first chain's accumulator is
    perlin().loopBegin().loopEnd().write(o0)
    perlin().loopBegin().loopEnd().write(o1)
 
-* Effects in the same chain that name the same ``global_`` texture share one
-  texture. This is how ``loopBegin`` reads the accumulator that ``loopEnd``
-  writes.
+* Different effects in the same chain that name the same ``global_`` texture
+  share one texture. This is how ``loopBegin`` reads the accumulator that
+  ``loopEnd`` writes.
+* A ``global_`` texture that only one effect in the chain names, and that the
+  effect writes, is private state. The first instance of the effect in the
+  chain keeps the chain-scoped ID. Each further instance appends its node, for
+  example ``global_rd_state_chain_0_node_3``, so two ``reactionDiffusion``
+  instances in one chain keep separate simulation state.
 * The same effect in two chains gets two independent textures. Two
   ``reactionDiffusion`` chains keep separate ``global_rd_state_chain_N``
   simulation state.
@@ -430,7 +436,10 @@ program to the ID. In this program, the first chain's accumulator is
   textures.
 * Size parameters that a scoped texture references are scoped with it, for
   example ``zoom_chain_0`` or ``stateSize_node_1``, so each chain or particle
-  pipeline sizes its own state.
+  pipeline sizes its own state. In a chain, the first effect instance that
+  sizes private state from a parameter keeps the chain-scoped name. Every other
+  instance, of the same effect or another, appends its node, for example
+  ``zoom_chain_0_node_3``, so each instance sizes its own state.
 * To pass data between chains, write to and read from a named surface
   (``o0`` to ``o7``, ``vol0`` to ``vol7``, ``geo0`` to ``geo7``). Named surfaces are
   program-wide. The runtime refers to them internally as ``global_o0``,
