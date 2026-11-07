@@ -42,6 +42,7 @@ Compilation occurs when the DSL code changes. See :ref:`Compiler Specification <
    Instances of the same stateful effect in separate chains therefore have independent state.
    Expansion further scopes particle textures (``global_xyz``, ``global_vel``, etc.) per pipeline to their creating node.
    Effects within a chain share state. Patterns such as ``loopBegin``/``loopEnd`` require this sharing for ``global_accum``.
+   Despite the prefix, these textures are not global to the program. See :ref:`global-texture-scope`.
 #. **Resource Analysis:** Determine the first and last use of each non-global
    virtual texture and compute a linear-scan allocation map.
 #. **Assemble:** Package the ordered passes, programs, allocation map, texture
@@ -397,6 +398,43 @@ maps. A chain writing ``.write(o0)`` targets the current write ID. The Pipeline
 advances the frame-local binding after the pass, so later reads and writes in
 the same frame see the newest content. This ordered binding update supports multiple writes. There is no separate
 multiwrite validator.
+
+.. _global-texture-scope:
+
+8.0.2 Scope of ``global_`` Textures
+"""""""""""""""""""""""""""""""""""
+
+The ``global_`` prefix does not make a texture global to the program. A
+``global_`` texture that an effect declares or references is scoped to the
+chain that uses it. Expansion appends the chain's zero-based position in the
+program to the ID. In this program, the first chain's accumulator is
+``global_accum_chain_0`` and the second chain's is ``global_accum_chain_1``:
+
+.. code-block:: text
+
+   perlin().loopBegin().loopEnd().write(o0)
+   perlin().loopBegin().loopEnd().write(o1)
+
+* Effects in the same chain that name the same ``global_`` texture share one
+  texture. This is how ``loopBegin`` reads the accumulator that ``loopEnd``
+  writes.
+* The same effect in two chains gets two independent textures. Two
+  ``reactionDiffusion`` chains keep separate ``global_rd_state_chain_N``
+  simulation state.
+* Particle textures (``global_xyz``, ``global_vel``, ``global_rgba``,
+  ``global_points_trail``, ``global_life_data`` and
+  ``global_<behavior>_base_color``) are scoped to the effect that creates them,
+  such as ``pointsEmit``: ``global_xyz`` becomes ``global_xyz_node_1``. Two
+  emitters in one chain therefore keep separate particle state. Outside a
+  particle pipeline, these names are chain-scoped like other ``global_``
+  textures.
+* Size parameters that a scoped texture references are scoped with it, for
+  example ``zoom_chain_0`` or ``stateSize_node_1``, so each chain or particle
+  pipeline sizes its own state.
+* To pass data between chains, write to and read from a named surface
+  (``o0`` to ``o7``, ``vol0`` to ``vol7``, ``geo0`` to ``geo7``). Named surfaces are
+  program-wide. The runtime refers to them internally as ``global_o0``,
+  ``global_vol0`` and so on, without a scope suffix.
 
 8.1 Resize Behavior
 ^^^^^^^^^^^^^^^^^^^^
