@@ -21,7 +21,7 @@ try {
         const errors = []
         page.on('pageerror', error => errors.push(error.message))
         page.on('console', message => { if (message.type() === 'error') errors.push(message.text()) })
-        await page.goto(baseUrl)
+        await page.goto(`${baseUrl}/shaders/tests/blank.html`)
         await page.setContent('<canvas width="1280" height="720"></canvas>')
         const result = await page.evaluate(async ({ baseUrl, backend, dsl, depthSort }) => {
             let adapterInfo = null

@@ -15,7 +15,7 @@ try {
     const errors = []
     page.on('pageerror', error => errors.push(error.message))
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()) })
-    await page.goto(baseUrl)
+    await page.goto(`${baseUrl}/shaders/tests/blank.html`)
     const result = await page.evaluate(async baseUrl => {
         const { WebGPUBackend } = await import(`${baseUrl}/shaders/src/runtime/backends/webgpu.js`)
         const adapter = await navigator.gpu.requestAdapter()

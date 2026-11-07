@@ -16,7 +16,7 @@ try {
     const errors = []
     page.on('pageerror', error => errors.push(error.message))
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()) })
-    await page.goto(baseUrl)
+    await page.goto(`${baseUrl}/shaders/tests/blank.html`)
     await page.setContent('<canvas width="8" height="8"></canvas>')
     const frames = await page.evaluate(async baseUrl => {
         const { Pipeline } = await import(`${baseUrl}/shaders/src/runtime/pipeline.js`)
