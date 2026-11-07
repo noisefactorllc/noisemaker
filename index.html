@@ -10,30 +10,30 @@
       }
     })();
   </script>
-  <title>Noisemaker</title>
+  <title>Noisemaker Engine</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Noisemaker is an open source shader engine for building visual tools for web, desktop, and mobile. It includes a WebGL2 and WebGPU runtime, the Polymorphic DSL, portable effects, and more than 100 shader effects." />
-  <meta name="keywords" content="noisemaker, gpu rendering, shader engine, webgl2, webgpu, polymorphic dsl, realtime visuals, shader effects, creative coding, ai coding agents" />
+  <meta name="description" content="A ready-to-go, open source shader kit for artists and developers. Compose with Noisemaker Engine's Polymorphic DSL, run on WebGL2 or WebGPU across web, desktop, and mobile." />
+  <meta name="keywords" content="noisemaker, noisemaker engine, generative art, gpu rendering, shader engine, webgl2, webgpu, polymorphic dsl, realtime visuals, shader effects, creative coding, ai coding agents" />
   <link rel="canonical" href="https://noisemaker.app/" />
 
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Noisemaker" />
-  <meta property="og:description" content="Open source shader engine for building visual tools for web, desktop, and mobile." />
+  <meta property="og:title" content="Noisemaker Engine" />
+  <meta property="og:description" content="A ready-to-go, open source shader kit for artists and developers." />
   <meta property="og:image" content="https://noisemaker.app/og-image.png" />
   <meta property="og:url" content="https://noisemaker.app/" />
-  <meta property="og:site_name" content="Noisemaker" />
+  <meta property="og:site_name" content="Noisemaker Engine" />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Noisemaker" />
-  <meta name="twitter:description" content="Open source shader engine for building visual tools for web, desktop, and mobile." />
+  <meta name="twitter:title" content="Noisemaker Engine" />
+  <meta name="twitter:description" content="A ready-to-go, open source shader kit for artists and developers." />
   <meta name="twitter:image" content="https://noisemaker.app/og-image.png" />
 
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "SoftwareSourceCode",
-    "name": "Noisemaker",
-    "description": "Open source shader engine for building visual tools for web, desktop, and mobile.",
+    "name": "Noisemaker Engine",
+    "description": "A ready-to-go, open source shader kit for artists and developers.",
     "codeRepository": "https://github.com/noisefactorllc/noisemaker",
     "license": "https://opensource.org/licenses/MIT",
     "programmingLanguage": ["JavaScript", "GLSL", "WGSL"],
@@ -54,9 +54,9 @@
 <body>
   <header class="nm-header">
     <canvas id="nm-strip-canvas" class="nm-header-canvas" aria-hidden="true"></canvas>
-    <a class="nm-brand" href="/" aria-label="Noisemaker home">
+    <a class="nm-brand" href="/" aria-label="Noisemaker Engine home">
       <span class="nm-brand-mark" aria-hidden="true"></span>
-      <span>Noisemaker</span>
+      <span>Noisemaker Engine</span>
     </a>
     <nav class="nm-nav" aria-label="Primary navigation">
       <a href="#arch">Architecture</a>
@@ -70,10 +70,10 @@
   <main>
     <section class="nm-hero">
       <div class="nm-hero-copy">
-        <p class="nm-kicker">Open source shader engine</p>
-        <h1>A shader engine for building visual tools for web, desktop, and mobile.</h1>
+        <p class="nm-kicker">Noisemaker Engine</p>
+        <h1>A ready-to-go shader kit for artists and developers.</h1>
         <p class="nm-lede">
-          Noisemaker provides an effect format, a composition language (the Polymorphic DSL), a runtime for WebGL2 and WebGPU, portable effect packaging, and more than 100 shader effects.
+          Open source and MIT licensed. Compose with Noisemaker Engine's Polymorphic DSL, run on WebGL2 or WebGPU across web, desktop, and mobile.
         </p>
         <div class="nm-hero-actions" aria-label="Primary actions">
           <a class="nm-button nm-button-primary" href="./demo/shaders/">Open shader demo</a>
@@ -112,7 +112,7 @@
         </article>
         <article class="nm-feature">
           <h3>Human and agent scale</h3>
-          <p>The DSL is terse enough for live coding and structured enough for a coding agent to inspect, modify, and validate.</p>
+          <p>Polymorphic is terse enough for live coding and structured enough for a coding agent to inspect, modify, and validate.</p>
         </article>
       </div>
     </section>
@@ -160,20 +160,20 @@
         <h2 id="ports-title">MIT licensed.</h2>
       </div>
       <p class="nm-section-copy">
-        Noisemaker is released under the MIT license. You can use it in personal and commercial projects.
+        Noisemaker Engine is released under the MIT license. You can use it in personal and commercial projects, including art you sell and software you ship.
       </p>
       <p class="nm-section-copy">
-        The DSL compiler, renderer, and effects library are also available for other platforms, so programs you write for Noisemaker are not tied to the browser.
+        The Polymorphic compiler, renderer, and effects library are also available for other platforms, so programs you write for Noisemaker are not tied to the browser.
       </p>
     </section>
 
     <section class="nm-section" id="agents" aria-labelledby="agents-title">
       <div class="nm-section-heading">
         <p class="nm-kicker">Get started</p>
-        <h2 id="agents-title">For developers and coding agents.</h2>
+        <h2 id="agents-title">For artists, developers, and coding agents.</h2>
       </div>
       <p class="nm-section-copy">
-        Use these resources whether you write the code yourself or with Claude, Codex, Gemini, or another coding agent.
+        Start with the shader demo to make something now, or the integration guide to build on the engine. The same resources work for Claude, Codex, Gemini, and other coding agents.
       </p>
       <div class="nm-agent-grid">
         <article>
@@ -182,7 +182,7 @@
         </article>
         <article>
           <h3>shade-mcp</h3>
-          <p><a href="https://github.com/noisefactorllc/shade-mcp">shade-mcp</a> can search effects, inspect definitions, compile DSL, render frames, test uniforms, and compare WebGL2 against WebGPU.</p>
+          <p><a href="https://github.com/noisefactorllc/shade-mcp">shade-mcp</a> can search effects, inspect definitions, compile Polymorphic programs, render frames, test uniforms, and compare WebGL2 against WebGPU.</p>
         </article>
         <article>
           <h3>portable</h3>
@@ -190,7 +190,7 @@
         </article>
         <article>
           <h3>Multi-user editing</h3>
-          <p>The <a href="https://github.com/noisefactorllc/seance">Seance</a> SDK adds conflict-free multi-user network editing for the Noisemaker engine.</p>
+          <p>The <a href="https://github.com/noisefactorllc/seance">Seance</a> SDK adds conflict-free multi-user network editing for Noisemaker Engine.</p>
         </article>
       </div>
     </section>
@@ -198,16 +198,16 @@
     <section class="nm-section" id="built" aria-labelledby="built-title">
       <div class="nm-section-heading">
         <p class="nm-kicker">Apps</p>
-        <h2 id="built-title">Built on Noisemaker.</h2>
+        <h2 id="built-title">Built on Noisemaker Engine.</h2>
       </div>
       <div class="nm-product-list">
         <a href="https://noisedeck.app/">
           <strong>Noisedeck</strong>
-          <span>Realtime shader art and live visuals, powered by the Noisemaker rendering engine.</span>
+          <span>Realtime shader art and live visuals, powered by Noisemaker Engine.</span>
         </a>
         <a href="https://layers.noisefactor.io/">
           <strong>Layers</strong>
-          <span>Image and video clip editing built on the Noisemaker DSL.</span>
+          <span>Image and video clip editing built on Noisemaker Engine's Polymorphic DSL.</span>
         </a>
         <a href="https://foundry.noisedeck.app/">
           <strong>Foundry</strong>
@@ -215,7 +215,7 @@
         </a>
         <a href="https://polymorphic.noisedeck.app/">
           <strong>Polymorphic</strong>
-          <span>Noisemaker's live coding and high-level visual composition language.</span>
+          <span>Noisemaker Engine's live coding and high-level visual composition language.</span>
         </a>
         <a href="https://shade.noisedeck.app/">
           <strong>Shade</strong>
