@@ -46,10 +46,10 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.64.1",
+    "@playwright/test": "^1.65.0",
     "esbuild": "^0.28.2",
     "eslint": "^10.14.0",
-    "globals": "^17.13.0",
+    "globals": "^17.14.0",
     "http-server": "^14.1.1",
     "jpeg-js": "^0.4.4",
     "pngjs": "^7.0.0",
