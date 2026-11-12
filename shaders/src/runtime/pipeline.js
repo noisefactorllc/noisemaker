@@ -537,6 +537,15 @@ function evaluateAudio(config, audioState, min = config.min, max = config.max) {
     return min + rawValue * (max - min)
 }
 
+/**
+ * Pass an isolated sink failure to the sink that threw it. A sink opts in
+ * with an optional onError(error) method, for example to end an output whose
+ * new size it cannot send. Rendering and the other sinks continue either way.
+ */
+function reportSinkError(error, sink) {
+    if (typeof sink?.onError === 'function') sink.onError(error)
+}
+
 export class Pipeline {
     constructor(graph, backend, options = {}) {
         this.graph = graph
@@ -548,7 +557,7 @@ export class Pipeline {
         this.texturePooling = options.texturePooling === true
         // virtualId -> storageId for pooled textures (rebuilt per recreateTextures)
         this._textureAliases = new Map()
-        this.sinkManager = new SinkManager()
+        this.sinkManager = new SinkManager({ onError: reportSinkError })
         this._sinkDescriptor = {
             width: 0,
             height: 0,

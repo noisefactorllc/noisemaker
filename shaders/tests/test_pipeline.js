@@ -1043,6 +1043,92 @@ test('Pipeline - Resize completes after a sink configure failure', async () => {
     }
 })
 
+test('Pipeline - A sink receives its own isolated configure, deferRender and submit errors', async () => {
+    const backend = new MockBackend()
+    const pipeline = new Pipeline({ passes: [], textures: new Map(), renderSurface: 'o0' }, backend)
+    await pipeline.init(320, 240)
+
+    const configureError = new Error('configure failed')
+    const deferError = new Error('defer probe failed')
+    const submitError = new Error('submit failed')
+    const reported = []
+    let failing = false
+    const failed = {
+        configure() { if (failing) throw configureError },
+        deferRender() { if (failing) throw deferError; return false },
+        submit() { if (failing) throw submitError; return true },
+        close() {},
+        onError(error) { reported.push(['failed', error]) }
+    }
+    // A sink without onError fails exactly as before: counted and isolated.
+    const silent = {
+        configure() { if (failing) throw new Error('silent configure failed') },
+        submit() { if (failing) throw new Error('silent submit failed'); return true },
+        close() {}
+    }
+    // A sink whose reporter throws does not stop the resize or the frame.
+    let reporterCalls = 0
+    const throwingReporter = {
+        configure() { if (failing) throw new Error('configure failed again') },
+        submit() { return true },
+        close() {},
+        onError() {
+            reporterCalls++
+            throw new Error('reporter failed')
+        }
+    }
+    // A sink that does not fail sees the same calls as before and no report.
+    const healthyCalls = []
+    const healthy = {
+        configure(descriptor) { healthyCalls.push(['configure', descriptor.width, descriptor.height]) },
+        deferRender() { healthyCalls.push(['deferRender']); return false },
+        submit(textureId, timestamp) { healthyCalls.push(['submit', timestamp]); return true },
+        close() {},
+        onError(error) { reported.push(['healthy', error]) }
+    }
+    pipeline.addSink(failed)
+    pipeline.addSink(silent)
+    pipeline.addSink(throwingReporter)
+    pipeline.addSink(healthy)
+    healthyCalls.length = 0
+    failing = true
+
+    pipeline.resize(640, 480)
+    const deferred = pipeline.shouldDeferRender()
+    pipeline.render(0, 7)
+
+    if (deferred !== false) {
+        throw new Error('A throwing deferRender must not defer the frame')
+    }
+    if (reported.length !== 3 || reported[0][0] !== 'failed' || reported[0][1] !== configureError ||
+        reported[1][0] !== 'failed' || reported[1][1] !== deferError ||
+        reported[2][0] !== 'failed' || reported[2][1] !== submitError) {
+        throw new Error(`Each error must reach only the sink that threw it: ${JSON.stringify(reported.map(([sink, error]) => [sink, error.message]))}`)
+    }
+    if (reporterCalls !== 1) {
+        throw new Error(`The throwing reporter must receive its configure error once, got ${reporterCalls}`)
+    }
+    if (JSON.stringify(healthyCalls) !== JSON.stringify([['configure', 640, 480], ['deferRender'], ['submit', 7]])) {
+        throw new Error(`A sink that does not fail must see the same calls: ${JSON.stringify(healthyCalls)}`)
+    }
+    const stats = pipeline.sinkManager.stats
+    const expected = [
+        [failed, { accepted: 0, dropped: 0, failed: 3 }],
+        [silent, { accepted: 0, dropped: 0, failed: 2 }],
+        [throwingReporter, { accepted: 1, dropped: 0, failed: 1 }],
+        [healthy, { accepted: 1, dropped: 0, failed: 0 }]
+    ]
+    for (const [sink, counts] of expected) {
+        if (JSON.stringify(stats.get(sink)) !== JSON.stringify(counts)) {
+            throw new Error(`Unexpected sink counters ${JSON.stringify(stats.get(sink))}, expected ${JSON.stringify(counts)}`)
+        }
+    }
+    const resizedTexture = backend.textures.get('global_o0_read')
+    if (!resizedTexture || resizedTexture.width !== 640 || resizedTexture.height !== 480) {
+        throw new Error(`Resize did not complete after reported sink errors: ${JSON.stringify(resizedTexture)}`)
+    }
+})
+
 test('Pipeline - Sinks remain optional without a callable backend present method', async () => {
     const backend = new MockBackend()
     backend.present = true
