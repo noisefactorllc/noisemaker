@@ -1,6 +1,6 @@
 # Noisemaker
 
-Noisemaker is an extendable shader art engine for web, desktop, and mobile. It renders real-time generative art and visual effects on WebGL2 and WebGPU. It includes 100+ composable effects and a compact declarative DSL to connect them. It requires no build step or dependencies.
+Noisemaker is a composable shader art engine for web, desktop, and mobile. It renders real-time generative art and visual effects on WebGL2, WebGPU, and [more](https://demos.noisemaker.app). It includes 100+ composable effects and a compact declarative DSL to connect them. It requires no build step or dependencies.
 
 ## Noisedeck
 
