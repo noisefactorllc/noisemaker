@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `6f98d26ab84f17ba7fb154bb74252d6362736f89`.
+- Noisemaker: `db2173e34223a663b08815fa32c34608ec5b4b91`.
 - Shade MCP: `63e53ad89dc43526335da6e947ed31667929e43b`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.5.3`. Its
   lockfile pins `@modelcontextprotocol/sdk` 1.32.2; the `npx` install below
@@ -1825,8 +1825,9 @@ Input resolution rules, in priority order for each `inputs` entry:
 5. A matching surface global in `step.args` resolves a temp, current pipeline
    input, named global surface, or `none`.
 6. A matching `GlobalSpec.default` resolves `none`, input, global surface,
-   chain-scoped `global_...`, or literal name.
-7. An explicit `global_...` value is chain/particle scoped.
+   scoped `global_...` (as in rule 7), or literal name.
+7. An explicit `global_...` value is particle, chain or instance scoped, as
+   the `global_` naming rule in the texture section states.
 8. `outputTex` refers to this effect node's primary output.
 9. Anything else is a node-local texture and becomes `<nodeId>_<name>`.
 
@@ -1838,7 +1839,8 @@ Output resolution rules:
   outputs.
 - `inputTex3d`, `inputGeo`, `inputXyz`, `inputVel`, `inputRgba` write in place to
   their upstream channel when one exists.
-- `global_...` is chain/particle scoped. `feedback_...` remains literal.
+- `global_...` is particle, chain or instance scoped, as the `global_` naming
+  rule in the texture section states. `feedback_...` remains literal.
   Otherwise the target is node-local.
 
 `uniforms: {shaderName: globalName}` reads the already resolved pipeline value,
@@ -2062,10 +2064,23 @@ type DeviceCapabilities = {
 }
 ```
 
-Node-local texture names are prefixed with `node_<step>_`. Non-particle names
-beginning `global_` are chain-scoped. Particle state names are scoped to the
-creating particle node. Normal global surfaces have `_read`/`_write` backend
-textures.
+Node-local texture names are prefixed with `node_<step>_`. Particle state names
+are scoped to the creating particle node. Any other name beginning `global_`
+takes the chain suffix `_chain_<n>`, except the private state of a repeated
+effect. A `global_` texture is private to an effect when the effect declares it
+in `textures` or `textures3d`, or writes it as a pass output, and no other
+effect in the same chain references it. The first instance of an effect in a
+chain keeps the chain suffix for its private state. Each later instance of the
+same effect takes the suffix `_chain_<n>_node_<step>` for its private state, so
+repeated stateful effects do not share state. A `global_` texture that several
+effects in the chain reference, and one that the effect only reads (for example
+an external upload), keeps the chain suffix. Sizing parameters follow the same
+split. Outside particle scope, a texture width or height that reads `{param}`
+or `{screenDivide}` reads `<param>_chain_<n>`. The first node that sizes from
+that name keeps it. A later node that sizes node-local or private `global_`
+state from it reads its own `<param>_chain_<n>_node_<step>`. `volumeSize` and
+`inherit: true` dimensions keep the chain name. Normal global surfaces have
+`_read`/`_write` backend textures.
 
 `pipeline.getCapabilities()` returns the active backend object.
 `CanvasRenderer.capabilities` delegates to it. Before a pipeline/backend is
@@ -2666,6 +2681,7 @@ type Sink = {
   submit(textureId: string, presentationTimestamp: number): boolean | unknown
   close(options?: { backendLost?: boolean }): unknown
   deferRender?(): boolean
+  onError?(error: unknown): unknown
 }
 
 type SinkStats = { accepted: number, dropped: number, failed: number }
@@ -2889,8 +2905,11 @@ For a `SinkManager`, `submit() === true` increments `accepted`, false increments
 if `onError` was supplied it is invoked with `(error, sink)`. Other return values change
 no counter. One failing registered sink does not stop later sinks. Adding a sink after
 the manager is configured calls that sink's `configure()` before registration. If it throws,
-`add()` propagates the error and creates no stats record. For the pipeline's default
-manager there is no `onError` callback, so inspect its stats when an external sink can throw.
+`add()` propagates the error and creates no stats record. The pipeline's default manager
+is constructed with an `onError` reporter that calls the failing sink's own optional
+`onError(error)` method when it is a function. An external sink can therefore observe its own
+isolated `configure()`, `deferRender()` and `submit()` failures. An error thrown by a reporter
+is isolated too, and the stats count every failure.
 
 For a `FrameExportQueue`, a successful adapter `begin()` increments `accepted`.
 Unconfigured, closed, or full-queue enqueue attempts increment `dropped` and
@@ -2911,6 +2930,7 @@ accepted frame was canceled.
 Sources: Shade MCP `src/tools/browser/render.ts`, `passthrough.ts`,
 `benchmark.ts`; `shaders/tests/test-harness.js` - metric gates, exemptions, and
 sustained benchmark; `shaders/src/runtime/sink.js`;
+`shaders/src/runtime/pipeline.js` - `reportSinkError()`;
 `shaders/src/runtime/frame-export.js`.
 
 ### Diagnose
@@ -4861,7 +4881,7 @@ capture; these are the values from this session):
 {"outcome":"ok","status":"ok","tested_uniforms":["pattern:pass","gridSize:pass"],"uniforms":[{"name":"pattern","uniform":"pattern","default_value":0,"test_value":1,"luma_diff":0.0031082153320312056,"max_channel_diff":0.0031082153320312056,"pixel_diff":0.37701416015625,"strong_fraction":0.875299072265625,"responds":true},{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":12,"luma_diff":0.002946472167968728,"max_channel_diff":0.002946472167968728,"pixel_diff":0.39990234375,"strong_fraction":0.48483123779296877,"responds":true,"enabled_with":{"pattern":0}}],"threshold":0.002,"strong_threshold":0.0005,"details":"Uniforms affect output","measured_size":[1024,640],"backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern"}
 {"outcome":"skipped","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern"}
 {"outcome":"ok","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"frames":8,"stateReset":true,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
-{"outcome":"ok","status":"ok","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":60.48,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.54,"jitter_ms":1.55,"min_frame_time_ms":8.8,"max_frame_time_ms":18.7}}
+{"outcome":"ok","status":"ok","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":60.5,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.53,"jitter_ms":1.23,"min_frame_time_ms":11.3,"max_frame_time_ms":18.6}}
 ```
 
 The structure scan has no issues and reports the one declared effect pass.

@@ -1181,6 +1181,40 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-13 — candidate delivery pair: Noisemaker
+    `db2173e34223a663b08815fa32c34608ec5b4b91` and Shade MCP
+    `63e53ad89dc43526335da6e947ed31667929e43b`. Audited the Noisemaker range
+    `6f98d26a..db2173e3`. Its runtime changes are `cf95f49c`, which gives each
+    further instance of a stateful effect in a chain its own private
+    `global_` state and sizing parameter (`shaders/src/runtime/expander.js`),
+    and `db2173e3`, which makes the pipeline's default `SinkManager` pass an
+    isolated sink error to the failing sink's optional `onError(error)`
+    (`shaders/src/runtime/pipeline.js`). The vendored `vendor/shade-mcp/`
+    tree is unchanged over the range, `.mcp.json` still pins the Shade commit
+    above, and release `v0.5.3` still resolves to it. Shade MCP `main` at
+    `c7a69c24ad85d1a722d8827c039b87f3aee72331` differs from the pin only in
+    dependency bumps to `package.json` and `package-lock.json`, so the pin
+    stays. The contract now states per-instance scoping of private `global_`
+    state and sizing parameters in the input, output and texture naming
+    rules, adds the optional `Sink.onError` method, states the default
+    manager's reporter, and names `db2173e3` in its snapshot block. A compile
+    of repeated `reactionDiffusion` and `watercolor` instances produced
+    `global_rd_state_chain_0`, `global_rd_state_chain_0_node_1`,
+    `zoom_chain_0` and `zoom_chain_0_node_1`, and `compileGraph()` reproduced
+    the worked example's pass array. A fresh `npx` installation of the
+    configured pin loaded SDK `1.32.2` and initialized server `shade-mcp` /
+    `0.5.3` / `2025-11-25` with 21 tools. One configured-pin session on an
+    Apple silicon macOS host with headless Chromium ran all eight worked
+    calls without MCP `isError`. Every response matched the recorded
+    transcript except the benchmark timings, which now hold this session's
+    values; parity returned `maxDiff=0` with `frames: 8` and
+    `stateReset: true`. Noisemaker checks:
+    `node scripts/run-js-tests.js --skip-parity` (exit 0), `npm run lint`
+    (exit 0), the four `shaders/tests/test_contract_*` tests (exit 0),
+    `node shaders/tests/test_stateful_instances.js` (exit 0) and
+    `node --test test/mcp-config.test.js` (exit 0). Exact-source CI and live
+    contract readback remain pending; the completed checkpoint above has not
+    advanced.
   - 2026-11-06 — completed delivery pair: Noisemaker
     `6f98d26ab84f17ba7fb154bb74252d6362736f89` and Shade MCP
     `63e53ad89dc43526335da6e947ed31667929e43b`. Audited the Noisemaker range
