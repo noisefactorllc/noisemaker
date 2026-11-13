@@ -10,7 +10,7 @@ Noisemaker is a composable shader art engine for web, desktop, and mobile. It re
 
 The [documentation index](https://docs.noisemaker.app/) covers all usage, including a quick start for the shader engine.
 
-To learn more about the individual effects you'll find in Noisemaker, visit the [Book of Polymorphic](https://polymorphic.noisedeck.app/book/).
+To learn more about the individual effects you'll find in Noisemaker, visit the [Book of Polymorphic DSL](https://polymorphic.noisedeck.app/book/).
 
 ## Features
 
