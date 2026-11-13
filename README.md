@@ -22,7 +22,9 @@ Full documentation, including the complete API reference and preset guide, is av
 
 ## Getting Started
 
-The [documentation index](https://docs.noisemaker.app/) starts with a quick start for the browser shader engine. For the Python package, see the [CLI guide](https://docs.noisemaker.app/cli/) and the [API reference](https://docs.noisemaker.app/api/). For the browser modules, see the [JavaScript API](https://docs.noisemaker.app/javascript/). For containers, see the [Docker README](README-DOCKER.md). The `noisemaker animate` and `noisemaker magic-mashup` commands run `ffmpeg` to write their MP4 and GIF output, so `ffmpeg` must be on your `PATH`. The Docker image includes it. The dedicated READMEs below provide platform-specific guides.
+The [documentation index](https://docs.noisemaker.app/) starts with a quick start for the browser shader engine. For the Python package, see the [CLI guide](https://docs.noisemaker.app/cli/) and the [API reference](https://docs.noisemaker.app/api/). For the browser modules, see the [JavaScript API](https://docs.noisemaker.app/javascript/). For containers, see the [Docker README](README-DOCKER.md). The `noisemaker animate` and `noisemaker magic-mashup` commands run `ffmpeg` to write their MP4 and GIF output, so `ffmpeg` must be on your `PATH`. The Docker image includes it.
+
+To learn more about the individual effects you'll find in Noisemaker, visit the [Book of Polymorphic](https://polymorphic.noisedeck.app/book/).
 
 ## Bring your coding agent
 
@@ -34,14 +36,17 @@ Coding agents can read the documentation in machine-readable form: [llms.txt](ht
 
 Contributions follow the Noise Factor [contributing policy](https://github.com/noisefactorllc/.github/blob/main/CONTRIBUTING.md) and [Code of Conduct](https://github.com/noisefactorllc/.github/blob/main/CODE_OF_CONDUCT.md).
 
-## Ports
+## Target Platforms
 
 Additional platform-specific guides:
 
-- Python development and API details live in the docs linked above
-- The [JavaScript README](js/README-JS.md) covers the JavaScript presets port
-- The [Shaders README](shaders/README-SHADERS.md) documents the shader effects port
-- Container workflows appear in the [Docker README](README-DOCKER.md)
+- [Shaders](https://docs.noisemaker.app/shaders/) for the WebGL2 and WebGPU engine
+- [Shaders Ports](https://demos.noisemaker.app/#ports) for additional target platforms
+
+Older code, but it still checks out:
+
+- [Classic Composer (Python, JS)](https://docs.noisemaker.app/composer-api/) CPU-based presets ("old" Noisemaker)
+- Container workflows for Composer appear in the [Docker README](README-DOCKER.md)
 
 ## Credits
 
