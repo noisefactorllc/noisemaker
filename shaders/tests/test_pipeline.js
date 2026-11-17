@@ -1378,4 +1378,56 @@ test('Pipeline - renderCubemap can yield between face renders', async () => {
     }
 })
 
+test('Pipeline - A rejected candidate graph leaves the accepted programs in the backend', async () => {
+    const backend = new MockBackend()
+    const released = []
+    backend.releaseProgram = (program) => released.push(program.handle)
+    const accepted = {
+        passes: [{ id: 'a', program: 'node_0_solid' }],
+        programs: { node_0_solid: { source: 'accepted solid' } },
+        textures: new Map()
+    }
+    const pipeline = new Pipeline(accepted, backend)
+    await pipeline.compilePrograms()
+    const acceptedSolid = backend.programs.get('node_0_solid')
+
+    // The candidate reuses the accepted program's id with another source, adds
+    // a program that compiles, and then one that the backend rejects.
+    backend.compileProgram = async (id, spec) => {
+        if (spec.source === 'invalid') throw { code: 'ERR_SHADER_COMPILE', program: id }
+        backend.programs.set(id, { handle: `candidate_${id}` })
+    }
+    const candidate = {
+        passes: [
+            { id: 'a', program: 'node_0_solid' },
+            { id: 'b', program: 'node_1_extra' },
+            { id: 'c', program: 'node_2_colorize' }
+        ],
+        programs: {
+            node_0_solid: { source: 'candidate solid' },
+            node_1_extra: { source: 'extra' },
+            node_2_colorize: { source: 'invalid' }
+        },
+        textures: new Map()
+    }
+
+    let rejection = null
+    try {
+        await pipeline.compilePrograms(candidate)
+    } catch (error) {
+        rejection = error
+    }
+
+    if (rejection?.code !== 'ERR_SHADER_COMPILE') throw new Error(`Expected ERR_SHADER_COMPILE, got ${JSON.stringify(rejection)}`)
+    if (pipeline.graph !== accepted) throw new Error('compilePrograms(candidate) must not change the pipeline graph')
+    if (pipeline.isCompiling) throw new Error('isCompiling must clear after a rejection')
+    if (backend.programs.get('node_0_solid') !== acceptedSolid) throw new Error('the accepted program was not restored')
+    if ([...backend.programs.keys()].join() !== 'node_0_solid') {
+        throw new Error(`Expected only the accepted program, got ${[...backend.programs.keys()].join()}`)
+    }
+    if (released.sort().join() !== 'candidate_node_0_solid,candidate_node_1_extra') {
+        throw new Error(`Expected the candidate programs to be released, got ${released.join()}`)
+    }
+})
+
 runTests()

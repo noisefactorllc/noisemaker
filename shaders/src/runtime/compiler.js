@@ -193,13 +193,42 @@ function formatError(err) {
  * @returns {object} New graph (pipeline will update on next frame)
  */
 export function recompile(pipeline, newSource, options = {}) {
+    const newGraph = compileGraphFor(pipeline, newSource, options)
+    return newGraph && swapGraph(pipeline, newGraph) ? newGraph : null
+}
+
+/**
+ * Compile `newSource` into a graph at the pipeline's size, without changing
+ * the pipeline. A host can compile the graph's shaders with
+ * `pipeline.compilePrograms(graph)` before `swapGraph()` makes it current.
+ * @param {Pipeline} pipeline - Existing pipeline
+ * @param {string} newSource - New DSL source
+ * @param {object} [options] - Recompilation options
+ * @param {object} [options.shaderOverrides] - Per-step shader overrides
+ * @returns {object|null} The graph, or null when the source does not compile
+ */
+export function compileGraphFor(pipeline, newSource, options = {}) {
     try {
-        const newGraph = compileGraph(newSource, {
+        return compileGraph(newSource, {
             width: pipeline.width,
             height: pipeline.height,
             shaderOverrides: options.shaderOverrides
         })
+    } catch (error) {
+        console.error('Recompilation failed:', formatError(error))
+        return null
+    }
+}
 
+/**
+ * Make `newGraph` the pipeline's graph, and rebuild the surfaces, textures and
+ * effect state it needs.
+ * @param {Pipeline} pipeline - Existing pipeline
+ * @param {object} newGraph - A graph from compileGraphFor()
+ * @returns {boolean} False when the pipeline could not take the graph
+ */
+export function swapGraph(pipeline, newGraph) {
+    try {
         // Swap graph on pipeline
         pipeline.graph = newGraph
 
@@ -222,9 +251,9 @@ export function recompile(pipeline, newSource, options = {}) {
         // production lifecycle hooks; skip them instead of failing recompile.
         pipeline.initLifecycleEffects?.()
 
-        return newGraph
+        return true
     } catch (error) {
         console.error('Recompilation failed:', formatError(error))
-        return null
+        return false
     }
 }

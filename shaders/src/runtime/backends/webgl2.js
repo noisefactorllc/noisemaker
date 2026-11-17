@@ -971,6 +971,14 @@ export class WebGL2Backend extends Backend {
         }
     }
 
+    /**
+     * Delete a compiled program that no graph renders with.
+     * @param {object} program - An entry of this.programs
+     */
+    releaseProgram(program) {
+        if (program?.handle) this.gl.deleteProgram(program.handle)
+    }
+
     async compileProgram(id, spec) {
         const gl = this.gl
 

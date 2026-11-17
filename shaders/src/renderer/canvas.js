@@ -25,7 +25,7 @@ import { parse } from '../lang/parser.js'
 import { registerParamAliases } from '../lang/paramAliases.js'
 import { registerEffectAlias } from '../lang/effectAliases.js'
 import { registerStarterOps } from '../lang/validator.js'
-import { createRuntime, recompile } from '../runtime/compiler.js'
+import { createRuntime, compileGraphFor, swapGraph } from '../runtime/compiler.js'
 import { WebGPUBackend } from '../runtime/backends/webgpu.js'
 import { resolveSoftwareRendering } from './software-rendering.js'
 import { registerEffect, getEffect, unregisterEffect } from '../runtime/registry.js'
@@ -1344,14 +1344,23 @@ export class CanvasRenderer {
             }
         } else {
             const compilationPipeline = this._pipeline
-            // Set isCompiling flag BEFORE recompile swaps the graph
-            // This prevents the render loop from trying to execute passes
-            // with programs that haven't been compiled yet
+            // Keep the render loop off the backend while shaders compile
             compilationPipeline.isCompiling = true
 
             try {
-                const newGraph = recompile(compilationPipeline, dsl, { shaderOverrides })
-                if (!newGraph) {
+                // Compile the candidate's shaders before it replaces the
+                // running graph. A rejected shader throws here and leaves the
+                // accepted graph, its programs and its surfaces in place, so
+                // the next frames render the accepted program.
+                const newGraph = compileGraphFor(compilationPipeline, dsl, { shaderOverrides })
+                if (newGraph) {
+                    await compilationPipeline.compilePrograms(newGraph)
+                    if (!this._isLifecycleCurrent(lifecycleGeneration) ||
+                        this._pipeline !== compilationPipeline) {
+                        return null
+                    }
+                }
+                if (!newGraph || !swapGraph(compilationPipeline, newGraph)) {
                     // Recompile failed, need to create a new pipeline from scratch
                     compilationPipeline.isCompiling = false
                     const previousPipeline = compilationPipeline
@@ -1373,14 +1382,6 @@ export class CanvasRenderer {
                         previousPipeline?.dispose?.()
                     } catch (err) {
                         console.warn('Failed to dispose previous pipeline', err)
-                    }
-                } else {
-                    // Recompile succeeded, now compile the programs
-                    // compilePrograms will clear the isCompiling flag when done
-                    await compilationPipeline.compilePrograms()
-                    if (!this._isLifecycleCurrent(lifecycleGeneration) ||
-                        this._pipeline !== compilationPipeline) {
-                        return null
                     }
                 }
             } catch (err) {

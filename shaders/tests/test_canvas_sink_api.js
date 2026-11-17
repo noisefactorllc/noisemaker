@@ -389,6 +389,7 @@ test('successful fallback recreation installs a fresh pipeline then disposes the
         height: 16,
         graph: { id: 'old graph' },
         isCompiling: false,
+        async compilePrograms() {},
         createSurfaces() {
             throw new Error('force full recreation')
         },
@@ -426,6 +427,7 @@ test('failed fallback recreation retains the active old pipeline without closing
         height: 16,
         graph: { id: 'old graph' },
         isCompiling: false,
+        async compilePrograms() {},
         createSurfaces() {
             throw new Error('force full recreation')
         },
@@ -543,6 +545,7 @@ function pendingFallbackFixture() {
         height: 16,
         graph: { id: 'old graph' },
         isCompiling: false,
+        async compilePrograms() {},
         createSurfaces() { throw new Error('force full recreation') },
         dispose(options) { events.push(['old dispose', options]) }
     }
@@ -833,6 +836,7 @@ function retainedStubPipeline(events, name) {
         setAudioState() {},
         // Forces recompile() to return null, so _compile() takes the full
         // recreation path, as it does when compileGraph() rejects the source.
+        async compilePrograms() {},
         createSurfaces() { throw new Error('force full recreation') },
         dispose(options) { events.push([`${name} dispose`, options]) }
     }
