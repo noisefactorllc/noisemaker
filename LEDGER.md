@@ -1444,6 +1444,7 @@ work, verify it, then update the checkpoint and append a log line.
     the measured size. Shade [release CI](https://github.com/noisefactorllc/shade-mcp/actions/runs/37168527697),
     Noisemaker [vendor CI](https://github.com/noisefactorllc/noisemaker/actions/runs/37168601034),
     [Shaders CI](https://github.com/noisefactorllc/noisemaker/actions/runs/37168613116),
+    Portable [CI](https://github.com/noisefactorllc/portable/actions/runs/37168610169),
     and the Shade deployment
     passed. The final Noisemaker commit's CI and noisemaker.app delivery are
     checked separately after publication. The contract removes resolved
