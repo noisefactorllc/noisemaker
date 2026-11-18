@@ -920,7 +920,6 @@ The ``pointsEmit`` and ``pointsRender`` wrappers manage these surfaces. Behavior
 * Each mesh surface consists of a positions texture (vertex XYZ + W) and a normals texture (normal XYZ + UV).
 * **Loading:** Use ``meshLoader()`` in the pipeline and load mesh files via the API — ``canvas.loadOBJFromURL()`` / ``canvas.loadOBJFromString()`` for OBJ, ``canvas.loadGLTFFromURL()`` / ``canvas.loadGLTFFromString()`` for glTF and GLB. Each takes the target surface as its second argument, defaulting to ``mesh0``.
 * **Rendering:** Use ``meshRender()`` to render mesh geometry with lighting and transforms. It takes no surface argument: the effect is bound to ``mesh0``, so load into that surface to render it.
-* **Bundled assets:** the OBJ files under ``share/meshes/`` were regenerated in 1.5 from the scene graph's own primitive builders. ``cube.obj`` and ``icosphere.obj`` now render right side out (they were wound inside-out before), ``sphere.obj`` and ``capsule.obj`` are mirrored in X, ``torus.obj`` lies in the XZ plane, and every asset now carries texture coordinates — a ``meshRender()`` program that used a texture-mapped material sees a real mapping where it saw a single texel.
 
 Feedback Loops
 ^^^^^^^^^^^^^^

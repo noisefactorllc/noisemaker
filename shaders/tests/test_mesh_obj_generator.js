@@ -1,8 +1,12 @@
 /**
- * The committed share/meshes/*.obj assets are serialized from the same
- * primitives.js generators the scene graph uses. This test runs the generator
- * into a temp directory and reads the result back through the runtime OBJ
- * parser, so a change to either side that breaks the assets fails here.
+ * share/meshes/generate.cjs serializes OBJ assets from the same primitives.js
+ * generators the scene graph uses. This test runs the generator into a temp
+ * directory and reads the result back through the runtime OBJ parser, so a
+ * change to either side that breaks its output fails here.
+ *
+ * The committed share/meshes/*.obj assets are not that output. Existing
+ * programs render them, so they stay byte for byte as they are, and this test
+ * pins each one by its digest.
  */
 import assert from 'assert'
 import fs from 'fs'
@@ -46,8 +50,20 @@ function assertSameAttribute(actual, expectedValues, label) {
   }
 }
 
+// The committed assets, by sha256. An edit to one of them changes what an
+// existing program renders, so it fails here.
+const COMMITTED_ASSETS = {
+  capsule: 'bccbe621026d07ee2df6cffc8a3202bcfc8b1cbd0298357a26af167ec63b4002',
+  cone: 'a5914c57f081d3a7481fae8dc22dfd6c2574495ce0de81368fb9424d1c0fa1ae',
+  cube: '67b11dbbf4cb4be31ded12775886a6e550538554d1f18a9227ad52fbd7fde8f7',
+  cylinder: 'b6205cc5d31f447258ea029045eb0276224f5f0111ce90264fcdcf5fee846c2c',
+  icosphere: '73c1dfdd846fe4852b83d704c9dfb7d5deaa67a349db928ae432b3c928a29694',
+  sphere: '77dd8c1b520c3fbfc79557184196f30be32c6a94ea3996aa5b79500bce8fc829',
+  torus: 'ceeca04655e0d352365b818edda2b320693a0b023140287cae16f9d805bcac6f'
+}
+
 // Mirrors the recipes in generate.cjs; a drift here means the generator no
-// longer produces what the committed assets claim to be.
+// longer writes what primitives.js builds.
 const expected = {
   cube: createBox({ size: [1, 1, 1] }),
   sphere: createSphere({ radius: 0.5, segments: 32 }),
@@ -136,16 +152,16 @@ try {
     assert.strictEqual(inverted, 0,
       `${name}: ${inverted}/${checked} parsed triangles wound against their normals`)
 
-    // The committed asset must match what the generator produces right now.
-    // Compared by digest so a mismatch reports one line, not the whole file.
+    // The committed asset must be the pinned one.
     const committed = path.join(repoRoot, 'share', 'meshes', `${name}.obj`)
-    const digest = (p) => createHash('sha256').update(fs.readFileSync(p)).digest('hex')
     assert.strictEqual(
-      digest(file),
-      digest(committed),
-      `${name}.obj: committed asset does not match the generator — re-run share/meshes/generate.cjs`
+      createHash('sha256').update(fs.readFileSync(committed)).digest('hex'),
+      COMMITTED_ASSETS[name],
+      `${name}.obj: the committed asset changed. Existing programs render it, so it must stay as it is`
     )
   }
+  assert.deepStrictEqual(Object.keys(COMMITTED_ASSETS).sort(), Object.keys(expected).sort(),
+    'every generated mesh has a pinned committed asset')
 } finally {
   fs.rmSync(outDir, { recursive: true, force: true })
 }
