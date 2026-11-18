@@ -16,7 +16,7 @@ To learn more about the individual effects you'll find in Noisemaker, visit the 
 
 - 100+ shader effects. Generators, filters, mixers, particles, and simulations; composable into free-form chains
 - Polymorphic DSL: compact, declarative programs that compile to a GPU render graph
-- 3D scene graph (preview): cameras, lights, meshes, volumes and PBR materials described in the same DSL, rendered by a deferred renderer into an ordinary surface so the 2D effects apply as post-processing
+- 3D scene graph: cameras, lights, meshes, volumes and PBR materials described in the same DSL, rendered by a deferred renderer into an ordinary surface so the 2D effects apply as post-processing
 - Dual rendering backends: WebGL2 and WebGPU
 - Runs straight from a CDN bundle and embeds in any page, no frontend framework required
 - External media, audio, and MIDI inputs

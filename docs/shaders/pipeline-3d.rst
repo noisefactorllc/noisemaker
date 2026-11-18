@@ -22,9 +22,8 @@ Each intermediate value is a volume rather than an image.
    :ref:`deferred renderer <shader-deferred-rendering>`. The two can be
    composited together, since both terminate in ordinary surfaces.
 
-   Volumetric rendering, described on this page, is stable. The scene graph is
-   a **preview** feature in Noisemaker 1.5, to be finalized in 2.0; unifying
-   the two subsystems is planned work.
+   Volumetric rendering, described on this page, is stable. Unifying the two
+   subsystems is planned work.
 
 .. code-block:: dsl
 

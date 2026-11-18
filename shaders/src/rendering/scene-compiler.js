@@ -13,6 +13,7 @@
 
 import { resolveDescriptorEnum } from '../lang/descriptorEnums.js'
 import { decodeJsonStringLiteralContent } from '../lang/stringLiterals.js'
+import { SURFACE } from '../stability.js'
 
 /** Texture the scene renderer presents into. */
 export const SCENE_COLOR_TEXTURE = 'scene_color'
@@ -26,14 +27,39 @@ const LIGHT_TYPES = new Set(['directional', 'point', 'spot'])
 /** Keyword args that describe placement rather than geometry. */
 const TRANSFORM_KEYS = new Set(['id', 'pos', 'rot', 'scale'])
 
+/**
+ * What each call of the scene vocabulary is. The vocabulary itself is the
+ * stability registry's: a call it does not list is not scene vocabulary,
+ * whatever this table says.
+ */
+export const SCENE_CALL_KINDS = Object.freeze({
+    scene: 'scene',
+    camera: 'sceneLevel',
+    light: 'sceneLevel',
+    environment: 'sceneLevel',
+    mesh: 'node',
+    volume: 'node',
+    group: 'node',
+    material: 'link',
+    reflector: 'link',
+    solid: 'materialSpec',
+    surface: 'materialSpec',
+    pbr: 'materialTerm',
+    emit: 'materialTerm'
+})
+
+function sceneCallsOfKind(kind) {
+    return Object.keys(SURFACE.sceneCalls).filter(name => SCENE_CALL_KINDS[name] === kind)
+}
+
 /** The only chain links a mesh/volume/group node accepts. */
-const NODE_LINKS = new Set(['material', 'reflector'])
+const NODE_LINKS = new Set(sceneCallsOfKind('link'))
 
 /** The node kinds a group() nests, named in the diagnostic. */
-const NODE_CHILDREN = ['mesh', 'volume', 'group']
+const NODE_CHILDREN = sceneCallsOfKind('node')
 
 /** Scene children that are legal at scene() level but never inside a group(). */
-const SCENE_LEVEL_ONLY = new Set(['camera', 'light', 'environment'])
+const SCENE_LEVEL_ONLY = new Set(sceneCallsOfKind('sceneLevel'))
 
 /**
  * How a positional that is not a node chain is named back to the author.
@@ -197,6 +223,11 @@ const DESCRIPTOR_FUNCTION = Object.freeze({
     Audio: 'audio'
 })
 
+/** A value source is accepted in a scene only if the stability registry lists it. */
+function isSceneValueSource(type) {
+    return Object.hasOwn(SURFACE.sceneValues, DESCRIPTOR_FUNCTION[type])
+}
+
 /** The canonical field each descriptor kind is identified by once compiled. */
 const DESCRIPTOR_DISCRIMINANT = Object.freeze({
     Oscillator: 'oscType',
@@ -356,11 +387,14 @@ function litValue(node, anchor) {
         case 'ArrayLiteral':
             return node.elements.map(element => litValue(element, here))
         case 'Oscillator':
-            return canonicalOscillator(node)
+            if (isSceneValueSource(node.type)) return canonicalOscillator(node)
+            break
         case 'Midi':
-            return canonicalMidi(node)
+            if (isSceneValueSource(node.type)) return canonicalMidi(node)
+            break
         case 'Audio':
-            return canonicalAudio(node)
+            if (isSceneValueSource(node.type)) return canonicalAudio(node)
+            break
         case 'Object': {
             const out = {}
             for (const [key, val] of Object.entries(node.properties)) {
@@ -375,9 +409,8 @@ function litValue(node, anchor) {
             }
             return out
         }
-        default:
-            throw sceneError(`Unsupported scene value '${node.type}'`, here)
     }
+    throw sceneError(`Unsupported scene value '${node.type}'`, here)
 }
 
 /** Read a keyword arg off a call node, or undefined. */

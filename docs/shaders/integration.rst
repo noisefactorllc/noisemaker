@@ -349,7 +349,7 @@ element's size wins; a diagnostic warns when it differs from the options.
     await renderer.loadEffects(['synth/noise', 'filter/bloom'])
     renderer.getEffectsFromManifest('synth')  // List effects in a namespace
 
-    // Scene programs (preview) — after compile of a program containing scene()
+    // Scene programs — after compile of a program containing scene()
     renderer.isScene                       // true for a scene() program
     renderer.sceneTree                     // live tree: camera, lights, getById(), ... (null for 2D)
     renderer.sceneRenderer                 // the deferred renderer (null for 2D)

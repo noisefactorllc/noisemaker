@@ -1,0 +1,82 @@
+{
+  "scene": {
+    "title": "The scene vocabulary",
+    "does": "`scene()` adds a third dimension to the Polymorphic DSL. A scene program describes a camera, lights, and a hierarchy of meshes and volumes with PBR materials.",
+    "limits": "One `scene()` per program, one `environment()`. Primitives only; no loaded models inside `scene()`. The camera cannot be animated from the DSL; a light's position and direction cannot either. A program re-emitted from its parsed form comes back with the whole `scene()` on one line and its interior comments removed.",
+    "page": {
+      "label": "shader-scene",
+      "url": "https://docs.noisemaker.app/shaders/scene/"
+    }
+  },
+  "scene.deferred": {
+    "title": "The deferred renderer",
+    "does": "The renderer that draws `scene()` programs. It fills a G-buffer from the mesh hierarchy, lights it once in screen space with a Cook-Torrance BRDF, adds ambient occlusion and reflections, tonemaps, and presents into a texture the 2D pipeline then treats as an ordinary source.",
+    "limits": "One `reflector()` per scene. No cast shadows.",
+    "page": {
+      "label": "shader-deferred-rendering",
+      "url": "https://docs.noisemaker.app/shaders/deferred-rendering/"
+    }
+  },
+  "scene.volume": {
+    "title": "Volume nodes",
+    "does": "`volume()` places a density volume in the scene graph. Its positional argument is one of the pipeline's eight volume surfaces, so a 3D program that fills an atlas with `write3d()` becomes a node beside the meshes rather than a separate fullscreen marcher with its own camera and lights.",
+    "limits": "`volume()` samples a fixed 64-cube atlas.",
+    "page": {
+      "label": "shader-scene-volumes",
+      "url": "https://docs.noisemaker.app/shaders/scene/#shader-scene-volumes"
+    }
+  },
+  "scene.inputs": {
+    "title": "External inputs in scenes",
+    "does": "Transform components and light intensity accept `midi()` for a MIDI channel and `audio()` for a frequency band, in place of numbers.",
+    "limits": "Descriptors on `pos`, `scale` and `intensity` produce `0..1`.",
+    "page": {
+      "label": "shader-scene-animation",
+      "url": "https://docs.noisemaker.app/shaders/scene/#shader-scene-animation"
+    }
+  },
+  "scene.cubemapExport": {
+    "title": "Cubemap export of scenes",
+    "does": "A `scene()` program exports a cubemap through the same `renderCubemap()` API as a cubemap-renderer program.",
+    "limits": "Faces are never tiled, and a configured reflection probe is captured once for the first face and frozen for the rest. A second export started before the first settles is rejected.",
+    "page": {
+      "label": "shader-scene-cubemap-export",
+      "url": "https://docs.noisemaker.app/shaders/scene/#shader-scene-cubemap-export"
+    }
+  },
+  "scene.tiledExport": {
+    "title": "Tiled export of scenes",
+    "does": "`setTileRegion` tiles a scene by restricting the camera to the tile's sub-frustum.",
+    "limits": "SSAO can seam within its kernel's projected reach, and local screen-space reflections cannot be tiled at all. The reflection probe is never tiled.",
+    "page": {
+      "label": "shader-scene-tiled-export",
+      "url": "https://docs.noisemaker.app/shaders/scene/#shader-scene-tiled-export"
+    }
+  },
+  "gltf": {
+    "title": "glTF loading",
+    "does": "`loadGLTFFromURL()` and `loadGLTFFromString()` load glTF and GLB mesh files. Each takes the target surface as its second argument, defaulting to `mesh0`.",
+    "limits": "Loaded models cannot be placed in a `scene()`.",
+    "page": {
+      "label": "shader-language-gltf",
+      "url": "https://docs.noisemaker.app/shaders/language/#shader-language-gltf"
+    }
+  },
+  "lang.mixedArguments": {
+    "title": "Mixed argument order",
+    "does": "Keywords claim their own parameter slots by name, wherever they appear in the call. The positionals are then bound in source order to the slots no keyword claimed, left to right.",
+    "page": {
+      "label": "shader-language-mixed-arguments",
+      "url": "https://docs.noisemaker.app/shaders/language/#shader-language-mixed-arguments"
+    }
+  },
+  "lang.objectLiteral": {
+    "title": "Object literals",
+    "does": "`{ key: value }` is an expression.",
+    "limits": "It is currently only meaningful inside `scene()`.",
+    "page": {
+      "label": "shader-language-object-literals",
+      "url": "https://docs.noisemaker.app/shaders/language/#shader-language-object-literals"
+    }
+  }
+}

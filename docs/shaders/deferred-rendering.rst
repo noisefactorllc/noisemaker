@@ -1,7 +1,15 @@
 .. _shader-deferred-rendering:
 
-Deferred Renderer (Preview)
-===========================
+Deferred Renderer
+=================
+
+.. stability:begin scene.deferred
+
+.. note::
+
+   Experimental. Complete and supported in Noisemaker 1.x, outside the 1.x stability guarantee. It seeds the Noisemaker 2.x feature set. See :ref:`shader-experimental`.
+
+.. stability:end scene.deferred
 
 The renderer that draws :ref:`scene() <shader-scene>` programs. It fills a
 G-buffer from the mesh hierarchy, lights it once in screen space with a
@@ -25,14 +33,6 @@ Every pass is written twice — once in GLSL and once in WGSL.
    browser against a real GPU, so it is not part of the headless
    ``npm run test:shaders`` suites; run it with ``npm run test:shaders:visual``
    on a machine with a display and a GPU.
-
-.. note::
-
-   **Preview feature — experimental and subject to change.** The renderer
-   described on this page ships as a preview in Noisemaker 1.5. Pass order,
-   G-buffer channel packing, the lighting model, and the settings that control
-   them are all provisional, and rendered output may change between releases.
-   The engine is scheduled to be finalized in Noisemaker 2.0.
 
 Frame order
 -----------

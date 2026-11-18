@@ -242,7 +242,7 @@ list. The Pipeline executes passes in the compiler-produced order.
 Failures and Diagnostics
 ------------------------
 
-The front end reports semantic issues with the ``S001``–``S008`` diagnostics
+The front end reports semantic issues with the ``S001``–``S009`` diagnostics
 documented in :ref:`Polymorphic DSL <shader-language>`. Lexer and parser
 failures are JavaScript ``SyntaxError`` instances. The parser rejects a missing
 mandatory ``search`` directive. Validation also checks for this directive.

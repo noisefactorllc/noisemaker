@@ -36,7 +36,8 @@ Grammar
    WriteTarget    ::= OutputRef | XyzRef | VelRef | RgbaRef | MeshRef | 'none'
    Write3DCall    ::= 'write3d' '(' ( VolRef | OutputRef | Ident ) ',' ( GeoRef | OutputRef | Ident ) ')'
    Call           ::= Ident '(' ArgList? ')'
-   ArgList        ::= Arg ( ',' Arg )* ','?
+   ArgList        ::= Expr ( ',' Expr )* ','? | Kwarg ( ',' Kwarg )* ','? | MixedArgs
+   MixedArgs      ::= Arg ( ',' Arg )* ','?  (experimental)
    Arg            ::= Kwarg | Expr
    Kwarg          ::= Ident ':' Expr
    Expr           ::= Term ( ( '+' | '-' ) Term )*
@@ -44,13 +45,13 @@ Grammar
    Unary          ::= ( '+' | '-' )* Primary
    Primary        ::= Number | 'Math.PI' | String | Boolean | Color | Array | Func | Ident | Member
                     | Chain | Object | SurfaceRef | '(' Expr ')'
-   Object         ::= '{' ( Ident ':' Expr ( ',' Ident ':' Expr )* ','? )? '}'
+   Object         ::= '{' ( Ident ':' Expr ( ',' Ident ':' Expr )* ','? )? '}'  (experimental)
    Array          ::= '[' ( Expr ( ',' Expr )* )? ']'
    Member         ::= Ident ( '.' Segment )+
-   SceneCall      ::= 'scene' '(' SceneArg ( ',' SceneArg )* ')'          (preview)
+   SceneCall      ::= 'scene' '(' SceneArg ( ',' SceneArg )* ')'  (experimental)
    SceneArg       ::= Kwarg | CameraCall | LightCall | EnvironmentCall | NodeChain
    NodeChain      ::= ( MeshCall | VolumeCall | GroupCall ) ( '.' NodeLink )*
-   VolumeCall     ::= 'volume' '(' ArgList ')'                               (preview)
+   VolumeCall     ::= 'volume' '(' ArgList ')'  (experimental)
    NodeLink       ::= MaterialCall | 'reflector' '(' ')'
    MaterialCall   ::= 'material' '(' MaterialSpec ')'
    MaterialSpec   ::= ( 'solid' | 'surface' ) '(' ArgList? ')' ( '.' MaterialTerm )*
@@ -95,11 +96,28 @@ constrained there too, not by the grammar: ``mode`` is an ordinary ``String`` to
 the parser and one of ``"smooth"`` or ``"voxel"`` to the compiler. See
 :ref:`shader-scene` for the keyword set.
 
-Productions marked ``(preview)`` are experimental. ``SceneCall`` and everything
-reachable from it — ``SceneArg``, ``NodeChain``, ``VolumeCall``, ``NodeLink``,
-``MaterialCall``, ``MaterialSpec``, ``MaterialTerm`` — are provisional in Noisemaker 1.5 and
-scheduled to be finalized in 2.0. ``ObjectLiteral`` was added to serve them and
-is likewise provisional: it is currently only meaningful inside ``scene()``.
+.. stability:begin grammar
+
+Productions marked ``(experimental)`` are experimental. See :ref:`shader-experimental`.
+
+.. stability:end grammar
+
+``SceneCall`` and everything reachable from it (``SceneArg``, ``NodeChain``,
+``VolumeCall``, ``NodeLink``, ``MaterialCall``, ``MaterialSpec`` and
+``MaterialTerm``) form the scene vocabulary: see :ref:`shader-scene`.
+
+.. _shader-language-object-literals:
+
+``Object`` was added to serve them: it is currently only meaningful inside
+``scene()``.
+
+.. stability:begin lang.objectLiteral
+
+.. note::
+
+   Experimental. Complete and supported in Noisemaker 1.x, outside the 1.x stability guarantee. It seeds the Noisemaker 2.x feature set. See :ref:`shader-experimental`.
+
+.. stability:end lang.objectLiteral
 
 **Precedence & Associativity:**
 
@@ -178,7 +196,17 @@ Functions accept arguments positionally, as named keywords, or as a mix of both 
 
   noise(type: 10, octaves: 2, scaleX: 50)
 
+.. _shader-language-mixed-arguments:
+
 **Mixed arguments:**
+
+.. stability:begin lang.mixedArguments
+
+.. note::
+
+   Experimental. Complete and supported in Noisemaker 1.x, outside the 1.x stability guarantee. It seeds the Noisemaker 2.x feature set. See :ref:`shader-experimental`.
+
+.. stability:end lang.mixedArguments
 
 Positional and keyword arguments may be interleaved in any order. This is what
 lets :ref:`scene() <shader-scene>` carry renderer settings as keywords alongside
@@ -366,17 +394,18 @@ You can omit both arguments or pass ``name`` as a positional argument. Keyword a
 Scenes
 ^^^^^^
 
+.. stability:begin scene
+
+.. note::
+
+   Experimental. Complete and supported in Noisemaker 1.x, outside the 1.x stability guarantee. It seeds the Noisemaker 2.x feature set. See :ref:`shader-experimental`.
+
+.. stability:end scene
+
 ``scene()`` describes a 3D scene — a camera, lights, and a hierarchy of meshes
 with PBR materials — which the deferred renderer resolves into a surface. It
 behaves like any other generator and must terminate in ``.write(oN)``, so its
 output composes with the 2D effect library.
-
-.. note::
-
-   **Preview feature — experimental and subject to change.** The scene
-   vocabulary and its semantics ship as a preview in Noisemaker 1.5 and are
-   scheduled to be finalized in Noisemaker 2.0. Names, keywords, defaults and
-   rendered output may change without a deprecation period.
 
 .. code-block:: none
 
@@ -921,6 +950,20 @@ The ``pointsEmit`` and ``pointsRender`` wrappers manage these surfaces. Behavior
 * Each mesh surface consists of a positions texture (vertex XYZ + W) and a normals texture (normal XYZ + UV).
 * **Loading:** Use ``meshLoader()`` in the pipeline and load mesh files via the API — ``canvas.loadOBJFromURL()`` / ``canvas.loadOBJFromString()`` for OBJ, ``canvas.loadGLTFFromURL()`` / ``canvas.loadGLTFFromString()`` for glTF and GLB. Each takes the target surface as its second argument, defaulting to ``mesh0``.
 * **Rendering:** Use ``meshRender()`` to render mesh geometry with lighting and transforms. It takes no surface argument: the effect is bound to ``mesh0``, so load into that surface to render it.
+
+.. _shader-language-gltf:
+
+**glTF and GLB loading:**
+
+.. stability:begin gltf
+
+.. note::
+
+   Experimental. Complete and supported in Noisemaker 1.x, outside the 1.x stability guarantee. It seeds the Noisemaker 2.x feature set. See :ref:`shader-experimental`.
+
+.. stability:end gltf
+
+``canvas.loadGLTFFromURL()`` and ``canvas.loadGLTFFromString()`` load glTF and GLB mesh files. Each takes the target surface as its second argument, defaulting to ``mesh0``.
 
 Feedback Loops
 ^^^^^^^^^^^^^^

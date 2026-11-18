@@ -217,6 +217,24 @@ including repeated render statements rejected at end of input. Every parser
 throw path carries a structured diagnostic with source-derived coordinates
 where a lexer-produced token is available.
 
+<!-- stability:begin experimental-features -->
+
+## Experimental features
+
+These are new features that exist to seed the Noisemaker 2.x feature set. Node names, keywords, defaults, argument shapes, and rendered output may all change without a deprecation period. There is no flag to turn them on.
+
+- **The scene vocabulary** (`scene`): `scene()` adds a third dimension to the Polymorphic DSL. A scene program describes a camera, lights, and a hierarchy of meshes and volumes with PBR materials. Current limits: One `scene()` per program, one `environment()`. Primitives only; no loaded models inside `scene()`. The camera cannot be animated from the DSL; a light's position and direction cannot either. A program re-emitted from its parsed form comes back with the whole `scene()` on one line and its interior comments removed. [Documentation](https://docs.noisemaker.app/shaders/scene/)
+- **The deferred renderer** (`scene.deferred`): The renderer that draws `scene()` programs. It fills a G-buffer from the mesh hierarchy, lights it once in screen space with a Cook-Torrance BRDF, adds ambient occlusion and reflections, tonemaps, and presents into a texture the 2D pipeline then treats as an ordinary source. Current limits: One `reflector()` per scene. No cast shadows. [Documentation](https://docs.noisemaker.app/shaders/deferred-rendering/)
+- **Volume nodes** (`scene.volume`): `volume()` places a density volume in the scene graph. Its positional argument is one of the pipeline's eight volume surfaces, so a 3D program that fills an atlas with `write3d()` becomes a node beside the meshes rather than a separate fullscreen marcher with its own camera and lights. Current limits: `volume()` samples a fixed 64-cube atlas. [Documentation](https://docs.noisemaker.app/shaders/scene/#shader-scene-volumes)
+- **External inputs in scenes** (`scene.inputs`): Transform components and light intensity accept `midi()` for a MIDI channel and `audio()` for a frequency band, in place of numbers. Current limits: Descriptors on `pos`, `scale` and `intensity` produce `0..1`. [Documentation](https://docs.noisemaker.app/shaders/scene/#shader-scene-animation)
+- **Cubemap export of scenes** (`scene.cubemapExport`): A `scene()` program exports a cubemap through the same `renderCubemap()` API as a cubemap-renderer program. Current limits: Faces are never tiled, and a configured reflection probe is captured once for the first face and frozen for the rest. A second export started before the first settles is rejected. [Documentation](https://docs.noisemaker.app/shaders/scene/#shader-scene-cubemap-export)
+- **Tiled export of scenes** (`scene.tiledExport`): `setTileRegion` tiles a scene by restricting the camera to the tile's sub-frustum. Current limits: SSAO can seam within its kernel's projected reach, and local screen-space reflections cannot be tiled at all. The reflection probe is never tiled. [Documentation](https://docs.noisemaker.app/shaders/scene/#shader-scene-tiled-export)
+- **glTF loading** (`gltf`): `loadGLTFFromURL()` and `loadGLTFFromString()` load glTF and GLB mesh files. Each takes the target surface as its second argument, defaulting to `mesh0`. Current limits: Loaded models cannot be placed in a `scene()`. [Documentation](https://docs.noisemaker.app/shaders/language/#shader-language-gltf)
+- **Mixed argument order** (`lang.mixedArguments`): Keywords claim their own parameter slots by name, wherever they appear in the call. The positionals are then bound in source order to the slots no keyword claimed, left to right. [Documentation](https://docs.noisemaker.app/shaders/language/#shader-language-mixed-arguments)
+- **Object literals** (`lang.objectLiteral`): `{ key: value }` is an expression. Current limits: It is currently only meaningful inside `scene()`. [Documentation](https://docs.noisemaker.app/shaders/language/#shader-language-object-literals)
+
+<!-- stability:end experimental-features -->
+
 ## Runtime overview
 
 The browser integration path is:
@@ -224,10 +242,9 @@ The browser integration path is:
 1. `CanvasRenderer.loadManifest()` discovers effect assets.
 2. `CanvasRenderer.loadEffect()` imports `definition.js`, loads shader source,
    registers the effect and its DSL operator, and registers starter state.
-3. `CanvasRenderer.compile(source)` builds a graph for the source.
-4. `compileGraph()`, reached through `compileGraphFor()`, lexes/parses/validates,
-   expands effect steps into passes, computes a liveness allocation map, and
-   returns a graph.
+3. `CanvasRenderer.compile(source)` calls `compileGraph(source)`.
+4. `compileGraph()` lexes/parses/validates, expands effect steps into passes,
+   computes a liveness allocation map, and returns a graph.
 5. `Pipeline.compilePrograms(graph)` compiles every referenced program for
    the active backend. `graph` is optional and defaults to the pipeline's
    current graph. When a program fails, the backend gets back the
@@ -236,8 +253,9 @@ The browser integration path is:
    normal canvas presentation.
 
 On an active pipeline, a hot recompile compiles the candidate before it takes
-effect: `compileGraphFor()` builds the candidate graph without changing the
-pipeline, `compilePrograms(graph)` compiles its shaders, and `swapGraph()` then
+effect: `compileGraphFor()` takes the candidate graph `compile()` built, or
+builds it, without changing the pipeline, `compilePrograms(graph)` compiles its
+shaders, and `swapGraph()` then
 makes it current. A rejected source or a failed program therefore leaves the
 accepted graph, its programs and its surfaces in place, so the next frames keep
 rendering the accepted program. `recompile()` composes `compileGraphFor()` and
@@ -348,11 +366,15 @@ such as `foo.o8` are unchanged. Other reference families still accept one or
 more digits at lexing; volume and geometry parameter resolution separately
 checks `0` through `7`.
 
-`scene()` is a chain vocabulary that is not a registered effect. Treat it as
-**preview**: the renderer consumes every shape below today, but node names,
-keywords, defaults, and rendered output are declared unstable until Noisemaker
-2.0, so an agent must not depend on a scene program parsing or rendering
-identically across releases the way it can for the effect surfaces.
+`scene()` is a chain vocabulary that is not a registered effect. An agent must
+not depend on a scene program parsing or rendering identically across releases
+the way it can for the effect surfaces.
+
+<!-- stability:begin scene -->
+
+> Experimental. Complete and supported in Noisemaker 1.x, outside the 1.x stability guarantee. It seeds the Noisemaker 2.x feature set. See [Experimental features](https://docs.noisemaker.app/shaders/experimental/).
+
+<!-- stability:end scene -->
 
 ```ts
 type SceneSettingKey = "ambient" | "background" | "exposure" | "ground" |

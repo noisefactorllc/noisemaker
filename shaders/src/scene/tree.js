@@ -4,6 +4,14 @@ import { CameraNode } from './camera.js'
 import { LightNode } from './light.js'
 import { MeshNode } from './mesh-node.js'
 import { VolumeNode } from './volume-node.js'
+import { SURFACE } from '../stability.js'
+
+/** A scene tree builds only the node types the stability registry lists. */
+function assertNodeType(type) {
+  if (!Object.hasOwn(SURFACE.nodeTypes, type)) {
+    throw new Error(`Unknown scene node type '${type}'`)
+  }
+}
 
 export class SceneTree {
   constructor() {
@@ -18,16 +26,19 @@ export class SceneTree {
     const tree = new SceneTree()
 
     if (ir.camera) {
+      assertNodeType('camera')
       tree.camera = new CameraNode(ir.camera)
     }
 
     if (ir.lights) {
+      if (ir.lights.length > 0) assertNodeType('light')
       tree.lights = ir.lights.map(l => new LightNode(l))
     }
 
     // Settings
     tree.settings = ir.settings || {}
     tree.materials = ir.materials || {}
+    if (ir.environment) assertNodeType('environment')
     tree.environment = ir.environment || null
 
     // Build scene nodes from flat IR node array
@@ -42,6 +53,7 @@ export class SceneTree {
           scale: transform.scale
         }
 
+        assertNodeType(desc.type)
         if (desc.type === 'mesh') {
           return new MeshNode({
             ...opts,
@@ -59,7 +71,6 @@ export class SceneTree {
             material: desc.material
           })
         } else {
-          // 'group' or other types
           return new SceneNode(opts)
         }
       })

@@ -1,7 +1,15 @@
 .. _shader-scene:
 
-Scene Graph (Preview)
-=====================
+Scene Graph
+===========
+
+.. stability:begin scene
+
+.. note::
+
+   Experimental. Complete and supported in Noisemaker 1.x, outside the 1.x stability guarantee. It seeds the Noisemaker 2.x feature set. See :ref:`shader-experimental`.
+
+.. stability:end scene
 
 ``scene()`` adds a third dimension to the Polymorphic DSL. A scene program
 describes a camera, lights, and a hierarchy of meshes and volumes with PBR
@@ -10,19 +18,8 @@ description into pixels and writes the result into an ordinary pipeline
 surface, so 3D output composes with the existing 2D filter library rather than
 needing its own post-processing stack.
 
-.. note::
-
-   **Preview feature — experimental and subject to change.** The entire
-   ``scene()`` language surface described on this page, and the engine behind
-   it, ship as a preview in Noisemaker 1.5. Node names, keywords, defaults,
-   argument shapes, and rendered output may all change without a deprecation
-   period. The scene vocabulary is scheduled to be finalized in Noisemaker 2.0.
-
-   In practice, preview means: there is no flag to turn it on; scene nodes are
-   not effects and need no ``loadEffect()``; the one extra hosting step is
-   described under `Hosting`_; and a scene program you write today may need
-   editing when you move to 2.0. Everything on this page is what the 1.5
-   engine does.
+Scene nodes are not effects and need no ``loadEffect()``; the one extra hosting
+step is described under `Hosting`_.
 
 Quick start
 -----------
@@ -358,7 +355,7 @@ Point and spot intensities are divided by distance squared (see
 :ref:`shader-deferred-rendering`), so a spot several units away needs an
 ``intensity`` in the tens where a directional light needs about ``1``–``3``.
 
-There are no cast shadows in this preview: a mesh does not darken the floor
+There are no cast shadows: a mesh does not darken the floor
 beneath it, and one object does not shade another. Contact darkening comes
 from screen-space ambient occlusion on the ambient terms only.
 
@@ -474,19 +471,26 @@ must be a vec3 of finite numbers.
 ``mesh()`` builds primitives only. Loaded models — OBJ, glTF and GLB — belong
 to the separate ``mesh0``–``mesh7`` surface system, loaded with
 ``loadOBJFromURL()`` / ``loadGLTFFromURL()`` and drawn by ``meshRender()`` (see
-:ref:`shader-language`); they cannot be placed in a ``scene()`` in this
-preview. The ``mesh0`` reference is not a scene value: ``mesh(mesh0)`` is an
-error.
+:ref:`shader-language`); they cannot be placed in a ``scene()``. The ``mesh0``
+reference is not a scene value: ``mesh(mesh0)`` is an error.
+
+.. _shader-scene-volumes:
 
 Volumes
 -------
 
+.. stability:begin scene.volume
+
+.. note::
+
+   Experimental. Complete and supported in Noisemaker 1.x, outside the 1.x stability guarantee. It seeds the Noisemaker 2.x feature set. See :ref:`shader-experimental`.
+
+.. stability:end scene.volume
+
 ``volume()`` places a density volume in the scene graph. Its positional
 argument is one of the pipeline's eight volume surfaces, so a 3D program that
 fills an atlas with ``write3d()`` becomes a node beside the meshes rather than a
-separate fullscreen marcher with its own camera and lights. Like the rest of
-this page it is a preview surface, and it is subject to the change policy in the
-note at the top.
+separate fullscreen marcher with its own camera and lights.
 
 .. code-block:: none
 
@@ -702,8 +706,18 @@ supported per scene. Violating any of these raises a scene error. On a
 ``reflector() is not supported on volume() nodes`` — rather than the plane
 constraint, which was never the thing those nodes failed.
 
+.. _shader-scene-animation:
+
 Animation
 ---------
+
+.. stability:begin scene.inputs
+
+.. note::
+
+   Experimental. Complete and supported in Noisemaker 1.x, outside the 1.x stability guarantee. It seeds the Noisemaker 2.x feature set. See :ref:`shader-experimental`.
+
+.. stability:end scene.inputs
 
 Transform components and light intensity accept the same three :ref:`automation
 descriptors <shader-language>` an effect uniform does, in place of numbers:
@@ -836,8 +850,18 @@ be awaited for a scene program (for a 2D program the frame is drawn before it
 returns). Errors thrown while drawing a scene reach the ``onError`` callback,
 not the returned promise.
 
+.. _shader-scene-tiled-export:
+
 Tiled export
 ------------
+
+.. stability:begin scene.tiledExport
+
+.. note::
+
+   Experimental. Complete and supported in Noisemaker 1.x, outside the 1.x stability guarantee. It seeds the Noisemaker 2.x feature set. See :ref:`shader-experimental`.
+
+.. stability:end scene.tiledExport
 
 ``setTileRegion`` tiles a scene by restricting the camera to the tile's
 sub-frustum, not by shifting a fragment coordinate; offsets are bottom-left,
@@ -853,8 +877,18 @@ tile-exact, or set ``reflections: 0``. The reflection probe is never tiled: it
 is a world-space cubemap and captures all six full faces regardless of the
 region.
 
+.. _shader-scene-cubemap-export:
+
 Cubemap export
 --------------
+
+.. stability:begin scene.cubemapExport
+
+.. note::
+
+   Experimental. Complete and supported in Noisemaker 1.x, outside the 1.x stability guarantee. It seeds the Noisemaker 2.x feature set. See :ref:`shader-experimental`.
+
+.. stability:end scene.cubemapExport
 
 A ``scene()`` program exports a cubemap through the same ``renderCubemap()``
 API as a cubemap-renderer program (see :doc:`cubemaps`): the scene
@@ -896,8 +930,8 @@ with ``code``, ``message``, ``severity`` and ``location``), or with a
 ``SyntaxError`` whose message ends ``at line N col M`` for a scene error; the
 canvas stays blank until a later compile succeeds.
 
-Limits in this preview
-----------------------
+Limits
+------
 
 - One ``scene()`` per program, one ``reflector()`` per scene, one
   ``environment()``.

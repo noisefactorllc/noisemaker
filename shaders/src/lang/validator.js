@@ -6,6 +6,7 @@ import { normalizeMemberPath, pathStartsWith, applyEnumPrefix } from './enumPath
 import { resolveParamAliases } from './paramAliases.js'
 import { checkEffectAlias } from './effectAliases.js'
 import { decodeJsonStringLiteralContent } from './stringLiterals.js'
+import { SURFACE } from '../stability.js'
 
 /**
  * STRICT ALLOWLIST FOR STRING PARAMETERS
@@ -48,11 +49,8 @@ const SURFACE_PASSTHROUGH_CALLS = new Set(['read'])
  * the validator without requiring an ops registration. The scene compiler
  * (a later pipeline stage) is responsible for interpreting them.
  */
-const SCENE_FUNCTIONS = new Set([
-    'scene', 'camera', 'mesh', 'volume', 'light', 'group',
-    'material', 'solid', 'surface', 'pbr', 'emit',
-    'environment'
-])
+// The scene vocabulary is what the stability registry lists.
+const SCENE_FUNCTIONS = new Set(Object.keys(SURFACE.sceneCalls))
 
 const validatorHooks = {}
 
