@@ -229,6 +229,7 @@ jobs:
           "$release_dir/SHA256SUMS"
 
     - name: Prune old releases
+      # Keep the tags: ports pin releases by tag and read them back.
       env:
         GH_TOKEN: ${{ github.token }}
         TAG: ${{ github.ref_name }}
@@ -238,5 +239,5 @@ jobs:
           --json tagName,createdAt \
           --jq "[.[] | select(.tagName | startswith(\"${MAJOR}.\"))] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName" \
           | while read -r tag; do
-            gh release delete "$tag" --yes --cleanup-tag
+            gh release delete "$tag" --yes
           done
