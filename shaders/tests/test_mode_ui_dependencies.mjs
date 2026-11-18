@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const effects = path.resolve(__dirname, '../effects/filter')
-const load = async (name) => (await import(path.join(effects, name, 'definition.js'))).default
+const load = async (name) => (await import(pathToFileURL(path.join(effects, name, 'definition.js')).href)).default
 
 const relief = await load('relief')
 assert.deepEqual(relief.globals.balance.ui.enabledBy, { param: 'mode', eq: 2 })

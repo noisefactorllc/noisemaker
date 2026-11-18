@@ -1097,7 +1097,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `7e6c613079b8074a7f9b0f0f7b3c7d8d87123f17` / shade-mcp `830603b5bc112460eb3cf0b22f28e7dd51f84895`, 2026-10-15
+- **Checkpoint:** noisemaker `db2173e34223a663b08815fa32c34608ec5b4b91` / shade-mcp `63e53ad89dc43526335da6e947ed31667929e43b`, 2026-11-13
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -1181,6 +1181,128 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-13 — completed delivery pair: Noisemaker
+    `db2173e34223a663b08815fa32c34608ec5b4b91` and Shade MCP
+    `63e53ad89dc43526335da6e947ed31667929e43b`. Audited the Noisemaker range
+    `6f98d26a..db2173e3`. Its runtime changes are `cf95f49c`, which gives each
+    further instance of a stateful effect in a chain its own private
+    `global_` state and sizing parameter (`shaders/src/runtime/expander.js`),
+    and `db2173e3`, which makes the pipeline's default `SinkManager` pass an
+    isolated sink error to the failing sink's optional `onError(error)`
+    (`shaders/src/runtime/pipeline.js`). The vendored `vendor/shade-mcp/`
+    tree is unchanged over the range, `.mcp.json` still pins the Shade commit
+    above, and release `v0.5.3` still resolves to it. Shade MCP `main` at
+    `c7a69c24ad85d1a722d8827c039b87f3aee72331` differs from the pin only in
+    dependency bumps to `package.json` and `package-lock.json`, so the pin
+    stays. The contract now states per-instance scoping of private `global_`
+    state and sizing parameters in the input, output and texture naming
+    rules, adds the optional `Sink.onError` method, states the default
+    manager's reporter, and names `db2173e3` in its snapshot block. A compile
+    of repeated `reactionDiffusion` and `watercolor` instances produced
+    `global_rd_state_chain_0`, `global_rd_state_chain_0_node_1`,
+    `zoom_chain_0` and `zoom_chain_0_node_1`, and `compileGraph()` reproduced
+    the worked example's pass array. A fresh `npx` installation of the
+    configured pin loaded SDK `1.32.2` and initialized server `shade-mcp` /
+    `0.5.3` / `2025-11-25` with 21 tools. One configured-pin session on an
+    Apple silicon macOS host with headless Chromium ran all eight worked
+    calls without MCP `isError`. Every response matched the recorded
+    transcript except the benchmark timings, which now hold this session's
+    values; parity returned `maxDiff=0` with `frames: 8` and
+    `stateReset: true`. Noisemaker checks:
+    `node scripts/run-js-tests.js --skip-parity` (exit 0), `npm run lint`
+    (exit 0), the four `shaders/tests/test_contract_*` tests (exit 0),
+    `node shaders/tests/test_stateful_instances.js` (exit 0) and
+    `node --test test/mcp-config.test.js` (exit 0). Candidate publication
+    `901c6d25cfcc26785366a43826a85473d4717518` passed JavaScript CI
+    (`43433811701`), CodeQL (`43433810352`) and site dispatch
+    (`43433811698`), and static site release `43433830177` deployed it. The
+    complete served `llms-full.txt` matched its published bytes with SHA-256
+    `1f3bf844cd9fd906a4a6396ea9a7a9a99631522ba3c3366dcea36f805a40c34f`.
+    The checkpoint now matches the audited runtime snapshots above.
+  - 2026-11-06 — completed delivery pair: Noisemaker
+    `6f98d26ab84f17ba7fb154bb74252d6362736f89` and Shade MCP
+    `63e53ad89dc43526335da6e947ed31667929e43b`. Audited the Noisemaker range
+    `c0aa621a..6f98d26a` and the Shade MCP range `43d2b942..63e53ad8`. The
+    configured immutable MCP pin in `.mcp.json` is that Shade commit. Release
+    `v0.5.3` resolves to the same Shade source. Its downloaded
+    `shade-mcp-dist.tar.gz` has SHA-256
+    `66d61d3e5d4ecf6fb5c9524fb25dc1496dc523c9397d2da60a94d75757dab804`. The
+    automatic Noisemaker import at `d4613d7d` matches the extracted release in
+    all four vendored directories, and the vendored tree is unchanged through
+    `6f98d26a`. A fresh `npx` installation of the configured pin built a
+    `dist` byte-identical to the release, loaded SDK `1.32.2` (the lockfile
+    also pins `1.32.2`), and initialized server `shade-mcp` / `0.5.3` /
+    `2025-11-25` with 21 tools. Separate initializations echoed `2025-11-25`,
+    `2025-06-18`, `2025-03-26`, `2024-11-05` and `2024-10-07`, and answered
+    `2025-11-25` to an unlisted version. One configured-pin session ran all
+    eight worked calls without MCP `isError`, on an Apple silicon macOS host
+    with headless Chromium; the WebGPU adapter identity was not captured. Both
+    compilers succeeded, the WebGL2 render was nonblank, parity returned
+    `maxDiff=0` with `frames: 8` and `stateReset: true`, and the benchmark
+    measured 60.48 FPS against a 30 FPS target. In the same session
+    `runDslProgram` rendered an asymmetric `uvMap` program on WebGL2 and
+    WebGPU; the two contact sheets were byte-identical, with high `uv.y` at
+    the top. The Noisemaker range changed the WebGPU canvas upload (a
+    caller-passed `context2d`, transparent black for a canvas without a
+    context), WebGPU device-loss recovery, demo mesh paths and effect
+    shaders. The Shade MCP range added the program rebuild, the fixed-frame
+    parity capture with `frames` and `stateReset`, uniform reset mode, the
+    `neq` gate start value and the WebGPU `runDslProgram` row flip. The
+    contract now states the canvas-upload change and every Shade MCP runtime
+    change; the six-frame live warmup and its `30000` ms bound are removed.
+    The device-loss, mesh-path and effect-shader changes touch no contract
+    statement. Shade checks ran on source exported with
+    `git archive 63e53ad`: `npm ci` (exit 0; its `prepare` build passed
+    `check:dist` and `check:drop`, and the built `dist` is byte-identical to
+    the release), `npm run typecheck` (exit 0), `npm test` (exit 0),
+    `NOISEMAKER=<noisemaker checkout> node scripts/browser-smoke.mjs` (exit 0,
+    every check passed, including the genuine WebGPU DSL render and the
+    WebGPU grid orientation) and
+    `NOISEMAKER=<noisemaker checkout> PORTABLE=<portable source> node scripts/authored-dsl-smoke.mjs`
+    (exit 0, with Portable `86c638a1`). Noisemaker checks:
+    `sh scripts/test-shade-mcp` (exit 0),
+    `node shaders/tests/test_contract_delivery_pair.mjs` (exit 0),
+    `node --test test/mcp-config.test.js` (exit 0),
+    `node scripts/run-js-tests.js --skip-parity` (exit 0), `npm run lint`
+    (exit 0) and `node shaders/tests/test_texture_upload_source_context.mjs`
+    (exit 0, both backends). Candidate publication
+    `8902e6951c1c5915a23aa862900015c54c4d8f2d` passed JavaScript CI
+    (`42299528825`), main-push analysis (`42299527879`), site dispatch
+    (`42299528785`) and downstream notification (`42299528705`). The live
+    deployment reported that candidate SHA, and the complete served
+    `llms-full.txt` matched its published bytes with SHA-256
+    `231d84165fe944b7b0b6153f68a084f4a74e5f0bad7bae65c6921f04aa733ca3`.
+    The checkpoint now matches the audited runtime snapshots above.
+  - 2026-11-01 — completed delivery pair: Noisemaker
+    `c0aa621a53976729d9d598295701f895a68badb7` and Shade MCP
+    `43d2b942cdba795c99e4a7a820570987d0b5437a`. The configured immutable
+    MCP pin is that Shade commit. Release `v0.5.2` resolves to the same
+    Shade source; the Noisemaker import at `c0aa621a` matches its downloaded
+    release in all vendored directories. The configured Git installation
+    built and initialized server `0.5.2`, protocol `2025-11-25`, with SDK
+    `1.32.2`. The worked requests were recaptured in one session: WebGL2 and
+    WebGPU compilation and rendering succeeded, and pixel parity returned
+    zero maximum and mean difference. `testNoPassthrough` reported
+    `skipped: Not a filter effect` for the generator; this is not a filter
+    acceptance result. The immutable-pin and delivery/parity contract tests
+    pass. The checkpoint-to-source audit corrected the stale replacement-cloning
+    statement and removed an absent configuration-file citation. The prescribed
+    `scripts/test-shade-mcp` consumer gate passed with its unchanged Linux
+    browser driver; octaveWarp returned exact GLSL/WGSL parity. Shade's
+    `browser-smoke.mjs` and `authored-dsl-smoke.mjs` passed against this pair,
+    including genuine WebGPU rendering. A separate NVIDIA OpenGL override
+    experiment failed octaveWarp parity with maximum difference 233; its
+    WebGPU adapter identity was not captured, and this pass makes no claim
+    of cross-driver octaveWarp parity. Candidate validation also includes
+    `node scripts/run-js-tests.js --skip-parity` and the repository ESLint
+    targets; both passed. Candidate publication
+    `f9176fa8c309d565bb58d506920ca2b8d8b92cc7` passed JavaScript CI
+    (`41274838925`), main-push analysis (`41274838920`), site dispatch
+    (`41274838931`) and downstream notification (`41274838945`). The live
+    deployment reported that candidate SHA, and the complete served
+    `llms-full.txt` matched its published bytes with SHA-256
+    `77d1df94a1189aa070e294cc31bbfac21261d69f7807c5a904440df082cf4aec`.
+    The checkpoint now matches the audited runtime snapshots above.
   - 2026-10-15 — completed delivery pair for work queue item 1116. Audited the
     complete Noisemaker range `b319e794..7e6c6130` and Shade MCP range
     `f36a5f62..830603b5`. The source identities are Noisemaker

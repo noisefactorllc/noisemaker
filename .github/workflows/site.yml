@@ -20,14 +20,8 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'index.html'
-      - 'site.css'
-      - 'site.js'
       - 'llms.txt'
       - 'llms-full.txt'
-      - 'noisemaker.png'
-      - 'noisemaker.svg'
-      - 'og-image.png'
       - 'favicon.ico'
       - 'scripts/bundle-site.js'
       - '.github/workflows/site.yml'

@@ -2,11 +2,11 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const effectDir = path.resolve(__dirname, '../effects/filter/lowPoly')
-const { default: definition } = await import(path.join(effectDir, 'definition.js'))
+const { default: definition } = await import(pathToFileURL(path.join(effectDir, 'definition.js')).href)
 
 const glsl = fs.readFileSync(path.join(effectDir, 'glsl/lowPoly.glsl'), 'utf8')
 const wgsl = fs.readFileSync(path.join(effectDir, 'wgsl/lowPoly.wgsl'), 'utf8')

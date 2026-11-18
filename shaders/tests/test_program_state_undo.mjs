@@ -11,7 +11,7 @@
 // as the Undo/Redo section of docs/shaders/integration.rst shows.
 import assert from 'node:assert/strict'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -21,7 +21,7 @@ const effectsDir = path.join(repoRoot, 'shaders', 'effects')
 process.env.SHADE_EFFECTS_DIR = effectsDir
 process.env.SHADE_PROJECT_ROOT = repoRoot
 
-const { acquireServer, releaseServer } = await import(path.join(repoRoot, 'vendor/shade-mcp/harness/index.js'))
+const { acquireServer, releaseServer } = await import(pathToFileURL(path.join(repoRoot, 'vendor/shade-mcp/harness/index.js')).href)
 
 const programA = `search synth
 

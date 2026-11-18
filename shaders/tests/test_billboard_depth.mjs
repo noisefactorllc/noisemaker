@@ -26,7 +26,7 @@ try {
         const errors = []
         page.on('pageerror', error => errors.push(error.message))
         page.on('console', message => { if (message.type() === 'error') errors.push(message.text()) })
-        await page.goto(baseUrl)
+        await page.goto(`${baseUrl}/shaders/tests/blank.html`)
         await page.setContent(`<canvas width="${size}" height="${size}"></canvas>`)
         await page.evaluate(async ({ baseUrl, backend, size }) => {
             const { CanvasRenderer } = await import(`${baseUrl}/shaders/src/renderer/canvas.js`)

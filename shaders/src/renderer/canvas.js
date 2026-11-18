@@ -25,7 +25,8 @@ import { parse } from '../lang/parser.js'
 import { registerParamAliases } from '../lang/paramAliases.js'
 import { registerEffectAlias } from '../lang/effectAliases.js'
 import { registerStarterOps } from '../lang/validator.js'
-import { createRuntime, recompile, compileGraph } from '../runtime/compiler.js'
+import { createRuntime, compileGraph, compileGraphFor, swapGraph } from '../runtime/compiler.js'
+import { WebGPUBackend } from '../runtime/backends/webgpu.js'
 import { resolveSoftwareRendering } from './software-rendering.js'
 import { registerEffect, getEffect, unregisterEffect } from '../runtime/registry.js'
 import { Effect } from '../runtime/effect.js'
@@ -75,6 +76,15 @@ const KNOWN_3D_GENERATORS = ['noise3d', 'cell3d', 'shape3d', 'fractal3d', 'flyth
 
 // Known 3D processor effects (modify volumes, need inputTex3d)
 const KNOWN_3D_PROCESSORS = ['flow3d', 'palette3d', 'render3d', 'renderLit3d', 'renderCubemap3d', 'renderCubemapSurface', 'renderLandscape3d']
+
+// How long a lost WebGL context waits for the browser's restore event before
+// the renderer moves to a fresh canvas. A browser that restores does so well
+// within this.
+const CONTEXT_RESTORE_WAIT_MS = 3000
+// After GPU process exits that it blames on a page, Chrome refuses the page new
+// WebGL contexts for a while. Recovery asks again at this interval, up to the limit.
+const CONTEXT_RETRY_MS = 1000
+const CONTEXT_RECOVERY_LIMIT_MS = 120000
 
 /**
  * Deep clone a parameter value
@@ -263,7 +273,10 @@ export class CanvasRenderer {
      * @param {function} [options.onLoadingProgress] - Callback for loading progress
      * @param {function} [options.onLoadingEnd] - Callback when loading ends
      * @param {function} [options.onContextLost] - Callback when WebGL context is lost
-     * @param {function} [options.onContextRestored] - Callback when WebGL context is restored and pipeline rebuilt
+     * @param {function} [options.onContextRestored] - Callback when rendering is back after a lost WebGL context,
+     *   restored by the browser or not: the renderer presents on a fresh canvas in the old canvas's place (read
+     *   `canvas` afterwards). The pipeline is rebuilt unless the context was lost while the program drew its first
+     *   frame.
      */
     constructor(options = {}) {
         this._canvas = options.canvas
@@ -364,6 +377,9 @@ export class CanvasRenderer {
         // Context loss state
         this._isContextLost = false
         this._wasRunningBeforeContextLoss = false
+        this._contextLostBeforeSecondFrame = false
+        this._contextRecoveryTimer = null
+        this._isDisposed = false
         this._lifecycleGeneration = 0
         this._lastBackendInvalidationGeneration = -1
 
@@ -477,7 +493,8 @@ export class CanvasRenderer {
     /**
      * Set up WebGL context loss and restore event handlers.
      * On context loss: stops the render loop and notifies the host.
-     * On context restore: recompiles the current DSL and resumes rendering.
+     * On context restore, or no restore within CONTEXT_RESTORE_WAIT_MS:
+     * recompiles the current DSL on a fresh canvas and resumes rendering.
      * @private
      */
     _setupContextLossHandlers() {
@@ -485,22 +502,12 @@ export class CanvasRenderer {
 
         this._boundContextLost = (e) => {
             e.preventDefault() // Signal browser we will handle restore
-            this._isContextLost = true
-            this._wasRunningBeforeContextLoss = this._isRunning
-
-            if (this._pipeline?.backend) {
-                this._pipeline.backend.isContextLost = true
-            }
-
-            this.stop()
-
-            console.warn('[Canvas] WebGL context lost')
-            if (this._onContextLost) {
-                this._onContextLost()
-            }
+            this._onBackendLost('[Canvas] WebGL context lost')
         }
 
         this._boundContextRestored = async () => {
+            if (this._isDisposed) return
+            this._clearContextRecovery()
             console.log('[Canvas] WebGL context restored, rebuilding pipeline...')
 
             const restorationGeneration = this._advanceLifecycle({ backendLost: true })
@@ -517,10 +524,13 @@ export class CanvasRenderer {
                 console.warn('Failed to dispose context-lost pipeline', err)
             }
 
-            this._isContextLost = false
+            // After a GPU process exit the browser shows the restored canvas,
+            // but reading it as an image (drawImage, texture uploads, toBlob)
+            // returns nothing. Rebuild on a fresh canvas in its place.
+            this._replaceCanvas(this._canvasContainer || this._canvas.parentNode)
 
             // Recompile current DSL if we had one
-            if (this._currentDsl) {
+            if (this._rebuildsAfterContextLoss()) {
                 try {
                     const restoredPipeline = await this.compile(this._currentDsl)
                     if (!this._isLifecycleCurrent(restorationGeneration) ||
@@ -555,6 +565,98 @@ export class CanvasRenderer {
 
         this._canvas.addEventListener('webglcontextlost', this._boundContextLost)
         this._canvas.addEventListener('webglcontextrestored', this._boundContextRestored)
+    }
+
+    /**
+     * @private Stop on a lost WebGL context or WebGPU device, notify the host
+     * and schedule the rebuild on a fresh canvas.
+     * @param {string} message - Warning to log
+     */
+    _onBackendLost(message) {
+        this._isContextLost = true
+        if (this._isDisposed) return
+        this._wasRunningBeforeContextLoss = this._isRunning
+        // A program whose build stalls the GPU process past the browser's
+        // watchdog loses the context while drawing its first frame.
+        // Rebuilding it stalls the new GPU process too, and after a second
+        // exit Chrome blocks the page from WebGL and never restores it.
+        this._contextLostBeforeSecondFrame = this._isRunning && this._frameCount < 2
+
+        if (this._pipeline?.backend) {
+            this._pipeline.backend.isContextLost = true
+        }
+
+        this.stop()
+        this._scheduleContextRecovery()
+
+        console.warn(message)
+        if (this._onContextLost) {
+            this._onContextLost()
+        }
+    }
+
+    /**
+     * @private Watch the WebGPU device of a new pipeline. A lost device (a GPU
+     * process exit, a driver reset, device.destroy()) is never restored, and
+     * the canvas gets no event for it. The loop kept running on the dead
+     * device, the canvas froze on its last frame and every read of it came
+     * back empty until a reload.
+     * @param {object} pipeline - The pipeline just made current
+     */
+    _watchDeviceLoss(pipeline) {
+        pipeline?.backend?.device?.lost?.then((info) => {
+            if (this._isDisposed || this._pipeline !== pipeline) return
+            this._onBackendLost(`[Canvas] WebGPU device lost: ${info?.message || info?.reason || 'unknown reason'}`)
+        })
+    }
+
+    /**
+     * @private Whether to rebuild the current program after a context loss.
+     * Not when the context was lost while the running program drew its first
+     * frame: it may be what stalled the GPU. The next compile() builds again.
+     */
+    _rebuildsAfterContextLoss() {
+        if (!this._currentDsl) return false
+        if (this._contextLostBeforeSecondFrame) {
+            console.warn('[Canvas] Not rebuilding the program: the WebGL context was lost while it drew its first frame, so it may have stalled the GPU')
+            return false
+        }
+        return true
+    }
+
+    /**
+     * @private When the browser does not restore the lost WebGL context in
+     * time, or the WebGPU device is lost (no event restores one), rebuild the
+     * current program on a fresh canvas (see _compileSource).
+     */
+    _scheduleContextRecovery() {
+        this._clearContextRecovery()
+        const canvas = this._canvas
+        const generation = this._lifecycleGeneration ?? 0
+        this._contextRecoveryTimer = setTimeout(() => {
+            this._contextRecoveryTimer = null
+            this._queueCompile(async () => {
+                if (this._isDisposed || !this._isLifecycleCurrent(generation) ||
+                    !this._isContextLost || canvas !== this._canvas || !this._rebuildsAfterContextLoss()) return null
+                try {
+                    return await this._compile(this._currentDsl)
+                } catch (err) {
+                    console.error(`[Canvas] Failed to rebuild pipeline after context loss: ${err.detail || err.message || JSON.stringify(err)}`)
+                    if (this._onError) {
+                        this._onError(err)
+                    }
+                    return null
+                }
+            })
+        }, CONTEXT_RESTORE_WAIT_MS)
+    }
+
+    /** @private */
+    _clearContextRecovery() {
+        if (this._contextRecoveryTimer !== null) {
+            clearTimeout(this._contextRecoveryTimer)
+            this._contextRecoveryTimer = null
+        }
     }
 
     /**
@@ -1372,17 +1474,21 @@ export class CanvasRenderer {
      * Reset the canvas element (for backend switching)
      */
     resetCanvas() {
-        this._replaceCanvas(this._canvasContainer)
+        if (this._canvasContainer) {
+            this._replaceCanvas(this._canvasContainer)
+        }
     }
 
     /**
-     * @private Put a fresh copy of the canvas in its place inside `parent`.
-     * A canvas keeps the context type that it got first, so a new backend
-     * needs a new canvas element.
+     * @private Put a fresh copy of the canvas in its place inside `parent`,
+     * or, for a canvas outside the document (`parent` null), in its place as
+     * the renderer's canvas. A canvas keeps the context type that it got
+     * first, and a context the browser does not restore stays lost, so both
+     * need a new canvas element.
      * @param {Node|null} parent - The canvas's parent node
      */
     _replaceCanvas(parent) {
-        if (!parent || !this._canvas) {
+        if (!this._canvas) {
             return
         }
 
@@ -1394,8 +1500,11 @@ export class CanvasRenderer {
         newCanvas.width = this._canvas.width
         newCanvas.height = this._canvas.height
 
-        parent.replaceChild(newCanvas, this._canvas)
+        if (parent) {
+            parent.replaceChild(newCanvas, this._canvas)
+        }
         this._canvas = newCanvas
+        this._setupCanvasObserver()
 
         // A lost context belonged to the canvas we just discarded, and its
         // webglcontextrestored event can never fire now. Without this reset,
@@ -1415,6 +1524,8 @@ export class CanvasRenderer {
      */
     async dispose(options = {}) {
         const { loseContext = false, resetCanvas = false } = options
+        this._isDisposed = true
+        this._clearContextRecovery()
         this._advanceLifecycle({ backendLost: loseContext || resetCanvas })
 
         // Clean up scene rendering state
@@ -1466,7 +1577,27 @@ export class CanvasRenderer {
      */
     async compile(dsl, options = {}) {
         const generation = this._lifecycleGeneration ?? 0
-        const run = () => this._isLifecycleCurrent(generation) ? this._compile(dsl, options) : null
+        return this._queueCompile(async () => {
+            if (!this._isLifecycleCurrent(generation)) return null
+            const wasDisposed = this._isDisposed
+            this._isDisposed = false
+            try {
+                return await this._compile(dsl, options)
+            } catch (error) {
+                if (wasDisposed && this._isLifecycleCurrent(generation) && !this._pipeline) {
+                    this._isDisposed = true
+                    this._clearContextRecovery()
+                }
+                throw error
+            }
+        })
+    }
+
+    /**
+     * @private Run `run` once earlier compile requests for this canvas settle.
+     * @param {function(): Promise<object|null>} run
+     */
+    _queueCompile(run) {
         // UI mode changes and initial loading can overlap. Serialize all callers
         // so they cannot configure or mutate the same canvas pipeline concurrently.
         const pending = this._compileQueue ? this._compileQueue.then(run, run) : run()
@@ -1499,6 +1630,13 @@ export class CanvasRenderer {
     async _compileSource(dsl, options = {}) {
         const shaderOverrides = options.shaderOverrides
         const lifecycleGeneration = this._lifecycleGeneration ?? 0
+
+        // A lost context that the browser has not restored cannot compile;
+        // build on a fresh canvas instead.
+        const recovering = this._isContextLost
+        if (recovering && !await this._replaceLostContext(lifecycleGeneration)) {
+            return null
+        }
 
         this._currentDsl = dsl
 
@@ -1539,6 +1677,7 @@ export class CanvasRenderer {
                 return null
             }
             this._pipeline = initialPipeline
+            this._watchDeviceLoss(initialPipeline)
             // Apply external input state to new pipeline
             if (this._midiState) {
                 this._pipeline.setMidiState(this._midiState)
@@ -1548,14 +1687,23 @@ export class CanvasRenderer {
             }
         } else {
             const compilationPipeline = this._pipeline
-            // Set isCompiling flag BEFORE recompile swaps the graph
-            // This prevents the render loop from trying to execute passes
-            // with programs that haven't been compiled yet
+            // Keep the render loop off the backend while shaders compile
             compilationPipeline.isCompiling = true
 
             try {
-                const newGraph = recompile(compilationPipeline, dsl, { shaderOverrides, graph })
-                if (!newGraph) {
+                // Compile the candidate's shaders before it replaces the
+                // running graph. A rejected shader throws here and leaves the
+                // accepted graph, its programs and its surfaces in place, so
+                // the next frames render the accepted program.
+                const newGraph = compileGraphFor(compilationPipeline, dsl, { shaderOverrides, graph })
+                if (newGraph) {
+                    await compilationPipeline.compilePrograms(newGraph)
+                    if (!this._isLifecycleCurrent(lifecycleGeneration) ||
+                        this._pipeline !== compilationPipeline) {
+                        return null
+                    }
+                }
+                if (!newGraph || !swapGraph(compilationPipeline, newGraph)) {
                     // Recompile failed, need to create a new pipeline from scratch.
                     // This is a first pipeline in every respect except that one
                     // already existed, so it takes the same graph handoff — the
@@ -1577,6 +1725,7 @@ export class CanvasRenderer {
                         return null
                     }
                     this._pipeline = replacementPipeline
+                    this._watchDeviceLoss(replacementPipeline)
                     // Scene bindings read midi()/audio() through
                     // pipeline.externalState. Dropped here, every one of them
                     // pins at its minimum for the rest of the session.
@@ -1590,14 +1739,6 @@ export class CanvasRenderer {
                         previousPipeline?.dispose?.()
                     } catch (err) {
                         console.warn('Failed to dispose previous pipeline', err)
-                    }
-                } else {
-                    // Recompile succeeded, now compile the programs
-                    // compilePrograms will clear the isCompiling flag when done
-                    await compilationPipeline.compilePrograms()
-                    if (!this._isLifecycleCurrent(lifecycleGeneration) ||
-                        this._pipeline !== compilationPipeline) {
-                        return null
                     }
                 }
             } catch (err) {
@@ -1676,7 +1817,51 @@ export class CanvasRenderer {
             this.start()
         }
 
+        if (recovering) {
+            console.log('[Canvas] Pipeline rebuilt on a fresh canvas after an unrestored context loss')
+            if (this._onContextRestored) {
+                this._onContextRestored()
+            }
+        }
+
         return compiledPipeline
+    }
+
+    /**
+     * @private Move to a fresh canvas in place of one whose lost WebGL context
+     * the browser has not restored, as switchBackend() does, and wait while the
+     * browser refuses the page new WebGL contexts.
+     * @param {number} generation - Lifecycle generation of the compile
+     * @returns {Promise<boolean>} false when the lifecycle moved on meanwhile
+     */
+    async _replaceLostContext(generation) {
+        this._clearContextRecovery()
+        const deadPipeline = this._pipeline
+        this._pipeline = null
+        this._uniformBindings = new Map()
+        try {
+            deadPipeline?.dispose?.({ backendLost: true })
+        } catch (err) {
+            console.warn('Failed to dispose context-lost pipeline', err)
+        }
+        this._replaceCanvas(this._canvasContainer || this._canvas.parentNode)
+
+        // createPipeline() takes WebGPU when it is preferred and available;
+        // otherwise it needs a WebGL2 context on this canvas.
+        if (this._preferWebGPU && await WebGPUBackend.isAvailable()) {
+            return this._isLifecycleCurrent(generation)
+        }
+        const deadline = performance.now() + CONTEXT_RECOVERY_LIMIT_MS
+        while (!this._canvas.getContext('webgl2', { preserveDrawingBuffer: true })) {
+            if (performance.now() >= deadline) {
+                // Still without a context: the next compile() waits again.
+                this._isContextLost = true
+                throw new Error('The browser did not allow a new WebGL2 context after the context was lost')
+            }
+            await new Promise((resolve) => setTimeout(resolve, CONTEXT_RETRY_MS))
+            if (!this._isLifecycleCurrent(generation)) return false
+        }
+        return this._isLifecycleCurrent(generation)
     }
 
     /**
@@ -1733,8 +1918,8 @@ export class CanvasRenderer {
 
         // dispose() replaces the canvas only inside a canvasContainer. The old
         // canvas cannot take the new context type, so replace it in its parent.
-        if (!this._canvasContainer) {
-            this._replaceCanvas(this._canvas?.parentNode)
+        if (!this._canvasContainer && this._canvas?.parentNode) {
+            this._replaceCanvas(this._canvas.parentNode)
         }
     }
 
@@ -2443,6 +2628,11 @@ export class CanvasRenderer {
      * @param {HTMLVideoElement|HTMLImageElement|HTMLCanvasElement|ImageBitmap} source - Media source
      * @param {object} [options] - Update options
      * @param {boolean} [options.flipY=true] - Whether to flip the Y axis
+     * @param {CanvasRenderingContext2D} [options.context2d] - The source
+     *   canvas's 2D context. A willReadFrequently context uploads its
+     *   getImageData() bytes on WebGPU, as WebGL2 uploads them. Uploading
+     *   never asks the source for a context: that would give a canvas with
+     *   none yet a 2D context for good.
      * @returns {{ width: number, height: number }} Source dimensions
      */
     updateTextureFromSource(texId, source, options = {}) {

@@ -14,12 +14,7 @@ Noisemaker
    releases
 
 
-**Noisemaker** is a GPU rendering engine for real-time visual effects in the browser with no required build step or dependencies.
-
-* **Dual backends** — WebGL2 and WebGPU
-* **Composable DSL** for building effect chains
-* **Growing library** of shader effects
-
+**Noisemaker** is a composable shader art engine for web, desktop, and mobile. Visit the `project home <https://noisemaker.app/>`_ to learn more.
 
 .. raw:: html
 
@@ -107,11 +102,6 @@ Quick Start
     renderer.start()
 
 See :doc:`shaders/integration` for full API documentation.
-
-Python CLI and Docker
----------------------
-
-The Python package has a command-line interface (CLI). For the installation steps, see :ref:`cli-install`. For the CLI commands, see :doc:`cli`. To use the CLI in a container, see the `Docker guide <https://github.com/noisefactorllc/noisemaker/blob/main/README-DOCKER.md>`_.
 
 ----
 

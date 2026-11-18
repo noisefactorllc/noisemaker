@@ -85,7 +85,7 @@ export default defineConfig({
     },
     {
       command: 'node ./shaders/scripts/serve.js',
-      url: shaderBaseURL,
+      url: `${shaderBaseURL}/demo/shaders/`,
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
     },

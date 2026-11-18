@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "synth/shape",
-  "sourceHash": "527bb5d26458960eca1973c436f1558964b618e4fe4c80ccb2047f746a0b9558",
+  "sourceHash": "8ed7934da9a5c145c4a596848eeb1e3fac5b07536671a0177745f21ae9a4f73f",
   "caseHash": "b313615b63b4ad67e5145fdb16aa92edbf7690430ccc825cf6c9eef2d1e1456a",
   "resolution": [
     64,
@@ -13,14 +13,14 @@
       "height": 64,
       "nonzeroRgbPixels": 4092,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 253
+      "uniqueColors": 254
     },
     "webgpu": {
       "width": 64,
       "height": 64,
       "nonzeroRgbPixels": 4092,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 253
+      "uniqueColors": 254
     }
   },
   "execution": {

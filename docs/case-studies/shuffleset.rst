@@ -56,7 +56,7 @@ It loads the effect manifest, loads the effects that the program names, and comp
 
 #. Create an ``AudioContext`` and an ``AnalyserNode`` with ``fftSize = 256``.
 #. Connect the audio element to the analyser with ``createMediaElementSource()``, and connect the analyser to the audio output.
-#. Get the engine's audio state with ``setAudioState()``.
+#. Create the engine's audio state with ``setAudioState()``, which returns it.
 #. Start the update loop. [S2]_
 
 The update loop runs on each animation frame:
@@ -81,7 +81,8 @@ Its second argument is the number of frames in the rolling average, from 1 to 10
 Work outside the engine
 -----------------------
 
-The player connects the audio on the first play request, not when the view opens.
+The player does not connect the audio when it starts the visualizer.
+It connects the audio after the first ``play()`` call succeeds, or when the user presses play.
 The goal is to create the ``AudioContext`` during a user action, because Safari otherwise creates it suspended. [S1]_
 
 After ``createMediaElementSource()``, all sound goes through the ``AudioContext``.
@@ -105,12 +106,12 @@ Sources
 -------
 
 S1 and S2 are the files that shuffleset.stream serves. Shuffleset's source repository is private.
-S3 and S4 point to noisemaker revision ``d54a808``.
+S3 and S4 point to noisemaker revision ``0f62657``.
 
 .. [S1] `Audio player view (audio-view.js) <https://shuffleset.stream/js/audio-view.js>`_.
 
 .. [S2] `Renderer and audio adapter (renderer.js) <https://shuffleset.stream/js/noisemaker/renderer.js>`_.
 
-.. [S3] `Engine audio state (external-input.js) <https://github.com/noisefactorllc/noisemaker/blob/d54a808b0feac4cc33df716c46b748cd026d2259/shaders/src/runtime/external-input.js>`_.
+.. [S3] `Engine audio state (external-input.js) <https://github.com/noisefactorllc/noisemaker/blob/0f626573624721a60d0fe7813f8e79ce4d463112/shaders/src/runtime/external-input.js>`_.
 
-.. [S4] `Scope effect shader (scope.glsl) <https://github.com/noisefactorllc/noisemaker/blob/d54a808b0feac4cc33df716c46b748cd026d2259/shaders/effects/synth/scope/glsl/scope.glsl>`_.
+.. [S4] `Scope effect shader (scope.glsl) <https://github.com/noisefactorllc/noisemaker/blob/0f626573624721a60d0fe7813f8e79ce4d463112/shaders/effects/synth/scope/glsl/scope.glsl>`_.

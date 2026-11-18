@@ -38,7 +38,9 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   }
   // Normalize by inradius so all shapes have consistent size
   let d = polygon(st, sidesF) / cos(PI / sidesF);
-  let m = smoothstep(radius, radius - smoothing, d);
+  // Zero smoothing is a hard edge. smoothstep() with equal edges is
+  // undefined, and WebGPU drew that case inverted.
+  let m = select(f32(d < radius), smoothstep(radius, radius - smoothing, d), smoothing > 0.0);
   
   // fgAlpha scales foreground visibility, bgAlpha scales background visibility
   let fgMask = m * fgAlpha;

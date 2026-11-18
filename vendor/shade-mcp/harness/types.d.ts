@@ -122,6 +122,8 @@ export interface ParityResult {
     yFlipMismatchPercent?: number;
     yFlipMeanDiff?: number;
     yFlipRatio?: number;
+    frames?: number;
+    stateReset?: boolean;
     issues?: string[];
 }
 /**

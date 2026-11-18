@@ -104,7 +104,7 @@ async function callAI(options) {
   return callOpenAI(options);
 }
 async function callAnthropic(options) {
-  const client = new Anthropic({ apiKey: options.ai.apiKey, ...aiClientOptions() });
+  const client = new Anthropic({ apiKey: options.ai.apiKey, ...aiClientOptions(), openTelemetry: false });
   const content = options.userContent.map((block) => {
     if (block.type === "image_url" && block.image_url) {
       const url = block.image_url.url;

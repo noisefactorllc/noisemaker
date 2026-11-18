@@ -43,7 +43,7 @@ Use the **shade** MCP server for all shader development tasks: compiling, render
 ## Testing
 
 - JS tests: `node scripts/run-js-tests.js --skip-parity`
-- Visual test: `node shaders/tests/test_visual_playwright.js` (requires system Chrome)
+- Visual tests: `npm run test:shaders:render` (needs `npx playwright install chromium`; its Playwright specs run headed)
 - Python: `pytest` (only when modifying Python code)
 - Resolve all console errors before returning a solution
 

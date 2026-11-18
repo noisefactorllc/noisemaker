@@ -72,7 +72,7 @@
                 <!-- Dynamic effect controls will be inserted here -->
             </div>
             <div class="noisemaker-info">3D scene graph programs run here too, edited as DSL text — scene() itself has no sliders. The <a href="scenes/viewer.html">scene viewer</a> plays the bundled example scenes full-window.</div>
-            <div class="noisemaker-info">Noisemaker is the open source engine behind <a href="https://noisedeck.app/" target="_blank" rel="noopener">Noisedeck</a> and other <a href="https://noisefactor.io/" target="_blank" rel="noopener">Noise Factor</a> tools.</div>
+            <div class="noisemaker-info">Noisemaker is the open source engine behind <a href="https://noisefactor.io/noisedeck" target="_blank" rel="noopener">Noisedeck</a> and other <a href="https://noisefactor.io/" target="_blank" rel="noopener">Noise Factor</a> tools.</div>
         </div>
 
         <div id="canvas-container">
@@ -138,6 +138,9 @@
             setToastProvider(handfishModule);
         }
 
+        // The controls name their tooltips with .tooltip and data-title; handfish shows them.
+        handfishModule.initializeTooltips();
+
         // =====================================================================
         // DOM Elements
         // =====================================================================
@@ -172,6 +175,9 @@
             ? new URL('../../dist/shaders', import.meta.url).href
             : new URL('../../shaders', import.meta.url).href;
         const bundleBasePath = new URL('../../dist/effects', import.meta.url).href;
+        // Built-in meshes ("share/meshes/x.obj") live at the repo root in the source tree.
+        // Like shaderBasePath, the base has no trailing slash.
+        const meshBasePath = useBundles ? shaderBasePath : new URL('../..', import.meta.url).href.replace(/\/$/, '');
         
         /**
          * Compute optimal canvas size based on container dimensions.
@@ -418,7 +424,8 @@
             loadingDialogProgress,
             onControlChange: renderSingleFrameIfPaused,
             onRequestRecompile: () => rebuildPipelineFromDsl({ rebuildControls: false }),
-            controlFactory: new HandfishControlFactory()
+            controlFactory: new HandfishControlFactory(),
+            meshBasePath
         });
 
         // =====================================================================

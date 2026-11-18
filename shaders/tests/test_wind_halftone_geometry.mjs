@@ -2,11 +2,11 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const effectsDir = path.resolve(__dirname, '../effects/filter')
-const { default: halftoneDefinition } = await import(path.join(effectsDir, 'halftone/definition.js'))
+const { default: halftoneDefinition } = await import(pathToFileURL(path.join(effectsDir, 'halftone/definition.js')).href)
 
 function read(effect, relativePath) {
     return fs.readFileSync(path.join(effectsDir, effect, relativePath), 'utf8')

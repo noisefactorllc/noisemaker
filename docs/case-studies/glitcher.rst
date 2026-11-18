@@ -83,18 +83,18 @@ Limits
 Sources
 -------
 
-All links point to glitcher revision ``cc59756``.
+All links point to glitcher revision ``bee07a3``.
 
-.. [G1] `README <https://github.com/noisefactorllc/glitcher/blob/cc59756708e9693bfb377c9d99809411c22e9e48/README.md>`_.
+.. [G1] `README <https://github.com/noisefactorllc/glitcher/blob/bee07a3116fd606a4623a467673128ddc76d545b/README.md>`_.
 
-.. [G2] `Effect stack (stack.js) <https://github.com/noisefactorllc/glitcher/blob/cc59756708e9693bfb377c9d99809411c22e9e48/public/js/stack.js>`_.
+.. [G2] `Effect stack (stack.js) <https://github.com/noisefactorllc/glitcher/blob/bee07a3116fd606a4623a467673128ddc76d545b/public/js/stack.js>`_.
 
-.. [G3] `Renderer wrapper (renderer.js) <https://github.com/noisefactorllc/glitcher/blob/cc59756708e9693bfb377c9d99809411c22e9e48/public/js/noisemaker/renderer.js>`_.
+.. [G3] `Renderer wrapper (renderer.js) <https://github.com/noisefactorllc/glitcher/blob/bee07a3116fd606a4623a467673128ddc76d545b/public/js/noisemaker/renderer.js>`_.
 
-.. [G4] `Parameter interpolation (effects.js) <https://github.com/noisefactorllc/glitcher/blob/cc59756708e9693bfb377c9d99809411c22e9e48/public/js/effects.js>`_.
+.. [G4] `Parameter interpolation (effects.js) <https://github.com/noisefactorllc/glitcher/blob/bee07a3116fd606a4623a467673128ddc76d545b/public/js/effects.js>`_.
 
-.. [G5] `Capture (capture.js) <https://github.com/noisefactorllc/glitcher/blob/cc59756708e9693bfb377c9d99809411c22e9e48/public/js/capture.js>`_.
+.. [G5] `Capture (capture.js) <https://github.com/noisefactorllc/glitcher/blob/bee07a3116fd606a4623a467673128ddc76d545b/public/js/capture.js>`_.
 
-.. [G6] `Stack persistence (persistence.js) <https://github.com/noisefactorllc/glitcher/blob/cc59756708e9693bfb377c9d99809411c22e9e48/public/js/persistence.js>`_.
+.. [G6] `Stack persistence (persistence.js) <https://github.com/noisefactorllc/glitcher/blob/bee07a3116fd606a4623a467673128ddc76d545b/public/js/persistence.js>`_.
 
-.. [G7] `Application controller (app.js) <https://github.com/noisefactorllc/glitcher/blob/cc59756708e9693bfb377c9d99809411c22e9e48/public/js/app.js>`_.
+.. [G7] `Application controller (app.js) <https://github.com/noisefactorllc/glitcher/blob/bee07a3116fd606a4623a467673128ddc76d545b/public/js/app.js>`_.

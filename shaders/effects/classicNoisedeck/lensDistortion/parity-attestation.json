@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "classicNoisedeck/lensDistortion",
-  "sourceHash": "3a9dc4aa455abc60689cfea161541987922cc8943056c500db886a6e3cd68b3c",
+  "sourceHash": "b8c341cdd2a3ca8a6930109bcad59c830595a2643fcdae57fe531817c57d5e5c",
   "caseHash": "843c3fe83cb3fe86b1410c448a6297f205ca759a6df63db599432e5069183144",
   "resolution": [
     64,

@@ -16,7 +16,8 @@ Discrete random marks reproducing image tone: pointillize dots, mezzotint dots/l
 ## Notes
 
 - Single pass, evaluated on global (tile-aware) pixel coordinates so the dot grid and noise fields align seamlessly across CLI render tiles.
-- Pointillize dot radius grows with the cell seed point's inverse luminance (darker areas get bigger dots), matching Pointillize's tendency to thicken coverage in shadow regions; edges are antialiased via `fwidth`.
+- Pointillize dot radius grows with the cell seed point's inverse luminance (darker areas get bigger dots), matching Pointillize's tendency to thicken coverage in shadow regions; dot edges blend over about 2 px on each side.
+- Hashes, noise and thresholds run in integer arithmetic on the integer pixel coordinate, so WebGL2 and WebGPU give identical output for identical input.
 - Mezzotint modes are intentionally hard-edged (no antialiasing) - real mezzotint conversion is a binary process, and each RGB channel is thresholded independently, which is what produces the characteristic colored (non-grayscale) speckle on color images.
 - mezzoLines streaks noise vertically; mezzoStrokes uses the same streaked noise rotated 45 degrees for a diagonal engraving look.
 - Reticulation's clump noise amplitude is modulated by local luminance so shadows fill in with dense, broad clumps while highlights break up into fine grain.

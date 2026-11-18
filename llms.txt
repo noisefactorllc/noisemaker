@@ -1,7 +1,7 @@
 # Noisemaker
 
 Noisemaker is an open source shader framework for humans and coding agents.
-Use it to build expressive, extensible visual tools in the browser.
+Use it to build expressive, extensible visual tools for web, desktop, and mobile.
 It supports:
 
 - WebGL2 and WebGPU.

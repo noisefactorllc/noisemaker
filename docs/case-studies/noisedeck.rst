@@ -6,7 +6,7 @@ Noisedeck: a shader video synthesizer
 Noisedeck is Noise Factor's shader-based video synthesizer for animated art. [N1]_
 
 Noisedeck stores every composition as a program in Noisemaker's DSL. [N4]_
-Noisedeck renders that program with the engine and adds editing, saved programs, randomization, automation, custom effects, and export. [N1]_
+Noisedeck renders that program with the engine and adds editing, saved programs, randomization, automation, custom effects, export, and live output. [N1]_ [N8]_
 
 Two composition modes
 ---------------------
@@ -40,8 +40,8 @@ Export
 Noisedeck has three kinds of export:
 
 * **Image and video**: files from the canvas. [N1]_
-* **Print**: images up to 16384 × 16384 pixels, for subscribers. Print export renders the program in tiles that overlap by 1024 pixels on each side, and then joins the tiles. If the program has any effect that cannot render in tiles, the whole export becomes a bilinear upscale of the current canvas. [N3]_
-* **Shader pipeline**: a zip with a project for another engine, for subscribers. [N4]_
+* **Print**: images up to 16384 × 16384 pixels. Print export renders the program in tiles that overlap by 1024 pixels on each side, and then joins the tiles. If the program has any effect that cannot render in tiles, the whole export becomes a bilinear upscale of the current canvas. Free exports carry a small "Made with Noisedeck.app" watermark. Exports with Noisedeck 2.x LTS or Noisedeck Forever have no watermark. [N3]_
+* **Shader pipeline**: a zip with a project for another engine. [N4]_
 
 A shader-pipeline export always contains: [N4]_
 
@@ -60,9 +60,26 @@ A shader-pipeline export always contains: [N4]_
    * - ``LICENSES/``
      - Licenses for the exported dependencies
 
-Targets include a standalone web page, Three.js, Babylon.js, cables.gl, Godot, Qt, TouchDesigner, Blender, Unity, and CPU-only packages.
+Targets have three types: [N4]_
+
+* **Web**: a standalone page, a Three.js or Babylon.js adapter, or a cables.gl patch.
+* **Desktop**: a project for Godot, Qt, TouchDesigner, Unity, LÖVE, C++ and C (Dawn), Rust GPU (wgpu), or Swift (Metal).
+* **CPU-only**: a package that renders the program in JavaScript, Python, or Rust without a GPU.
+
 Two options add the effect shader source and the engine runtime.
-Before the export, the dialog lists the effects that the target cannot render. [N4]_
+Before the export, the dialog checks which effects the target cannot render.
+The export still runs, and its README marks those effects with a warning glyph. [N4]_
+
+Live output
+-----------
+
+Sync is a companion app that is in preview. [N8]_
+It sends Noisedeck's rendered output to a native app on the same computer.
+That app makes the output available to other applications as a video source: Syphon on macOS, Spout and NDI on Windows, and a camera device on macOS, Windows 11, and Ubuntu. [N8]_
+
+Noisedeck sends frames to Sync through the engine's output API.
+It adds a sink with ``addSink()`` and reads frames through a queue from ``createFrameExportQueue()``. [N9]_
+:doc:`../shaders/renderer-output` describes these calls.
 
 License
 -------
@@ -85,6 +102,10 @@ Sources
 
 .. [N5] `Noisedeck license agreement <https://noisedeck.app/docs/legal/Noisedeck_EULA.md>`_.
 
-.. [N6] `Portable Effects Format specification, version 1.1 <https://github.com/noisefactorllc/portable/blob/291a89ca491dda72052a98681122eca2e26bfd4c/docs/FORMAT.md>`_.
+.. [N6] `Portable Effects Format specification, version 1.1 <https://github.com/noisefactorllc/portable/blob/86c638a127c29ca01e964b7851557c8cdf55ea76/docs/FORMAT.md>`_.
 
 .. [N7] `Noisedeck effect importer (userEffects.js) <https://noisedeck.app/js/features/userEffects.js>`_, as served by noisedeck.app.
+
+.. [N8] `Sync <https://noisedeck.app/docs/Sync.md>`_.
+
+.. [N9] `Noisedeck Sync output (syncOutput.js) <https://noisedeck.app/js/features/syncOutput.js>`_, as served by noisedeck.app.

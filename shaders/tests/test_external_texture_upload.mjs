@@ -20,7 +20,7 @@
 // the image keeps its aspect ratio (letterboxed) rather than filling the frame.
 import assert from 'node:assert/strict'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
 import { PNG } from 'pngjs'
 import { shaderTestBrowserOptions } from '../../scripts/lib/shader-test-browser.mjs'
@@ -32,7 +32,7 @@ const effectsDir = path.join(repoRoot, 'shaders', 'effects')
 process.env.SHADE_EFFECTS_DIR = effectsDir
 process.env.SHADE_PROJECT_ROOT = repoRoot
 
-const { acquireServer, releaseServer } = await import(path.join(repoRoot, 'vendor/shade-mcp/harness/index.js'))
+const { acquireServer, releaseServer } = await import(pathToFileURL(path.join(repoRoot, 'vendor/shade-mcp/harness/index.js')).href)
 
 // Square render, 2:1 source. A correct render letterboxes: the image covers the
 // full width and half the height. The regression covers the whole frame.

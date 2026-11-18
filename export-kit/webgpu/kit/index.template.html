@@ -144,10 +144,11 @@
 
   nameEl.textContent = PROGRAM_NAME;
 
-  const hasWebGPU = typeof navigator !== 'undefined' && 'gpu' in navigator;
-  if (!hasWebGPU) {
+  function showWebGL2Fallback() {
     backendEl.textContent = 'noisemaker ' + {{NM_ENGINE_VERSION_JSON}} + ' · webgl2 fallback';
   }
+
+  if (!(typeof navigator !== 'undefined' && 'gpu' in navigator)) showWebGL2Fallback();
 
   function setStatus(text, state) {
     statusEl.className = state || '';
@@ -209,7 +210,11 @@
     await renderer.compile(DSL);
     renderer.setLoopDuration(LOOP_SECONDS);
     renderer.start();
-    setStatus(hasWebGPU ? 'running' : 'no webgpu — using webgl2', hasWebGPU ? 'is-done' : 'is-warn');
+    // navigator.gpu can exist while WebGPU has no adapter; the renderer then
+    // runs WebGL2. Report the backend it selected.
+    const runsWebGPU = renderer.backend === 'wgsl';
+    if (!runsWebGPU) showWebGL2Fallback();
+    setStatus(runsWebGPU ? 'running' : 'no webgpu — using webgl2', runsWebGPU ? 'is-done' : 'is-warn');
 
     let pending = 0;
     window.addEventListener('resize', () => {

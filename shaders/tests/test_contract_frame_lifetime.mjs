@@ -64,6 +64,21 @@ describe('AI development contract tracks the frame-lifetime behaviors', () => {
             'llms-full.txt no longer states why the canvas path must match WebGL2 bytes')
         assert.match(webgpu, /getContextAttributes\?\.\(\)\.willReadFrequently/,
             'webgpu.js no longer gates the getImageData upload on willReadFrequently')
+        // The getImageData path runs only when the caller hands over the
+        // source's own 2D context. Asking the canvas for one here would give
+        // a context-less canvas a 2D context for good and lock out the
+        // renderer's WebGPU or WebGL2 context.
+        assert.match(webgpu, /const context2d = options\.context2d\?\.canvas === source \? options\.context2d : null/,
+            'webgpu.js no longer takes the getImageData path only from a caller-passed context')
+        // The pipeline passes the effect overlay's context, so willReadFrequently
+        // overlays keep their byte-exact WebGPU parity.
+        assert.match(pipeline,
+            /updateTextureFromSource\(texId, canvas, \{ flipY: true, context2d: canvas\.getContext\?\.\('2d'\) \}\)/,
+            'pipeline.js no longer passes the overlay 2D context to the upload')
+        // A canvas without a rendering context uploads as transparent black,
+        // as WebGL2 uploads it.
+        assert.match(webgpu, /err\?\.name !== 'OperationError'/,
+            'webgpu.js no longer uploads a context-less canvas as transparent black')
         assert.match(webgpu, /this\.device\.queue\.writeTexture\(\s*\{ texture: tex\.handle \}/)
     })
 

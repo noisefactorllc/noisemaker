@@ -13,3 +13,5 @@ Features
    renderer-output
    demo-ui
    tile-rendering
+   software-rendering
+   context-recovery

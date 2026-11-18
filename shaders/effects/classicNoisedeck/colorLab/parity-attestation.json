@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "classicNoisedeck/colorLab",
+  "sourceHash": "4fb6034262f53fa4e51a81c58ea0b80c837008f07b6cac7c0a1893cbf2897d43",
+  "caseHash": "d4f9c005bcb2824c11bd86c39fe5fb6011d21289feba1ef41e2b38e1cd361786",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 4082
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 4082
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

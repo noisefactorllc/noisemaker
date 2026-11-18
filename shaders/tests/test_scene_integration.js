@@ -59,6 +59,7 @@ function harness({ sceneTicks = 1, gate = null, sceneError = null } = {}) {
     }
     renderer._pipeline = {
         lastPassCount: 0,
+        async compilePrograms() {},
         render() { order.push('pipeline') }
     }
     return { renderer, order, errors }
@@ -380,6 +381,7 @@ await test('a failed recompile carries external state and the graph onto the rep
     renderer._pipeline = {
         isCompiling: false,
         graph: null,
+        async compilePrograms() {},
         createSurfaces() { throw new Error('surface allocation failed') },
         collectDefaultUniforms() { return {} },
         recreateTextures() {},

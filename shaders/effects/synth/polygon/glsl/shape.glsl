@@ -41,7 +41,9 @@ void main(){
   }
   // Normalize by inradius so all shapes have consistent size
   float d = polygon(st, sidesF) / cos(PI / sidesF);
-  float m = smoothstep(radius, radius - smoothing, d);
+  // Zero smoothing is a hard edge. smoothstep() with equal edges is
+  // undefined, and WebGPU drew that case inverted.
+  float m = smoothing > 0.0 ? smoothstep(radius, radius - smoothing, d) : float(d < radius);
   
   // fgAlpha scales foreground visibility, bgAlpha scales background visibility
   float fgMask = m * fgAlpha;

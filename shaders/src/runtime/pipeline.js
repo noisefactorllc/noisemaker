@@ -537,6 +537,15 @@ export function evaluateAudio(config, audioState, min = config.min, max = config
     return min + rawValue * (max - min)
 }
 
+/**
+ * Pass an isolated sink failure to the sink that threw it. A sink opts in
+ * with an optional onError(error) method, for example to end an output whose
+ * new size it cannot send. Rendering and the other sinks continue either way.
+ */
+function reportSinkError(error, sink) {
+    if (typeof sink?.onError === 'function') sink.onError(error)
+}
+
 export class Pipeline {
     constructor(graph, backend, options = {}) {
         this.graph = graph
@@ -548,7 +557,7 @@ export class Pipeline {
         this.texturePooling = options.texturePooling === true
         // virtualId -> storageId for pooled textures (rebuilt per recreateTextures)
         this._textureAliases = new Map()
-        this.sinkManager = new SinkManager()
+        this.sinkManager = new SinkManager({ onError: reportSinkError })
         this._sinkDescriptor = {
             width: 0,
             height: 0,
@@ -701,21 +710,27 @@ export class Pipeline {
     }
 
     /**
-     * Compile all shader programs referenced by the graph.
+     * Compile all shader programs referenced by a graph.
      * Sets isCompiling flag to prevent render loop from executing during compilation.
+     * When a program fails, the backend gets back the programs it held before
+     * this call, so a rejected candidate never replaces a program that the
+     * current graph renders with.
+     * @param {object} [graph] - The graph to compile; the current graph by default
      */
-    async compilePrograms() {
-        if (!this.graph || !this.graph.passes) return
+    async compilePrograms(graph = this.graph) {
+        if (!graph || !graph.passes) return
 
         this.isCompiling = true
+        const programs = this.backend?.programs
+        const accepted = programs instanceof Map ? new Map(programs) : null
 
         try {
             const compiled = new Set()
 
-            for (const pass of this.graph.passes) {
+            for (const pass of graph.passes) {
                 if (compiled.has(pass.program)) continue
 
-                const spec = this.resolveProgramSpec(pass)
+                const spec = this.resolveProgramSpec(pass, graph)
 
                 if (!spec) {
                     throw {
@@ -728,16 +743,35 @@ export class Pipeline {
                 await this.backend.compileProgram(pass.program, spec)
                 compiled.add(pass.program)
             }
+        } catch (error) {
+            if (accepted) this.restorePrograms(accepted)
+            throw error
         } finally {
             this.isCompiling = false
         }
     }
 
     /**
-     * Resolve the program specification for a pass
+     * Give the backend back the programs in `accepted`, and release every
+     * program compiled since.
+     * @param {Map} accepted - The backend's programs before a compile began
      */
-    resolveProgramSpec(pass) {
-        const programs = this.graph?.programs
+    restorePrograms(accepted) {
+        const programs = this.backend.programs
+        for (const [id, program] of programs) {
+            if (accepted.get(id) !== program) this.backend.releaseProgram?.(program)
+        }
+        programs.clear()
+        for (const [id, program] of accepted) programs.set(id, program)
+    }
+
+    /**
+     * Resolve the program specification for a pass
+     * @param {object} pass - A pass of `graph`
+     * @param {object} [graph] - The graph that holds the pass; the current graph by default
+     */
+    resolveProgramSpec(pass, graph = this.graph) {
+        const programs = graph?.programs
 
         if (programs instanceof Map && programs.has(pass.program)) {
             return programs.get(pass.program)
@@ -989,7 +1023,11 @@ export class Pipeline {
                 if (cancelled) return
                 // Map effect-local texture name to graph-scoped name
                 const texId = `${nodeId}_${texName}`
-                this.backend.updateTextureFromSource(texId, canvas, { flipY: true })
+                // An overlay canvas is the effect's own 2D canvas: its
+                // context tells WebGPU to upload a willReadFrequently overlay
+                // with the bytes WebGL2 uploads. Other sources (an
+                // ImageBitmap) have no context to pass.
+                this.backend.updateTextureFromSource(texId, canvas, { flipY: true, context2d: canvas.getContext?.('2d') })
             },
             width: this.width,
             height: this.height,

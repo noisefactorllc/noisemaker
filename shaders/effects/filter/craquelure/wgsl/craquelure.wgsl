@@ -37,26 +37,37 @@ struct Uniforms {
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
 @group(0) @binding(2) var<uniform> uniforms: Uniforms;
 
-// hash - hash / jitter.
-fn hash12(p: vec2<f32>) -> f32 {
-    var p3 = fract(vec3<f32>(p.xyx) * 0.1031);
-    p3 = p3 + dot(p3, p3.yzx + vec3<f32>(33.33));
-    return fract((p3.x + p3.y) * p3.z);
+// PCG3D integer hash (Jarzynski & Olano 2020); see craquelure.glsl.
+fn pcg3d(v_in: vec3<u32>) -> vec3<u32> {
+    var v = v_in * 1664525u + 1013904223u;
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    v = v ^ (v >> vec3<u32>(16u));
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    return v;
 }
 
-fn hash22(p: vec2<f32>) -> vec2<f32> {
-    var p3 = fract(vec3<f32>(p.xyx) * vec3<f32>(0.1031, 0.1030, 0.0973));
-    p3 = p3 + dot(p3, p3.yzx + vec3<f32>(33.33));
-    return fract((p3.xx + p3.yz) * p3.zy);
+// Value-noise lattice value in [0, 1) at integer lattice point p.
+fn hash12(p: vec2<i32>) -> f32 {
+    return f32(pcg3d(vec3<u32>(vec2<u32>(p), 0u)).x >> 8u) / 16777216.0;
+}
+
+// Voronoi seed jitter in [0, 1)^2 for integer cell p and seed.
+fn hash22(p: vec2<i32>, seedVal: i32) -> vec2<f32> {
+    let h = pcg3d(vec3<u32>(vec2<u32>(p), u32(seedVal))).xy >> vec2<u32>(8u);
+    return vec2<f32>(h) / 16777216.0;
 }
 
 // value noise - value noise (fBm not needed here).
 fn vnoise(p: vec2<f32>) -> f32 {
-    let i = floor(p);
+    let i = vec2<i32>(floor(p));
     let f = fract(p);
     let u = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash12(i), hash12(i + vec2<f32>(1.0, 0.0)), u.x),
-               mix(hash12(i + vec2<f32>(0.0, 1.0)), hash12(i + vec2<f32>(1.0, 1.0)), u.x), u.y);
+    return mix(mix(hash12(i), hash12(i + vec2<i32>(1, 0)), u.x),
+               mix(hash12(i + vec2<i32>(0, 1)), hash12(i + vec2<i32>(1, 1)), u.x), u.y);
 }
 
 // Voronoi extended - jittered-grid Voronoi F1/F2: returns x = nearest seed
@@ -64,15 +75,16 @@ fn vnoise(p: vec2<f32>) -> f32 {
 // search is exact for F1; F2 can rarely be under-counted near a cell's
 // corner at jitter's [0, 1] maximum. See craquelure.glsl's voronoiF1F2
 // for the full derivation.
-fn voronoiF1F2(p: vec2<f32>, jitter: f32, seedVal: f32) -> vec2<f32> {
+fn voronoiF1F2(p: vec2<f32>, jitter: f32, seedVal: i32) -> vec2<f32> {
     let g = floor(p);
     let f = p - g;
+    let gi = vec2<i32>(g);
     var best = 1e9;
     var second = 1e9;
     for (var y = -1; y <= 1; y++) {
         for (var x = -1; x <= 1; x++) {
             let cell = vec2<f32>(f32(x), f32(y));
-            let pt = cell + 0.5 + (hash22(g + cell + seedVal * 101.7) - 0.5) * jitter;
+            let pt = cell + 0.5 + (hash22(gi + vec2<i32>(x, y), seedVal) - 0.5) * jitter;
             let d = dot(pt - f, pt - f);
             if (d < best) {
                 second = best;
@@ -96,7 +108,7 @@ fn reliefShade(hC: f32, hR: f32, hT: f32, strength: f32, lightAngleDeg: f32) -> 
 
 // Crack mask k at global pixel position gc: 1 on a cell border, falling
 // to 0 within `edge` px (see craquelure.glsl's file header).
-fn crackMask(gc: vec2<f32>, spacingPx: f32, depthPct: f32, seedVal: f32) -> f32 {
+fn crackMask(gc: vec2<f32>, spacingPx: f32, depthPct: f32, seedVal: i32) -> f32 {
     let wob = vec2<f32>(vnoise(gc / 6.0), vnoise(gc / 6.0 + vec2<f32>(37.7, 91.3))) * 2.0;
     let p = (gc + wob) / spacingPx;
     let f1f2 = voronoiF1F2(p, 1.0, seedVal);
@@ -111,13 +123,13 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let globalCoord = pos.xy + uniforms.tileOffset;
     let uv = pos.xy / texSize;
     let src = textureSample(inputTex, inputSampler, uv);
-    let seedF = f32(uniforms.seed);
+    let seed = uniforms.seed;
 
-    let kC = crackMask(globalCoord, uniforms.spacing, uniforms.depth, seedF);
-    let kR = crackMask(globalCoord + vec2<f32>(1.0, 0.0), uniforms.spacing, uniforms.depth, seedF);
-    let kL = crackMask(globalCoord - vec2<f32>(1.0, 0.0), uniforms.spacing, uniforms.depth, seedF);
-    let kT = crackMask(globalCoord + vec2<f32>(0.0, 1.0), uniforms.spacing, uniforms.depth, seedF);
-    let kB = crackMask(globalCoord - vec2<f32>(0.0, 1.0), uniforms.spacing, uniforms.depth, seedF);
+    let kC = crackMask(globalCoord, uniforms.spacing, uniforms.depth, seed);
+    let kR = crackMask(globalCoord + vec2<f32>(1.0, 0.0), uniforms.spacing, uniforms.depth, seed);
+    let kL = crackMask(globalCoord - vec2<f32>(1.0, 0.0), uniforms.spacing, uniforms.depth, seed);
+    let kT = crackMask(globalCoord + vec2<f32>(0.0, 1.0), uniforms.spacing, uniforms.depth, seed);
+    let kB = crackMask(globalCoord - vec2<f32>(0.0, 1.0), uniforms.spacing, uniforms.depth, seed);
 
     // Central-difference gradient of k; feeds both reliefShade's synthetic
     // height samples below and wallMask's locality gate.

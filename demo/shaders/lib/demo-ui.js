@@ -243,9 +243,11 @@ export class UIController {
      * @param {function} [options.onControlChange] - Callback when a control value changes
      * @param {function} [options.onEffectControlsReset] - Callback(stepIndex, effectElement, effectDef) after a effect's controls are rebuilt via reset button
      * @param {ControlFactory} [options.controlFactory] - Custom control factory for web components
+     * @param {string} [options.meshBasePath] - Base that built-in mesh paths ("share/meshes/x.obj") resolve against; defaults to the renderer's basePath
      */
     constructor(renderer, options = {}) {
         this._renderer = renderer
+        this._meshBasePath = options.meshBasePath
 
         // Control factory - allows downstream projects to substitute web components
         this._controlFactory = options.controlFactory || defaultControlFactory
@@ -771,8 +773,8 @@ export class UIController {
         meshState.statusEl.textContent = 'loading...'
 
         try {
-            // Resolve relative to renderer's basePath (e.g. "../../shaders" or bundled URL)
-            const basePath = this._renderer._basePath || '../../shaders'
+            // Resolve relative to meshBasePath, else the renderer's basePath (e.g. "../../shaders" or bundled URL)
+            const basePath = this._meshBasePath || this._renderer._basePath || '../../shaders'
             const url = `${basePath}/${relativePath}`
             const result = await this._renderer.loadOBJFromURL(url, meshState.meshId)
 

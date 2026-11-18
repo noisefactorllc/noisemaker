@@ -451,8 +451,11 @@ UIController Options
        onModuleControlsReset: Function,      // Called after module reset button rebuilds controls
 
        // Pluggable controls
-       controlFactory: ControlFactory        // Custom control factory
+       controlFactory: ControlFactory,       // Custom control factory
+       meshBasePath: string                  // Base URL for built-in mesh files
    })
+
+When built-in mesh files are outside the renderer's ``basePath``, set ``meshBasePath`` to their base URL. If you omit this option, the controller uses the renderer's ``basePath``.
 
 Exports
 ~~~~~~~

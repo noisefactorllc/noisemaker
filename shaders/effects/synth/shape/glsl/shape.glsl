@@ -67,9 +67,9 @@ uvec3 pcg(uvec3 v) {
 }
 
 vec3 prng(vec3 p) {
-    if (p.x >= 0.0) { p.x *= 2.0; } else { p.x = -p.x * 2.0 + 1.0; }
-    if (p.y >= 0.0) { p.y *= 2.0; } else { p.y = -p.y * 2.0 + 1.0; }
-    if (p.z >= 0.0) { p.z *= 2.0; } else { p.z = -p.z * 2.0 + 1.0; }
+    // Select per component: a software rasterizer builds each branch of a
+    // sign fold, and loops of them build for minutes.
+    p = mix(-p * 2.0 + 1.0, p * 2.0, greaterThanEqual(p, vec3(0.0)));
     uvec3 u = pcg(uvec3(p));
     return vec3(u) / float(0xffffffffu);
 }

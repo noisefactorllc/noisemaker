@@ -26,5 +26,6 @@ as organic fissures rather than straight polygon edges.
 
 - Single pass, evaluated on global (tile-aware) pixel coordinates so the crack network and its wobble are continuous across CLI render tiles.
 - The crack mask is a ridge function of `(F2-F1) * spacing`, where F1/F2 are the nearest/second-nearest distances from a jittered Voronoi cell search (Voronoi jitter is fixed at maximum for irregular, organic plate shapes).
+- PCG3D hashes integer lattice coordinates for value noise and Voronoi jitter. Voronoi jitter also uses `seed`. WebGL2 and WebGPU produce the same hash values.
 - Wall shading is computed from a true central-difference gradient of the crack mask (5 bounded Voronoi evaluations per pixel total) fed through the same directional relief-shading model used by `filter/relief`, with the light angle fixed at 135 degrees (upper-left).
 - Produces an organic cracked-plaster or crazed-glaze surface.

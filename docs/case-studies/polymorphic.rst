@@ -31,15 +31,16 @@ It returns ``{ success: true }``, or ``{ success: false, error }`` with the comp
 Text and images enter the program as textures: [M2]_
 
 * Polymorphic draws each ``text()`` step on a canvas and uploads it as ``textTex_step_N`` with ``flipY: true``.
-* For ``media(url: ...)``, Polymorphic loads image helpers from ``sharing.noisedeck.app`` at run time. The helpers upload each image as ``imageTex_step_N``.
+* For ``media(url: ...)``, Polymorphic loads image helpers from ``sharing.noisedeck.app`` at run time. The helpers upload each image as ``imageTex_step_N``. [M4]_
 
 WebGL2 is the default backend.
 The ``?backend=webgpu`` URL parameter selects WebGPU.
 If the browser has no WebGPU adapter, Polymorphic falls back to WebGL2. [M1]_ [M2]_
 
 When the browser loses the WebGL context, Polymorphic stops the render loop.
-When the browser restores the context, Polymorphic compiles the program again.
-A lost WebGPU device does not come back, so Polymorphic disposes the old pipeline and compiles on a new device. [M2]_
+The engine then builds the program again on a new canvas in the place of the old one, also when the browser does not restore the context.
+Polymorphic moves its context-loss handlers to the new canvas and compiles the program again.
+A lost WebGPU device takes the same path: the engine rebuilds on a new device, and Polymorphic compiles again when the engine reports that rendering is back. [M2]_ [M3]_
 
 The performance overlay shows the frame rate, frame time, pass count, and backend. [M1]_
 
@@ -68,15 +69,19 @@ Limits
 ------
 
 * The editor loads the shaders, the interface library, and the fonts from Noise Factor servers. A self-hosted copy still needs internet access. [M1]_
-* Sharing, Noisedeck handoff, community feeds, and Seance use Noise Factor services. Image URLs in a program also need ``sharing.noisedeck.app``. [M1]_ [M2]_
+* Sharing, Noisedeck handoff, community feeds, and Seance use Noise Factor services. Image URLs in a program also need ``sharing.noisedeck.app``. [M1]_ [M4]_
 * Sync input and output need a local Sync installation. [M1]_
 * Camera, microphone, and screen capture need browser permission, and HTTPS on any host other than localhost. [M1]_
 
 Sources
 -------
 
-All links point to polymorphic revision ``0dd6991``.
+All links point to polymorphic revision ``01b9e57``.
 
-.. [M1] `README <https://github.com/noisefactorllc/polymorphic/blob/0dd69913441baf1d4c3a0d72fd28ea669dc5187d/README.md>`_.
+.. [M1] `README <https://github.com/noisefactorllc/polymorphic/blob/01b9e5710a207b6abcf07c0f70f3f72a4e1c559b/README.md>`_.
 
-.. [M2] `Renderer wrapper (renderer.js) <https://github.com/noisefactorllc/polymorphic/blob/0dd69913441baf1d4c3a0d72fd28ea669dc5187d/public/js/noisemaker/renderer.js>`_.
+.. [M2] `Renderer wrapper (renderer.js) <https://github.com/noisefactorllc/polymorphic/blob/01b9e5710a207b6abcf07c0f70f3f72a4e1c559b/public/js/noisemaker/renderer.js>`_.
+
+.. [M3] `Application setup (embed.js) <https://github.com/noisefactorllc/polymorphic/blob/01b9e5710a207b6abcf07c0f70f3f72a4e1c559b/public/js/embed.js>`_.
+
+.. [M4] `Sharing loader (sharingLoader.js) <https://github.com/noisefactorllc/polymorphic/blob/01b9e5710a207b6abcf07c0f70f3f72a4e1c559b/public/js/sharingLoader.js>`_.

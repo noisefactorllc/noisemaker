@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
 import crypto from 'node:crypto'
 import { PNG } from 'pngjs'
@@ -47,7 +47,7 @@ const effectsDir = path.join(repoRoot, 'shaders/effects')
 process.env.SHADE_EFFECTS_DIR = effectsDir
 process.env.SHADE_PROJECT_ROOT = repoRoot
 
-const { acquireServer, releaseServer } = await import(path.join(repoRoot, 'vendor/shade-mcp/harness/index.js'))
+const { acquireServer, releaseServer } = await import(pathToFileURL(path.join(repoRoot, 'vendor/shade-mcp/harness/index.js')).href)
 const baseUrl = await acquireServer(undefined, repoRoot, effectsDir)
 const browser = await chromium.launch({
     headless: true,
@@ -540,12 +540,9 @@ render(o0)`
     }
     const stippleHashes = Object.fromEntries(['WebGL2', 'WebGPU'].map(backend => [backend,
         crypto.createHash('sha256').update(rendered[backend].stipple.data).digest('hex')]))
-    // Rebaselined when the Voronoi jitter hash moved to integer arithmetic.
-    // The previous value was only ever reproducible on WebGPU; WebGL2 disagreed
-    // with it, and with itself across ANGLE backends. Both backends now agree.
     assert.deepEqual(stippleHashes, {
-        WebGL2: '23ed00f547697984d3cab0fd4eefc048b9ec925e112e7e32028813ba321a30e2',
-        WebGPU: '23ed00f547697984d3cab0fd4eefc048b9ec925e112e7e32028813ba321a30e2',
+        WebGL2: '5a1d2217c2729263646fe42261a0e93504c3ae754d92f57e6c5f502284662f67',
+        WebGPU: '5a1d2217c2729263646fe42261a0e93504c3ae754d92f57e6c5f502284662f67',
     }, 'Pointillize pixels must retain their existing contract')
     const mosaicPlateau = equalNeighborRatio(rendered.WebGL2.mosaic)
     assert.ok(mosaicPlateau > 0.6,

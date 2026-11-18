@@ -68,16 +68,74 @@ const cases = [
 // same contract: its rgb2hsv was fixed the same way (glslMod since
 // 1fa5942), and its shadow() consumer re-wraps the hue through hsv2rgb's
 // fract() too, so a revert to the truncating % would be invisible in renders.
-const contractEffects = ['classicNoisedeck/kaleido', 'classicNoisedeck/effects']
+// The other WGSL copies of rgb2hsv carry it as well; each consumer re-wraps
+// the hue (hsv2rgb's fract() or a hue offset's fract()), so under ANGLE and
+// Dawn on SwiftShader the truncating % only surfaced as a one-level colorLab
+// pixel, and on Metal not beyond its relaxed-math residual.
+const contractEffects = [
+    'classicNoisedeck/kaleido', 'classicNoisedeck/effects', 'classicNoisedeck/cellRefract',
+    'classicNoisedeck/coalesce', 'classicNoisedeck/colorLab', 'classicNoisedeck/lensDistortion',
+    'classicNoisedeck/shapeMixer', 'filter/tetraColorArray',
+]
 for (const effect of contractEffects) {
     const wgslSource = fs.readFileSync(path.join(root, `shaders/effects/${effect}/wgsl/${effect.split('/')[1]}.wgsl`), 'utf8')
     const glslSource = fs.readFileSync(path.join(root, `shaders/effects/${effect}/glsl/${effect.split('/')[1]}.glsl`), 'utf8')
-    assert.match(glslSource, /mod\(\(g - b\) \/ delta, 6\.0\) \/ 6\.0/,
+    assert.match(glslSource, /mod\(\((?:c\.)?g - (?:c\.)?b\) \/ delta, 6\.0\) \/ 6\.0/,
         `${effect}/glsl rgb2hsv must keep the floored-mod hue this contract mirrors`)
-    assert.match(wgslSource, /glslMod\(\(rgb\.g - rgb\.b\) \/ delta, 6\.0\) \/ 6\.0/,
+    assert.match(wgslSource, /glslMod\(\((?:rgb\.|c\.)?g - (?:rgb\.|c\.)?b\) \/ delta, 6\.0\) \/ 6\.0/,
         `${effect} wgsl rgb2hsv must compute the red-dominant hue with the GLSL's floored mod`)
     assert.doesNotMatch(wgslSource, /% 6\.0/,
         `${effect} wgsl must not take the red-dominant hue with the truncating %`)
+}
+
+// hsv2rgb must wrap the hue. fract() returns 1.0 for a hue just below a whole
+// number, and these conversions took their last sector only below 1.0 and gave
+// black above it. Mesa folds hsv2rgb's fract() into a fract() that wraps the
+// hue before the call, so there filter/feedback rendered saturated red as
+// black for a hue shift just below zero. ANGLE and Dawn keep both calls, so
+// the renders below cannot show it; the contract pins that each conversion
+// wraps with fract() and that its last sector takes every hue from 5/6 up,
+// 1.0 included.
+const hueWrapSources = {
+    'classicNoisedeck/bitEffects': ['glsl', 'wgsl'],
+    'classicNoisedeck/caustic': ['glsl', 'wgsl'],
+    'classicNoisedeck/cellNoise': ['glsl', 'wgsl'],
+    'classicNoisedeck/cellRefract': ['glsl'],
+    'classicNoisedeck/coalesce': ['glsl'],
+    'classicNoisedeck/colorLab': ['glsl'],
+    'classicNoisedeck/composite': ['glsl'],
+    'classicNoisedeck/effects': ['glsl', 'wgsl'],
+    'classicNoisedeck/fractal': ['glsl', 'wgsl'],
+    'classicNoisedeck/kaleido': ['glsl'],
+    'classicNoisedeck/lensDistortion': ['glsl'],
+    'classicNoisedeck/moodscape': ['glsl', 'wgsl'],
+    'classicNoisedeck/noise': ['glsl'],
+    'classicNoisedeck/noise3d': ['glsl'],
+    'classicNoisedeck/shapeMixer': ['glsl'],
+    'classicNoisedeck/shapes': ['glsl', 'wgsl'],
+    'classicNoisedeck/shapes3d': ['glsl', 'wgsl'],
+    'filter/feedback': ['glsl', 'wgsl'],
+    'filter/prismaticAberration': ['glsl'],
+}
+function hsv2rgbSource(source, file) {
+    const start = source.search(/^(?:vec3 |fn )hsv2rgb\(/m)
+    assert.ok(start >= 0, `${file} has no hsv2rgb`)
+    let depth = 0
+    for (let i = source.indexOf('{', start); i < source.length; i++) {
+        if (source[i] === '{') depth++
+        if (source[i] === '}' && --depth === 0) return source.slice(start, i + 1)
+    }
+    throw new Error(`${file} hsv2rgb has no closing brace`)
+}
+for (const [effect, languages] of Object.entries(hueWrapSources)) {
+    for (const language of languages) {
+        const file = `${effect}/${language}/${effect.split('/')[1]}.${language}`
+        const body = hsv2rgbSource(fs.readFileSync(path.join(root, 'shaders/effects', file), 'utf8'), file)
+        assert.match(body, /(?:float|let|var) h(?:: f32)? = fract\(hsv\.x\);/, `${file} hsv2rgb must wrap the hue with fract()`)
+        assert.doesNotMatch(body, /h < 1\.0\)/, `${file} hsv2rgb must not leave h = 1.0 out of the last sector`)
+        assert.match(body, /\belse \{\s*(?:\/\/[^\n]*\n\s*)*rgb = vec3(?:<f32>|f)?\(c, 0\.0, x\);\s*\}\s*return rgb/,
+            `${file} hsv2rgb must give the last sector to every hue the earlier sectors leave`)
+    }
 }
 const strictTolerance = { pixels: 0, maxDiff: 0 }
 function toleranceForCase(id) {

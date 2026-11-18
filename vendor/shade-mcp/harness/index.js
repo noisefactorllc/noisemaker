@@ -21392,6 +21392,86 @@ async function testNoPassthrough(session, effectId) {
   });
 }
 
+// src/harness/program-rebuild.ts
+function installProgramRebuild({ globals, timeout }) {
+  const w = window;
+  const r = w[globals.canvasRenderer];
+  if (!r || typeof r.dispose !== "function" || typeof r.compile !== "function") {
+    w.__shadeRebuildProgram = void 0;
+    return false;
+  }
+  if (!r.__shadeUploads && typeof r.updateTextureFromSource === "function") {
+    const uploads = /* @__PURE__ */ new Map();
+    const upload = r.updateTextureFromSource;
+    r.updateTextureFromSource = function(texId, source, options) {
+      uploads.set(texId, { source, options });
+      return upload.call(this, texId, source, options);
+    };
+    r.__shadeUploads = uploads;
+  }
+  const perFrame = /* @__PURE__ */ new Set([
+    "time",
+    "deltaTime",
+    "frame",
+    "resolution",
+    "tileOffset",
+    "fullResolution",
+    "invFullResolution",
+    "aspect",
+    "aspectRatio",
+    "aspectInv",
+    "renderScale",
+    "audioSpectrum",
+    "audioWaveform",
+    "midiClockCount"
+  ]);
+  const copy = (v) => Array.isArray(v) ? v.slice() : v;
+  const same = (a, b) => a === b || Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i2) => x === b[i2]);
+  w.__shadeRebuildProgram = async () => {
+    const program = r.currentDsl;
+    if (typeof program !== "string" || program === "") return false;
+    const old = r.pipeline ?? w[globals.renderingPipeline];
+    const savedGlobals = old?.globalUniforms ? Object.entries(old.globalUniforms).filter(([k]) => !perFrame.has(k)).map(([k, v]) => [k, copy(v)]) : [];
+    const saved = (old?.graph?.passes || []).map((pass) => ({
+      name: pass.name,
+      uniforms: pass.uniforms ? Object.fromEntries(Object.entries(pass.uniforms).map(([k, v]) => [k, copy(v)])) : null
+    }));
+    const oldTextures = old?.backend?.textures;
+    const reupload = r.__shadeUploads ? [...r.__shadeUploads].filter(([id]) => typeof oldTextures?.has === "function" && oldTextures.has(id)) : [];
+    await r.dispose({ loseContext: false, resetCanvas: false });
+    await r.compile(program);
+    const p = r.pipeline;
+    if (!p) throw new Error("Rebuilding the program produced no pipeline");
+    w[globals.renderingPipeline] = p;
+    for (const [key, value] of savedGlobals) {
+      if (same(p.globalUniforms?.[key], value)) continue;
+      if (typeof p.setUniform === "function") p.setUniform(key, copy(value));
+      else if (p.globalUniforms) p.globalUniforms[key] = copy(value);
+    }
+    const passes = p.graph?.passes || [];
+    saved.forEach((s, i2) => {
+      const pass = passes[i2];
+      if (!pass || pass.name !== s.name || !pass.uniforms || !s.uniforms) return;
+      for (const [key, value] of Object.entries(s.uniforms)) {
+        if (!perFrame.has(key) && !same(pass.uniforms[key], value)) pass.uniforms[key] = copy(value);
+      }
+    });
+    for (const [id, { source, options }] of reupload) await r.updateTextureFromSource(id, source, options);
+    if (typeof p.whenAsyncInitsSettled === "function") {
+      let timer;
+      await Promise.race([
+        p.whenAsyncInitsSettled(),
+        new Promise((resolve4) => {
+          timer = setTimeout(resolve4, timeout);
+        })
+      ]);
+      clearTimeout(timer);
+    }
+    return true;
+  };
+  return true;
+}
+
 // src/tools/browser/parity.ts
 function errorMessage5(err) {
   return err instanceof Error ? err.message : String(err);
@@ -21402,30 +21482,37 @@ var testPixelParitySchema = {
   epsilon: external_exports.number().optional().default(1).describe("Allowed per-channel difference (0-255)"),
   seed: external_exports.number().optional().default(42).describe("Random seed for reproducible noise")
 };
-async function warmUp(session, frames2 = 6) {
-  const start = await session.page.evaluate((globals) => {
-    const w = window;
-    if (w[globals.setPaused]) w[globals.setPaused](false);
-    return w[globals.frameCount] || 0;
-  }, session.globals);
-  await session.page.waitForFunction(
-    ({ globals, target }) => (window[globals.frameCount] || 0) >= target,
-    { globals: session.globals, target: start + frames2 },
-    { timeout: 3e4, polling: 30 }
-  );
-}
-async function captureSurface(session, seed) {
-  return await session.page.evaluate(async ({ globals, seed: seed2 }) => {
+var PARITY_FRAMES = 8;
+async function prepareLeg(session) {
+  await session.page.evaluate((globals) => {
     const w = window;
     if (w[globals.setPaused]) w[globals.setPaused](true);
+  }, session.globals);
+  await session.page.evaluate(installProgramRebuild, { globals: session.globals, timeout: session.timeoutMs });
+}
+async function captureSurface(session, seed, frames2) {
+  return await session.page.evaluate(async ({ globals, seed: seed2, frames: frames3 }) => {
+    const w = window;
+    if (w[globals.setPaused]) w[globals.setPaused](true);
+    const r = w[globals.canvasRenderer];
+    if (!r) return null;
+    await new Promise((resolve4) => {
+      const nextFrame = typeof w.requestAnimationFrame === "function" ? (cb) => w.requestAnimationFrame(cb) : (cb) => setTimeout(cb, 16);
+      let left = 6;
+      const tick = () => {
+        if (--left <= 0) resolve4();
+        else nextFrame(tick);
+      };
+      nextFrame(tick);
+    });
+    const stateReset = typeof w.__shadeRebuildProgram === "function" ? await w.__shadeRebuildProgram() : false;
     if (w[globals.setPausedTime]) w[globals.setPausedTime](0);
     const p = w[globals.renderingPipeline];
     if (!p) return null;
     if (p.globalUniforms) p.globalUniforms.seed = seed2;
     for (const pass of p.graph?.passes || []) if (pass.uniforms) pass.uniforms.seed = seed2;
-    const r = w[globals.canvasRenderer];
     const b = p.backend;
-    if (!r || !b || !b.readPixels || !b.textures) return null;
+    if (!b || !b.readPixels || !b.textures) return null;
     const surf = p.graph?.renderSurface;
     if (!surf) return null;
     const readSurface = async () => {
@@ -21449,10 +21536,11 @@ async function captureSurface(session, seed) {
       }
       return null;
     };
+    const loop = typeof r.loopDuration === "number" && r.loopDuration > 0 ? r.loopDuration : 10;
+    for (let i2 = 0; i2 < frames3; i2++) r.render(i2 / (60 * loop));
+    await b.device?.queue?.onSubmittedWorkDone?.();
     let px = null;
     for (let attempt = 0; attempt < 6 && !px; attempt++) {
-      r.render(0);
-      r.render(0);
       px = await readSurface();
       if (!px) await new Promise((res) => setTimeout(res, 80));
     }
@@ -21466,8 +21554,8 @@ async function captureSurface(session, seed) {
       }
       data2 = flipped;
     }
-    return { data: Array.from(data2), width: px.width, height: px.height };
-  }, { globals: session.globals, seed });
+    return { data: Array.from(data2), width: px.width, height: px.height, stateReset };
+  }, { globals: session.globals, seed, frames: frames2 });
 }
 async function testPixelParity(session, effectId, options = {}) {
   const epsilon = options.epsilon ?? 1;
@@ -21490,32 +21578,35 @@ async function testPixelParity(session, effectId, options = {}) {
     const failed = await session.readPageIdentity();
     return parityError("WebGL2 leg", `Backend switch failed: ${errorMessage5(err)}`, failed.backend ?? "unknown", failed.effectId, [0, 0]);
   }
+  await prepareLeg(session);
   let leg = await session.selectEffect(effectId);
   let problem = legProblem(leg, "webgl2");
   if (problem) return parityError("WebGL2 leg", problem, leg.backend, leg.effectId, [0, 0]);
-  await warmUp(session);
-  const glslPixels = await captureSurface(session, seed);
-  if (!glslPixels) {
+  const glslCapture = await captureSurface(session, seed, PARITY_FRAMES);
+  if (!glslCapture) {
     return parityError("WebGL2 leg", "Failed to capture WebGL2", leg.backend, leg.effectId, [0, 0]);
   }
+  const glslPixels = glslCapture;
   try {
     await session.setBackend("webgpu");
   } catch (err) {
     const failed = await session.readPageIdentity();
     return parityError("WebGPU leg", `Backend switch failed: ${errorMessage5(err)}`, failed.backend ?? "unknown", failed.effectId ?? leg.effectId, [glslPixels.width, glslPixels.height]);
   }
+  await prepareLeg(session);
   leg = await session.selectEffect(effectId);
   problem = legProblem(leg, "webgpu");
   if (problem) return parityError("WebGPU leg", problem, leg.backend, leg.effectId, [glslPixels.width, glslPixels.height]);
-  await warmUp(session);
-  const wgslPixels = await captureSurface(session, seed);
+  const wgslCapture = await captureSurface(session, seed, PARITY_FRAMES);
   await session.page.evaluate((globals) => {
     const w2 = window;
     if (w2[globals.setPaused]) w2[globals.setPaused](false);
   }, session.globals);
-  if (!wgslPixels) {
+  if (!wgslCapture) {
     return parityError("WebGPU leg", "Failed to capture WebGPU", leg.backend, leg.effectId, [glslPixels.width, glslPixels.height]);
   }
+  const wgslPixels = wgslCapture;
+  const stateReset = glslPixels.stateReset && wgslPixels.stateReset;
   if (glslPixels.width !== wgslPixels.width || glslPixels.height !== wgslPixels.height) {
     return {
       status: "error",
@@ -21612,6 +21703,8 @@ async function testPixelParity(session, effectId, options = {}) {
     yFlipMismatchPercent: Math.round(yFlipPercent * 100) / 100,
     yFlipMeanDiff: Math.round(yFlipMeanDiff * 100) / 100,
     yFlipRatio: Math.round(yFlipRatio * 1e3) / 1e3,
+    frames: PARITY_FRAMES,
+    stateReset,
     issues,
     details: issues.length > 0 ? issues.join("; ") : mismatchPercent < 1 ? `Pixel parity OK (maxDiff=${maxDiff}, meanDiff=${meanDiff.toFixed(2)})` : `Pixel mismatch: ${mismatchPercent.toFixed(1)}% channels differ by >${epsilon}`
   };
@@ -21642,6 +21735,7 @@ async function testUniformResponsiveness(session, effectId) {
         ...requestIdentity(effectId, failed.effectId)
       };
     }
+    await page.evaluate(installProgramRebuild, { globals: session.globals, timeout: session.timeoutMs });
     const selection = await session.selectEffect(effectId);
     const problem = effectSelectionProblem(selection, effectId, session.backend);
     if (problem) {
@@ -21661,13 +21755,13 @@ async function testUniformResponsiveness(session, effectId) {
     }, session.globals);
     const result = await page.evaluate(async ({ globals, settleMs }) => {
       const w = window;
-      const pipeline = w[globals.renderingPipeline];
+      let pipeline = w[globals.renderingPipeline];
       const effect = w[globals.currentEffect];
       if (!pipeline || !effect?.instance?.globals) {
         return { status: "error", tested_uniforms: [], details: "No effect loaded" };
       }
       const renderer = w[globals.canvasRenderer];
-      const backend = pipeline.backend;
+      let backend = pipeline.backend;
       const backendName = backend?.getName?.() || "unknown";
       async function readFrame() {
         const surfaceFrame = await readSurface();
@@ -21738,6 +21832,7 @@ async function testUniformResponsiveness(session, effectId) {
         return { mean: [sumR / count, sumG / count, sumB / count, sumA / count], samples, pixels: new Uint8Array(pixels) };
       }
       async function captureAll() {
+        if (resetMode) await resetState();
         const out = [];
         for (const t of CAPTURE_TIMES) {
           const m = await captureMetrics(t);
@@ -21751,11 +21846,29 @@ async function testUniformResponsiveness(session, effectId) {
       const effectFunc = effect.instance?.func ?? effect.name;
       const ownPass = (pass) => pass.effectFunc === effectFunc && (pass.effectNamespace == null || pass.effectNamespace === effect.namespace);
       const toUniform = (spec, value) => (typeof value === "string" || typeof value === "boolean") && typeof renderer?.convertParameterForUniform === "function" ? renderer.convertParameterForUniform(value, spec) : value;
+      const apply = (uniform, value) => {
+        if (pipeline.setUniform) pipeline.setUniform(uniform, value);
+        else if (pipeline.globalUniforms) pipeline.globalUniforms[uniform] = value;
+      };
+      const applied = /* @__PURE__ */ new Map();
       const setValue = (spec, value) => {
         const converted = toUniform(spec, value);
-        if (pipeline.setUniform) pipeline.setUniform(spec.uniform, converted);
-        else if (pipeline.globalUniforms) pipeline.globalUniforms[spec.uniform] = converted;
+        applied.set(spec.uniform, converted);
+        apply(spec.uniform, converted);
       };
+      let resetMode = false;
+      const canReset = typeof w.__shadeRebuildProgram === "function" && typeof renderer?.currentDsl === "string" && renderer.currentDsl !== "";
+      async function resetState() {
+        if (!await w.__shadeRebuildProgram()) throw new Error("The renderer could not rebuild its program for a capture");
+        pipeline = w[globals.renderingPipeline];
+        backend = pipeline.backend;
+        for (const [uniform, value] of applied) apply(uniform, value);
+        await settle2();
+        const loop = typeof renderer.loopDuration === "number" && renderer.loopDuration > 0 ? renderer.loopDuration : 10;
+        for (let i2 = 0; i2 < 60; i2++) renderer.render(i2 / (60 * loop));
+        if (w[globals.setPausedTime]) w[globals.setPausedTime](0);
+        else if (typeof renderer.syncTime === "function") renderer.syncTime(0);
+      }
       const defaultOf = (spec) => spec.default ?? spec.min;
       const same = (a, b) => {
         if (a === b) return true;
@@ -21808,7 +21921,7 @@ async function testUniformResponsiveness(session, effectId) {
         if (cond.neq !== void 0 || Array.isArray(cond.notIn)) {
           const banned = [...cond.neq !== void 0 ? [cond.neq] : [], ...cond.notIn || []];
           const base = startOf(cond.param);
-          const options = Array.isArray(base) ? [base.map((c) => c + (c <= (lo + hi) / 2 ? 1 : -1) * (hi - lo) / 4)] : choices ?? [base, lo, hi];
+          const options = Array.isArray(base) ? [base.map((c) => c + (c <= (lo + hi) / 2 ? 1 : -1) * (hi - lo) / 4)] : [base, ...choices ?? [lo, hi]];
           for (const v of options) if (!banned.some((b) => same(v, b))) {
             candidates.push(v);
             break;
@@ -21924,6 +22037,10 @@ async function testUniformResponsiveness(session, effectId) {
         const reference = first ? await captureAll() : null;
         if (!first || !reference) return null;
         const noise = compare(first, reference);
+        if (responds(noise) && !resetMode && canReset) {
+          resetMode = true;
+          return measure(spec, setup, testValues);
+        }
         const unstable = responds(noise);
         let best = null;
         let bestValue = testValues[0];
@@ -22339,8 +22456,16 @@ async function runDslProgram(session, dsl, options = {}) {
                 if (!raw || !raw.width || !raw.height || raw.data.length !== raw.width * raw.height * 4) {
                   throw new Error(`Invalid pixels for surface ${surface}`);
                 }
-                const pixels = raw.data instanceof Float32Array ? Uint8Array.from(raw.data, (value) => Math.round(Math.max(0, Math.min(1, value)) * 255)) : raw.data;
-                if (!(pixels instanceof Uint8Array)) throw new Error(`Unsupported pixel type for surface ${surface}`);
+                const readback = raw.data instanceof Float32Array ? Uint8Array.from(raw.data, (value) => Math.round(Math.max(0, Math.min(1, value)) * 255)) : raw.data;
+                if (!(readback instanceof Uint8Array)) throw new Error(`Unsupported pixel type for surface ${surface}`);
+                let pixels = readback;
+                if (!pipeline.backend?.gl) {
+                  pixels = new Uint8Array(readback.length);
+                  const rowBytes = raw.width * 4;
+                  for (let y2 = 0; y2 < raw.height; y2++) {
+                    pixels.set(readback.subarray((raw.height - 1 - y2) * rowBytes, (raw.height - y2) * rowBytes), y2 * rowBytes);
+                  }
+                }
                 const image = new ImageData(new Uint8ClampedArray(pixels), raw.width, raw.height);
                 scratch.width = raw.width;
                 scratch.height = raw.height;
