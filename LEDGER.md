@@ -1097,7 +1097,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `db2173e34223a663b08815fa32c34608ec5b4b91` / shade-mcp `63e53ad89dc43526335da6e947ed31667929e43b`, 2026-11-13
+- **Checkpoint:** noisemaker `e0d5e42aeaacccb70281467ba8e84e693fd93b93` / shade-mcp `63e53ad89dc43526335da6e947ed31667929e43b`, 2026-11-18
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -1182,9 +1182,9 @@ work, verify it, then update the checkpoint and append a log line.
   not retroactively certify these added delivery checks.
 - **Log:**
   - 2026-11-18 — audited the Noisemaker range
-    `db2173e3..e0d5e42aeaacccb70281467ba8e84e693fd93b93` (covering work queue
-    item #1740 trigger `b631fc2c..e0d5e42` and its `8902e695` start, already
-    recorded above). Substantive runtime change: `b631fc2c` keeps the running
+    `db2173e3..e0d5e42aeaacccb70281467ba8e84e693fd93b93` (trigger range
+    `b631fc2c..e0d5e42`, earlier start `8902e695`, already recorded above).
+    Substantive runtime change: `b631fc2c` keeps the running
     program when a recompiled shader is rejected — `CanvasRenderer` now builds
     the candidate with `compileGraphFor()`, compiles its shaders with
     `compilePrograms(graph)`, and only then swaps with `swapGraph()`; a failed
@@ -1210,6 +1210,26 @@ work, verify it, then update the checkpoint and append a log line.
     exit 0), and the browser smoke against this Noisemaker checkout
     (`NOISEMAKER=<checkout> node scripts/browser-smoke.mjs`, all available
     checks OK, 12 pass, 2 WebGPU skips for missing adapter).
+  - 2026-11-18 — completed delivery pair: Noisemaker
+    `e0d5e42aeaacccb70281467ba8e84e693fd93b93` and Shade MCP
+    `63e53ad89dc43526335da6e947ed31667929e43b`. After the audit entry above,
+    the pending checks closed on this host. A fresh session at the
+    configured pin captured initialization, `tools/list` (21 tools), and the
+    version triple `shade-mcp` 0.5.3 / protocol `2025-11-25`, matching the
+    contract's snapshot block. Both worked `compileEffect` calls for
+    `synth/testPattern` returned `status ok` with page identity
+    `synth/testPattern`, on WebGL2 and on WebGPU. The browser smoke ran
+    clean with no skips (13 pass, exit 0), including the genuine WebGPU DSL
+    render and the WebGPU frame-grid orientation check; WebGPU ran on
+    Chromium's SwiftShader Vulkan ICD because this host has no GPU adapter.
+    Noisemaker checks re-ran on this source: `node
+    scripts/run-js-tests.js --skip-parity` (exit 0), `npm run lint` (exit 0),
+    Shade `npm run typecheck` (exit 0) and `npm test` (44 files, 532 tests,
+    exit 0). The published candidate `b7779fc` passed JavaScript CI and site
+    workflows, and the served `llms-full.txt` is byte-identical to its
+    published copy (`4d4f6f297728b03a60495cc756f7f1df18043bdbd090fa8652228c73d156e4a5`,
+    deployment `git_hash` `b7779fc`). The snapshot block and the checkpoint
+    above now name this audited pair.
   - 2026-11-13 — completed delivery pair: Noisemaker
     `db2173e34223a663b08815fa32c34608ec5b4b91` and Shade MCP
     `63e53ad89dc43526335da6e947ed31667929e43b`. Audited the Noisemaker range

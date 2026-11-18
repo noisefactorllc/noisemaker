@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `db2173e34223a663b08815fa32c34608ec5b4b91`.
+- Noisemaker: `e0d5e42aeaacccb70281467ba8e84e693fd93b93`.
 - Shade MCP: `63e53ad89dc43526335da6e947ed31667929e43b`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.5.3`. Its
   lockfile pins `@modelcontextprotocol/sdk` 1.32.2; the `npx` install below
@@ -230,8 +230,9 @@ The browser integration path is:
 4. `compileGraph()`, reached through `compileGraphFor()`, lexes/parses/validates,
    expands effect steps into passes, computes a liveness allocation map, and
    returns a graph.
-5. `Pipeline.compilePrograms([graph])` compiles every referenced program for
-   the active backend. When a program fails, the backend gets back the
+5. `Pipeline.compilePrograms(graph)` compiles every referenced program for
+   the active backend. `graph` is optional and defaults to the pipeline's
+   current graph. When a program fails, the backend gets back the
    programs it held before the call.
 6. `Pipeline.render(time, presentationTimestamp?)` executes expanded passes in array order. It submits the selected pre-swap surface to every registered sink. It then advances double-buffer bindings. A built-in `CanvasSink` preserves
    normal canvas presentation.
