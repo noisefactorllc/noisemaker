@@ -100,7 +100,7 @@ type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
 
 type Diagnostic = {
   code: "S001" | "S002" | "S003" | "S004" | "S005" | "S006" |
-        "S007" | "S008" | "P008" | "P009" | "P010"
+        "S007" | "S008" | "S009" | "P008" | "P009" | "P010"
   message: string
   severity: "error" | "warning"
   nodeId?: string | number | null  // null on the P008-P010 subchain warnings
@@ -745,7 +745,7 @@ Use these falsifiable stages:
 | backend compile | every referenced program in backend program map | compile completes without throw |
 | execution | `pipeline.lastPassCount` after a frame | equals number of non-skipped expanded passes after repeat expansion |
 
-Warnings (`S002`, `S007`, `S008`) do not make `compileGraph()` fail. Any semantic
+Warnings (`S002`, `S007`, `S008`, `S009`) do not make `compileGraph()` fail. Any semantic
 error does. `runDslProgram` is a convenient combined validator on either
 backend; its exact contract is in the MCP section.
 
@@ -795,6 +795,7 @@ Declared diagnostic codes are:
 | `S006` | semantic/error | starter chain missing terminal write |
 | `S007` | semantic/warning | deprecated parameter alias |
 | `S008` | semantic/warning | deprecated effect alias |
+| `S009` | semantic/warning | positional arguments left over after every parameter is filled; they bind to nothing |
 | `R001` | runtime/error | declared but not emitted by the compiler/backends shown here |
 
 Raw lexer/parser failures are `SyntaxError` instances with the unchanged legacy
@@ -1774,6 +1775,7 @@ Parameter-related semantic failures use `Diagnostic`:
 - `S003`: undefined variable, variable read before its `let`, enum identifier,
   or inline choice.
 - `S007`: a deprecated parameter alias was rewritten.
+- `S009`: `Too many positional arguments for <call>(): '<call>' takes <n>`.
 
 Selected-device audio bindings the built-in manager cannot capture evaluate to
 `min`; the manager emits a console warning when the graph requires such a

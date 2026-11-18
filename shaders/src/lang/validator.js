@@ -1654,12 +1654,12 @@ export function validate(ast) {
                 }
 
                 // Positionals left over after every slot is filled correspond to
-                // no parameter. Before mixed argument order was allowed these
-                // were a parse error; without this they bind to nothing and the
-                // call renders with a default in their place.
+                // no parameter. They bind to nothing, and the call renders
+                // without them. That is a warning, not an error: a program
+                // that passes them compiled before this was reported.
                 if (posCursor < call.args.length) {
                     const extra = call.args[posCursor]
-                    pushDiag('S001', extra || call, `Too many positional arguments for ${call.name}(): '${call.name}' takes ${specArgs.length}`)
+                    pushDiag('S009', extra || call, `Too many positional arguments for ${call.name}(): '${call.name}' takes ${specArgs.length}`)
                 }
                 const hook = typeof call.name === 'string' ? validatorHooks[call.name] : null
                 if (typeof hook === 'function') {
