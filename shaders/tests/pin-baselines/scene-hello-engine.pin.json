@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/pin-cases/scene-hello-engine.json",
+  "resolution": [
+    192,
+    192
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 192,
+        "height": 192,
+        "nonzeroRgbPixels": 36862,
+        "uniqueColors": 654,
+        "sha256": "9b683e31cb6d32c57fd133071a910603381a09dc5b25645d45d1d51e0e38496d"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 192,
+        "height": 192,
+        "nonzeroRgbPixels": 36862,
+        "uniqueColors": 654,
+        "sha256": "b736de823bb3f4e2b2119d657e9db4a44163bc252e9f6e461d912e114de7eb84"
+      }
+    }
+  }
+}

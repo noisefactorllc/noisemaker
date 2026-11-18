@@ -4,20 +4,24 @@
     192,
     192
   ],
-  "webgl2": {
-    "surface": "global_o0_read",
-    "width": 192,
-    "height": 192,
-    "nonzeroRgbPixels": 36864,
-    "uniqueColors": 3,
-    "sha256": "14b5d2edec8925eef48f2ad04167590acb524e097546705e7ae654d7a45ef173"
-  },
-  "webgpu": {
-    "surface": "global_o0_read",
-    "width": 192,
-    "height": 192,
-    "nonzeroRgbPixels": 36864,
-    "uniqueColors": 3,
-    "sha256": "ac51ec58045922e31fc17910c963d467d236ac7056d8c7e9813772080b1ddbc0"
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 192,
+        "height": 192,
+        "nonzeroRgbPixels": 36864,
+        "uniqueColors": 3,
+        "sha256": "14b5d2edec8925eef48f2ad04167590acb524e097546705e7ae654d7a45ef173"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 192,
+        "height": 192,
+        "nonzeroRgbPixels": 36864,
+        "uniqueColors": 3,
+        "sha256": "ac51ec58045922e31fc17910c963d467d236ac7056d8c7e9813772080b1ddbc0"
+      }
+    }
   }
 }

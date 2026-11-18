@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/pin-cases/scene-volume-voxel.json",
+  "resolution": [
+    192,
+    192
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 192,
+        "height": 192,
+        "nonzeroRgbPixels": 36850,
+        "uniqueColors": 293,
+        "sha256": "6339ed32f58e1360bc21f3524f2a3659a95e5e5004046badc7573b1b94b89fe0"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 192,
+        "height": 192,
+        "nonzeroRgbPixels": 36850,
+        "uniqueColors": 293,
+        "sha256": "2373ce88b58586f7b95a95761cacc9f5f1e4ed86b0f38a9db702c2d281098a09"
+      }
+    }
+  }
+}

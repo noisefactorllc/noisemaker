@@ -21,6 +21,10 @@
  * meshInputs and settleMs are honoured as the attestation tool honours them, so
  * a pin renders what that case's attestation renders. A case's tiles are not:
  * a pin compares the untiled frame.
+ *
+ * A baseline file holds one entry for each GPU it was recorded on (see
+ * pin-baselines.mjs). --out records this machine's entry and keeps the others;
+ * --check compares against this machine's entry and fails when there is none.
  */
 import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
@@ -29,6 +33,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
 import { matchesTargetEffectPass } from '../../scripts/lib/shader-parity-attestation.mjs'
+import { baselineForGpu, withGpuBaseline } from './pin-baselines.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..', '..')
@@ -156,7 +161,10 @@ while (Date.now() < settleDeadline) {
     }
     if (next) capture = next;
 }
-window.pinResult = { backend: renderer.pipeline.backend.getName(), settled, capture };
+const probe = document.createElement('canvas').getContext('webgl2');
+const info = probe?.getExtension('WEBGL_debug_renderer_info');
+const gpu = info ? probe.getParameter(info.UNMASKED_RENDERER_WEBGL) : '';
+window.pinResult = { backend: renderer.pipeline.backend.getName(), settled, gpu, capture };
 </script>`, { waitUntil: 'load' })
         await page.waitForFunction(() => window.pinResult, null, { timeout: 60000 })
         const result = await page.evaluate(() => window.pinResult)
@@ -170,7 +178,7 @@ window.pinResult = { backend: renderer.pipeline.backend.getName(), settled, capt
         if (consoleMessages.length > 0) {
             console.error(`${expectedBackend} console output:\n  ${consoleMessages.join('\n  ')}`)
         }
-        return result.capture
+        return { ...result.capture, gpu: result.gpu }
     } finally {
         await page.close()
     }
@@ -203,20 +211,25 @@ try {
             process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=vulkan',
         ],
     })
+    const webgl2 = await renderBackend(browser, baseUrl, false)
+    const webgpu = await renderBackend(browser, baseUrl, true)
+    assert.equal(webgpu.gpu, webgl2.gpu, 'the two backends report different GPUs')
     const pin = {
         case: path.relative(repoRoot, path.resolve(casePath)).split(path.sep).join('/'),
         resolution: [width, height],
-        webgl2: pinFrame(await renderBackend(browser, baseUrl, false)),
-        webgpu: pinFrame(await renderBackend(browser, baseUrl, true)),
+        gpu: webgl2.gpu,
+        webgl2: pinFrame(webgl2),
+        webgpu: pinFrame(webgpu),
     }
 
     if (outPath) {
-        fs.writeFileSync(outPath, `${JSON.stringify(pin, null, 2)}\n`)
-        console.log(`Wrote ${outPath}`)
+        const existing = fs.existsSync(outPath) ? JSON.parse(fs.readFileSync(outPath, 'utf8')) : null
+        fs.writeFileSync(outPath, `${JSON.stringify(withGpuBaseline(existing, pin), null, 2)}\n`)
+        console.log(`Wrote ${outPath} for ${pin.gpu}`)
         console.log(`  webgl2 ${pin.webgl2.sha256}  (${pin.webgl2.nonzeroRgbPixels} lit px, ${pin.webgl2.uniqueColors} colors)`)
         console.log(`  webgpu ${pin.webgpu.sha256}  (${pin.webgpu.nonzeroRgbPixels} lit px, ${pin.webgpu.uniqueColors} colors)`)
     } else {
-        const expected = JSON.parse(fs.readFileSync(checkPath, 'utf8'))
+        const expected = baselineForGpu(JSON.parse(fs.readFileSync(checkPath, 'utf8')), pin.gpu)
         const failures = []
         for (const backend of ['webgl2', 'webgpu']) {
             const before = expected[backend]

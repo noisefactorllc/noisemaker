@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/pin-cases/scene-materials-lab.json",
+  "resolution": [
+    192,
+    192
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 192,
+        "height": 192,
+        "nonzeroRgbPixels": 36864,
+        "uniqueColors": 7237,
+        "sha256": "14ea83a10d353e1f7c5a3badd8b0d7247c1e8c975b9d1eb36cbb62b6b5bd8030"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 192,
+        "height": 192,
+        "nonzeroRgbPixels": 36864,
+        "uniqueColors": 13070,
+        "sha256": "d5e52c0487142ea1c1c0cbf1879819669daef43cdd6bbc99a7e08a2a982b5568"
+      }
+    }
+  }
+}

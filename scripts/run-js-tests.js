@@ -95,6 +95,7 @@ const testEntries = [
   { file: 'shaders/tests/test_scene_linalg.js', parity: false },
   { file: 'shaders/tests/test_scene_math.js', parity: false },
   { file: 'shaders/tests/test_corrective_baselines.js', parity: false },
+  { file: 'shaders/tests/test_pin_baselines.js', parity: false },
   { file: 'shaders/tests/test_geometry_primitives.js', parity: false },
   { file: 'shaders/tests/test_mesh_obj_generator.js', parity: false },
   { file: 'shaders/tests/test_generated_marcher_shaders.js', parity: false },

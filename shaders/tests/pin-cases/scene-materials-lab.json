@@ -1,0 +1,15 @@
+{
+  "effects": [
+    "synth/noise",
+    "synth/gradient",
+    "filter/bloom",
+    "filter/vignette"
+  ],
+  "dsl": "// Materials Lab \u2014 every scene material and lighting feature in one frame.\n//\n// - surface(o2): a live DSL program (animated noise) as PBR albedo\n// - emit(): emissive material, glowing via downstream bloom\n// - environment(o3): a DSL gradient as equirect sky, driving ambient\n//   light and reflection fallback\n// - metallic floor: an explicit mirrored scene pass via reflector()\n// - spot + directional lights, hemisphere unused (env takes over)\n// - SSAO contact shadows; built-in osc() automation spins the center group\n// - the whole scene composites through 2D filters (bloom, vignette)\nsearch filter, synth\n\nnoise(scaleX: 5, scaleY: 5, octaves: 4, colorMode: 1, speed: 0).write(o2)\n\ngradient(color1: [0.5, 0.65, 0.95], color2: [0.14, 0.1, 0.2], colorCount: 2).write(o3)\n\nscene(\n  background: [0.015, 0.02, 0.04],\n  exposure: 1.25,\n  ssaoRadius: 0.6,\n  reflections: 0.65,\n  reflectionProbe: [0, 2.5, 3.5],\n  reflectionProbeSize: 128,\n\n  camera(fov: 52, pos: [0, 3.2, 8.5], target: [0, 0.6, 0]),\n\n  environment(o3, intensity: 0.55),\n\n  light(type: \"directional\", dir: [-0.6, -1, -0.4], color: [1, 0.96, 0.88], intensity: 1.6),\n  light(type: \"point\", pos: [0, 4, 6], color: [0.25, 0.35, 0.6], intensity: 0.25, falloff: 0),\n  light(type: \"spot\", pos: [3, 6, 2], dir: [-0.35, -1, -0.25], angle: 24, penumbra: 0.35,\n        color: [1, 0.85, 0.6], intensity: 30),\n\n  mesh(\"plane\", width: 22, height: 22, pos: [0, -0.6, 0])\n    .reflector()\n    .material(solid(color: [0.62, 0.64, 0.7]).pbr(metallic: 0.9, roughness: 0.2)),\n\n  group(id: \"spinner\", rot: [0, osc(type: oscKind.saw), 0],\n    mesh(\"sphere\", radius: 1.3, segments: 64, pos: [0, 0.7, 0]),\n    mesh(\"box\", size: [1.1, 1.1, 1.1], pos: [3, -0.05, 0])\n      .material(solid(color: [0.85, 0.2, 0.12]).pbr(metallic: 0.3, roughness: 0.35)),\n    mesh(\"torus\", radius: 1, tube: 0.32, pos: [-3, -0.28, 0])\n      .material(solid(color: [0.95, 0.75, 0.25]).pbr(metallic: 0.95, roughness: 0.15)),\n\n    mesh(\"sphere\", radius: 0.55, pos: [-1.6, 0.05, 2.2])\n      .material(solid(color: [0.4, 0.9, 1.0]).emit(strength: 1.5)),\n\n    mesh(\"sphere\", radius: 0.7, pos: [1.6, 0.1, 2.2])\n      .material(solid(color: [0.75, 0.55, 0.3]).pbr(metallic: 0.95, roughness: 0.78))\n  ).material(surface(o2, tint: [0.8, 0.95, 1], uvScale: [2.5, 1.5], uvOffset: [0.15, 0])\n      .pbr(metallic: 0.05, roughness: 0.65))\n).write(o0)\n\nread(o0).bloom(threshold: 0.75).vignette(brightness: 0.15).write(o1)\n\nrender(o1)\n",
+  "surface": "o0",
+  "resolution": [
+    192,
+    192
+  ],
+  "settleMs": 2000
+}
