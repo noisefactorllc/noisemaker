@@ -1264,7 +1264,7 @@ export class Pipeline {
      * refusal's only signal — the drag is reverted in place and nothing is
      * returned to the caller. Carried across a graph swap it would mute every
      * later refusal of a value already refused once, so a hot recompile leaves
-     * the guard working and silent. Called from recompile(), where the graph
+     * the guard working and silent. Called from swapGraph(), where the graph
      * the memo was built against is replaced.
      */
     resetSceneVolumeAtlasWarnings() {
