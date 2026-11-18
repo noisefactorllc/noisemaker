@@ -1202,15 +1202,18 @@ work, verify it, then update the checkpoint and append a log line.
     `.mcp.json` pin; release `v0.5.3` still resolves to it, and `d4613d7`
     still delivers it to `vendor/shade-mcp/`. Shade MCP range
     `63e53ad8..d700a94` is dependency-only (`package.json`,
-    `package-lock.json`), so the pin stays. The pinned session captured
-    initialization, `tools/list` (21 tools), the version triple `shade-mcp`
+    `package-lock.json`), so the pin stays. Shade MCP range
+    `d700a949..70750c45` is CI-only (`.github/workflows/ci.yml`: the unit
+    test step gates the build), so the pin and the delivery stay. The pinned
+    session captured
+    initialization, `tools/list`, the version triple `shade-mcp`
     0.5.3 / protocol `2025-11-25`, and worked `compileEffect` calls for
     `synth/testPattern` returning `status ok` on WebGL2 and WebGPU; the
-    browser smoke passed all 13 checks including both WebGPU checks, with
-    WebGPU on Chromium's SwiftShader Vulkan ICD because the host has no GPU
-    adapter. Verified: `node scripts/run-js-tests.js --skip-parity` (exit
+    browser smoke passed every available check including both WebGPU checks,
+    with WebGPU on Chromium's SwiftShader Vulkan ICD because the host has no
+    GPU adapter. Verified: `node scripts/run-js-tests.js --skip-parity` (exit
     0), `npm run lint` (exit 0), Shade `npm run typecheck` (exit 0) and
-    `npm test` (44 files, 532 tests, exit 0). The snapshot block and the
+    `npm test` (exit 0). The snapshot block and the
     checkpoint above name this audited pair.
   - 2026-11-13 — completed delivery pair: Noisemaker
     `db2173e34223a663b08815fa32c34608ec5b4b91` and Shade MCP
@@ -1441,7 +1444,6 @@ work, verify it, then update the checkpoint and append a log line.
     the measured size. Shade [release CI](https://github.com/noisefactorllc/shade-mcp/actions/runs/37168527697),
     Noisemaker [vendor CI](https://github.com/noisefactorllc/noisemaker/actions/runs/37168601034),
     [Shaders CI](https://github.com/noisefactorllc/noisemaker/actions/runs/37168613116),
-    Portable [CI](https://github.com/noisefactorllc/portable/actions/runs/37168610169),
     and the Shade deployment
     passed. The final Noisemaker commit's CI and noisemaker.app delivery are
     checked separately after publication. The contract removes resolved
