@@ -224,17 +224,28 @@ The browser integration path is:
 1. `CanvasRenderer.loadManifest()` discovers effect assets.
 2. `CanvasRenderer.loadEffect()` imports `definition.js`, loads shader source,
    registers the effect and its DSL operator, and registers starter state.
-3. `CanvasRenderer.compile(source)` calls `compileGraph(source)`.
-4. `compileGraph()` lexes/parses/validates, expands effect steps into passes,
-   computes a liveness allocation map, and returns a graph.
-5. `Pipeline.compilePrograms()` compiles every referenced program for the active
-   backend.
+3. `CanvasRenderer.compile(source)` builds a graph for the source.
+4. `compileGraph()`, reached through `compileGraphFor()`, lexes/parses/validates,
+   expands effect steps into passes, computes a liveness allocation map, and
+   returns a graph.
+5. `Pipeline.compilePrograms([graph])` compiles every referenced program for
+   the active backend. When a program fails, the backend gets back the
+   programs it held before the call.
 6. `Pipeline.render(time, presentationTimestamp?)` executes expanded passes in array order. It submits the selected pre-swap surface to every registered sink. It then advances double-buffer bindings. A built-in `CanvasSink` preserves
    normal canvas presentation.
 
+On an active pipeline, a hot recompile compiles the candidate before it takes
+effect: `compileGraphFor()` builds the candidate graph without changing the
+pipeline, `compilePrograms(graph)` compiles its shaders, and `swapGraph()` then
+makes it current. A rejected source or a failed program therefore leaves the
+accepted graph, its programs and its surfaces in place, so the next frames keep
+rendering the accepted program. `recompile()` composes `compileGraphFor()` and
+`swapGraph()` for hosts that compile and swap in one call.
+
 Sources: `shaders/src/renderer/canvas.js` - `loadEffectShaders()`,
 `registerEffectWithRuntime()`; `shaders/src/runtime/compiler.js` -
-`compileGraph()`; `shaders/src/runtime/pipeline.js` - `compilePrograms()`,
+`compileGraph()`, `compileGraphFor()`, `swapGraph()`, `recompile()`;
+`shaders/src/runtime/pipeline.js` - `compilePrograms()`, `restorePrograms()`,
 `render()`.
 
 <!-- SURFACE:DSL -->
