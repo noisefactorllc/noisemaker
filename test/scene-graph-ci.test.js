@@ -13,6 +13,12 @@ test('scene-graph receives the test workflows', () => {
   assert.match(jobBlock(workflow('shaders'), 'gpu'), /github\.ref == 'refs\/heads\/scene-graph'/)
 })
 
+test('the GPU job checks the pixel pins on every push it runs for', () => {
+  const step = jobBlock(workflow('shaders'), 'gpu').match(/\n {4}- name: Verify pixel pins on both GPU backends\n([\s\S]*?)(?=\n {4}- name:|$)/)?.[1] ?? ''
+  assert.match(step, /run: npm run test:shaders:pins/)
+  assert.doesNotMatch(step, /\bif:/, 'the pins step must not be limited to one branch')
+})
+
 test('scene-graph pushes cannot run publication jobs', () => {
   for (const [name, jobs] of [['js', ['build-bundles', 'build-standalone-linux', 'build-standalone-macos', 'build-standalone-windows']], ['shaders', ['bundle', 'deploy-site', 'deploy-shaders']]]) {
     for (const job of jobs) assert.match(jobBlock(workflow(name), job), /github\.ref == 'refs\/heads\/main'/, `${name}/${job} must remain restricted to main`)

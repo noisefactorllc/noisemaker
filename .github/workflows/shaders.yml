@@ -138,6 +138,9 @@ jobs:
       if: github.ref == 'refs/heads/scene-graph'
       run: npm run test:shaders:visual
 
+    - name: Verify pixel pins on both GPU backends
+      run: npm run test:shaders:pins
+
     - name: Verify alpha compositing on both GPU backends
       run: npm run test:shaders:alpha
 
