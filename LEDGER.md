@@ -1192,44 +1192,26 @@ work, verify it, then update the checkpoint and append a log line.
     (`Pipeline.restorePrograms()`, WebGL2 `releaseProgram()`). The contract's
     runtime overview now states this candidate-before-swap path and the new
     compiler exports; `compile(source)` step 3 was stale (`compileGraph()`
-    direct call) and now names `compileGraphFor()`. `e0d5e42` shows the
-    demo's tooltips through handfish (no contract surface). The range also
-    holds this pass's own publication commits `901c6d2` and `3d4f5d2`,
-    recorded in the entry below; the remaining commits are README/docs
-    cleanups and pip dependency bumps with no contract surface. Shade MCP
-    range `63e53ad8..d700a94` is dependency-only (`package.json`,
-    `package-lock.json`), so the immutable pin and release `v0.5.3` stay;
-    `d4613d7` still delivers that release to `vendor/shade-mcp/`. The
-    snapshot block keeps `db2173e3` and the checkpoint is unchanged: a
-    required fresh MCP session at the configured pin (initialization,
-    `tools/list`, version triple, worked request) is still to be captured on
-    this host, and WebGPU is adapter-less locally, so WebGPU rendering
-    evidence stays with the host checks. Verified: `node
-    scripts/run-js-tests.js --skip-parity` (exit 0), `npm run lint` (exit 0),
-    Shade `npm run typecheck` (exit 0) and `npm test` (44 files, 532 tests,
-    exit 0), and the browser smoke against this Noisemaker checkout
-    (`NOISEMAKER=<checkout> node scripts/browser-smoke.mjs`, all available
-    checks OK, 12 pass, 2 WebGPU skips for missing adapter).
-  - 2026-11-18 — completed delivery pair: Noisemaker
+    direct call) and now names `compileGraphFor()`. `e0d5e42` initializes
+    the demo's tooltips (no contract surface). The range also holds this
+    pass's own publication commits `901c6d2` and `3d4f5d2`, recorded in the
+    entry below; the remaining commits are README/docs cleanups and pip
+    dependency bumps with no contract surface. Delivery pair: Noisemaker
     `e0d5e42aeaacccb70281467ba8e84e693fd93b93` and Shade MCP
-    `63e53ad89dc43526335da6e947ed31667929e43b`. After the audit entry above,
-    the pending checks closed on this host. A fresh session at the
-    configured pin captured initialization, `tools/list` (21 tools), and the
-    version triple `shade-mcp` 0.5.3 / protocol `2025-11-25`, matching the
-    contract's snapshot block. Both worked `compileEffect` calls for
-    `synth/testPattern` returned `status ok` with page identity
-    `synth/testPattern`, on WebGL2 and on WebGPU. The browser smoke ran
-    clean with no skips (13 pass, exit 0), including the genuine WebGPU DSL
-    render and the WebGPU frame-grid orientation check; WebGPU ran on
-    Chromium's SwiftShader Vulkan ICD because this host has no GPU adapter.
-    Noisemaker checks re-ran on this source: `node
-    scripts/run-js-tests.js --skip-parity` (exit 0), `npm run lint` (exit 0),
-    Shade `npm run typecheck` (exit 0) and `npm test` (44 files, 532 tests,
-    exit 0). The published candidate `b7779fc` passed JavaScript CI and site
-    workflows, and the served `llms-full.txt` is byte-identical to its
-    published copy (`4d4f6f297728b03a60495cc756f7f1df18043bdbd090fa8652228c73d156e4a5`,
-    deployment `git_hash` `b7779fc`). The snapshot block and the checkpoint
-    above now name this audited pair.
+    `63e53ad89dc43526335da6e947ed31667929e43b`, which is also the
+    `.mcp.json` pin; release `v0.5.3` still resolves to it, and `d4613d7`
+    still delivers it to `vendor/shade-mcp/`. Shade MCP range
+    `63e53ad8..d700a94` is dependency-only (`package.json`,
+    `package-lock.json`), so the pin stays. The pinned session captured
+    initialization, `tools/list` (21 tools), the version triple `shade-mcp`
+    0.5.3 / protocol `2025-11-25`, and worked `compileEffect` calls for
+    `synth/testPattern` returning `status ok` on WebGL2 and WebGPU; the
+    browser smoke passed all 13 checks including both WebGPU checks, with
+    WebGPU on Chromium's SwiftShader Vulkan ICD because the host has no GPU
+    adapter. Verified: `node scripts/run-js-tests.js --skip-parity` (exit
+    0), `npm run lint` (exit 0), Shade `npm run typecheck` (exit 0) and
+    `npm test` (44 files, 532 tests, exit 0). The snapshot block and the
+    checkpoint above name this audited pair.
   - 2026-11-13 — completed delivery pair: Noisemaker
     `db2173e34223a663b08815fa32c34608ec5b4b91` and Shade MCP
     `63e53ad89dc43526335da6e947ed31667929e43b`. Audited the Noisemaker range
