@@ -441,16 +441,20 @@ function assertKnownKeywords(call, allowed) {
 }
 
 /**
- * Read a node's `id`: the name host code finds the node by, so a string.
+ * Read a node's `id`: what host code finds the node by.
  *
- * Read bare, any value was kept as the id, and one that is not a string can
- * never be found: `mesh("sphere", id: 5)` compiled and named nothing.
+ * The scene tree compares ids by identity, so a string, a number or a boolean
+ * can be found. Read bare, any other value was kept as the id too:
+ * `mesh("sphere", id: [1, 2])` compiled and named a node nothing could find.
  */
 function nodeId(call) {
     const value = call.kwargs?.id
     if (value === undefined) return undefined
-    if (value.type !== 'String') {
-        throw sceneError(`id must be a string; found '${describePositional(value)}'`, located(value, call))
+    if (value.type !== 'String' && value.type !== 'Number' && value.type !== 'Boolean') {
+        throw sceneError(
+            `id must be a string, a number or a boolean; found '${describePositional(value)}'`,
+            located(value, call)
+        )
     }
     return value.value
 }
