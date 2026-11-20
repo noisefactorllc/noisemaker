@@ -594,15 +594,27 @@ test('an unused let that holds an array literal with a chain reports nothing',
     })
 
 {
+    // The validator copies a node as text each time it reads one. Reading
+    // every element of these literals doubles the text with each let.
     const lets = ['let a0 = [1, 2]']
     for (let i = 1; i <= 20; i++) lets.push(`let a${i} = [a${i - 1}, a${i - 1}]`)
-    const started = Date.now()
-    test('array literals nested through lets are not read where no scene() takes them',
-        `search synth\n${lets.join('\n')}\nnoise().vecprobe(v: [1, 2, 3]).write(o0)`, (result) => {
-            if (result.diagnostics.length > 0) throw new Error(`Expected no diagnostics, got ${JSON.stringify(result.diagnostics)}`)
-            const elapsed = Date.now() - started
-            if (elapsed > 2000) throw new Error(`Expected the lets to compile at once, took ${elapsed} ms`)
-        })
+    const stringify = JSON.stringify
+    let copied = 0
+    JSON.stringify = (...args) => {
+        const text = stringify(...args)
+        copied += text?.length ?? 0
+        return text
+    }
+    try {
+        test('array literals nested through lets are not read where no scene() takes them',
+            `search synth\n${lets.join('\n')}\nnoise().vecprobe(v: [1, 2, 3]).write(o0)`, (result) => {
+                JSON.stringify = stringify
+                if (result.diagnostics.length > 0) throw new Error(`Expected no diagnostics, got ${JSON.stringify(result.diagnostics)}`)
+                if (copied > 1000000) throw new Error(`Expected each let to be copied once, copied ${copied} characters`)
+            })
+    } finally {
+        JSON.stringify = stringify
+    }
 }
 
 // A 1.x program may use the name scene for a let of its own.
