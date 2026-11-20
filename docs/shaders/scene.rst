@@ -117,8 +117,8 @@ this is how big each one is at ``scale: [1, 1, 1]``:
      - Lies flat in the XZ plane facing ``+Y`` — a floor by default —
        ``width`` along X and ``height`` along Z. It is single-sided: seen from
        below it is invisible. Tilt it with ``rot`` to make a wall; stood up
-       with ``rot: [90, 0, 0]`` it faces ``-Z``, and a ``surface()`` texture
-       on it appears upside down relative to the 2D frame.
+       with ``rot: [90, 0, 0]`` it faces ``+Z``, toward the default camera,
+       and shows a ``surface()`` texture upright.
    * - ``cylinder``
      - Axis along Y, ``height`` split evenly above and below the node, capped.
    * - ``torus``
@@ -667,7 +667,11 @@ Materials
        (``[0, 0]``)
      - Uses a pipeline surface (``o0``–``o7``) as the albedo map, so a live 2D
        program becomes a texture. The positional argument is the surface;
-       ``tint`` multiplies the sampled colour.
+       ``tint`` multiplies the sampled colour. Seen from outside, every
+       primitive shows the program upright and unmirrored, on both backends.
+       A face that lies flat shows it as a viewer on the ``+Z`` side sees it
+       when looking down or up at that face: on a ``plane`` the top of the 2D
+       frame runs along the ``-Z`` edge.
    * - ``pbr``
      - ``metallic`` (``0``), ``roughness`` (``1``)
      - Cook-Torrance parameters. Both must lie within ``0..1``; a value outside

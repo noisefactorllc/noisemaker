@@ -303,4 +303,73 @@ function assertWindingMatchesNormals(geo, label) {
   assertWindingMatchesNormals(createIcosphere({ radius: 0.5, subdivisions: 3 }), 'icosphere-params')
 }
 
+// surface() samples a mesh at its uv, where u runs to the right of the 2D
+// program and v to its top. For each triangle this returns the directions on
+// the mesh in which u and v rise, with the triangle's normal.
+function textureAxes(geo) {
+  const P = i => [geo.positions[i * 3], geo.positions[i * 3 + 1], geo.positions[i * 3 + 2]]
+  const N = i => [geo.normals[i * 3], geo.normals[i * 3 + 1], geo.normals[i * 3 + 2]]
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+  const axes = []
+  for (let t = 0; t < geo.indices.length; t += 3) {
+    const [a, b, c] = [geo.indices[t], geo.indices[t + 1], geo.indices[t + 2]]
+    const [e1, e2] = [sub(P(b), P(a)), sub(P(c), P(a))]
+    const [du1, dv1] = [geo.uvs[b * 2] - geo.uvs[a * 2], geo.uvs[b * 2 + 1] - geo.uvs[a * 2 + 1]]
+    const [du2, dv2] = [geo.uvs[c * 2] - geo.uvs[a * 2], geo.uvs[c * 2 + 1] - geo.uvs[a * 2 + 1]]
+    const det = du1 * dv2 - du2 * dv1
+    // A triangle with no area on the mesh or in the texture shows nothing.
+    if (Math.hypot(...cross(e1, e2)) < 1e-9 || Math.abs(det) < 1e-9) continue
+    const uAxis = e1.map((_, k) => (e1[k] * dv2 - e2[k] * dv1) / det)
+    const vAxis = e1.map((_, k) => (e2[k] * du1 - e1[k] * du2) / det)
+    const normal = [0, 1, 2].map(k => N(a)[k] + N(b)[k] + N(c)[k])
+    axes.push({ uAxis, vAxis, normal, cross })
+  }
+  assert.ok(axes.length > 0, 'the mesh has textured triangles')
+  return axes
+}
+
+// Seen from outside, a face shows the program unmirrored: u, v and the
+// outward normal are a right-handed frame on every triangle.
+function assertTextureUnmirrored(geo, label) {
+  const axes = textureAxes(geo)
+  const mirrored = axes.filter(({ uAxis, vAxis, normal, cross }) => {
+    const out = cross(uAxis, vAxis)
+    return out[0] * normal[0] + out[1] * normal[1] + out[2] * normal[2] <= 0
+  }).length
+  assert.strictEqual(mirrored, 0, `${label}: ${mirrored}/${axes.length} triangles show a texture mirrored`)
+}
+
+// A face that stands up shows the program upright: v rises with +Y. A face
+// that lies flat shows it as the viewer on the +Z side sees it when looking
+// down or up: v rises toward -Z on a face that looks up, toward +Z on one
+// that looks down.
+function assertTextureUpright(geo, label, { flatFaces }) {
+  const axes = textureAxes(geo)
+  const wrong = axes.filter(({ vAxis, normal }) => {
+    const ny = normal[1] / Math.hypot(...normal)
+    if (flatFaces && Math.abs(ny) > 0.5) return vAxis[2] * ny >= 0
+    return vAxis[1] <= 0
+  }).length
+  assert.strictEqual(wrong, 0, `${label}: ${wrong}/${axes.length} triangles show a texture turned or upside down`)
+}
+
+// The scene's mesh primitives show a surface() texture as it was authored
+{
+  assertTextureUnmirrored(createSphere({}), 'sphere')
+  assertTextureUnmirrored(createBox({}), 'box')
+  assertTextureUnmirrored(createPlane({}), 'plane')
+  assertTextureUnmirrored(createCylinder({}), 'cylinder')
+  assertTextureUnmirrored(createTorus({}), 'torus')
+  assertTextureUnmirrored(createSphere({ radius: 2, segments: 12 }), 'sphere-params')
+  assertTextureUnmirrored(createBox({ size: [2, 0.5, 3] }), 'box-params')
+  assertTextureUnmirrored(createCylinder({ radius: 2, height: 4, segments: 8 }), 'cylinder-params')
+  assertTextureUnmirrored(createTorus({ radius: 3, tube: 0.2, segments: 8, tubeSegments: 6 }), 'torus-params')
+
+  assertTextureUpright(createSphere({}), 'sphere', { flatFaces: false })
+  assertTextureUpright(createBox({}), 'box', { flatFaces: true })
+  assertTextureUpright(createPlane({}), 'plane', { flatFaces: true })
+  assertTextureUpright(createCylinder({}), 'cylinder', { flatFaces: true })
+}
+
 console.log('Geometry primitives tests passed')

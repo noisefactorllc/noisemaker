@@ -1,5 +1,13 @@
 import { Geometry } from './geometry.js'
 
+// Texture coordinates of the scene's mesh primitives (sphere, box, plane,
+// cylinder, torus). A material samples a 2D program at uv with u to the right
+// of the program and v to its top. Seen from outside, each face shows the
+// program upright and unmirrored: u runs to the viewer's right, and v runs up
+// on a face that stands. On a face that lies flat, v runs the way a viewer on
+// the +Z side sees as up when looking down or up at it: toward -Z on a face
+// that looks up, toward +Z on one that looks down.
+
 /**
  * Clamp a segment count to a whole number of at least three.
  *
@@ -45,7 +53,8 @@ export function createSphere({ radius = 1, segments = 32 } = {}) {
 
       positions.push(nx * radius, ny * radius, nz * radius)
       normals.push(nx, ny, nz)
-      uvs.push(u, v)
+      // The rows run from the top pole down, and v is 1 at the top.
+      uvs.push(u, 1 - v)
     }
   }
 
@@ -86,23 +95,28 @@ export function createBox({ size = [1, 1, 1] } = {}) {
   const uvs = []
   const indices = []
 
-  // Face definitions: [normal, tangent, bitangent, center offset direction]
+  // The uv of each corner, in the order a face lists its corners. Seen from
+  // outside, the X faces start at the bottom right corner and the Z faces at
+  // the bottom left; the Y faces start at the corner with the least x, at -Z
+  // on the top face and at +Z on the bottom face.
+  const xFaceUVs = [[1, 0], [0, 0], [0, 1], [1, 1]]
+  const yFaceUVs = [[0, 1], [1, 1], [1, 0], [0, 0]]
+  const zFaceUVs = [[0, 0], [0, 1], [1, 1], [1, 0]]
+
   const faces = [
     // +X
-    { normal: [1, 0, 0], corners: [[w, -h, -d], [w, -h, d], [w, h, d], [w, h, -d]] },
+    { normal: [1, 0, 0], corners: [[w, -h, -d], [w, -h, d], [w, h, d], [w, h, -d]], uvs: xFaceUVs },
     // -X
-    { normal: [-1, 0, 0], corners: [[-w, -h, d], [-w, -h, -d], [-w, h, -d], [-w, h, d]] },
+    { normal: [-1, 0, 0], corners: [[-w, -h, d], [-w, -h, -d], [-w, h, -d], [-w, h, d]], uvs: xFaceUVs },
     // +Y
-    { normal: [0, 1, 0], corners: [[-w, h, -d], [w, h, -d], [w, h, d], [-w, h, d]] },
+    { normal: [0, 1, 0], corners: [[-w, h, -d], [w, h, -d], [w, h, d], [-w, h, d]], uvs: yFaceUVs },
     // -Y
-    { normal: [0, -1, 0], corners: [[-w, -h, d], [w, -h, d], [w, -h, -d], [-w, -h, -d]] },
+    { normal: [0, -1, 0], corners: [[-w, -h, d], [w, -h, d], [w, -h, -d], [-w, -h, -d]], uvs: yFaceUVs },
     // +Z
-    { normal: [0, 0, 1], corners: [[-w, -h, d], [-w, h, d], [w, h, d], [w, -h, d]] },
+    { normal: [0, 0, 1], corners: [[-w, -h, d], [-w, h, d], [w, h, d], [w, -h, d]], uvs: zFaceUVs },
     // -Z
-    { normal: [0, 0, -1], corners: [[w, -h, -d], [w, h, -d], [-w, h, -d], [-w, -h, -d]] },
+    { normal: [0, 0, -1], corners: [[w, -h, -d], [w, h, -d], [-w, h, -d], [-w, -h, -d]], uvs: zFaceUVs },
   ]
-
-  const faceUVs = [[0, 0], [1, 0], [1, 1], [0, 1]]
 
   for (let f = 0; f < faces.length; f++) {
     const face = faces[f]
@@ -111,7 +125,7 @@ export function createBox({ size = [1, 1, 1] } = {}) {
     for (let v = 0; v < 4; v++) {
       positions.push(face.corners[v][0], face.corners[v][1], face.corners[v][2])
       normals.push(face.normal[0], face.normal[1], face.normal[2])
-      uvs.push(faceUVs[v][0], faceUVs[v][1])
+      uvs.push(face.uvs[v][0], face.uvs[v][1])
     }
 
     // Two triangles per face
@@ -147,11 +161,12 @@ export function createPlane({ width = 1, height = 1 } = {}) {
     0, 1, 0,
   ]
 
+  // v is 1 along the -Z edge: the far edge for a viewer on the +Z side.
   const uvs = [
-    0, 0,
-    1, 0,
-    1, 1,
     0, 1,
+    1, 1,
+    1, 0,
+    0, 0,
   ]
 
   const indices = [
@@ -187,15 +202,16 @@ export function createCylinder({ radius = 1, height = 2, segments: segmentsIn = 
     const nx = Math.cos(theta)
     const nz = Math.sin(theta)
 
+    // The angle runs to the left seen from outside, so u falls with it.
     // Bottom vertex of side
     positions.push(nx * radius, -halfH, nz * radius)
     normals.push(nx, 0, nz)
-    uvs.push(u, 0)
+    uvs.push(1 - u, 0)
 
     // Top vertex of side
     positions.push(nx * radius, halfH, nz * radius)
     normals.push(nx, 0, nz)
-    uvs.push(u, 1)
+    uvs.push(1 - u, 1)
   }
 
   // Side indices
@@ -222,7 +238,7 @@ export function createCylinder({ radius = 1, height = 2, segments: segmentsIn = 
 
     positions.push(nx * radius, halfH, nz * radius)
     normals.push(0, 1, 0)
-    uvs.push(nx * 0.5 + 0.5, nz * 0.5 + 0.5)
+    uvs.push(nx * 0.5 + 0.5, 0.5 - nz * 0.5)
   }
 
   for (let i = 0; i < segments; i++) {
@@ -309,7 +325,8 @@ export function createTorus({
         normals.push(Math.cos(theta), 0, Math.sin(theta))
       }
 
-      uvs.push(u, v)
+      // The ring angle runs to the left seen from outside, so u falls with it.
+      uvs.push(1 - u, v)
     }
   }
 
