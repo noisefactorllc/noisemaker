@@ -101,6 +101,6 @@ Object literals
 
 ``{ key: value }`` is an expression.
 
-Current limits: It is currently only meaningful inside ``scene()``.
+Current limits: No call takes an object as a value yet.
 
 See :ref:`Object literals <shader-language-object-literals>`.

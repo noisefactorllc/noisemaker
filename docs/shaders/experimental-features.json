@@ -73,7 +73,7 @@
   "lang.objectLiteral": {
     "title": "Object literals",
     "does": "`{ key: value }` is an expression.",
-    "limits": "It is currently only meaningful inside `scene()`.",
+    "limits": "No call takes an object as a value yet.",
     "page": {
       "label": "shader-language-object-literals",
       "url": "https://docs.noisemaker.app/shaders/language/#shader-language-object-literals"

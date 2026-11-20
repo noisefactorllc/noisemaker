@@ -108,8 +108,7 @@ Productions marked ``(experimental)`` are experimental. See :ref:`shader-experim
 
 .. _shader-language-object-literals:
 
-``Object`` was added to serve them: it is currently only meaningful inside
-``scene()``.
+``Object`` was added to serve them. No call takes an object as a value yet.
 
 .. stability:begin lang.objectLiteral
 
@@ -129,8 +128,9 @@ Productions marked ``(experimental)`` are experimental. See :ref:`shader-experim
   render(o0)
 
 A ``let`` can hold an object literal, and the literal is kept when the program
-is re-emitted from its parsed form. No effect parameter takes an object, and a
-scene keyword that expects a number or a list reports one as an error.
+is re-emitted from its parsed form. An effect parameter given an object falls
+back to its default, and ``scene()`` reports one as an error wherever it reads
+a value.
 
 **Precedence & Associativity:**
 

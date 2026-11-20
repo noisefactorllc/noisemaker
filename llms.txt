@@ -52,7 +52,7 @@ These are new features that exist to seed the Noisemaker 2.x feature set. Node n
 - **Tiled export of scenes** (`scene.tiledExport`): `setTileRegion` tiles a scene by restricting the camera to the tile's sub-frustum. Current limits: SSAO can seam within its kernel's projected reach, and local screen-space reflections cannot be tiled at all. The reflection probe is never tiled. [Documentation](https://docs.noisemaker.app/shaders/scene/#shader-scene-tiled-export)
 - **glTF loading** (`gltf`): `loadGLTFFromURL()` and `loadGLTFFromString()` load glTF and GLB mesh files. Each takes the target surface as its second argument, defaulting to `mesh0`. Current limits: Loaded models cannot be placed in a `scene()`. [Documentation](https://docs.noisemaker.app/shaders/language/#shader-language-gltf)
 - **Mixed argument order** (`lang.mixedArguments`): Keywords claim their own parameter slots by name, wherever they appear in the call. The positionals are then bound in source order to the slots no keyword claimed, left to right. [Documentation](https://docs.noisemaker.app/shaders/language/#shader-language-mixed-arguments)
-- **Object literals** (`lang.objectLiteral`): `{ key: value }` is an expression. Current limits: It is currently only meaningful inside `scene()`. [Documentation](https://docs.noisemaker.app/shaders/language/#shader-language-object-literals)
+- **Object literals** (`lang.objectLiteral`): `{ key: value }` is an expression. Current limits: No call takes an object as a value yet. [Documentation](https://docs.noisemaker.app/shaders/language/#shader-language-object-literals)
 
 <!-- stability:end experimental-features -->
 
