@@ -941,7 +941,7 @@ export started before the first settles is rejected.
    await renderer.compile(`
        search synth
        scene(
-         camera(pos: [0, 1, 0]),
+         camera(pos: [0, 1, 0], target: [0, 1, -4]),
          light(type: "directional", dir: [-1, -1, -1], intensity: 2),
          mesh("sphere", radius: 1, pos: [0, 1, -4]),
          mesh("plane", width: 20, height: 20)

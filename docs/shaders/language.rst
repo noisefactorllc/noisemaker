@@ -121,7 +121,12 @@ Productions marked ``(experimental)`` are experimental. See :ref:`shader-experim
 
 .. code-block:: none
 
+  search synth
+
   let look = { tint: [0.8, 0.95, 1], roughness: 0.65 }
+
+  scene(mesh("sphere")).write(o0)
+  render(o0)
 
 A ``let`` can hold an object literal, and the literal is kept when the program
 is re-emitted from its parsed form. No effect parameter takes an object, and a
@@ -987,13 +992,13 @@ The ``pointsEmit`` and ``pointsRender`` wrappers manage these surfaces. Behavior
 
 .. code-block:: javascript
 
-    await renderer.loadEffects(['render/meshLoader', 'render/meshRender'])
-    await renderer.compile(`
+    await canvas.loadEffects(['render/meshLoader', 'render/meshRender'])
+    await canvas.compile(`
         search render
         meshLoader().meshRender(rotateX: 40, rotateY: 30).write(o0)
         render(o0)
     `)
-    const loaded = await renderer.loadGLTFFromURL('model.glb', 'mesh0')
+    const loaded = await canvas.loadGLTFFromURL('model.glb', 'mesh0')
     // loaded: { success, vertexCount }, and error when success is false
 
 Feedback Loops
