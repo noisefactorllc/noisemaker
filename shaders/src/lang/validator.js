@@ -251,6 +251,13 @@ export function validate(ast) {
         return false
     }
 
+    // A call written with both positional and keyword arguments. A merged
+    // 1.x call (see resolveCall) has both too, but is not written this way.
+    function isWrittenMixed(call) {
+        if (call.positionalsByIndex) return false
+        return !!(call.args && call.args.length > 0 && call.kwargs && Object.keys(call.kwargs).length > 0)
+    }
+
     function resolveCall(call) {
         // console.log('Resolving call:', call.name, symbols.has(call.name));
         if (symbols.has(call.name)) {
@@ -278,6 +285,12 @@ export function validate(ast) {
                     for (const [k, v] of Object.entries(call.kwargs)) mergedKw[k] = v
                 }
                 const merged = {type:'Call', name: val.name, args: mergedArgs}
+                // Keywords and positionals that meet only through this merge
+                // are a 1.x call: neither part is written in the mixed form,
+                // so the positionals bind by index (see the binding loop).
+                if (mergedKw && mergedArgs.length > 0 && !isWrittenMixed(val) && !isWrittenMixed(call)) {
+                    merged.positionalsByIndex = true
+                }
                 // Carry a source position across the rebuild, preferring the
                 // call site over the binding. Without it every diagnostic about
                 // a `let`-aliased call reported "line 0 col 0".
@@ -1169,11 +1182,17 @@ export function validate(ast) {
                 // — otherwise the first keyword shifts every later positional
                 // and the trailing one falls off the end.
                 let posCursor = 0
+                // A call that 1.x can parse binds each positional to the slot
+                // at its own index instead: a call with no keyword, or one
+                // whose keywords and positionals met through a `let`. There a
+                // positional whose slot a keyword holds binds to nothing.
+                const byIndex = !kw || call.positionalsByIndex === true
                 // Members a positional hex colour has claimed but not yet
                 // reached, by parameter name. See the splat branch below.
                 let splatValues = null
                 for (let i = 0; i < specArgs.length; i++) {
                     const def = specArgs[i]
+                    if (byIndex) posCursor = i
                     const fromKeyword = kw && kw[def.name] !== undefined
                     // A single positional hex colour claims a whole r/g/b
                     // triple, and a keyword overrides its own member of it.
@@ -1182,17 +1201,15 @@ export function validate(ast) {
                     // stood the splat down for `tint(#804020, r: 0.25)`, so the
                     // Color fell into the 'g' float slot, defaulted g AND b and
                     // reported a bogus S002 about 'g'.
-                    if (def.type !== 'color' && def.name === 'r' &&
+                    //
+                    // In a call bound by index the colour stands in the places
+                    // of r, g and b, so the next slot takes the fourth
+                    // positional. 1.x splats only in a call with no keyword.
+                    if ((!kw || !byIndex) && def.type !== 'color' && def.name === 'r' &&
                         specArgs[i + 1]?.name === 'g' && specArgs[i + 2]?.name === 'b') {
                         const positional = substitute(call.args[posCursor])
                         if (positional && positional.type === 'Color') {
-                            // A call with no keyword is a 1.x call, where
-                            // each positional belongs to the slot at its own
-                            // index: the colour stands in the places of r,
-                            // g and b, and the next slot takes the fourth
-                            // positional. A call that also has keywords
-                            // counts the colour as one positional.
-                            posCursor += kw ? 1 : 3
+                            posCursor++
                             const [r, g, b] = positional.value
                             splatValues = {
                                 [def.name]: r,
@@ -1683,6 +1700,7 @@ export function validate(ast) {
                 // no parameter. They bind to nothing, and the call renders
                 // without them. That is a warning, not an error: a program
                 // that passes them compiled before this was reported.
+                if (byIndex) posCursor = specArgs.length
                 if (posCursor < call.args.length) {
                     const extra = call.args[posCursor]
                     pushDiag('S009', extra || call, `Too many positional arguments for ${call.name}(): '${call.name}' takes ${specArgs.length}`)

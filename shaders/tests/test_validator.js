@@ -562,3 +562,81 @@ test('a hex colour is one positional in a call that also has keywords',
     'search synth\nnoise().rgbaprobe(#804020, 0.5, x: 0.3).write(o0)', (result) => {
         expectAfterColour(result, 0.5, 0.3)
     })
+
+// ---------------------------------------------------------------------------
+// A let-bound call with keywords, called with positionals.
+//
+// 1.x parses this, because the keywords and the positionals are written in
+// two calls and meet only when the let is applied. There each positional
+// belongs to the slot at its own index, and one whose slot a keyword holds
+// binds to nothing. A call written in the mixed form binds its positionals in
+// order to the slots no keyword holds.
+// ---------------------------------------------------------------------------
+
+registerOp('synth.slotprobe', {
+    name: 'slotprobe',
+    args: [
+        { name: 'first', type: 'float', default: 10 },
+        { name: 'second', type: 'float', default: 1 },
+        { name: 'third', type: 'float', default: 4 }
+    ]
+})
+
+function expectSlots(result, expected, diagnosticCodes = []) {
+    const args = result.plans[0].chain.find(s => s.op === 'synth.slotprobe').args
+    const slots = [args.first, args.second, args.third]
+    if (JSON.stringify(slots) !== JSON.stringify(expected)) {
+        throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(slots)}`)
+    }
+    const codes = result.diagnostics.map(d => d.code)
+    if (JSON.stringify(codes) !== JSON.stringify(diagnosticCodes)) {
+        throw new Error(`Expected diagnostics ${JSON.stringify(diagnosticCodes)}, got ${JSON.stringify(result.diagnostics)}`)
+    }
+}
+
+test('a positional whose slot a let-bound keyword holds binds to nothing',
+    'search synth\nlet n = slotprobe(first: 3)\nnoise().n(7).write(o0)', (result) => {
+        expectSlots(result, [3, 1, 4])
+    })
+
+test('positionals applied to a let-bound call with a keyword bind by index',
+    'search synth\nlet n = slotprobe(first: 3)\nnoise().n(7, 8).write(o0)', (result) => {
+        expectSlots(result, [3, 8, 4])
+    })
+
+test('a let-bound keyword in a middle slot leaves the positionals at their own indexes',
+    'search synth\nlet n = slotprobe(second: 3)\nnoise().n(7, 8, 9).write(o0)', (result) => {
+        expectSlots(result, [7, 3, 9])
+    })
+
+test('a let-bound call applied through a second let still binds by index',
+    'search synth\nlet n = slotprobe(first: 3)\nlet m = n(7)\nnoise().m(8, 9).write(o0)', (result) => {
+        expectSlots(result, [3, 8, 9])
+    })
+
+test('positionals past the last slot of a let-bound call are reported',
+    'search synth\nlet n = slotprobe(first: 3)\nnoise().n(7, 8, 9, 10).write(o0)', (result) => {
+        expectSlots(result, [3, 8, 9], ['S009'])
+    })
+
+test('a hex colour applied to a let-bound call with a keyword is not spread over r/g/b',
+    'search synth\nlet t = rgbaprobe(x: 0.3)\nnoise().t(#804020).write(o0)', (result) => {
+        const args = result.plans[0].chain.find(s => s.op === 'synth.rgbaprobe').args
+        if (args.r !== 1 || args.g !== 1 || args.b !== 1 || args.a !== 0.9 || args.x !== 0.3) {
+            throw new Error(`Expected the defaults for r/g/b/a and x from the keyword, got ${JSON.stringify(args)}`)
+        }
+        const diags = result.diagnostics
+        if (diags.length !== 1 || diags[0].code !== 'S002' || diags[0].message !== "Argument out of range for 'r' in rgbaprobe()") {
+            throw new Error(`Expected one S002 warning about r, got ${JSON.stringify(diags)}`)
+        }
+    })
+
+test('a call written in the mixed form binds its positionals to the unfilled slots',
+    'search synth\nnoise().slotprobe(first: 3, 7, 8).write(o0)', (result) => {
+        expectSlots(result, [3, 7, 8])
+    })
+
+test('a let that holds a call written in the mixed form keeps that binding',
+    'search synth\nlet n = slotprobe(first: 3, 7)\nnoise().n(8).write(o0)', (result) => {
+        expectSlots(result, [3, 7, 8])
+    })
