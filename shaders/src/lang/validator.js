@@ -353,9 +353,20 @@ export function validate(ast) {
 
     const reportedAutomationCycles = new Set()
 
+    // What substitute() is in: the names it is reading through their `let`
+    // (innermost last), the depth of the array and object literals around the
+    // node, and whether the node belongs to the scene() call being compiled.
+    const expanding = []
+    let literalDepth = 0
+    let inScene = false
+
     function substitute(node, resolving = []) {
         if (!node) return node
         if (node.type === 'Ident' && resolving.includes(node.name)) {
+            // Outside scene() nothing reads the resolved elements of an array
+            // literal, and 1.x reports nothing for a name there. The name
+            // stays, and scene() reports the cycle when it reads the literal.
+            if (literalDepth > 0 && !inScene) return node
             const cycleStart = resolving.indexOf(node.name)
             const cycle = [...resolving.slice(cycleStart), node.name]
             const cycleKey = cycle.join(' -> ')
@@ -366,7 +377,16 @@ export function validate(ast) {
             return {type:'Number', value:0, _automationInvalid:true}
         }
         if (node.type === 'Ident' && symbols.has(node.name)) {
-            const result = substitute(clone(symbols.get(node.name)), [...resolving, node.name])
+            // Inside a literal, a name that leads back to the `let` being read
+            // stays a name: reading it again would never end.
+            if (literalDepth > 0 && expanding.includes(node.name)) return node
+            expanding.push(node.name)
+            let result
+            try {
+                result = substitute(clone(symbols.get(node.name)), [...resolving, node.name])
+            } finally {
+                expanding.pop()
+            }
             if (result && typeof result === 'object') {
                 result._varRef = node.name
             }
@@ -414,19 +434,31 @@ export function validate(ast) {
         // A name inside an array literal resolves only inside scene(). In
         // every other call the elements stay as written, as in 1.x, where an
         // element that is a name is not a number. The literal carries its
-        // resolved elements beside the written ones, from the first time it
-        // is substituted, and scene() takes them (see useResolvedElements).
+        // resolved elements beside the written ones, and scene() takes them
+        // (see useResolvedElements). They are resolved again each time the
+        // literal is substituted, so a name takes the value it has at the
+        // literal's `let`, or at the first later use where it has one.
         if (node.type === 'ArrayLiteral') {
-            if (node._resolvedElements) return node
-            return {
-                ...node,
-                _resolvedElements: node.elements.map(element => substitute(element))
+            literalDepth++
+            try {
+                return {
+                    ...node,
+                    _resolvedElements: (node._resolvedElements ?? node.elements)
+                        .map(element => substitute(element))
+                }
+            } finally {
+                literalDepth--
             }
         }
         if (node.type === 'Object') {
             const properties = {}
-            for (const [key, value] of Object.entries(node.properties || {})) {
-                properties[key] = substitute(value)
+            literalDepth++
+            try {
+                for (const [key, value] of Object.entries(node.properties || {})) {
+                    properties[key] = substitute(value)
+                }
+            } finally {
+                literalDepth--
             }
             return { ...node, properties }
         }
@@ -487,8 +519,9 @@ export function validate(ast) {
         return mapped
     }
 
-    // Remove the marks this function leaves on call nodes while it compiles.
-    // They are its own, and no compiled plan carries one.
+    // Remove the marks this function leaves on call and array literal nodes
+    // while it compiles. They are its own, and no compiled plan carries one:
+    // outside scene() an array literal keeps only its elements as written.
     function dropMarks(node) {
         if (!node || typeof node !== 'object') return
         if (Array.isArray(node)) {
@@ -496,6 +529,7 @@ export function validate(ast) {
             return
         }
         delete node.positionalsByIndex
+        delete node._resolvedElements
         for (const value of Object.values(node)) dropMarks(value)
     }
 
@@ -1127,7 +1161,13 @@ export function validate(ast) {
                             pushDiag('S001', original, 'scene() is a generator and must start a chain')
                             continue
                         }
-                        const sceneAst = useResolvedElements(substitute(clone(original)))
+                        let sceneAst
+                        inScene = true
+                        try {
+                            sceneAst = useResolvedElements(substitute(clone(original)))
+                        } finally {
+                            inScene = false
+                        }
                         const idx = tempIndex++
                         const step = {
                             op: `_scene.${call.name}`,

@@ -433,7 +433,14 @@ registerOp('synth.vecprobe', {
     ]
 })
 
+function expectNoMarks(result) {
+    if (JSON.stringify(result.plans).includes('_resolvedElements')) {
+        throw new Error('Expected no compiled plan to carry the resolved elements of an array literal')
+    }
+}
+
 function expectNameIsNotANumber(result, expected) {
+    expectNoMarks(result)
     const value = result.plans[0].chain.find(s => s.op === 'synth.vecprobe').args.v
     if (JSON.stringify(value) !== JSON.stringify(expected)) {
         throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(value)}`)
@@ -472,7 +479,7 @@ function scenePosition(result) {
         throw new Error('Expected the scene AST to carry only the elements it uses')
     }
     const camera = step.args._ast.args.find(a => a.name === 'camera')
-    return camera.kwargs.position.elements.map(el => el.type === 'Number' ? el.value : el.type)
+    return camera.kwargs.pos.elements.map(el => el.type === 'Number' ? el.value : el.type)
 }
 
 function expectScenePosition(result, expected) {
@@ -483,32 +490,92 @@ function expectScenePosition(result, expected) {
 }
 
 test('a let name inside an array literal resolves inside scene()',
-    'search synth\nlet x = 0.5\nscene(camera(position: [x, 0, 5]), mesh(geometry: sphere)).write(o0)', (result) => {
+    'search synth\nlet x = 0.5\nscene(camera(pos: [x, 0, 5]), mesh("sphere")).write(o0)', (result) => {
         expectScenePosition(result, [0.5, 0, 5])
     })
 
 test('a let-bound array literal resolves its names inside scene()',
-    'search synth\nlet x = 0.5\nlet p = [x, 0, 5]\nscene(camera(position: p), mesh(geometry: sphere)).write(o0)', (result) => {
+    'search synth\nlet x = 0.5\nlet p = [x, 0, 5]\nscene(camera(pos: p), mesh("sphere")).write(o0)', (result) => {
         expectScenePosition(result, [0.5, 0, 5])
     })
 
 test('a let-bound scene node resolves the names in its array literals',
-    'search synth\nlet x = 0.5\nlet cam = camera(position: [x, 0, 5])\nscene(cam, mesh(geometry: sphere)).write(o0)', (result) => {
+    'search synth\nlet x = 0.5\nlet cam = camera(pos: [x, 0, 5])\nscene(cam, mesh("sphere")).write(o0)', (result) => {
         expectScenePosition(result, [0.5, 0, 5])
     })
 
 test('a let-bound scene node called with more arguments resolves the names in its array literals',
-    'search synth\nlet x = 0.5\nlet cam = camera(position: [x, 0, 5])\nscene(cam(fov: 40), mesh(geometry: sphere)).write(o0)', (result) => {
+    'search synth\nlet x = 0.5\nlet cam = camera(pos: [x, 0, 5])\nscene(cam(fov: 40), mesh("sphere")).write(o0)', (result) => {
         expectScenePosition(result, [0.5, 0, 5])
     })
 
 test('a let-bound scene() resolves the names in its array literals',
-    'search synth\nlet x = 0.5\nlet s = scene(camera(position: [x, 0, 5]), mesh(geometry: sphere))\ns().write(o0)', (result) => {
+    'search synth\nlet x = 0.5\nlet s = scene(camera(pos: [x, 0, 5]), mesh("sphere"))\ns().write(o0)', (result) => {
         expectScenePosition(result, [0.5, 0, 5])
     })
 
+test('a let-bound array literal in scene() takes the value a later let gives its name',
+    'search synth\nlet p = [x, 0, 5]\nlet x = 0.5\nscene(camera(pos: p), mesh("sphere")).write(o0)', (result) => {
+        expectScenePosition(result, [0.5, 0, 5])
+    })
+
+test('a let-bound scene node takes the value a later let gives a name in its array literal',
+    'search synth\nlet cam = camera(pos: [x, 0, 5], fov: f)\nlet x = 0.5\nlet f = 33\nscene(cam, mesh("sphere")).write(o0)', (result) => {
+        expectScenePosition(result, [0.5, 0, 5])
+    })
+
+test('an array literal in scene() reads the earlier let of the name it is bound to',
+    'search synth\nlet s = 2\nlet s = [s, s, s]\nscene(camera(pos: s), mesh("sphere")).write(o0)', (result) => {
+        expectScenePosition(result, [2, 2, 2])
+    })
+
+test('an array literal that names its own let compiles inside scene() and keeps the name',
+    'search synth\nlet p = [p, 0, 5]\nscene(camera(pos: p), mesh("sphere")).write(o0)', (result) => {
+        expectScenePosition(result, ['Ident', 0, 5])
+    })
+
+test('an object literal that names its own let compiles',
+    'search synth\nlet m = { a: m }\nnoise().vecprobe(v: m).write(o0)', (result) => {
+        if (result.plans.length !== 1) throw new Error('Expected the program to compile to one plan')
+    })
+
+registerOp('synth.vecsource', {
+    name: 'vecsource',
+    args: [
+        { name: 'v', type: 'vec3', default: [1, 1, 1] }
+    ]
+})
+registerStarterOps(['synth.vecsource'])
+
+registerOp('filter.texprobe', {
+    name: 'texprobe',
+    args: [
+        { name: 'tex', type: 'surface', default: 'none' }
+    ]
+})
+
+test('the raw keywords of a let-bound call keep an array literal as written',
+    'search synth, filter\nlet a = 0.5\nlet e = vecsource(v: [1, 8, a])\nnoise().texprobe(e).write(o0)', (result) => {
+        expectNoMarks(result)
+        const step = result.plans[0].chain.find(s => s.op === 'synth.vecsource')
+        const written = step.rawKwargs.v.elements.map(el => el.type === 'Number' ? el.value : el.name)
+        if (JSON.stringify(written) !== '[1,8,"a"]') {
+            throw new Error(`Expected the elements as written, got ${JSON.stringify(step.rawKwargs.v)}`)
+        }
+        if (JSON.stringify(step.args.v) !== '[1,8,0]') throw new Error(`Expected [1,8,0], got ${JSON.stringify(step.args.v)}`)
+    })
+
+test('a returned array literal keeps only its elements as written',
+    'search synth\nlet a = 0.5\nreturn [a, 2]', (result) => {
+        expectNoMarks(result)
+        const value = result.plans[0].value
+        if (value.type !== 'ArrayLiteral' || value.elements[0].type !== 'Ident' || value.elements[1].value !== 2) {
+            throw new Error(`Expected the literal as written, got ${JSON.stringify(value)}`)
+        }
+    })
+
 test('an array literal in scene() keeps the value a name had where the literal was written',
-    'search synth\nlet x = 0.25\nlet p = [x, 0, 5]\nlet x = 0.75\nscene(camera(position: p), mesh(geometry: sphere)).write(o0)', (result) => {
+    'search synth\nlet x = 0.25\nlet p = [x, 0, 5]\nlet x = 0.75\nscene(camera(pos: p), mesh("sphere")).write(o0)', (result) => {
         expectScenePosition(result, [0.25, 0, 5])
     })
 
