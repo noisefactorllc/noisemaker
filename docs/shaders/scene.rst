@@ -422,7 +422,8 @@ scene-level only, and parenting does not move them.
    * - ``id``
      - Optional name, used to find the node from host code. Nodes without one
        get ``mesh_<type>`` or ``volume_<surface>``, and two ``mesh("sphere")``
-       nodes share ``mesh_sphere`` — name anything you intend to look up.
+       nodes share ``mesh_sphere`` — name anything you intend to look up. It
+       must be a string: anything else raises ``id must be a string``.
    * - ``pos``
      - Translation, exactly 3 components.
    * - ``rot``

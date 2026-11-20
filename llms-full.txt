@@ -865,6 +865,7 @@ does and cannot be read out of a diagnostics array:
 | positional on a call that reads keywords only | scene compiler, throw | `pbr() takes keyword arguments only; found '0.7' (expected: metallic, roughness)` (and the same form for `camera()`, `light()`, `solid()` and `emit()`) |
 | second positional on `environment()`, `surface()` or `material()` | scene compiler, throw | `environment() takes one positional argument, the surface reference`, `surface() takes one positional argument, the surface reference`, `material() takes one positional argument, the material source` |
 | keyword on `material()` | scene compiler, throw | `material() takes no keyword arguments; found '<key>'` |
+| node `id` that is not a string | scene compiler, throw | `id must be a string; found '5'` (on `mesh()`, `volume()` and `group()`) |
 | bad `volume()` marching mode | scene compiler, throw | `Unknown volume mode '<value>' (expected: smooth, voxel)` |
 | `surface()` material on a volume | scene compiler, throw | `volume() cannot take a surface() material; an isosurface has no UVs` |
 | `reflector()` on a non-mesh node | scene compiler, throw | `reflector() is not supported on <kind>() nodes; planar reflection applies to a plane mesh` |

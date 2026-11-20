@@ -441,6 +441,21 @@ function assertKnownKeywords(call, allowed) {
 }
 
 /**
+ * Read a node's `id`: the name host code finds the node by, so a string.
+ *
+ * Read bare, any value was kept as the id, and one that is not a string can
+ * never be found: `mesh("sphere", id: 5)` compiled and named nothing.
+ */
+function nodeId(call) {
+    const value = call.kwargs?.id
+    if (value === undefined) return undefined
+    if (value.type !== 'String') {
+        throw sceneError(`id must be a string; found '${describePositional(value)}'`, located(value, call))
+    }
+    return value.value
+}
+
+/**
  * Reject a positional argument on a call that reads keywords only.
  *
  * camera(), light(), solid(), pbr() and emit() never read their positionals,
@@ -906,7 +921,7 @@ function walkNode(
     }
 
     const node = {
-        id: kw(head, 'id'),
+        id: nodeId(head),
         type: head.name,
         transform: buildTransform(head),
         children: [],

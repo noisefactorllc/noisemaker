@@ -1785,6 +1785,35 @@ scene(
     [['group', null], ['sphere', 2]])
 }
 
+// A node's id is the name host code finds it by, so it is a string.
+//
+// Any value was kept as the id: an object, a number, a list or a descriptor
+// compiled clean and named a node nothing could find.
+{
+  for (const [label, program, found] of [
+    ['an object', 'scene(mesh("sphere", id: { a: 1 })).write(o0)', /found '\{\.\.\.\}'/],
+    ['a number', 'scene(mesh("sphere", id: 5)).write(o0)', /found '5'/],
+    ['a list', 'scene(group(id: [1, 2], mesh("sphere"))).write(o0)', /found '\[\.\.\.\]'/],
+    ['a descriptor', 'scene(mesh("sphere", id: osc(type: oscKind.sine))).write(o0)', /found 'osc\(\)'/]
+  ]) {
+    let thrown = null
+    try {
+      irFor(`search synth\n${program}`)
+    } catch (err) {
+      thrown = err
+    }
+    assert.ok(thrown, `id given ${label}: expected a compile error`)
+    assert.match(thrown.message, /id must be a string/, `id given ${label}: unexpected message`)
+    assert.match(thrown.message, found, `id given ${label}: the value is not named`)
+    assert.match(thrown.message, /line [1-9]\d* col [1-9]\d*/,
+      `id given ${label}: expected a real source position, got "${thrown.message}"`)
+  }
+
+  const named = irFor('search synth\nlet name = "ball"\nscene(group(id: "spinner", mesh("sphere", id: name)), mesh("box")).write(o0)')
+  assert.deepStrictEqual(named.nodes.map(node => node.id ?? null), ['spinner', 'ball', null],
+    'a string id, a let that holds one, and no id still compile')
+}
+
 // A diagnostic that quotes an argument names it as it was written.
 {
   for (const [label, program, message] of [
