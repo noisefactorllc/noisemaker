@@ -1703,6 +1703,52 @@ scene(
   assert.strictEqual(materials[1].albedoSurface, 'o2')
 }
 
+// camera(), light() and environment() take no link, and a scene has one camera.
+//
+// A link written on one of them was dropped with its arguments, and a second
+// camera() replaced the first, both without a diagnostic.
+{
+  for (const [label, program, message] of [
+    ['a link on light()', 'scene(light(type: "point").emit(strength: 5), mesh("sphere")).write(o0)',
+      /Unknown link 'emit\(\)' on light\(\); light\(\) takes no links/],
+    ['a link on camera()', 'scene(camera(fov: 30).lookAt([0, 1, 0]), mesh("sphere")).write(o0)',
+      /Unknown link 'lookAt\(\)' on camera\(\); camera\(\) takes no links/],
+    ['a link on environment()', 'scene(environment(o3).intensity(2), mesh("sphere")).write(o0)',
+      /Unknown link 'intensity\(\)' on environment\(\); environment\(\) takes no links/],
+    ['a second camera()', 'scene(camera(fov: 30),\n  camera(fov: 90), mesh("sphere")).write(o0)',
+      /Only one camera\(\) per scene is supported at line 3 col 3/]
+  ]) {
+    let thrown = null
+    try {
+      irFor(`search synth\n${program}`)
+    } catch (err) {
+      thrown = err
+    }
+    assert.ok(thrown, `${label}: expected a compile error`)
+    assert.match(thrown.message, message, `${label}: unexpected message`)
+    assert.match(thrown.message, /line [1-9]\d* col [1-9]\d*/,
+      `${label}: expected a real source position, got "${thrown.message}"`)
+  }
+
+  const ir = irFor('search synth\nscene(camera(fov: 30), light(type: "point"), light(type: "spot"), environment(o3), mesh("sphere")).write(o0)')
+  assert.strictEqual(ir.camera.fov, 30, 'one camera with no link still compiles')
+  assert.strictEqual(ir.lights.length, 2, 'a scene still takes several lights')
+}
+
+// A diagnostic that quotes an argument names it as it was written.
+{
+  for (const [label, program, message] of [
+    ['a descriptor', 'scene(mesh("sphere").material(solid(color: [1, 0, 0]).pbr(osc(type: oscKind.sine)))).write(o0)',
+      /pbr\(\) takes keyword arguments only; found 'osc\(\)'/],
+    ['an enum member', 'scene(camera(oscKind.sine)).write(o0)',
+      /camera\(\) takes keyword arguments only; found 'oscKind\.sine'/],
+    ['a hex colour', 'scene(mesh("sphere").material(solid(#ff0000))).write(o0)',
+      /solid\(\) takes keyword arguments only; found 'a hex colour'/]
+  ]) {
+    assert.throws(() => irFor(`search synth\n${program}`), message, label)
+  }
+}
+
 // mesh() with no positional names the argument that is missing.
 //
 // The count check only fired above one, so zero fell through to litValue and

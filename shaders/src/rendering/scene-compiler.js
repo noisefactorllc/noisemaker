@@ -77,6 +77,11 @@ function describePositional(node) {
         case 'ArrayLiteral': return '[...]'
         case 'Object': return '{...}'
         case 'Call': return `${node.name}()`
+        case 'Oscillator': return 'osc()'
+        case 'Midi': return 'midi()'
+        case 'Audio': return 'audio()'
+        case 'Member': return node.path.join('.')
+        case 'Color': return 'a hex colour'
         default: return node.name ?? node.type
     }
 }
@@ -1098,8 +1103,28 @@ export function compileScene(compilationResult) {
             )
         }
 
+        // camera(), light() and environment() take no link. One written
+        // there was dropped with its arguments, so
+        // `light(type: "point").emit(strength: 5)` compiled clean.
+        if (SCENE_LEVEL_ONLY.has(resolved.head.name) && resolved.links.length > 0) {
+            const link = resolved.links[0]
+            throw sceneError(
+                `Unknown link '${link.name}()' on ${resolved.head.name}(); ` +
+                `${resolved.head.name}() takes no links`,
+                located(link, resolved.head)
+            )
+        }
+
         switch (resolved.head.name) {
             case 'camera':
+                // A scene is drawn from one camera. A second call replaced
+                // the first in silence, as a second environment() once did.
+                if (ir.camera) {
+                    throw sceneError(
+                        'Only one camera() per scene is supported',
+                        resolved.head
+                    )
+                }
                 ir.camera = buildCamera(resolved.head)
                 break
             case 'light':

@@ -858,6 +858,8 @@ does and cannot be read out of a diagnostics array:
 | `scene()` setting of the wrong shape | scene compiler, throw | `<setting> must be a finite number`, `<setting> must be non-negative`, `ssaoRadius must be greater than zero`, `<setting> must contain exactly 3 values`, `<setting> values must be non-negative`; a descriptor: `scene() <setting> does not accept osc(), midi() or audio(); ...` |
 | bad `intensity` | scene compiler, throw | light: `intensity must be a finite number or osc(), midi() or audio()`; environment: `intensity must be a finite number`, `environment() intensity does not accept osc(), midi() or audio(); ...`; both: `intensity must be non-negative` |
 | two `environment()` calls in one scene | scene compiler, throw | `Only one environment() per scene is supported` (anchored to the second) |
+| two `camera()` calls in one scene | scene compiler, throw | `Only one camera() per scene is supported` (anchored to the second) |
+| link on `camera()`, `light()` or `environment()` | scene compiler, throw | `Unknown link 'emit()' on light(); light() takes no links` |
 | bad `volume()` positional | scene compiler, throw | `volume() expects a volume reference (vol0..vol7)` |
 | second `volume()` positional | scene compiler, throw | `volume() takes one positional argument, the volume reference` |
 | positional on a call that reads keywords only | scene compiler, throw | `pbr() takes keyword arguments only; found '0.7' (expected: metallic, roughness)` (and the same form for `camera()`, `light()`, `solid()` and `emit()`) |

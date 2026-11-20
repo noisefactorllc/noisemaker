@@ -164,7 +164,8 @@ as ``scene(0.15, ...)`` — raises ``Unknown scene child '<name>'``.
 ``NodeLink`` — ``.material()`` and ``.reflector()``. Any other link raises
 ``Unknown link '<name>()' on <kind>()``; transforms are keyword arguments on the
 node itself, so ``mesh("sphere").pos([0, 0, -4])`` is that error and not a
-placement.
+placement. ``camera()``, ``light()`` and ``environment()`` take no link, and
+one written there is the same error.
 
 Every scene error names the line and column of the offending argument, in the
 form ``<message> at line N col M``, and an "unknown" error lists what would
@@ -255,9 +256,10 @@ does too: a scene that declares no camera gets ``fov: 60``, ``near: 0.1``,
 ``camera()`` with no keywords is the same thing written out.
 
 Unknown keywords are errors, and so is a positional argument: ``camera(60)``
-raises ``camera() takes keyword arguments only``. ``fov`` must lie between ``0`` and ``179``
-degrees, ``near`` and ``far`` must both be greater than zero, and ``far`` must
-be greater than ``near``.
+raises ``camera() takes keyword arguments only``. ``fov`` must lie between
+``0`` and ``179`` degrees, ``near`` and ``far`` must both be greater than zero,
+and ``far`` must be greater than ``near``. Declare at most one camera: a second
+raises ``Only one camera() per scene is supported``.
 
 .. code-block:: none
 
