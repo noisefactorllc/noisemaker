@@ -1779,6 +1779,12 @@ scene(
     steps.nodes.map(node => [node.meshType, node.meshParams.radius ?? null, node.transform.position ?? null]),
     [['sphere', 3, [1, 0, 0]], ['sphere', 3, null], ['sphere', null, null]])
 
+  // A call made from the let keeps what the let held where the call is
+  // written, as a call made from any other let does. A later let of the same
+  // name does not reach it.
+  const lamp = irFor('search synth\nlet light = light(type: "point")\nlet lamp = light(intensity: 3)\nlet light = light(color: [1, 0, 0])\nscene(camera(), lamp, mesh("sphere")).write(o0)')
+  assert.deepStrictEqual(lamp.lights.map(light => [light.type, light.intensity, light.color]), [['point', 3, [1, 1, 1]]])
+
   // A call written before the let of its name exists is applied when it is read.
   const later = irFor('search synth\nlet rig = group(mesh(radius: 2))\nlet mesh = mesh("sphere")\nscene(rig).write(o0)')
   assert.deepStrictEqual(later.nodes.map(node => [node.meshType ?? node.type, node.meshParams?.radius ?? null]),

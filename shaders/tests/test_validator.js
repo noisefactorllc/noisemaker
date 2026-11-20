@@ -627,6 +627,11 @@ test('an effect parameter may have the name of one of the validator\'s own marks
         }
     })
 
+test('an array element the validator cannot read stays as written beside one it resolves',
+    'search synth, filter\nlet x = 1\nscene(camera(pos: [x, read(o1).vecfilter(), 5]), mesh("sphere")).write(o0)', (result) => {
+        expectScenePosition(result, [1, 'Chain', 5])
+    })
+
 test('an array literal in scene() keeps the value a name had where the literal was written',
     'search synth\nlet x = 0.25\nlet p = [x, 0, 5]\nlet x = 0.75\nscene(camera(pos: p), mesh("sphere")).write(o0)', (result) => {
         expectScenePosition(result, [0.25, 0, 5])

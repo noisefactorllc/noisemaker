@@ -382,6 +382,19 @@ export function validate(ast) {
     let literalDepth = 0
     let inScene = false
 
+    // Resolve one element of an array literal. An element substitute() cannot
+    // read, such as a chain that starts with read(), stays as it is written:
+    // only scene() reads the result, and it reports what it cannot use. Any
+    // other failure is the program's and is thrown on.
+    function resolveElement(element) {
+        try {
+            return substitute(element)
+        } catch (error) {
+            if (!(error instanceof TypeError)) throw error
+            return element
+        }
+    }
+
     function substitute(node, resolving = []) {
         if (!node) return node
         if (node.type === 'Ident' && resolving.includes(node.name)) {
@@ -465,14 +478,12 @@ export function validate(ast) {
         // literal's `let`, or at the first later use where it has one.
         if (node.type === 'ArrayLiteral') {
             if (!sceneProgram) return node
-            const elements = node._resolvedElements ?? node.elements
             literalDepth++
             try {
-                return { ...node, _resolvedElements: elements.map(element => substitute(element)) }
-            } catch {
-                // An element substitute() cannot read stays as it is. Only
-                // scene() reads the result, and it reports what it cannot use.
-                return { ...node, _resolvedElements: elements }
+                return {
+                    ...node,
+                    _resolvedElements: (node._resolvedElements ?? node.elements).map(resolveElement)
+                }
             } finally {
                 literalDepth--
             }
