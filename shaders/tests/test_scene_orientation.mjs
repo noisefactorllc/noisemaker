@@ -71,7 +71,7 @@ function assertAsAuthored(png, window, label, decode = sampled) {
 
 // Where the viewer stands. A face that lies flat is seen as the documented
 // coordinate system has it seen: from the +Z side, by a camera raised to look
-// down at it or lowered to look up at it. The face is then above or below the
+// down at it or lowered to look up at it. The face then does not fill the
 // middle of the frame, so each of those cases names its own window.
 const FRONT = '0, 0, 6'
 const BACK = '0, 0, -6'
@@ -164,7 +164,7 @@ const cases = [
         // on either side of its threshold on the two backends, which moves a
         // few pixels by a few levels: test_visual_playwright.js measures it
         // and holds it under the ceiling used here. A probe that differs
-        // moves a large share of the frame by far more.
+        // moves many more pixels, by far more.
         ceiling: 6,
     },
 ]

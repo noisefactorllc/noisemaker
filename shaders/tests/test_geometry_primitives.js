@@ -344,15 +344,39 @@ function assertTextureUnmirrored(geo, label) {
 // A face that stands up shows the program upright: v rises with +Y. A face
 // that lies flat shows it as the viewer on the +Z side sees it when looking
 // down or up: v rises toward -Z on a face that looks up, toward +Z on one
-// that looks down.
+// that looks down. On a primitive with flat faces v must rise that way more
+// than to either side, so a quarter turn fails on every triangle. A sphere
+// curves toward its poles, where only the sign of the rise can be asked.
 function assertTextureUpright(geo, label, { flatFaces }) {
   const axes = textureAxes(geo)
   const wrong = axes.filter(({ vAxis, normal }) => {
     const ny = normal[1] / Math.hypot(...normal)
-    if (flatFaces && Math.abs(ny) > 0.5) return vAxis[2] * ny >= 0
-    return vAxis[1] <= 0
+    if (!flatFaces) return vAxis[1] <= 0
+    if (Math.abs(ny) > 0.5) return !(vAxis[2] * ny < 0 && Math.abs(vAxis[2]) > Math.abs(vAxis[0]))
+    return !(vAxis[1] > Math.hypot(vAxis[0], vAxis[2]))
   }).length
   assert.strictEqual(wrong, 0, `${label}: ${wrong}/${axes.length} triangles show a texture turned or upside down`)
+}
+
+// Each part of a primitive shows the whole program, not a crop of it: its uvs
+// reach from 0 to 1 on both axes. partOf names the part a vertex belongs to,
+// from its normal.
+function assertTextureWhole(geo, label, partOf = () => 'surface') {
+  const parts = new Map()
+  for (let i = 0; i < geo.uvs.length / 2; i++) {
+    const part = partOf([geo.normals[i * 3], geo.normals[i * 3 + 1], geo.normals[i * 3 + 2]])
+    const span = parts.get(part) ?? { u: [Infinity, -Infinity], v: [Infinity, -Infinity] }
+    const [u, v] = [geo.uvs[i * 2], geo.uvs[i * 2 + 1]]
+    span.u = [Math.min(span.u[0], u), Math.max(span.u[1], u)]
+    span.v = [Math.min(span.v[0], v), Math.max(span.v[1], v)]
+    parts.set(part, span)
+  }
+  for (const [part, span] of parts) {
+    for (const [axis, [low, high]] of Object.entries(span)) {
+      assert.ok(Math.abs(low) < 1e-9 && Math.abs(high - 1) < 1e-9,
+        `${label}: the ${part} spans ${axis} from ${low} to ${high}, not from 0 to 1`)
+    }
+  }
 }
 
 // The scene's mesh primitives show a surface() texture as it was authored
@@ -371,6 +395,13 @@ function assertTextureUpright(geo, label, { flatFaces }) {
   assertTextureUpright(createBox({}), 'box', { flatFaces: true })
   assertTextureUpright(createPlane({}), 'plane', { flatFaces: true })
   assertTextureUpright(createCylinder({}), 'cylinder', { flatFaces: true })
+
+  const lyingOrStanding = normal => (normal[1] > 0.5 ? 'top' : normal[1] < -0.5 ? 'bottom' : 'side')
+  assertTextureWhole(createSphere({}), 'sphere')
+  assertTextureWhole(createBox({}), 'box', normal => `face ${normal.join(' ')}`)
+  assertTextureWhole(createPlane({}), 'plane')
+  assertTextureWhole(createCylinder({}), 'cylinder', lyingOrStanding)
+  assertTextureWhole(createTorus({}), 'torus')
 
   // A torus wraps the program around its tube, so only the wall that faces
   // away from the ring's axis is upright; the wall that faces the hole shows
