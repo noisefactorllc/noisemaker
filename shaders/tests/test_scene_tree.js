@@ -395,6 +395,12 @@ function approx(a, b, eps = 1e-4) {
   assert.strictEqual(new CameraNode({ id: '' }).id, 'camera')
   assert.strictEqual(new CameraNode().id, 'camera')
 
+  // No lookup can match NaN, so it is no id either.
+  assert.strictEqual(new SceneNode({ id: NaN }).id, null)
+  assert.strictEqual(new CameraNode({ id: NaN }).id, 'camera')
+  assert.strictEqual(new MeshNode({ meshType: 'box', id: NaN }).id, 'mesh_box')
+  assert.strictEqual(new VolumeNode({ surface: 'vol0', id: NaN }).id, 'volume_vol0')
+
   const tree = SceneTree.fromIR(compileScene(compile(`search synth
 scene(
   camera(),

@@ -3,10 +3,11 @@ import { composeTransform, mat4 } from './math.js'
 
 /**
  * Whether a node was given an id. An id is a string, a number or a boolean,
- * so 0 and false are ids. Only an absent or empty id is missing.
+ * so 0 and false are ids. An absent or empty id is missing, and so is NaN,
+ * which no lookup can match.
  */
 export function hasId(id) {
-  return id !== undefined && id !== null && id !== ''
+  return id !== undefined && id !== null && id !== '' && !Number.isNaN(id)
 }
 
 export class SceneNode {
