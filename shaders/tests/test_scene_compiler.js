@@ -1735,6 +1735,30 @@ scene(
   assert.strictEqual(ir.lights.length, 2, 'a scene still takes several lights')
 }
 
+// A let that has the name of the scene call it holds is read as written.
+//
+// Given by bare name, the validator applied such a let to itself, so each of
+// its arguments arrived twice: environment(o3, o3), mesh("sphere", "sphere"),
+// and a group with every child twice.
+{
+  const env = irFor('search synth\nlet environment = environment(o3)\nscene(camera(), environment, mesh("sphere")).write(o0)')
+  assert.strictEqual(env.environment.surface, 'o3', 'a let named environment')
+
+  const surf = irFor('search synth\nlet surface = surface(o2)\nscene(mesh("sphere").material(surface)).write(o0)')
+  assert.strictEqual(Object.values(surf.materials)[0].albedoSurface, 'o2', 'a let named surface')
+
+  const mesh = irFor('search synth\nlet mesh = mesh("sphere")\nscene(mesh).write(o0)')
+  assert.deepStrictEqual(mesh.nodes.map(node => node.meshType), ['sphere'], 'a let named mesh')
+
+  const group = irFor('search synth\nlet group = group(mesh("sphere"))\nscene(group).write(o0)')
+  assert.strictEqual(group.nodes.length, 2, 'a let named group holds its child once')
+
+  // Called with more arguments, the same let still merges them in.
+  const applied = irFor('search synth\nlet environment = environment(o3)\nscene(environment(intensity: 0.5), mesh("sphere")).write(o0)')
+  assert.strictEqual(applied.environment.surface, 'o3')
+  assert.strictEqual(applied.environment.intensity, 0.5)
+}
+
 // A diagnostic that quotes an argument names it as it was written.
 {
   for (const [label, program, message] of [
@@ -1743,7 +1767,11 @@ scene(
     ['an enum member', 'scene(camera(oscKind.sine)).write(o0)',
       /camera\(\) takes keyword arguments only; found 'oscKind\.sine'/],
     ['a hex colour', 'scene(mesh("sphere").material(solid(#ff0000))).write(o0)',
-      /solid\(\) takes keyword arguments only; found 'a hex colour'/]
+      /solid\(\) takes keyword arguments only; found 'a hex colour'/],
+    ['a chain', 'scene(camera(mesh("sphere").material(solid(color: [1, 0, 0])))).write(o0)',
+      /camera\(\) takes keyword arguments only; found 'mesh\(\) chain'/],
+    ['a read()', 'scene(camera(read(o1))).write(o0)',
+      /camera\(\) takes keyword arguments only; found 'read\(\)'/]
   ]) {
     assert.throws(() => irFor(`search synth\n${program}`), message, label)
   }

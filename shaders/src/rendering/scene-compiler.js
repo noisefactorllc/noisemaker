@@ -77,6 +77,9 @@ function describePositional(node) {
         case 'ArrayLiteral': return '[...]'
         case 'Object': return '{...}'
         case 'Call': return `${node.name}()`
+        case 'Chain': return `${node.chain?.[0]?.name ?? 'a'}() chain`
+        case 'Read': return 'read()'
+        case 'Func': return 'a function'
         case 'Oscillator': return 'osc()'
         case 'Midi': return 'midi()'
         case 'Audio': return 'audio()'

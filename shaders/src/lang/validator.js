@@ -261,6 +261,13 @@ export function validate(ast) {
     function resolveCall(call) {
         // console.log('Resolving call:', call.name, symbols.has(call.name));
         if (symbols.has(call.name)) {
+            // A `let` that has the name of the scene call it holds is read as
+            // it is written. Applied to itself, as a call of an effect is,
+            // it would carry each of its arguments twice.
+            if (expanding.at(-1) === call.name && SCENE_FUNCTIONS.has(call.name) &&
+                !canResolveOpName(call.name)) {
+                return call
+            }
             const val = symbols.get(call.name)
             // console.log('Found symbol:', val);
             if (val.type === 'Ident') {

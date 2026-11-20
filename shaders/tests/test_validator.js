@@ -776,6 +776,14 @@ test('a scene node merged through a let carries no mark of the merge',
         }
     })
 
+test('a let that has the name of the effect it holds is applied to itself when given by name',
+    'search synth, filter\nlet noise = noise(3)\nnoise(7).surfprobe(tex: noise).write(o0)', (result) => {
+        const steps = result.plans[0].chain.filter(s => s.op === 'synth.noise').map(s => [s.args.scale, s.args.seed])
+        if (JSON.stringify(steps) !== '[[3,7],[3,3]]') {
+            throw new Error(`Expected the 1.x binding [[3,7],[3,3]], got ${JSON.stringify(steps)}`)
+        }
+    })
+
 test('positionals past the last slot of a let-bound call are reported',
     'search synth\nlet n = slotprobe(first: 3)\nnoise().n(7, 8, 9, 10).write(o0)', (result) => {
         expectSlots(result, [3, 8, 9], ['S009'])
