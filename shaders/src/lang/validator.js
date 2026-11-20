@@ -396,10 +396,16 @@ export function validate(ast) {
             }
             return resolveCall(mappedCall)
         }
+        // A name inside an array literal resolves only inside scene(). In
+        // every other call the elements stay as written, as in 1.x, where an
+        // element that is a name is not a number. The literal carries its
+        // resolved elements beside the written ones, from the first time it
+        // is substituted, and scene() takes them (see useResolvedElements).
         if (node.type === 'ArrayLiteral') {
+            if (node._resolvedElements) return node
             return {
                 ...node,
-                elements: node.elements.map(element => substitute(element))
+                _resolvedElements: node.elements.map(element => substitute(element))
             }
         }
         if (node.type === 'Object') {
@@ -448,6 +454,22 @@ export function validate(ast) {
             }
         }
         return node
+    }
+
+    // Give scene() the resolved elements of every array literal in its
+    // arguments. They are bound where each literal was written, so a `let`
+    // that holds a literal keeps the values its names had at that `let`.
+    function useResolvedElements(node) {
+        if (!node || typeof node !== 'object') return node
+        if (Array.isArray(node)) return node.map(useResolvedElements)
+        const mapped = {}
+        for (const [key, value] of Object.entries(node)) {
+            if (key !== '_resolvedElements') mapped[key] = useResolvedElements(value)
+        }
+        if (node.type === 'ArrayLiteral' && node._resolvedElements) {
+            mapped.elements = useResolvedElements(node._resolvedElements)
+        }
+        return mapped
     }
 
     function declareVar(v) {
@@ -1078,7 +1100,7 @@ export function validate(ast) {
                             pushDiag('S001', original, 'scene() is a generator and must start a chain')
                             continue
                         }
-                        const sceneAst = substitute(clone(original))
+                        const sceneAst = useResolvedElements(substitute(clone(original)))
                         const idx = tempIndex++
                         const step = {
                             op: `_scene.${call.name}`,

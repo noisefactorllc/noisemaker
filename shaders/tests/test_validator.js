@@ -416,3 +416,98 @@ test('an r: keyword overrides only its own member of a splatted hex colour',
         }
         if (result.diagnostics.length > 0) throw new Error(`Expected no diagnostics, got ${JSON.stringify(result.diagnostics)}`)
     })
+
+// ---------------------------------------------------------------------------
+// Names inside an array literal.
+//
+// Outside scene() the elements of an array literal stay as written, as in
+// 1.x: a name is not a number there, so the element is reported and binds 0.
+// Inside scene() a name resolves to the value it had where the literal was
+// written.
+// ---------------------------------------------------------------------------
+
+registerOp('synth.vecprobe', {
+    name: 'vecprobe',
+    args: [
+        { name: 'v', type: 'vec3', default: [1, 1, 1] }
+    ]
+})
+
+function expectNameIsNotANumber(result, expected) {
+    const value = result.plans[0].chain.find(s => s.op === 'synth.vecprobe').args.v
+    if (JSON.stringify(value) !== JSON.stringify(expected)) {
+        throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(value)}`)
+    }
+    const diags = result.diagnostics
+    if (diags.length !== 1 || diags[0].code !== 'S002' || diags[0].severity !== 'warning' ||
+        diags[0].message !== "Array element must be a number for 'v' in vecprobe()") {
+        throw new Error(`Expected one S002 warning about the element, got ${JSON.stringify(diags)}`)
+    }
+}
+
+test('a let name inside an array literal is not a number outside scene()',
+    'search synth\nlet a = 0.5\nnoise().vecprobe(v: [a, 1, 0.25]).write(o0)', (result) => {
+        expectNameIsNotANumber(result, [0, 1, 0.25])
+    })
+
+test('a let name inside a positional array literal is not a number outside scene()',
+    'search synth\nlet a = 0.5\nnoise().vecprobe([a, 1, 0.25]).write(o0)', (result) => {
+        expectNameIsNotANumber(result, [0, 1, 0.25])
+    })
+
+test('a let name inside a let-bound array literal is not a number outside scene()',
+    'search synth\nlet a = 0.5\nlet v = [a, 1, 0.25]\nnoise().vecprobe(v: v).write(o0)', (result) => {
+        expectNameIsNotANumber(result, [0, 1, 0.25])
+    })
+
+test('an array literal that names its own let compiles outside scene()',
+    'search synth\nlet p = [p, 0, 5]\nnoise().vecprobe(v: p).write(o0)', (result) => {
+        expectNameIsNotANumber(result, [0, 0, 5])
+    })
+
+function scenePosition(result) {
+    if (result.diagnostics.length > 0) throw new Error(`Expected no diagnostics, got ${JSON.stringify(result.diagnostics)}`)
+    const step = result.plans[0].chain.find(s => s.scene)
+    if (JSON.stringify(step.args).includes('_resolvedElements')) {
+        throw new Error('Expected the scene AST to carry only the elements it uses')
+    }
+    const camera = step.args._ast.args.find(a => a.name === 'camera')
+    return camera.kwargs.position.elements.map(el => el.type === 'Number' ? el.value : el.type)
+}
+
+function expectScenePosition(result, expected) {
+    const position = scenePosition(result)
+    if (JSON.stringify(position) !== JSON.stringify(expected)) {
+        throw new Error(`Expected camera position ${JSON.stringify(expected)}, got ${JSON.stringify(position)}`)
+    }
+}
+
+test('a let name inside an array literal resolves inside scene()',
+    'search synth\nlet x = 0.5\nscene(camera(position: [x, 0, 5]), mesh(geometry: sphere)).write(o0)', (result) => {
+        expectScenePosition(result, [0.5, 0, 5])
+    })
+
+test('a let-bound array literal resolves its names inside scene()',
+    'search synth\nlet x = 0.5\nlet p = [x, 0, 5]\nscene(camera(position: p), mesh(geometry: sphere)).write(o0)', (result) => {
+        expectScenePosition(result, [0.5, 0, 5])
+    })
+
+test('a let-bound scene node resolves the names in its array literals',
+    'search synth\nlet x = 0.5\nlet cam = camera(position: [x, 0, 5])\nscene(cam, mesh(geometry: sphere)).write(o0)', (result) => {
+        expectScenePosition(result, [0.5, 0, 5])
+    })
+
+test('a let-bound scene node called with more arguments resolves the names in its array literals',
+    'search synth\nlet x = 0.5\nlet cam = camera(position: [x, 0, 5])\nscene(cam(fov: 40), mesh(geometry: sphere)).write(o0)', (result) => {
+        expectScenePosition(result, [0.5, 0, 5])
+    })
+
+test('a let-bound scene() resolves the names in its array literals',
+    'search synth\nlet x = 0.5\nlet s = scene(camera(position: [x, 0, 5]), mesh(geometry: sphere))\ns().write(o0)', (result) => {
+        expectScenePosition(result, [0.5, 0, 5])
+    })
+
+test('an array literal in scene() keeps the value a name had where the literal was written',
+    'search synth\nlet x = 0.25\nlet p = [x, 0, 5]\nlet x = 0.75\nscene(camera(position: p), mesh(geometry: sphere)).write(o0)', (result) => {
+        expectScenePosition(result, [0.25, 0, 5])
+    })
