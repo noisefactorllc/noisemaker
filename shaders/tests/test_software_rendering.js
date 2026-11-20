@@ -303,6 +303,18 @@ test('stepFrame steps from a given time, for a host that holds its own paused ti
     assert.deepEqual(pipeline.renders, [0.5 + 1 / 600])
 })
 
+test('stepFrame steps from the last time only when the argument is omitted', () => {
+    const renderer = rendererWith({})
+    renderer.setLoopDuration(10)
+    const pipeline = recordingPipeline()
+    pipeline.lastTime = 0.5
+    renderer._pipeline = pipeline
+    assert.equal(renderer.stepFrame(null), 1 / 600, 'null counts as time 0')
+    pipeline.lastTime = 0.5
+    assert.equal(renderer.stepFrame(undefined), 0.5 + 1 / 600)
+    assert.deepEqual(pipeline.renders, [1 / 600, 0.5 + 1 / 600])
+})
+
 test('stepFrame does nothing while the animation loop runs', () => {
     const renderer = rendererWith({})
     const pipeline = recordingPipeline()
