@@ -400,6 +400,8 @@ function assertTextureWhole(geo, label, partOf = () => 'surface') {
   assertTextureWhole(createSphere({}), 'sphere')
   assertTextureWhole(createBox({}), 'box', normal => `face ${normal.join(' ')}`)
   assertTextureWhole(createPlane({}), 'plane')
+  // A cap reaches an edge of the program only where a rim vertex lies on an
+  // axis, which the default segment count gives it: a multiple of four.
   assertTextureWhole(createCylinder({}), 'cylinder', lyingOrStanding)
   assertTextureWhole(createTorus({}), 'torus')
 

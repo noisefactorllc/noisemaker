@@ -73,12 +73,16 @@ function assertAsAuthored(png, window, label, decode = sampled) {
 // coordinate system has it seen: from the +Z side, by a camera raised to look
 // down at it or lowered to look up at it. The face then does not fill the
 // middle of the frame, so each of those cases names its own window.
+// A camera straight above or below keeps that viewer's frame: it is where the
+// raised or lowered camera ends up.
 const FRONT = '0, 0, 6'
 const BACK = '0, 0, -6'
 const RIGHT = '6, 0, 0'
 const LEFT = '-6, 0, 0'
 const RAISED = '0, 4, 4.5'
 const LOWERED = '0, -4, 4.5'
+const ABOVE = '0, 6, 0'
+const BELOW = '0, -6, 0'
 const MIDDLE = [-0.4, -0.4, 0.4, 0.4]
 
 const textured = (mesh, eye) => `search synth
@@ -127,6 +131,8 @@ const cases = [
     face('a sphere seen from +Z', sphere, FRONT),
     face('a sphere seen from +X', sphere, RIGHT),
     face('a plane seen from above', 'mesh("plane", width: 2, height: 2)', RAISED, [-0.3, -0.3, 0.3, 0.25]),
+    face('a plane seen from straight above', 'mesh("plane", width: 2, height: 2)', ABOVE),
+    face('the -Y face of a box seen from straight below', box, BELOW),
     // Stood up to face the viewer, a plane is a screen for the program.
     face('a plane stood up to face +Z', 'mesh("plane", width: 2, height: 2, rot: [90, 0, 0])', FRONT),
     face('the side of a cylinder seen from +Z', cylinder, FRONT),

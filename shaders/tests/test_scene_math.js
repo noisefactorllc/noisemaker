@@ -10,6 +10,7 @@ import {
   composeTransform,
   decomposeTransform,
   lookAtMatrix,
+  viewUp,
   perspectiveMatrix,
   tileFrustumMatrix,
   reflectPointAcrossPlane,
@@ -122,6 +123,50 @@ approx(radToDeg(Math.PI / 2), 90)
     Array.from(lookAtMatrix(mat4.create(), eye, center, up)),
     Array.from(expected),
     'the view matrix is built from float32 inputs, not the raw float64 arrays')
+}
+
+// A view straight down or straight up has no sideways direction to take from
+// an up vector that lies along it. The image top is then the one a viewer on
+// the +Z side arrives at by tilting until the view is vertical: -Z looking
+// down, +Z looking up. World +X stays to the right in both.
+{
+  const down = lookAtMatrix(mat4.create(), [0, 5, 0], [0, 0, 0], [0, 1, 0])
+  vecApprox(Array.from(down), [
+    1, 0, 0, 0,
+    0, 0, 1, 0,
+    0, -1, 0, 0,
+    0, 0, -5, 1
+  ])
+  const up = lookAtMatrix(mat4.create(), [0, -5, 0], [0, 0, 0], [0, 1, 0])
+  vecApprox(Array.from(up), [
+    1, 0, 0, 0,
+    0, 0, -1, 0,
+    0, 1, 0, 0,
+    0, 0, -5, 1
+  ])
+
+  // The vertical view is where the tilting view from the +Z side ends up.
+  const tilted = lookAtMatrix(mat4.create(), [0, 5, 0.001], [0, 0, 0], [0, 1, 0])
+  vecApprox(Array.from(tilted), Array.from(down), 1e-3)
+  const tiltedUp = lookAtMatrix(mat4.create(), [0, -5, 0.001], [0, 0, 0], [0, 1, 0])
+  vecApprox(Array.from(tiltedUp), Array.from(up), 1e-3)
+
+  // An up vector along Z leaves the same gap for a view along Z.
+  const alongZ = lookAtMatrix(mat4.create(), [0, 0, 5], [0, 0, 0], [0, 0, 1])
+  for (const row of [0, 1, 2]) {
+    approx(Math.hypot(alongZ[row], alongZ[row + 4], alongZ[row + 8]), 1)
+  }
+
+  // viewUp() gives the up vector the matrix is built from, so that a mirrored
+  // camera can mirror it. It is the caller's own wherever that one is usable.
+  const out = new Float32Array(3)
+  assert.strictEqual(viewUp(out, [0, 5, 0], [0, 0, 0], [0, 1, 0]), out, 'viewUp returns the buffer it was given')
+  vecApprox(Array.from(out), [0, 0, -1])
+  vecApprox(Array.from(viewUp(out, [0, -5, 0], [0, 0, 0], [0, 1, 0])), [0, 0, 1])
+  assert.deepStrictEqual(
+    Array.from(viewUp(out, [0.1, 0.2, 5.3], [0.7, 0.3, 0.1], [0.1, 0.9, 0.2])),
+    Array.from(new Float32Array([0.1, 0.9, 0.2])),
+    'a usable up vector is returned as given')
 }
 
 // Planar reflection camera math

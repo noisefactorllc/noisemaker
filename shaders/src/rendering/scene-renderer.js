@@ -14,7 +14,8 @@ import {
   mat4,
   planeFromWorldMatrix,
   reflectDirectionAcrossPlane,
-  reflectPointAcrossPlane
+  reflectPointAcrossPlane,
+  viewUp
 } from '../scene/math.js'
 
 const GBUF_TEXTURES = [
@@ -1179,9 +1180,17 @@ export class SceneRenderer {
       this._planePoint,
       this._planeNormal
     )
+    // The up vector the main view is built from, mirrored. For a camera aimed
+    // straight up or down that is not its own `up`: see viewUp.
+    viewUp(
+      reflectedCamera.up,
+      cameraPosition,
+      camera.target || DEFAULT_TARGET,
+      camera.up || DEFAULT_UP
+    )
     reflectDirectionAcrossPlane(
       reflectedCamera.up,
-      camera.up || DEFAULT_UP,
+      reflectedCamera.up,
       this._planeNormal
     )
 

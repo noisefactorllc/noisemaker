@@ -845,6 +845,67 @@ function treeWithLights(lights, settings = {}) {
   assert.ok(Math.abs(ssr.uniforms.u_planePoint[1] - -0.6) < 1e-5)
 }
 
+// A camera straight above a tilted mirror: the mirrored camera is the mirror
+// image of the view the main camera draws, image top included. A view V
+// mirrors to flipX * V * mirror, where flipX undoes the handedness the mirror
+// reverses.
+{
+  const backend = stubBackend()
+  const renderer = new SceneRenderer(backend, null)
+  await renderer.initialize(320, 240)
+  const tree = SceneTree.fromIR({
+    camera: { fov: 52, near: 0.1, far: 1000, position: [0, 5, 0], target: [0, 0, 0] },
+    lights: [{ type: 'directional', direction: [0, -1, 0], color: [1, 1, 1], intensity: 1 }],
+    settings: { reflections: 0.65 },
+    materials: {
+      floor: { baseColor: [0.6, 0.6, 0.6], pbr: { metallic: 0.9, roughness: 0.2 } }
+    },
+    nodes: [
+      {
+        id: 'floor',
+        type: 'mesh',
+        meshType: 'plane',
+        meshParams: { width: 20, height: 20 },
+        material: 'floor',
+        planarReflection: true,
+        transform: { position: [0, -0.6, 0], rotation: [20, 0, 35] },
+        parent: null,
+        children: []
+      },
+      {
+        id: 'box',
+        type: 'mesh',
+        meshType: 'box',
+        meshParams: {},
+        transform: { position: [0, 0, 0] },
+        parent: null,
+        children: []
+      }
+    ]
+  })
+  await renderer.render(tree, { elapsed: 0 }, 'scene_color')
+
+  const [nx, ny, nz] = renderer._planeNormal
+  const d = -renderer._clipPlane[3]
+  const mirror = mat4.fromValues(
+    1 - 2 * nx * nx, -2 * nx * ny, -2 * nx * nz, 0,
+    -2 * nx * ny, 1 - 2 * ny * ny, -2 * ny * nz, 0,
+    -2 * nx * nz, -2 * ny * nz, 1 - 2 * nz * nz, 0,
+    2 * d * nx, 2 * d * ny, 2 * d * nz, 1)
+  const flipX = mat4.fromValues(-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+  // Looking straight down, the image top is -Z.
+  const view = mat4.lookAt(mat4.create(), [0, 5, 0], [0, 0, 0], [0, 0, -1])
+  const expected = mat4.create()
+  mat4.multiply(expected, view, mirror)
+  mat4.multiply(expected, flipX, expected)
+  mat4.multiply(expected, perspectiveMatrix(mat4.create(), 52, 320 / 240, 0.1, 1000), expected)
+  for (let i = 0; i < 16; i++) {
+    assert.ok(Math.abs(renderer._reflectionViewProj[i] - expected[i]) < 1e-4,
+      `the mirrored view of a camera aimed straight down: element ${i} is ` +
+      `${renderer._reflectionViewProj[i]}, expected ${expected[i]}`)
+  }
+}
+
 // The global reflection switch disables both SSR and the extra planar render.
 {
   const backend = stubBackend()

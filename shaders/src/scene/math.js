@@ -75,11 +75,62 @@ const LOOK_CENTER = new Float32Array(3)
 const LOOK_UP = new Float32Array(3)
 
 /**
+ * Two directions closer than this are one direction to a view: the squared
+ * sine of the angle between them.
+ */
+const PARALLEL = 1e-10
+
+/**
+ * The up direction a view matrix is built from, written into `out`.
+ *
+ * It is `up`, unless the view runs along `up`, as it does for an eye straight
+ * above or straight below its centre. That pair gives no sideways direction,
+ * so the image top is then the one a viewer on the +Z side arrives at by
+ * tilting until the view is vertical: -Z looking down, +Z looking up. Where
+ * `up` itself lies along Z, Y stands in for Z.
+ *
+ * A mirrored camera mirrors this vector and not `up`: the two differ exactly
+ * where the main view has nothing else to define it.
+ *
+ * The inputs are rounded to float32 first, as lookAtMatrix rounds them, so the
+ * answer is the same from either side of that rounding. `out` may be `up`.
+ * @param {ArrayLike<number>} out - Destination vector
+ * @param {ArrayLike<number>} eye - Eye position
+ * @param {ArrayLike<number>} center - Point looked at
+ * @param {ArrayLike<number>} up - Up direction asked for
+ * @returns {ArrayLike<number>} out
+ */
+export function viewUp(out, eye, center, up) {
+  const fx = Math.fround(center[0]) - Math.fround(eye[0])
+  const fy = Math.fround(center[1]) - Math.fround(eye[1])
+  const fz = Math.fround(center[2]) - Math.fround(eye[2])
+  const ux = Math.fround(up[0]), uy = Math.fround(up[1]), uz = Math.fround(up[2])
+  const cx = fy * uz - fz * uy, cy = fz * ux - fx * uz, cz = fx * uy - fy * ux
+  const viewLength = fx * fx + fy * fy + fz * fz
+  const upLength = ux * ux + uy * uy + uz * uz
+  if (viewLength === 0 || cx * cx + cy * cy + cz * cz > PARALLEL * viewLength * upLength) {
+    out[0] = up[0]
+    out[1] = up[1]
+    out[2] = up[2]
+    return out
+  }
+  const sign = fx * ux + fy * uy + fz * uz < 0 ? -1 : 1
+  const alongZ = ux * ux + uy * uy <= PARALLEL * upLength
+  out[0] = 0
+  out[1] = alongZ ? sign : 0
+  out[2] = alongZ ? 0 : sign
+  return out
+}
+
+/**
  * View matrix for an eye looking at a centre, written into `out`.
  *
  * `out` is written in every case — `mat4.lookAt` fills all sixteen elements,
  * and its degenerate eye-equals-centre branch writes an identity — so a reused
  * buffer can never carry a previous frame's value forward.
+ *
+ * The matrix is built from viewUp(), so an eye straight above or below its
+ * centre gets a full view too.
  * @param {Float32Array} out - Destination matrix
  * @param {ArrayLike<number>} eye - Eye position
  * @param {ArrayLike<number>} center - Point looked at
@@ -92,7 +143,7 @@ export function lookAtMatrix(out, eye, center, up) {
     LOOK_CENTER[i] = center[i]
     LOOK_UP[i] = up[i]
   }
-  mat4.lookAt(out, LOOK_EYE, LOOK_CENTER, LOOK_UP)
+  mat4.lookAt(out, LOOK_EYE, LOOK_CENTER, viewUp(LOOK_UP, LOOK_EYE, LOOK_CENTER, LOOK_UP))
   return out
 }
 
