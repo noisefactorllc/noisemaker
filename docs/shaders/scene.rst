@@ -381,9 +381,9 @@ the scene and shows up in reflections.
 The positional argument must be a surface reference (``o0``–``o7``); anything
 else raises ``environment() expects a surface reference``, and a second
 positional raises ``environment() takes one positional argument, the surface
-reference``. ``intensity``
-defaults to ``1`` and must be a finite non-negative number. Declare at most
-one: a second raises ``Only one environment() per scene is supported``.
+reference``. ``intensity`` defaults to ``1`` and must be a finite non-negative
+number. Declare at most one: a second raises ``Only one environment() per
+scene is supported``.
 
 The top row of the 2D program is the sky and the bottom row the ground, on
 both backends: a ``gradient()`` whose first colour renders at the top of the
@@ -745,10 +745,20 @@ descriptors <shader-language>` an effect uniform does, in place of numbers:
 
 .. code-block:: none
 
-   group(id: "spinner", rot: [0, osc(type: oscKind.saw), 0], ... )
-   mesh("sphere", pos: [0, osc(type: oscKind.sine), 0])
-   light(type: "point", intensity: midi(channel: 1, mode: midiMode.velocity))
-   mesh("box", scale: [1, audio(band: audioBand.low, min: 0.5), 1])
+   search synth
+
+   scene(
+     camera(fov: 60, pos: [0, 3, 8], target: [0, 0, 0]),
+     light(type: "directional", dir: [-1, -1, -1], intensity: 2),
+
+     group(id: "spinner", rot: [0, osc(type: oscKind.saw), 0],
+       mesh("box", pos: [-3, 0, 0])),
+     mesh("sphere", pos: [0, osc(type: oscKind.sine), 0]),
+     light(type: "point", intensity: midi(channel: 1, mode: midiMode.velocity)),
+     mesh("box", pos: [3, 0, 0], scale: [1, audio(band: audioBand.low, min: 0.5), 1])
+   ).write(o0)
+
+   render(o0)
 
 What accepts a descriptor: the components of ``pos``, ``rot`` and ``scale`` on
 ``mesh()``, ``volume()`` and ``group()``, and a light's ``intensity``. What

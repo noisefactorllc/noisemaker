@@ -227,7 +227,10 @@ its child nodes as positional arguments.
 
 .. code-block:: none
 
+  search synth
+
   scene(ambient: 0.15, camera(fov: 60), mesh("sphere"), background: [0, 0, 0]).write(o0)
+  render(o0)
 
 The binding rule: keywords claim their own parameter slots by name, wherever
 they appear in the call. The positionals are then bound **in source order to the
@@ -347,7 +350,7 @@ when the stored call or the call site is itself written with both kinds.
 
   let tuned = noise(type: 10)
   tuned(7).write(o0)       // type is 10; the 7 binds to nothing
-  tuned(7, 2).write(o0)    // type is 10; octaves is 2
+  tuned(7, 5).write(o0)    // type is 10; octaves is 5
 
 Control Flow
 ^^^^^^^^^^^^
