@@ -261,14 +261,16 @@ export function validate(ast) {
     function resolveCall(call) {
         // console.log('Resolving call:', call.name, symbols.has(call.name));
         if (symbols.has(call.name)) {
-            // A `let` that has the name of the scene call it holds is read as
-            // it is written. Applied to itself, as a call of an effect is,
-            // it would carry each of its arguments twice.
-            if (expanding.at(-1) === call.name && SCENE_FUNCTIONS.has(call.name) &&
-                !canResolveOpName(call.name)) {
-                return call
-            }
             const val = symbols.get(call.name)
+            // A `let` that holds the scene call of its own name. A call of
+            // that name is applied to it once: where the call is written, or
+            // as it is when that `let` itself is read. Applied again each time
+            // it is read, as a call of an effect is, it would carry each of
+            // the let's arguments twice.
+            const selfNamed = val.type === 'Call' && val.name === call.name &&
+                SCENE_FUNCTIONS.has(call.name) && !canResolveOpName(call.name)
+            if (selfNamed && call.letApplied) return call
+            if (selfNamed && expanding.at(-1) === call.name) return {...call, letApplied: true}
             // console.log('Found symbol:', val);
             if (val.type === 'Ident') {
                 return {...call, name: val.name}
@@ -298,6 +300,7 @@ export function validate(ast) {
                 if (mergedKw && mergedArgs.length > 0 && !isWrittenMixed(val) && !isWrittenMixed(call)) {
                     merged.positionalsByIndex = true
                 }
+                if (val.letApplied || selfNamed) merged.letApplied = true
                 // Carry a source position across the rebuild, preferring the
                 // call site over the binding. Without it every diagnostic about
                 // a `let`-aliased call reported "line 0 col 0".
@@ -429,6 +432,7 @@ export function validate(ast) {
                 // from `loc`; without this every scene error says line 0 col 0.
                 if (c.loc) mappedCall.loc = c.loc
                 if (c.positionalsByIndex) mappedCall.positionalsByIndex = true
+                if (c.letApplied) mappedCall.letApplied = true
                 if (c.kwargs) {
                     const kw = {}
                     for (const [k,v] of Object.entries(c.kwargs)) kw[k] = substitute(v, resolving)
@@ -443,6 +447,7 @@ export function validate(ast) {
             let mappedCall = {type:'Call', name:node.name, args:mappedArgs}
             if (node.loc) mappedCall.loc = node.loc
             if (node.positionalsByIndex) mappedCall.positionalsByIndex = true
+            if (node.letApplied) mappedCall.letApplied = true
             if (node.kwargs) {
                 const kw = {}
                 for (const [k,v] of Object.entries(node.kwargs)) kw[k] = substitute(v, resolving)
@@ -460,13 +465,14 @@ export function validate(ast) {
         // literal's `let`, or at the first later use where it has one.
         if (node.type === 'ArrayLiteral') {
             if (!sceneProgram) return node
+            const elements = node._resolvedElements ?? node.elements
             literalDepth++
             try {
-                return {
-                    ...node,
-                    _resolvedElements: (node._resolvedElements ?? node.elements)
-                        .map(element => substitute(element))
-                }
+                return { ...node, _resolvedElements: elements.map(element => substitute(element)) }
+            } catch {
+                // An element substitute() cannot read stays as it is. Only
+                // scene() reads the result, and it reports what it cannot use.
+                return { ...node, _resolvedElements: elements }
             } finally {
                 literalDepth--
             }
@@ -550,7 +556,10 @@ export function validate(ast) {
             for (const item of node) dropMarks(item)
             return
         }
-        if (node.type === 'Call') delete node.positionalsByIndex
+        if (node.type === 'Call') {
+            delete node.positionalsByIndex
+            delete node.letApplied
+        }
         if (node.type === 'ArrayLiteral') delete node._resolvedElements
         for (const value of Object.values(node)) dropMarks(value)
     }

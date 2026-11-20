@@ -605,6 +605,12 @@ test('an unused let that holds an array literal with a chain reports nothing',
         })
 }
 
+// A 1.x program may use the name scene for a let of its own.
+test('an array literal with a chain is not read in a program whose let is named scene',
+    'search synth, filter\nlet scene = noise(3)\nscene().vecprobe(v: [read(o1).vecfilter(), 2, 3]).write(o0)', (result) => {
+        expectNameIsNotANumber(result, [0, 2, 3])
+    })
+
 registerOp('filter.markprobe', {
     name: 'markprobe',
     args: [
@@ -773,6 +779,17 @@ test('a scene node merged through a let carries no mark of the merge',
         if (result.diagnostics.length > 0) throw new Error(`Expected no diagnostics, got ${JSON.stringify(result.diagnostics)}`)
         if (JSON.stringify(result.plans).includes('positionalsByIndex')) {
             throw new Error('Expected the scene AST to carry no mark of a merged call')
+        }
+    })
+
+// A 1.x program may use the name scene for a let of its own.
+test('a call of the name scene is applied to a let of that name that holds an effect',
+    'search synth, filter\nlet b = surfprobe(amount: mesh)\nlet mesh = scene(first: 7)\nlet scene = slotsource(first: 2, second: b)\nnoise().b(scene, 3).write(o0)', (result) => {
+        const step = result.plans[0].chain.find(s => s.op === 'synth.slotsource')
+        const applied = step.rawKwargs.second.kwargs.amount.name
+        if (applied !== 'slotsource') throw new Error(`Expected the call to become slotsource, as in 1.x, got ${applied}`)
+        if (JSON.stringify(result.plans).includes('letApplied')) {
+            throw new Error('Expected no compiled plan to carry the mark of an applied let')
         }
     })
 

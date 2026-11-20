@@ -1757,6 +1757,32 @@ scene(
   const applied = irFor('search synth\nlet environment = environment(o3)\nscene(environment(intensity: 0.5), mesh("sphere")).write(o0)')
   assert.strictEqual(applied.environment.surface, 'o3')
   assert.strictEqual(applied.environment.intensity, 0.5)
+
+  // The let is applied once, also when another let holds the result and is
+  // read later: through a call with more arguments, inside a node, by an
+  // alias, or as a child.
+  const shiny = irFor('search synth\nlet surface = surface(o2)\nlet shiny = surface(tint: [1, 0.5, 0.5])\nscene(camera(), mesh("sphere").material(shiny)).write(o0)')
+  assert.strictEqual(Object.values(shiny.materials)[0].albedoSurface, 'o2')
+  assert.deepStrictEqual(Object.values(shiny.materials)[0].baseColor, [1, 0.5, 0.5])
+
+  const ball = irFor('search synth\nlet surface = surface(o2)\nlet ball = mesh("sphere").material(surface)\nscene(camera(), ball).write(o0)')
+  assert.strictEqual(Object.values(ball.materials)[0].albedoSurface, 'o2')
+
+  const sky = irFor('search synth\nlet environment = environment(o3)\nlet sky = environment\nscene(camera(), sky, mesh("sphere")).write(o0)')
+  assert.strictEqual(sky.environment.surface, 'o3')
+
+  const child = irFor('search synth\nlet mesh = mesh("sphere")\nlet g = group(mesh)\nscene(camera(), g).write(o0)')
+  assert.deepStrictEqual(child.nodes.map(node => node.meshType ?? node.type), ['group', 'sphere'])
+
+  const steps = irFor('search synth\nlet mesh = mesh("sphere")\nlet big = mesh(radius: 3)\nlet bigger = big(pos: [1, 0, 0])\nscene(bigger, big, mesh).write(o0)')
+  assert.deepStrictEqual(
+    steps.nodes.map(node => [node.meshType, node.meshParams.radius ?? null, node.transform.position ?? null]),
+    [['sphere', 3, [1, 0, 0]], ['sphere', 3, null], ['sphere', null, null]])
+
+  // A call written before the let of its name exists is applied when it is read.
+  const later = irFor('search synth\nlet rig = group(mesh(radius: 2))\nlet mesh = mesh("sphere")\nscene(rig).write(o0)')
+  assert.deepStrictEqual(later.nodes.map(node => [node.meshType ?? node.type, node.meshParams?.radius ?? null]),
+    [['group', null], ['sphere', 2]])
 }
 
 // A diagnostic that quotes an argument names it as it was written.
