@@ -135,7 +135,6 @@ jobs:
       run: npm run test:shaders:render:webgpu
 
     - name: Verify scenes on both GPU backends
-      if: github.ref == 'refs/heads/scene-graph'
       run: npm run test:shaders:visual
 
     - name: Verify pixel pins on both GPU backends
