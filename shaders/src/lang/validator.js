@@ -263,10 +263,10 @@ export function validate(ast) {
         if (symbols.has(call.name)) {
             const val = symbols.get(call.name)
             // A `let` that holds the scene call of its own name. A call of
-            // that name is applied to it once: where the call is written, or
-            // as it is when that `let` itself is read. Applied again each time
-            // it is read, as a call of an effect is, it would carry each of
-            // the let's arguments twice.
+            // that name is applied to it once, where the call is written, and
+            // the `let` itself is read as it is. Applied again each time it is
+            // read, as a call of an effect is, it would carry each of the
+            // let's arguments twice.
             const selfNamed = val.type === 'Call' && val.name === call.name &&
                 SCENE_FUNCTIONS.has(call.name) && !canResolveOpName(call.name)
             if (selfNamed && call.letApplied) return call
@@ -314,6 +314,12 @@ export function validate(ast) {
                 }
                 return merged
             }
+        }
+        // A scene call written where no `let` of its name exists is settled
+        // there: a `let` of that name declared later is not applied to it.
+        if (!call.letApplied && !symbols.has(call.name) &&
+            SCENE_FUNCTIONS.has(call.name) && !canResolveOpName(call.name)) {
+            return {...call, letApplied: true}
         }
         return call
     }

@@ -1785,10 +1785,17 @@ scene(
   const lamp = irFor('search synth\nlet light = light(type: "point")\nlet lamp = light(intensity: 3)\nlet light = light(color: [1, 0, 0])\nscene(camera(), lamp, mesh("sphere")).write(o0)')
   assert.deepStrictEqual(lamp.lights.map(light => [light.type, light.intensity, light.color]), [['point', 3, [1, 1, 1]]])
 
-  // A call written before the let of its name exists is applied when it is read.
-  const later = irFor('search synth\nlet rig = group(mesh(radius: 2))\nlet mesh = mesh("sphere")\nscene(rig).write(o0)')
-  assert.deepStrictEqual(later.nodes.map(node => [node.meshType ?? node.type, node.meshParams?.radius ?? null]),
-    [['group', null], ['sphere', 2]])
+  // A call written where no let of its name exists is settled there: a let of
+  // that name declared later is not applied to it.
+  const earlier = irFor('search synth\nlet tex = surface(o1)\nlet surface = surface(o2)\nscene(camera(), mesh("sphere").material(tex)).write(o0)')
+  assert.strictEqual(Object.values(earlier.materials)[0].albedoSurface, 'o1')
+
+  const skyFirst = irFor('search synth\nlet sky = environment(o3)\nlet environment = environment(o1)\nscene(camera(), sky, mesh("sphere")).write(o0)')
+  assert.strictEqual(skyFirst.environment.surface, 'o3')
+
+  assert.throws(() => irFor('search synth\nlet rig = group(mesh(radius: 2))\nlet mesh = mesh("sphere")\nscene(rig).write(o0)'),
+    /mesh\(\) takes one positional argument, the mesh type at line 2 col/,
+    'a call that names no mesh type does not take one from a later let')
 }
 
 // A node's id is the name host code finds it by, so it is a string.
