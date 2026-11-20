@@ -1329,10 +1329,13 @@ export class CanvasRenderer {
             return null
         }
         if (!this._pipeline || this._isContextLost) return null
-        // Only an omitted argument means the last time, as in 1.x. Any other
-        // value is used as a number, so null steps from time 0.
-        const lastTime = this._isScene ? (this._sceneStepTime ?? this.lastTime) : this.lastTime
-        const base = fromTime === undefined ? lastTime : fromTime
+        // For a program with no scene only an omitted argument means the last
+        // time, as in 1.x: any other value is used as a number, so null steps
+        // from time 0. A scene program also takes null as the time of the
+        // step it has queued, or the last time.
+        const base = this._isScene
+            ? fromTime ?? this._sceneStepTime ?? this.lastTime
+            : (fromTime === undefined ? this.lastTime : fromTime)
         const time = (base + 1 / (60 * this._loopDuration)) % 1
         if (this._isScene) {
             const pipeline = this._pipeline

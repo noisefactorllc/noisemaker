@@ -154,6 +154,17 @@ await test('consecutive scene steps advance once each in order', async () => {
     assert.strictEqual(count(order, 'scene-start'), 3)
 })
 
+await test('a scene step given null steps from the last time', async () => {
+    const { renderer } = harness()
+    renderer.setLoopDuration(10)
+    renderer._pipeline.lastTime = 0.5
+    renderer._pipeline.render = time => { renderer._pipeline.lastTime = time }
+    const first = renderer.stepFrame(null)
+    assert.strictEqual(first, 0.5 + 1 / 600)
+    assert.strictEqual(renderer.stepFrame(null), first + 1 / 600, 'a second step starts from the queued one')
+    for (let i = 0; i < 20; i++) await tick()
+})
+
 await test('a failed recompile retains the active scene', async () => {
     const { renderer } = harness()
     const tree = renderer._sceneTree
