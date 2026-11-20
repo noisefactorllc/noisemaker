@@ -295,7 +295,12 @@ try {
                     return { name, faces: (await renderer.renderCubemap({ size })).map(face => text(face.data)) }
                 }, { dsl, effects, frames, media, cubemap, size })
                 assert.equal(name, backend, 'requested backend must execute')
-                if (cubemap) return faces.map(data => ({ data: Buffer.from(data, 'base64') }))
+                if (cubemap) {
+                    const images = faces.map(data => ({ data: Buffer.from(data, 'base64') }))
+                    assert.deepEqual(images.map(image => image.data.length), Array(6).fill(size * size * 4),
+                        'a cubemap export must return six whole faces')
+                    return images
+                }
                 return PNG.sync.read(await page.locator('canvas').screenshot())
             }
             const authored = await frame(`search synth\n${uvMap}.write(o0)\nrender(o0)`)

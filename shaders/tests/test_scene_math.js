@@ -154,10 +154,12 @@ approx(radToDeg(Math.PI / 2), 90)
   // An up vector along Z leaves the same gap for a view along Z, which takes
   // +Y: the ordinary view from the front or from the back.
   for (const eye of [[0, 0, 5], [0, 0, -5]]) {
-    assert.deepStrictEqual(
-      Array.from(lookAtMatrix(mat4.create(), eye, [0, 0, 0], [0, 0, 1])),
-      Array.from(lookAtMatrix(mat4.create(), eye, [0, 0, 0], [0, 1, 0])),
-      'a view along an up vector that lies along Z is built with +Y')
+    for (const up of [[0, 0, 1], [0, 0, -1]]) {
+      assert.deepStrictEqual(
+        Array.from(lookAtMatrix(mat4.create(), eye, [0, 0, 0], up)),
+        Array.from(lookAtMatrix(mat4.create(), eye, [0, 0, 0], [0, 1, 0])),
+        'a view along an up vector that lies along Z is built with +Y')
+    }
   }
 
   // An up vector of no length stands for +Y, in a level view and in a
@@ -180,14 +182,23 @@ approx(radToDeg(Math.PI / 2), 90)
     Array.from(new Float32Array([0.1, 0.9, 0.2])),
     'a usable up vector is returned as given')
 
+  // Any other up vector follows the same rule when the view runs along it:
+  // -Z looking against it, +Z looking along it.
+  assert.deepStrictEqual(Array.from(viewUp(out, [5, 0, 0], [0, 0, 0], [1, 0, 0])), [0, 0, -1])
+  assert.deepStrictEqual(Array.from(viewUp(out, [-5, 0, 0], [0, 0, 0], [1, 0, 0])), [0, 0, 1])
+
   // Only a view exactly along its up vector takes another one. A view the
   // least bit off it has a sideways direction of its own, and keeps the frame
-  // it always had.
-  assert.deepStrictEqual(Array.from(viewUp(out, [1e-6, 5, 0], [0, 0, 0], [0, 1, 0])), [0, 1, 0])
+  // it always had: this eye is off the vertical by the smallest float32.
+  assert.deepStrictEqual(Array.from(viewUp(out, [1.4e-45, 5, 0], [0, 0, 0], [0, 1, 0])), [0, 1, 0])
 
-  // Exactly, on the float32 values the matrix is built from: this eye is off
-  // the vertical as given and on it once rounded.
+  // Exactly, on the float32 values the matrix is built from: this eye, and
+  // then this centre, is off the vertical as given and on it once rounded.
   assert.deepStrictEqual(Array.from(viewUp(out, [1000.00002, 5, 0], [1000, 0, 0], [0, 1, 0])), [0, 0, -1])
+  assert.deepStrictEqual(Array.from(viewUp(out, [1000, 5, 0], [1000.00002, 0, 0], [0, 1, 0])), [0, 0, -1])
+
+  // An eye on its centre has no view to run along anything.
+  assert.deepStrictEqual(Array.from(viewUp(out, [1, 2, 3], [1, 2, 3], [0, 1, 0])), [0, 1, 0])
 }
 
 // Planar reflection camera math

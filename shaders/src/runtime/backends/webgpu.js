@@ -4699,8 +4699,11 @@ export class WebGPUBackend extends Backend {
      * Read pixels from a texture for testing purposes.
      * Note: This is async due to WebGPU's buffer mapping requirements.
      *
-     * Always returns top-down RGBA8 (0-255), whatever the texture's internal
-     * format. Single-channel formats (r32float, r16float — scene_gbuf_depth is
+     * Returns RGBA8 (0-255), whatever the texture's internal format, with the
+     * rows in the order the texture holds them. That is top row first for some
+     * targets and bottom row first for others, among them a surface a 2D
+     * program draws: Pipeline.renderCubemap() turns its faces over for that
+     * reason. Single-channel formats (r32float, r16float — scene_gbuf_depth is
      * r32f) expand to greyscale: the value in R, G and B with alpha opaque,
      * rather than R-only, so the same RGB-mean helpers that consume the colour
      * surfaces read a depth surface as the greyscale image it is. Float values

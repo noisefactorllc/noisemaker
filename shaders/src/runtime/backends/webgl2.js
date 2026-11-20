@@ -807,10 +807,11 @@ export class WebGL2Backend extends Backend {
     }
 
     /**
-     * Read pixels from a texture for testing/parity diffing. Mirrors
-     * WebGPUBackend.readPixels(): returns top-down RGBA8 (0-255) regardless of the
-     * texture's internal format. gl.readPixels is bottom-up, so the rows are flipped
-     * to top-down to match the WebGPU backend's readback orientation.
+     * Read pixels from a texture for testing/parity diffing. Returns RGBA8
+     * (0-255) regardless of the texture's internal format, top row first:
+     * gl.readPixels is bottom-up, so the rows are flipped. WebGPUBackend's
+     * readPixels() returns the rows as its texture holds them, which is not top
+     * row first for every target: see its comment.
      *
      * Single-channel attachments (R8/R16F/R32F — scene_gbuf_depth is r32f) are
      * read as RED, which is their implementation colour read format; asking for
