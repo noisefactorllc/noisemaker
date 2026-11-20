@@ -390,6 +390,11 @@ function approx(a, b, eps = 1e-4) {
   assert.strictEqual(new VolumeNode({ surface: 'vol0', id: false }).id, false)
   assert.strictEqual(new VolumeNode({ surface: 'vol0', id: '' }).id, 'volume_vol0')
 
+  assert.strictEqual(new CameraNode({ id: 0 }).id, 0)
+  assert.strictEqual(new CameraNode({ id: false }).id, false)
+  assert.strictEqual(new CameraNode({ id: '' }).id, 'camera')
+  assert.strictEqual(new CameraNode().id, 'camera')
+
   const tree = SceneTree.fromIR(compileScene(compile(`search synth
 scene(
   camera(),
