@@ -353,6 +353,18 @@ export function validate(ast) {
 
     const reportedAutomationCycles = new Set()
 
+    // Whether the program names scene() anywhere, as a call or as the value
+    // of a `let`. Only such a program resolves the elements of its array
+    // literals; in every other program substitute() leaves an array literal
+    // untouched, as in 1.x.
+    function namesScene(node) {
+        if (!node || typeof node !== 'object') return false
+        if (Array.isArray(node)) return node.some(namesScene)
+        if ((node.type === 'Call' || node.type === 'Ident') && node.name === 'scene') return true
+        return Object.values(node).some(namesScene)
+    }
+    const sceneProgram = namesScene(ast)
+
     // What substitute() is in: the names it is reading through their `let`
     // (innermost last), the depth of the array and object literals around the
     // node, and whether the node belongs to the scene() call being compiled.
@@ -365,7 +377,7 @@ export function validate(ast) {
         if (node.type === 'Ident' && resolving.includes(node.name)) {
             // Outside scene() nothing reads the resolved elements of an array
             // literal, and 1.x reports nothing for a name there. The name
-            // stays, and scene() reports the cycle when it reads the literal.
+            // stays a name.
             if (literalDepth > 0 && !inScene) return node
             const cycleStart = resolving.indexOf(node.name)
             const cycle = [...resolving.slice(cycleStart), node.name]
@@ -433,12 +445,14 @@ export function validate(ast) {
         }
         // A name inside an array literal resolves only inside scene(). In
         // every other call the elements stay as written, as in 1.x, where an
-        // element that is a name is not a number. The literal carries its
-        // resolved elements beside the written ones, and scene() takes them
+        // element that is a name is not a number. In a program that names
+        // scene() the literal carries its resolved elements beside the
+        // written ones, and scene() takes them
         // (see useResolvedElements). They are resolved again each time the
         // literal is substituted, so a name takes the value it has at the
         // literal's `let`, or at the first later use where it has one.
         if (node.type === 'ArrayLiteral') {
+            if (!sceneProgram) return node
             literalDepth++
             try {
                 return {
@@ -511,7 +525,8 @@ export function validate(ast) {
         if (Array.isArray(node)) return node.map(useResolvedElements)
         const mapped = {}
         for (const [key, value] of Object.entries(node)) {
-            if (key !== '_resolvedElements') mapped[key] = useResolvedElements(value)
+            if (key === '_resolvedElements' && node.type === 'ArrayLiteral') continue
+            mapped[key] = useResolvedElements(value)
         }
         if (node.type === 'ArrayLiteral' && node._resolvedElements) {
             mapped.elements = useResolvedElements(node._resolvedElements)
@@ -528,8 +543,8 @@ export function validate(ast) {
             for (const item of node) dropMarks(item)
             return
         }
-        delete node.positionalsByIndex
-        delete node._resolvedElements
+        if (node.type === 'Call') delete node.positionalsByIndex
+        if (node.type === 'ArrayLiteral') delete node._resolvedElements
         for (const value of Object.values(node)) dropMarks(value)
     }
 

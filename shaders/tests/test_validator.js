@@ -574,6 +574,53 @@ test('a returned array literal keeps only its elements as written',
         }
     })
 
+// A program that does not name scene() leaves an array literal untouched, as
+// 1.x does: its elements are not read until the literal is used.
+registerOp('filter.vecfilter', {
+    name: 'vecfilter',
+    args: [
+        { name: 'v', type: 'vec3', default: [1, 1, 1] }
+    ]
+})
+
+test('an array literal that holds a chain is not read before it is used',
+    'search synth, filter\nnoise().vecprobe(v: [read(o1).vecfilter(), 2, 3]).write(o0)', (result) => {
+        expectNameIsNotANumber(result, [0, 2, 3])
+    })
+
+test('an unused let that holds an array literal with a chain reports nothing',
+    'search synth, filter\nlet unused = [read(o1).vecfilter(), 2, 3]\nnoise().vecprobe(v: [1, 2, 3]).write(o0)', (result) => {
+        if (result.diagnostics.length > 0) throw new Error(`Expected no diagnostics, got ${JSON.stringify(result.diagnostics)}`)
+    })
+
+{
+    const lets = ['let a0 = [1, 2]']
+    for (let i = 1; i <= 20; i++) lets.push(`let a${i} = [a${i - 1}, a${i - 1}]`)
+    const started = Date.now()
+    test('array literals nested through lets are not read where no scene() takes them',
+        `search synth\n${lets.join('\n')}\nnoise().vecprobe(v: [1, 2, 3]).write(o0)`, (result) => {
+            if (result.diagnostics.length > 0) throw new Error(`Expected no diagnostics, got ${JSON.stringify(result.diagnostics)}`)
+            const elapsed = Date.now() - started
+            if (elapsed > 2000) throw new Error(`Expected the lets to compile at once, took ${elapsed} ms`)
+        })
+}
+
+registerOp('filter.markprobe', {
+    name: 'markprobe',
+    args: [
+        { name: 'positionalsByIndex', type: 'float', default: 0 },
+        { name: '_resolvedElements', type: 'float', default: 0 }
+    ]
+})
+
+test('an effect parameter may have the name of one of the validator\'s own marks',
+    'search synth, filter\nnoise().markprobe(0.7, 0.8).write(o0)', (result) => {
+        const args = result.plans[0].chain.find(s => s.op === 'filter.markprobe').args
+        if (args.positionalsByIndex !== 0.7 || args._resolvedElements !== 0.8) {
+            throw new Error(`Expected both arguments in the plan, got ${JSON.stringify(args)}`)
+        }
+    })
+
 test('an array literal in scene() keeps the value a name had where the literal was written',
     'search synth\nlet x = 0.25\nlet p = [x, 0, 5]\nlet x = 0.75\nscene(camera(pos: p), mesh("sphere")).write(o0)', (result) => {
         expectScenePosition(result, [0.25, 0, 5])
