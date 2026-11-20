@@ -444,7 +444,8 @@ function assertKnownKeywords(call, allowed) {
  * Read a node's `id`: what host code finds the node by.
  *
  * The scene tree compares ids by identity, so a string, a number or a boolean
- * can be found. Read bare, any other value was kept as the id too:
+ * can be found. An empty string is no id: the node takes its default name.
+ * Read bare, a list, an object or a descriptor was kept as the id too:
  * `mesh("sphere", id: [1, 2])` compiled and named a node nothing could find.
  */
 function nodeId(call) {

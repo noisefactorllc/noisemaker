@@ -1,5 +1,5 @@
 // shaders/src/scene/volume-node.js
-import { SceneNode } from './node.js'
+import { SceneNode, hasId } from './node.js'
 
 /**
  * A density volume placed in the scene graph.
@@ -23,7 +23,7 @@ export class VolumeNode extends SceneNode {
     scale,
     id
   } = {}) {
-    super({ id: id || `volume_${surface}`, position, rotation, scale })
+    super({ id: hasId(id) ? id : `volume_${surface}`, position, rotation, scale })
     this.surface = surface
     this.threshold = threshold
     this.mode = mode

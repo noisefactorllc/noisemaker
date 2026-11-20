@@ -6,6 +6,8 @@ import { LightNode } from '../src/scene/light.js'
 import { MeshNode } from '../src/scene/mesh-node.js'
 import { VolumeNode } from '../src/scene/volume-node.js'
 import { SceneTree } from '../src/scene/tree.js'
+import { compile } from '../src/lang/index.js'
+import { compileScene } from '../src/rendering/scene-compiler.js'
 
 function approx(a, b, eps = 1e-4) {
   assert.ok(Math.abs(a - b) < eps, `${a} ≈ ${b}`)
@@ -373,6 +375,35 @@ function approx(a, b, eps = 1e-4) {
   parent._position[0] = 2
   parent._markDirty()
   approx(child.getWorldMatrix()[12], 2)
+}
+
+// A node keeps the id it is given: 0 and false are ids, as any other number
+// and true are. Only an absent or empty id takes the default name.
+{
+  assert.strictEqual(new SceneNode({ id: 0 }).id, 0)
+  assert.strictEqual(new SceneNode({ id: false }).id, false)
+  assert.strictEqual(new SceneNode({ id: '' }).id, null, 'an empty id is no id')
+  assert.strictEqual(new SceneNode().id, null)
+  assert.strictEqual(new MeshNode({ meshType: 'sphere', id: 0 }).id, 0)
+  assert.strictEqual(new MeshNode({ meshType: 'sphere', id: '' }).id, 'mesh_sphere')
+  assert.strictEqual(new MeshNode({ meshType: 'sphere' }).id, 'mesh_sphere')
+  assert.strictEqual(new VolumeNode({ surface: 'vol0', id: false }).id, false)
+  assert.strictEqual(new VolumeNode({ surface: 'vol0', id: '' }).id, 'volume_vol0')
+
+  const tree = SceneTree.fromIR(compileScene(compile(`search synth
+scene(
+  camera(),
+  mesh("sphere", id: 0),
+  group(id: false, mesh("box", id: 5)),
+  volume(vol0, id: true),
+  mesh("torus", id: "")
+).write(o0)`)))
+  assert.strictEqual(tree.getById(0)?.meshType, 'sphere', 'a host finds a node by the id 0')
+  assert.strictEqual(tree.getById(false)?.children[0].meshType, 'box', 'and by the id false')
+  assert.strictEqual(tree.getById(5)?.meshType, 'box')
+  assert.strictEqual(tree.getById(true)?.surface, 'vol0')
+  assert.strictEqual(tree.getById('mesh_torus')?.meshType, 'torus', 'an empty id takes the default name')
+  assert.strictEqual(tree.getById(''), null)
 }
 
 console.log('Scene tree tests passed')

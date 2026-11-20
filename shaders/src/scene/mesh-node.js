@@ -1,5 +1,5 @@
 // shaders/src/scene/mesh-node.js
-import { SceneNode } from './node.js'
+import { SceneNode, hasId } from './node.js'
 
 export class MeshNode extends SceneNode {
   constructor({
@@ -12,7 +12,7 @@ export class MeshNode extends SceneNode {
     scale,
     id
   } = {}) {
-    super({ id: id || `mesh_${meshType}`, position, rotation, scale })
+    super({ id: hasId(id) ? id : `mesh_${meshType}`, position, rotation, scale })
     this.meshType = meshType
     this.meshParams = meshParams
     this.materialId = material

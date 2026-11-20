@@ -1,9 +1,17 @@
 // shaders/src/scene/node.js
 import { composeTransform, mat4 } from './math.js'
 
+/**
+ * Whether a node was given an id. An id is a string, a number or a boolean,
+ * so 0 and false are ids. Only an absent or empty id is missing.
+ */
+export function hasId(id) {
+  return id !== undefined && id !== null && id !== ''
+}
+
 export class SceneNode {
   constructor({ id, position, rotation, scale } = {}) {
-    this.id = id || null
+    this.id = hasId(id) ? id : null
     this.parent = null
     this.children = []
 
