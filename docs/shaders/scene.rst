@@ -737,6 +737,7 @@ descriptors <shader-language>` an effect uniform does, in place of numbers:
    group(id: "spinner", rot: [0, osc(type: oscKind.saw), 0], ... )
    mesh("sphere", pos: [0, osc(type: oscKind.sine), 0])
    light(type: "point", intensity: midi(channel: 1, mode: midiMode.velocity))
+   mesh("box", scale: [1, audio(band: audioBand.low, min: 0.5), 1])
 
 What accepts a descriptor: the components of ``pos``, ``rot`` and ``scale`` on
 ``mesh()``, ``volume()`` and ``group()``, and a light's ``intensity``. What
@@ -885,6 +886,22 @@ tile-exact, or set ``reflections: 0``. The reflection probe is never tiled: it
 is a world-space cubemap and captures all six full faces regardless of the
 region.
 
+The region has the fields :doc:`tile-rendering` gives. A scene render is
+awaited before the next region is set:
+
+.. code-block:: javascript
+
+   // Two tiles side by side make an image twice the width of one tile.
+   for (const tileX of [0, tileWidth]) {
+       renderer.setTileRegion({
+           offset: [tileX, 0],
+           fullResolution: [2 * tileWidth, tileHeight],
+       })
+       await renderer.render(time)
+       // save this tile before the next one renders
+   }
+   renderer.clearTileRegion()
+
 .. _shader-scene-cubemap-export:
 
 Cubemap export
@@ -909,6 +926,23 @@ and a configured reflection probe is captured once for the first face and
 frozen for the rest — it is a world-space cubemap and does not change between
 export faces; the live amortization state is restored afterwards. A second
 export started before the first settles is rejected.
+
+.. code-block:: javascript
+
+   await renderer.compile(`
+       search synth
+       scene(
+         camera(pos: [0, 1, 0]),
+         light(type: "directional", dir: [-1, -1, -1], intensity: 2),
+         mesh("sphere", radius: 1, pos: [0, 1, -4]),
+         mesh("plane", width: 20, height: 20)
+       ).write(o0)
+       render(o0)
+   `)
+   renderer.stop()
+   const faces = await renderer.renderCubemap({ size: 512, outputSurface: 'o0' })
+   // faces: 6 × { width, height, data: Uint8Array } (RGBA8), in +X, -X, +Y, -Y, +Z, -Z order
+   renderer.start()
 
 Hosting
 -------

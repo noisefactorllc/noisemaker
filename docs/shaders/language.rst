@@ -119,6 +119,14 @@ Productions marked ``(experimental)`` are experimental. See :ref:`shader-experim
 
 .. stability:end lang.objectLiteral
 
+.. code-block:: none
+
+  let look = { tint: [0.8, 0.95, 1], roughness: 0.65 }
+
+A ``let`` can hold an object literal, and the literal is kept when the program
+is re-emitted from its parsed form. No effect parameter takes an object, and a
+scene keyword that expects a number or a list reports one as an error.
+
 **Precedence & Associativity:**
 
 
@@ -214,7 +222,7 @@ its child nodes as positional arguments.
 
 .. code-block:: none
 
-  scene(ambient: 0.15, camera(fov: 60), background: [0, 0, 0]).write(o0)
+  scene(ambient: 0.15, camera(fov: 60), mesh("sphere"), background: [0, 0, 0]).write(o0)
 
 The binding rule: keywords claim their own parameter slots by name, wherever
 they appear in the call. The positionals are then bound **in source order to the
@@ -976,6 +984,17 @@ The ``pointsEmit`` and ``pointsRender`` wrappers manage these surfaces. Behavior
 .. stability:end gltf
 
 ``canvas.loadGLTFFromURL()`` and ``canvas.loadGLTFFromString()`` load glTF and GLB mesh files. Each takes the target surface as its second argument, defaulting to ``mesh0``.
+
+.. code-block:: javascript
+
+    await renderer.loadEffects(['render/meshLoader', 'render/meshRender'])
+    await renderer.compile(`
+        search render
+        meshLoader().meshRender(rotateX: 40, rotateY: 30).write(o0)
+        render(o0)
+    `)
+    const loaded = await renderer.loadGLTFFromURL('model.glb', 'mesh0')
+    // loaded: { success, vertexCount }, and error when success is false
 
 Feedback Loops
 ^^^^^^^^^^^^^^
