@@ -16,6 +16,26 @@ G-buffer from the mesh hierarchy, lights it once in screen space with a
 Cook-Torrance BRDF, adds ambient occlusion and reflections, tonemaps, and
 presents into a texture the 2D pipeline then treats as an ordinary source.
 
+This program draws a lit sphere above a mirror plane:
+
+.. code-block:: none
+
+   search synth
+
+   scene(
+     ambient: 0.15,
+     camera(fov: 50, pos: [0, 2.5, 7], target: [0, 0.6, 0]),
+     light(type: "directional", dir: [-0.6, -1, -0.4], intensity: 2),
+
+     mesh("sphere", radius: 1, pos: [0, 1, 0])
+       .material(solid(color: [0.9, 0.2, 0.12]).pbr(metallic: 0.2, roughness: 0.35)),
+     mesh("plane", width: 14, height: 14)
+       .reflector()
+       .material(solid(color: [0.6, 0.62, 0.7]).pbr(metallic: 0.9, roughness: 0.2))
+   ).write(o0)
+
+   render(o0)
+
 Every pass is written twice — once in GLSL and once in WGSL.
 
 .. note::
