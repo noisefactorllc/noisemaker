@@ -340,18 +340,6 @@ Invoking variables that store function calls merges stored arguments with call-s
 * **Named Arguments:** Merged with stored arguments. **Call-site arguments override stored arguments** if keys conflict.
 * **Duplicate Keys:** If a call provides a named argument multiple times, the last value wins.
 
-When the merge brings positional and named arguments together, each
-positional binds to the parameter at its own position in the merged list. A
-positional whose parameter a named argument holds binds to nothing. The
-:ref:`mixed argument <shader-language-mixed-arguments>` rule applies only
-when the stored call or the call site is itself written with both kinds.
-
-.. code-block:: none
-
-  let tuned = noise(type: 10)
-  tuned(7).write(o0)       // type is 10; the 7 binds to nothing
-  tuned(7, 5).write(o0)    // type is 10; octaves is 5
-
 Control Flow
 ^^^^^^^^^^^^
 
