@@ -1820,6 +1820,8 @@ export class WebGL2Backend extends Backend {
     bindUniforms(pass, program, state) {
         const gl = this.gl
         const programUniforms = program.uniforms
+        // A scene pass gives a typed array for a vector uniform (see _setUniform).
+        const typedVectors = state.scenePasses === true
 
         // Bind pass uniforms first (from DSL/effect defaults, includes resolved oscillators)
         if (pass.uniforms) {
@@ -1828,7 +1830,7 @@ export class WebGL2Backend extends Backend {
                 if (!uniform) continue
                 const value = pass.uniforms[name]
                 if (value === undefined || value === null) continue
-                this._setUniform(gl, uniform, value)
+                this._setUniform(gl, uniform, value, typedVectors)
             }
         }
 
@@ -1842,7 +1844,7 @@ export class WebGL2Backend extends Backend {
                 if (!uniform) continue
                 const value = state.globalUniforms[name]
                 if (value === undefined || value === null) continue
-                this._setUniform(gl, uniform, value)
+                this._setUniform(gl, uniform, value, typedVectors)
             }
         }
     }
@@ -1964,8 +1966,15 @@ export class WebGL2Backend extends Backend {
         return bytes.subarray(0, bufferSize)
     }
 
-    /** @private Helper to set a single uniform value */
-    _setUniform(gl, uniform, value) {
+    /**
+     * @private Helper to set a single uniform value.
+     *
+     * For a vec2, vec3 or vec4 uniform, an array gives the components and any
+     * other value is repeated for every component. A typed array is an array
+     * only when `typedVectors` is set, which it is for a scene pass. For a pass
+     * of an effect definition it is one value, as in 1.x.
+     */
+    _setUniform(gl, uniform, value, typedVectors = false) {
         const loc = uniform.location
         switch (uniform.type) {
             case gl.FLOAT:
@@ -1980,7 +1989,7 @@ export class WebGL2Backend extends Backend {
                 gl.uniform1i(loc, typeof value === 'boolean' ? (value ? 1 : 0) : value)
                 break
             case gl.FLOAT_VEC2: {
-                const v2 = Array.isArray(value) || ArrayBuffer.isView(value)
+                const v2 = Array.isArray(value) || (typedVectors && ArrayBuffer.isView(value))
                     ? value
                     : [value, value]
                 const arr2 = this._vec2Buf
@@ -1990,7 +1999,7 @@ export class WebGL2Backend extends Backend {
                 break
             }
             case gl.FLOAT_VEC3: {
-                const v3 = Array.isArray(value) || ArrayBuffer.isView(value)
+                const v3 = Array.isArray(value) || (typedVectors && ArrayBuffer.isView(value))
                     ? value
                     : [value, value, value]
                 const arr3 = this._vec3Buf
@@ -2001,7 +2010,7 @@ export class WebGL2Backend extends Backend {
                 break
             }
             case gl.FLOAT_VEC4: {
-                const v4 = Array.isArray(value) || ArrayBuffer.isView(value)
+                const v4 = Array.isArray(value) || (typedVectors && ArrayBuffer.isView(value))
                     ? value
                     : [value, value, value, value]
                 const arr4 = this._vec4Buf
