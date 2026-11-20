@@ -128,9 +128,9 @@ Productions marked ``(experimental)`` are experimental. See :ref:`shader-experim
   render(o0)
 
 A ``let`` can hold an object literal, and the literal is kept when the program
-is re-emitted from its parsed form. An effect parameter given an object falls
-back to its default, and ``scene()`` reports one as an error wherever it reads
-a value.
+is re-emitted from its parsed form. An effect parameter given an object
+reports it or falls back to its default, and ``scene()`` reports one as an
+error wherever it reads a value.
 
 **Precedence & Associativity:**
 
