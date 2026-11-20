@@ -1186,7 +1186,13 @@ export function validate(ast) {
                         specArgs[i + 1]?.name === 'g' && specArgs[i + 2]?.name === 'b') {
                         const positional = substitute(call.args[posCursor])
                         if (positional && positional.type === 'Color') {
-                            posCursor++
+                            // A call with no keyword is a 1.x call, where
+                            // each positional belongs to the slot at its own
+                            // index: the colour stands in the places of r,
+                            // g and b, and the next slot takes the fourth
+                            // positional. A call that also has keywords
+                            // counts the colour as one positional.
+                            posCursor += kw ? 1 : 3
                             const [r, g, b] = positional.value
                             splatValues = {
                                 [def.name]: r,

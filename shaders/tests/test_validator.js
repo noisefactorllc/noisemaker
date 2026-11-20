@@ -511,3 +511,54 @@ test('an array literal in scene() keeps the value a name had where the literal w
     'search synth\nlet x = 0.25\nlet p = [x, 0, 5]\nlet x = 0.75\nscene(camera(position: p), mesh(geometry: sphere)).write(o0)', (result) => {
         expectScenePosition(result, [0.25, 0, 5])
     })
+
+// ---------------------------------------------------------------------------
+// Positionals after a positional hex colour.
+//
+// A call with no keyword binds each positional to the slot at its own index,
+// as in 1.x. A hex colour stands in the places of r, g and b, so the next
+// slot takes the fourth positional and the two between bind to nothing. A
+// call that also has keywords counts the colour as one positional.
+// ---------------------------------------------------------------------------
+
+registerOp('synth.rgbaprobe', {
+    name: 'rgbaprobe',
+    args: [
+        { name: 'r', type: 'float', default: 1, min: 0, max: 1 },
+        { name: 'g', type: 'float', default: 1, min: 0, max: 1 },
+        { name: 'b', type: 'float', default: 1, min: 0, max: 1 },
+        { name: 'a', type: 'float', default: 0.9, min: 0, max: 1 },
+        { name: 'x', type: 'float', default: 0.8, min: 0, max: 1 }
+    ]
+})
+
+function expectAfterColour(result, a, x) {
+    const args = result.plans[0].chain.find(s => s.op === 'synth.rgbaprobe').args
+    if (!near(args.r, HEX[0]) || !near(args.g, HEX[1]) || !near(args.b, HEX[2])) {
+        throw new Error(`Expected r/g/b from the hex colour, got ${JSON.stringify(args)}`)
+    }
+    if (args.a !== a || args.x !== x) {
+        throw new Error(`Expected a ${a} and x ${x}, got ${JSON.stringify(args)}`)
+    }
+    if (result.diagnostics.length > 0) throw new Error(`Expected no diagnostics, got ${JSON.stringify(result.diagnostics)}`)
+}
+
+test('the positional after a hex colour does not reach the slot after b',
+    'search synth\nnoise().rgbaprobe(#804020, 0.5).write(o0)', (result) => {
+        expectAfterColour(result, 0.9, 0.8)
+    })
+
+test('the fourth positional binds to the slot after the r/g/b of a hex colour',
+    'search synth\nnoise().rgbaprobe(#804020, 0.5, 0.6, 0.7).write(o0)', (result) => {
+        expectAfterColour(result, 0.7, 0.8)
+    })
+
+test('a let-bound hex colour stands in the places of r, g and b too',
+    'search synth\nlet c = #804020\nnoise().rgbaprobe(c, 0.5, 0.6, 0.7, 0.3).write(o0)', (result) => {
+        expectAfterColour(result, 0.7, 0.3)
+    })
+
+test('a hex colour is one positional in a call that also has keywords',
+    'search synth\nnoise().rgbaprobe(#804020, 0.5, x: 0.3).write(o0)', (result) => {
+        expectAfterColour(result, 0.5, 0.3)
+    })
