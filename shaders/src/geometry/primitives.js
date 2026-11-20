@@ -6,7 +6,9 @@ import { Geometry } from './geometry.js'
 // program upright and unmirrored: u runs to the viewer's right, and v runs up
 // on a face that stands. On a face that lies flat, v runs the way a viewer on
 // the +Z side sees as up when looking down or up at it: toward -Z on a face
-// that looks up, toward +Z on one that looks down.
+// that looks up, toward +Z on one that looks down. A torus wraps the program
+// around its tube, so it is upright on the wall that faces away from the
+// ring's axis and half-turned on the wall that faces the hole.
 
 /**
  * Clamp a segment count to a whole number of at least three.

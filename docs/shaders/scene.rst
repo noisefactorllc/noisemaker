@@ -668,10 +668,14 @@ Materials
      - Uses a pipeline surface (``o0``–``o7``) as the albedo map, so a live 2D
        program becomes a texture. The positional argument is the surface;
        ``tint`` multiplies the sampled colour. Seen from outside, every
-       primitive shows the program upright and unmirrored, on both backends.
-       A face that lies flat shows it as a viewer on the ``+Z`` side sees it
-       when looking down or up at that face: on a ``plane`` the top of the 2D
-       frame runs along the ``-Z`` edge.
+       primitive shows the program unmirrored, on both backends. It is
+       upright on a ``sphere``, on the side of a ``cylinder`` and on the
+       faces of a ``box`` that stand. A face that lies flat shows it as a
+       viewer on the ``+Z`` side sees it when looking down or up at that
+       face: on a ``plane`` the top of the 2D frame runs along the ``-Z``
+       edge. A ``torus`` wraps the program around its tube: upright on the
+       wall that faces away from the ring's axis, half-turned on the wall
+       that faces the hole.
    * - ``pbr``
      - ``metallic`` (``0``), ``roughness`` (``1``)
      - Cook-Torrance parameters. Both must lie within ``0..1``; a value outside

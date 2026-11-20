@@ -69,16 +69,16 @@ function assertAsAuthored(png, window, label, decode = sampled) {
         `${label}: the face must not show the program turned (${measured})`)
 }
 
-// Where the viewer stands. A camera straight above or below cannot take +Y as
-// its up, so those two lean a little toward +Z: the viewer of the documented
-// coordinate system, on the +Z side, looking down or up. From there +X is to
-// the right; -Z is at the top of the frame from above, +Z from below.
+// Where the viewer stands. A face that lies flat is seen as the documented
+// coordinate system has it seen: from the +Z side, by a camera raised to look
+// down at it or lowered to look up at it. The face is then above or below the
+// middle of the frame, so each of those cases names its own window.
 const FRONT = '0, 0, 6'
 const BACK = '0, 0, -6'
 const RIGHT = '6, 0, 0'
 const LEFT = '-6, 0, 0'
-const ABOVE = '0, 6, 0.01'
-const BELOW = '0, -6, 0.01'
+const RAISED = '0, 4, 4.5'
+const LOWERED = '0, -4, 4.5'
 const MIDDLE = [-0.4, -0.4, 0.4, 0.4]
 
 const textured = (mesh, eye) => `search synth
@@ -120,29 +120,27 @@ const materialsLab = JSON.parse(fs.readFileSync(path.join(root, 'shaders/tests/p
 const cases = [
     face('the +X face of a box', box, RIGHT),
     face('the -X face of a box', box, LEFT),
-    face('the +Y face of a box', box, ABOVE),
-    face('the -Y face of a box', box, BELOW),
+    face('the +Y face of a box', box, RAISED, [-0.3, 0.2, 0.3, 0.7]),
+    face('the -Y face of a box', box, LOWERED, [-0.3, -0.7, 0.3, -0.2]),
     face('the +Z face of a box', box, FRONT),
     face('the -Z face of a box', box, BACK),
     face('a sphere seen from +Z', sphere, FRONT),
     face('a sphere seen from +X', sphere, RIGHT),
-    face('a plane seen from above', 'mesh("plane", width: 2, height: 2)', ABOVE),
+    face('a plane seen from above', 'mesh("plane", width: 2, height: 2)', RAISED, [-0.3, -0.3, 0.3, 0.25]),
     // Stood up to face the viewer, a plane is a screen for the program.
     face('a plane stood up to face +Z', 'mesh("plane", width: 2, height: 2, rot: [90, 0, 0])', FRONT),
     face('the side of a cylinder seen from +Z', cylinder, FRONT),
     face('the side of a cylinder seen from -Z', cylinder, BACK),
-    face('the top cap of a cylinder', cylinder, ABOVE),
-    face('the bottom cap of a cylinder', cylinder, BELOW),
-    // The seam of a torus runs along its outer edge, so the tube is checked
-    // from above, on the part of the ring nearest the viewer.
-    face('the top of a torus', 'mesh("torus", radius: 1, tube: 0.4, segments: 48, tubeSegments: 24)', ABOVE,
-        [-0.3, -0.78, 0.3, -0.55]),
+    face('the top cap of a cylinder', cylinder, RAISED, [-0.25, 0.28, 0.25, 0.64]),
+    face('the bottom cap of a cylinder', cylinder, LOWERED, [-0.25, -0.64, 0.25, -0.28]),
+    // A torus wraps the program around its tube, with the seam along its
+    // outer edge. The window is the top of the tube on the part of the ring
+    // nearest the viewer, above the seam.
+    face('the top of a torus', 'mesh("torus", radius: 1, tube: 0.4, segments: 48, tubeSegments: 24)', RAISED,
+        [-0.3, -0.55, 0.3, -0.25]),
     {
         name: 'reflectionProbe shows the floor in the lower half of a mirror sphere',
         dsl: mirror,
-        // The probe fills all six faces on the first frame and then one a
-        // frame; the sphere is in its own probe, so the frame settles later.
-        frames: 12,
         matchWebGL2: true,
         check(view, label) {
             const red = (bottom, top) => {
@@ -159,19 +157,28 @@ const cases = [
         name: 'the materials lab scene',
         dsl: materialsLab.dsl,
         effects: materialsLab.effects,
+        // The frame of this scene settles over its first renders.
         frames: 12,
         matchWebGL2: true,
+        // Ambient occlusion is on in this scene. One occlusion sample can fall
+        // on either side of its threshold on the two backends, which moves a
+        // few pixels by a few levels: test_visual_playwright.js measures it
+        // and holds it under the ceiling used here. A probe that differs
+        // moves a large share of the frame by far more.
+        ceiling: 6,
     },
 ]
 
-// The largest difference between two frames, and how much of the frame differs.
+// The largest difference between two frames, and the share of the frame that
+// differs by more than rounding.
+const ROUNDING = 2
 function difference(a, b) {
     let max = 0
     let differing = 0
     for (let i = 0; i < a.data.length; i += 4) {
         let pixel = 0
         for (let c = 0; c < 3; c++) pixel = Math.max(pixel, Math.abs(a.data[i + c] - b.data[i + c]))
-        if (pixel > 0) differing++
+        if (pixel > ROUNDING) differing++
         max = Math.max(max, pixel)
     }
     return { max, percent: differing / (size * size) * 100 }
@@ -222,8 +229,9 @@ try {
                     if (c.matchWebGL2 && backend === 'webgl2') webgl2Frames.set(c.name, view)
                     if (c.matchWebGL2 && backend === 'webgpu') {
                         const { max, percent } = difference(view, webgl2Frames.get(c.name))
-                        assert.ok(max <= 2, `${label}: WebGPU must draw the frame WebGL2 draws ` +
-                            `(largest difference ${max}, ${percent.toFixed(2)}% of pixels differ)`)
+                        assert.ok(max <= (c.ceiling ?? ROUNDING) && percent <= 0.1,
+                            `${label}: WebGPU must draw the frame WebGL2 draws (largest difference ${max}, ` +
+                            `${percent.toFixed(2)}% of pixels differ by more than ${ROUNDING})`)
                     }
                     console.log(`PASS ${label}`)
                 } catch (error) {

@@ -323,7 +323,8 @@ function textureAxes(geo) {
     const uAxis = e1.map((_, k) => (e1[k] * dv2 - e2[k] * dv1) / det)
     const vAxis = e1.map((_, k) => (e2[k] * du1 - e1[k] * du2) / det)
     const normal = [0, 1, 2].map(k => N(a)[k] + N(b)[k] + N(c)[k])
-    axes.push({ uAxis, vAxis, normal, cross })
+    const centre = [0, 1, 2].map(k => (P(a)[k] + P(b)[k] + P(c)[k]) / 3)
+    axes.push({ uAxis, vAxis, normal, centre, cross })
   }
   assert.ok(axes.length > 0, 'the mesh has textured triangles')
   return axes
@@ -370,6 +371,17 @@ function assertTextureUpright(geo, label, { flatFaces }) {
   assertTextureUpright(createBox({}), 'box', { flatFaces: true })
   assertTextureUpright(createPlane({}), 'plane', { flatFaces: true })
   assertTextureUpright(createCylinder({}), 'cylinder', { flatFaces: true })
+
+  // A torus wraps the program around its tube, so only the wall that faces
+  // away from the ring's axis is upright; the wall that faces the hole shows
+  // it half-turned.
+  const walls = textureAxes(createTorus({})).filter(({ normal }) => Math.abs(normal[1]) < 0.5 * Math.hypot(...normal))
+  const facesAway = ({ normal, centre }) => normal[0] * centre[0] + normal[2] * centre[2] > 0
+  const outer = walls.filter(facesAway)
+  const inner = walls.filter(wall => !facesAway(wall))
+  assert.ok(outer.length > 0 && inner.length > 0, 'torus: has an outer and an inner wall')
+  assert.ok(outer.every(({ vAxis }) => vAxis[1] > 0), 'torus: the wall facing away from the axis shows a texture upright')
+  assert.ok(inner.every(({ vAxis }) => vAxis[1] < 0), 'torus: the wall facing the hole shows a texture half-turned')
 }
 
 console.log('Geometry primitives tests passed')
