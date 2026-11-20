@@ -1314,6 +1314,9 @@ export class WebGL2Backend extends Backend {
         const needsConversion = pass.storageTextures || (pass.outputs && pass.outputs.outputBuffer)
         const effectivePass = needsConversion ? this.convertComputeToRender(pass) : pass
 
+        // The scene renderer marks the frame state of its own passes.
+        const scenePass = state?.scenePasses === true
+
         const program = this.programs.get(effectivePass.program)
 
         if (!program) {
@@ -1458,8 +1461,10 @@ export class WebGL2Backend extends Backend {
             }
         }
 
-        // Clear color buffer when requested by the pass
-        if (effectivePass.clear) {
+        // Clear the colour target when a scene pass asks for it. A pass of an
+        // effect definition does not clear here, as in 1.x, where this
+        // backend does not read `clear`.
+        if (scenePass && effectivePass.clear) {
             gl.clearColor(0, 0, 0, 0)
             gl.clear(gl.COLOR_BUFFER_BIT)
         }

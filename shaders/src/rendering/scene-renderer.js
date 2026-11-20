@@ -372,6 +372,10 @@ export class SceneRenderer {
      * descriptors survive it untouched).
      */
     this._frameState = {
+      // The passes of this frame come from the scene renderer, not from an
+      // effect definition. WebGL2 applies the pass fields that 1.x does not
+      // read only to them (see WebGL2Backend.executePass).
+      scenePasses: true,
       frameIndex: 0,
       time: 0,
       globalUniforms: { u_time: 0, u_resolution: [0, 0] },
