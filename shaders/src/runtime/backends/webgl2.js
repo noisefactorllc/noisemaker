@@ -1462,8 +1462,8 @@ export class WebGL2Backend extends Backend {
         }
 
         // Clear the colour target when a scene pass asks for it. A pass of an
-        // effect definition does not clear here, as in 1.x, where this
-        // backend does not read `clear`.
+        // effect definition does not clear here: for it this backend does not
+        // read `clear`, which is the stable behaviour.
         if (scenePass && effectivePass.clear) {
             gl.clearColor(0, 0, 0, 0)
             gl.clear(gl.COLOR_BUFFER_BIT)
@@ -1588,8 +1588,8 @@ export class WebGL2Backend extends Backend {
             // winding, and reflection passes request two-sided rasterization
             // so their geometry remains consistent with WebGPU's MRT path and
             // closed meshes do not disappear. A pass of an effect definition
-            // culls back faces, as in 1.x, where this backend does not read
-            // `cullMode`.
+            // culls back faces: for it this backend does not read `cullMode`,
+            // which is the stable behaviour.
             const cullMode = scenePass ? effectivePass.cullMode : 'back'
             if (cullMode === 'none') {
                 gl.disable(gl.CULL_FACE)
@@ -1601,8 +1601,9 @@ export class WebGL2Backend extends Backend {
 
             // Clear depth unless a scene pass opts out. Batched mesh passes
             // set clear:false for all but the first. A pass of an effect
-            // definition (e.g. render/meshRender) clears each time, as in
-            // 1.x, otherwise stale depth from prior frames breaks occlusion.
+            // definition (e.g. render/meshRender) clears each time, the stable
+            // behaviour, otherwise stale depth from prior frames breaks
+            // occlusion.
             if (!scenePass || effectivePass.clear !== false) {
                 gl.clear(gl.DEPTH_BUFFER_BIT)
             }
@@ -1972,7 +1973,7 @@ export class WebGL2Backend extends Backend {
      * For a vec2, vec3 or vec4 uniform, an array gives the components and any
      * other value is repeated for every component. A typed array is an array
      * only when `typedVectors` is set, which it is for a scene pass. For a pass
-     * of an effect definition it is one value, as in 1.x.
+     * of an effect definition it is one value, the stable behaviour.
      */
     _setUniform(gl, uniform, value, typedVectors = false) {
         const loc = uniform.location

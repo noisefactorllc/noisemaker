@@ -1330,9 +1330,9 @@ export class CanvasRenderer {
         }
         if (!this._pipeline || this._isContextLost) return null
         // For a program with no scene only an omitted argument means the last
-        // time, as in 1.x: any other value is used as a number, so null steps
-        // from time 0. A scene program also takes null as the time of the
-        // step it has queued, or the last time.
+        // time, the stable behaviour: any other value is used as a number, so
+        // null steps from time 0. A scene program also takes null as the time
+        // of the step it has queued, or the last time.
         const base = this._isScene
             ? fromTime ?? this._sceneStepTime ?? this.lastTime
             : (fromTime === undefined ? this.lastTime : fromTime)
@@ -1736,7 +1736,7 @@ export class CanvasRenderer {
                     // pipeline.externalState. Dropped here, every one of them
                     // pins at its minimum for the rest of the session. The
                     // replacement of a program with no scene gets the state
-                    // when the host next sets it, as in 1.x.
+                    // when the host next sets it, the stable behaviour.
                     if (graph._isScene) {
                         if (this._midiState) {
                             replacementPipeline.setMidiState(this._midiState)

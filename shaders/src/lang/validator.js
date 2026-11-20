@@ -251,8 +251,9 @@ export function validate(ast) {
         return false
     }
 
-    // A call written with both positional and keyword arguments. A merged
-    // 1.x call (see resolveCall) has both too, but is not written this way.
+    // A call written with both positional and keyword arguments. A call
+    // merged from a `let` (see resolveCall) has both too, but is not written
+    // this way.
     function isWrittenMixed(call) {
         if (call.positionalsByIndex) return false
         return !!(call.args && call.args.length > 0 && call.kwargs && Object.keys(call.kwargs).length > 0)
@@ -295,8 +296,9 @@ export function validate(ast) {
                 }
                 const merged = {type:'Call', name: val.name, args: mergedArgs}
                 // Keywords and positionals that meet only through this merge
-                // are a 1.x call: neither part is written in the mixed form,
-                // so the positionals bind by index (see the binding loop).
+                // are not a call in the mixed form: neither part is written
+                // that way, so the positionals bind by index (see the binding
+                // loop).
                 if (mergedKw && mergedArgs.length > 0 && !isWrittenMixed(val) && !isWrittenMixed(call)) {
                     merged.positionalsByIndex = true
                 }
@@ -372,7 +374,7 @@ export function validate(ast) {
     // Whether the program names scene() anywhere, as a call or as the value
     // of a `let`. Only such a program resolves the elements of its array
     // literals; in every other program substitute() leaves an array literal
-    // untouched, as in 1.x.
+    // untouched, the stable behaviour.
     function namesScene(node) {
         if (!node || typeof node !== 'object') return false
         if (Array.isArray(node)) return node.some(namesScene)
@@ -405,8 +407,8 @@ export function validate(ast) {
         if (!node) return node
         if (node.type === 'Ident' && resolving.includes(node.name)) {
             // Outside scene() nothing reads the resolved elements of an array
-            // literal, and 1.x reports nothing for a name there. The name
-            // stays a name.
+            // literal, and the stable language reports nothing for a name
+            // there. The name stays a name.
             if (literalDepth > 0 && !inScene) return node
             const cycleStart = resolving.indexOf(node.name)
             const cycle = [...resolving.slice(cycleStart), node.name]
@@ -475,8 +477,9 @@ export function validate(ast) {
             return resolveCall(mappedCall)
         }
         // A name inside an array literal resolves only inside scene(). In
-        // every other call the elements stay as written, as in 1.x, where an
-        // element that is a name is not a number. In a program that names
+        // every other call the elements stay as written, the stable
+        // behaviour: an element that is a name is not a number there. In a
+        // program that names
         // scene() the literal carries its resolved elements beside the
         // written ones, and scene() takes them
         // (see useResolvedElements). They are resolved again each time the
@@ -1284,10 +1287,11 @@ export function validate(ast) {
                 // — otherwise the first keyword shifts every later positional
                 // and the trailing one falls off the end.
                 let posCursor = 0
-                // A call that 1.x can parse binds each positional to the slot
-                // at its own index instead: a call with no keyword, or one
-                // whose keywords and positionals met through a `let`. There a
-                // positional whose slot a keyword holds binds to nothing.
+                // A call not written in the mixed form binds each positional
+                // to the slot at its own index instead: a call with no
+                // keyword, or one whose keywords and positionals met through
+                // a `let`. There a positional whose slot a keyword holds binds
+                // to nothing.
                 const byIndex = !kw || call.positionalsByIndex === true
                 // Members a positional hex colour has claimed but not yet
                 // reached, by parameter name. See the splat branch below.
@@ -1306,7 +1310,8 @@ export function validate(ast) {
                     //
                     // In a call bound by index the colour stands in the places
                     // of r, g and b, so the next slot takes the fourth
-                    // positional. 1.x splats only in a call with no keyword.
+                    // positional. Outside the mixed form the colour splats
+                    // only in a call with no keyword.
                     if ((!kw || !byIndex) && def.type !== 'color' && def.name === 'r' &&
                         specArgs[i + 1]?.name === 'g' && specArgs[i + 2]?.name === 'b') {
                         const positional = substitute(call.args[posCursor])
