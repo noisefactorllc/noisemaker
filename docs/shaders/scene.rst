@@ -288,7 +288,7 @@ raises ``Only one camera() per scene is supported``.
      - ``[0, 0, 0]``
      - Look-at point.
 
-The camera's up vector is always ``+Y``. A camera aimed straight down or
+The camera's up vector is ``+Y``. A camera aimed exactly straight down or
 straight up cannot use it, and takes ``-Z`` as up when it looks down and
 ``+Z`` when it looks up: the frame a viewer on the ``+Z`` side reaches by
 tilting until the view is vertical, with ``+X`` still on the right.

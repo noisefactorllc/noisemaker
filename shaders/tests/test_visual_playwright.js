@@ -909,7 +909,11 @@ async function readLitColor(page) {
     }
     return { width, height, data: btoa(text) }
   })
-  return { width: image.width, height: image.height, data: Buffer.from(image.data, 'base64') }
+  const data = Buffer.from(image.data, 'base64')
+  if (data.length !== image.width * image.height * 4) {
+    throw new Error(`the lit colour frame arrived as ${data.length} bytes, not ${image.width}x${image.height} RGBA`)
+  }
+  return { width: image.width, height: image.height, data }
 }
 
 async function litColorFor(browser, port, backendName) {

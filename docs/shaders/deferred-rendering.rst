@@ -287,8 +287,9 @@ rows, so it survives non-uniform parent scale. If the camera is on the negative
 side, the normal is flipped so it always faces the viewer.
 
 The camera is then mirrored across the plane: position and target reflected as
-points, up reflected as a direction, with field of view and clip distances
-copied unchanged. The mirrored G-buffer pass excludes the reflector itself,
+points, the up vector its view is built from reflected as a direction, with
+field of view and clip distances copied unchanged. The mirrored G-buffer pass
+excludes the reflector itself,
 clips everything behind the plane, and disables face culling so that
 single-sided geometry survives the mirrored view (the mirrored look-at keeps
 triangle winding intact; culling would have removed the far side of open

@@ -151,11 +151,23 @@ approx(radToDeg(Math.PI / 2), 90)
   const tiltedUp = lookAtMatrix(mat4.create(), [0, -5, 0.001], [0, 0, 0], [0, 1, 0])
   vecApprox(Array.from(tiltedUp), Array.from(up), 1e-3)
 
-  // An up vector along Z leaves the same gap for a view along Z.
-  const alongZ = lookAtMatrix(mat4.create(), [0, 0, 5], [0, 0, 0], [0, 0, 1])
-  for (const row of [0, 1, 2]) {
-    approx(Math.hypot(alongZ[row], alongZ[row + 4], alongZ[row + 8]), 1)
+  // An up vector along Z leaves the same gap for a view along Z, which takes
+  // +Y: the ordinary view from the front or from the back.
+  for (const eye of [[0, 0, 5], [0, 0, -5]]) {
+    assert.deepStrictEqual(
+      Array.from(lookAtMatrix(mat4.create(), eye, [0, 0, 0], [0, 0, 1])),
+      Array.from(lookAtMatrix(mat4.create(), eye, [0, 0, 0], [0, 1, 0])),
+      'a view along an up vector that lies along Z is built with +Y')
   }
+
+  // An up vector of no length stands for +Y, in a level view and in a
+  // vertical one.
+  assert.deepStrictEqual(
+    Array.from(lookAtMatrix(mat4.create(), [0, 0, 5], [0, 0, 0], [0, 0, 0])),
+    Array.from(lookAtMatrix(mat4.create(), [0, 0, 5], [0, 0, 0], [0, 1, 0])))
+  assert.deepStrictEqual(
+    Array.from(lookAtMatrix(mat4.create(), [0, 5, 0], [0, 0, 0], [0, 0, 0])),
+    Array.from(down))
 
   // viewUp() gives the up vector the matrix is built from, so that a mirrored
   // camera can mirror it. It is the caller's own wherever that one is usable.
@@ -167,6 +179,15 @@ approx(radToDeg(Math.PI / 2), 90)
     Array.from(viewUp(out, [0.1, 0.2, 5.3], [0.7, 0.3, 0.1], [0.1, 0.9, 0.2])),
     Array.from(new Float32Array([0.1, 0.9, 0.2])),
     'a usable up vector is returned as given')
+
+  // Only a view exactly along its up vector takes another one. A view the
+  // least bit off it has a sideways direction of its own, and keeps the frame
+  // it always had.
+  assert.deepStrictEqual(Array.from(viewUp(out, [1e-6, 5, 0], [0, 0, 0], [0, 1, 0])), [0, 1, 0])
+
+  // Exactly, on the float32 values the matrix is built from: this eye is off
+  // the vertical as given and on it once rounded.
+  assert.deepStrictEqual(Array.from(viewUp(out, [1000.00002, 5, 0], [1000, 0, 0], [0, 1, 0])), [0, 0, -1])
 }
 
 // Planar reflection camera math

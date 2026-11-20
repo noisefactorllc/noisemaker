@@ -75,19 +75,17 @@ const LOOK_CENTER = new Float32Array(3)
 const LOOK_UP = new Float32Array(3)
 
 /**
- * Two directions closer than this are one direction to a view: the squared
- * sine of the angle between them.
- */
-const PARALLEL = 1e-10
-
-/**
  * The up direction a view matrix is built from, written into `out`.
  *
- * It is `up`, unless the view runs along `up`, as it does for an eye straight
- * above or straight below its centre. That pair gives no sideways direction,
- * so the image top is then the one a viewer on the +Z side arrives at by
- * tilting until the view is vertical: -Z looking down, +Z looking up. Where
- * `up` itself lies along Z, Y stands in for Z.
+ * It is `up`, unless the view runs exactly along `up`, as it does for an eye
+ * straight above or straight below its centre. That pair gives no sideways
+ * direction, so the image top is then the one a viewer on the +Z side arrives
+ * at by tilting until the view is vertical: -Z looking down, +Z looking up.
+ * Where `up` itself lies along Z, the view takes +Y. An `up` of no length
+ * stands for +Y.
+ *
+ * A view the least bit off its up vector has a sideways direction of its own
+ * and keeps it.
  *
  * A mirrored camera mirrors this vector and not `up`: the two differ exactly
  * where the main view has nothing else to define it.
@@ -104,21 +102,21 @@ export function viewUp(out, eye, center, up) {
   const fx = Math.fround(center[0]) - Math.fround(eye[0])
   const fy = Math.fround(center[1]) - Math.fround(eye[1])
   const fz = Math.fround(center[2]) - Math.fround(eye[2])
-  const ux = Math.fround(up[0]), uy = Math.fround(up[1]), uz = Math.fround(up[2])
+  let ux = Math.fround(up[0]), uy = Math.fround(up[1]), uz = Math.fround(up[2])
+  const given = ux !== 0 || uy !== 0 || uz !== 0
+  if (!given) uy = 1
   const cx = fy * uz - fz * uy, cy = fz * ux - fx * uz, cz = fx * uy - fy * ux
-  const viewLength = fx * fx + fy * fy + fz * fz
-  const upLength = ux * ux + uy * uy + uz * uz
-  if (viewLength === 0 || cx * cx + cy * cy + cz * cz > PARALLEL * viewLength * upLength) {
-    out[0] = up[0]
-    out[1] = up[1]
-    out[2] = up[2]
+  const alongUp = cx === 0 && cy === 0 && cz === 0 && (fx !== 0 || fy !== 0 || fz !== 0)
+  if (!alongUp) {
+    out[0] = given ? up[0] : 0
+    out[1] = given ? up[1] : 1
+    out[2] = given ? up[2] : 0
     return out
   }
-  const sign = fx * ux + fy * uy + fz * uz < 0 ? -1 : 1
-  const alongZ = ux * ux + uy * uy <= PARALLEL * upLength
+  const alongZ = ux === 0 && uy === 0
   out[0] = 0
-  out[1] = alongZ ? sign : 0
-  out[2] = alongZ ? 0 : sign
+  out[1] = alongZ ? 1 : 0
+  out[2] = alongZ ? 0 : (fx * ux + fy * uy + fz * uz < 0 ? -1 : 1)
   return out
 }
 
