@@ -1,9 +1,10 @@
 /**
  * WebGL2 backend: the pass fields that only a scene pass may set.
  *
- * In 1.x the WebGL2 backend does not read a pass's `clear`. A pass of an
- * effect definition keeps that behaviour. A pass of the scene renderer, whose
- * frame state carries `scenePasses`, has the field applied.
+ * In 1.x the WebGL2 backend does not read a pass's `clear` or `cullMode`: it
+ * culls the back faces of every triangle pass and clears depth before each.
+ * A pass of an effect definition keeps that behaviour. A pass of the scene
+ * renderer, whose frame state carries `scenePasses`, has the fields applied.
  */
 
 import assert from 'assert'
@@ -92,6 +93,49 @@ test('a scene pass that sets clear clears its colour target', async () => {
 test('a scene pass that does not set clear keeps its colour target', async () => {
     const { gl, calls } = await callsOf({}, SCENE_STATE)
     assert.ok(!has(calls, 'clear', gl.COLOR_BUFFER_BIT))
+})
+
+const TRIANGLES = { drawMode: 'triangles', count: 3 }
+
+test('a triangle pass of an effect definition culls back faces whatever its cullMode', async () => {
+    for (const cullMode of ['none', 'front', 'back', undefined]) {
+        const { gl, calls } = await callsOf({ ...TRIANGLES, cullMode }, EFFECT_STATE)
+        assert.ok(has(calls, 'enable', gl.CULL_FACE), `cullMode ${cullMode}: culling stays on`)
+        assert.ok(!has(calls, 'disable', gl.CULL_FACE), `cullMode ${cullMode}: culling is not turned off`)
+        assert.ok(has(calls, 'cullFace', gl.BACK), `cullMode ${cullMode}: back faces are culled`)
+        assert.ok(!has(calls, 'cullFace', gl.FRONT), `cullMode ${cullMode}: front faces are drawn`)
+    }
+})
+
+test('a triangle pass of an effect definition clears depth whatever its clear', async () => {
+    for (const clear of [false, true, undefined]) {
+        const { gl, calls } = await callsOf({ ...TRIANGLES, clear }, EFFECT_STATE)
+        assert.ok(has(calls, 'clear', gl.DEPTH_BUFFER_BIT), `clear ${clear}: depth is cleared`)
+    }
+})
+
+test('a scene triangle pass has its cullMode applied', async () => {
+    const none = await callsOf({ ...TRIANGLES, cullMode: 'none' }, SCENE_STATE)
+    assert.ok(has(none.calls, 'disable', none.gl.CULL_FACE))
+    assert.ok(!has(none.calls, 'enable', none.gl.CULL_FACE))
+
+    const front = await callsOf({ ...TRIANGLES, cullMode: 'front' }, SCENE_STATE)
+    assert.ok(has(front.calls, 'enable', front.gl.CULL_FACE))
+    assert.ok(has(front.calls, 'cullFace', front.gl.FRONT))
+
+    const back = await callsOf({ ...TRIANGLES, cullMode: 'back' }, SCENE_STATE)
+    assert.ok(has(back.calls, 'enable', back.gl.CULL_FACE))
+    assert.ok(has(back.calls, 'cullFace', back.gl.BACK))
+})
+
+test('a scene triangle pass keeps depth only when it sets clear to false', async () => {
+    const kept = await callsOf({ ...TRIANGLES, cullMode: 'back', clear: false }, SCENE_STATE)
+    assert.ok(!has(kept.calls, 'clear', kept.gl.DEPTH_BUFFER_BIT))
+
+    for (const clear of [true, undefined]) {
+        const { gl, calls } = await callsOf({ ...TRIANGLES, cullMode: 'back', clear }, SCENE_STATE)
+        assert.ok(has(calls, 'clear', gl.DEPTH_BUFFER_BIT), `clear ${clear}: depth is cleared`)
+    }
 })
 
 let failed = 0

@@ -1584,22 +1584,26 @@ export class WebGL2Backend extends Backend {
             gl.depthFunc(gl.LESS)
             gl.depthMask(true)
 
-            // Mirrored cameras reverse winding. Reflection passes request
-            // two-sided rasterization so their geometry remains consistent
-            // with WebGPU's MRT path and closed meshes do not disappear.
-            if (effectivePass.cullMode === 'none') {
+            // A scene pass states its cull mode. Mirrored cameras reverse
+            // winding, and reflection passes request two-sided rasterization
+            // so their geometry remains consistent with WebGPU's MRT path and
+            // closed meshes do not disappear. A pass of an effect definition
+            // culls back faces, as in 1.x, where this backend does not read
+            // `cullMode`.
+            const cullMode = scenePass ? effectivePass.cullMode : 'back'
+            if (cullMode === 'none') {
                 gl.disable(gl.CULL_FACE)
             } else {
                 gl.enable(gl.CULL_FACE)
                 gl.frontFace(gl.CCW)
-                gl.cullFace(effectivePass.cullMode === 'front' ? gl.FRONT : gl.BACK)
+                gl.cullFace(cullMode === 'front' ? gl.FRONT : gl.BACK)
             }
 
-            // Clear depth unless the pass explicitly opts out. Batched mesh
-            // passes set clear:false for all but the first; passes that say
-            // nothing (e.g. render/meshRender) must still clear each frame,
-            // otherwise stale depth from prior frames breaks occlusion.
-            if (effectivePass.clear !== false) {
+            // Clear depth unless a scene pass opts out. Batched mesh passes
+            // set clear:false for all but the first. A pass of an effect
+            // definition (e.g. render/meshRender) clears each time, as in
+            // 1.x, otherwise stale depth from prior frames breaks occlusion.
+            if (!scenePass || effectivePass.clear !== false) {
                 gl.clear(gl.DEPTH_BUFFER_BIT)
             }
 
