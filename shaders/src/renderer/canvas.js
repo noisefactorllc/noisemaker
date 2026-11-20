@@ -1710,8 +1710,8 @@ export class CanvasRenderer {
                     // Recompile failed, need to create a new pipeline from scratch.
                     // This is a first pipeline in every respect except that one
                     // already existed, so it takes the same graph handoff — the
-                    // source is already compiled, a few lines up — and the same
-                    // external-input replay as the branch above.
+                    // source is already compiled, a few lines up. A scene also
+                    // takes the same external-input replay as the branch above.
                     compilationPipeline.isCompiling = false
                     const previousPipeline = compilationPipeline
                     const replacementPipeline = await this._createRuntime(dsl, {
@@ -1731,12 +1731,16 @@ export class CanvasRenderer {
                     this._watchDeviceLoss(replacementPipeline)
                     // Scene bindings read midi()/audio() through
                     // pipeline.externalState. Dropped here, every one of them
-                    // pins at its minimum for the rest of the session.
-                    if (this._midiState) {
-                        replacementPipeline.setMidiState(this._midiState)
-                    }
-                    if (this._audioState) {
-                        replacementPipeline.setAudioState(this._audioState)
+                    // pins at its minimum for the rest of the session. The
+                    // replacement of a program with no scene gets the state
+                    // when the host next sets it, as in 1.x.
+                    if (graph._isScene) {
+                        if (this._midiState) {
+                            replacementPipeline.setMidiState(this._midiState)
+                        }
+                        if (this._audioState) {
+                            replacementPipeline.setAudioState(this._audioState)
+                        }
                     }
                     try {
                         previousPipeline?.dispose?.()

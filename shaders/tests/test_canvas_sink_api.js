@@ -421,6 +421,45 @@ test('successful fallback recreation installs a fresh pipeline then disposes the
     assert.deepEqual(events, ['replacement created', 'old pipeline dispose'])
 })
 
+test('fallback recreation of a program with no scene leaves external input state to the host', async () => {
+    const previousPipeline = {
+        width: 16,
+        height: 16,
+        graph: { id: 'old graph' },
+        isCompiling: false,
+        async compilePrograms() {},
+        createSurfaces() {
+            throw new Error('force full recreation')
+        },
+        dispose() {}
+    }
+    const received = []
+    const replacement = {
+        backend: {},
+        setMidiState(state) { received.push(['midi', state]) },
+        setAudioState(state) { received.push(['audio', state]) }
+    }
+    const renderer = bareRenderer(previousPipeline)
+    renderer._currentDsl = ''
+    renderer._midiState = { marker: 'midi' }
+    renderer._audioState = { marker: 'audio' }
+    renderer._createRuntime = async () => replacement
+
+    const originalError = console.error
+    console.error = () => {}
+    try {
+        assert.equal(await renderer.compile('search synth\nrender(o0)'), replacement)
+    } finally {
+        console.error = originalError
+    }
+
+    assert.deepEqual(received, [], 'as in 1.x, the replacement takes no state the host did not set on it')
+
+    const midiState = { marker: 'next midi' }
+    renderer.setMidiState(midiState)
+    assert.deepEqual(received, [['midi', midiState]], 'the next state the host sets reaches the replacement')
+})
+
 test('failed fallback recreation retains the active old pipeline without closing its sink', async () => {
     let disposals = 0
     const previousPipeline = {
