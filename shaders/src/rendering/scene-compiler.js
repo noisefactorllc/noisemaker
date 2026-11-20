@@ -91,6 +91,9 @@ const VOLUME_REF = /^vol[0-7]$/
  */
 const CAMERA_KEYS = new Set(['fov', 'near', 'far', 'pos', 'target'])
 const ENVIRONMENT_KEYS = new Set(['intensity'])
+const SOLID_KEYS = new Set(['color'])
+const PBR_KEYS = new Set(['metallic', 'roughness'])
+const EMIT_KEYS = new Set(['strength'])
 /**
  * volume() takes placement, the iso level and the marching mode. `threshold`
  * matches the range render3d's own uniform declares (0..1, default 0.5) so a
@@ -430,6 +433,34 @@ function assertKnownKeywords(call, allowed) {
 }
 
 /**
+ * Reject a positional argument on a call that reads keywords only.
+ *
+ * camera(), light(), solid(), pbr() and emit() never read their positionals,
+ * so `pbr(0.7)` compiled clean and left the roughness at its default. The
+ * diagnostic quotes what was written and lists the keywords the call takes.
+ */
+function assertKeywordsOnly(call, allowed) {
+    const positional = call.args?.[0]
+    if (positional === undefined) return
+    throw sceneError(
+        `${call.name}() takes keyword arguments only; found '${describePositional(positional)}'${expected(allowed)}`,
+        located(positional, call)
+    )
+}
+
+/**
+ * Reject what follows the one positional argument a call reads.
+ *
+ * environment(), surface() and material() read their first positional and
+ * nothing after it, so `surface(o2, 5)` compiled clean and dropped the 5.
+ */
+function assertOnePositional(call, what) {
+    const extra = call.args?.[1]
+    if (extra === undefined) return
+    throw sceneError(`${call.name}() takes one positional argument, ${what}`, located(extra, call))
+}
+
+/**
  * The error for an osc(), midi() or audio() written where only a plain value is
  * read.
  *
@@ -537,6 +568,7 @@ function defaultCamera() {
 }
 
 function buildCamera(call) {
+    assertKeywordsOnly(call, CAMERA_KEYS)
     assertKnownKeywords(call, CAMERA_KEYS)
     // Validated rather than read bare: an osc() descriptor or a wrong-arity
     // array used to travel all the way to the view matrix and turn it to NaN,
@@ -585,6 +617,7 @@ function buildLight(call) {
             located(call.kwargs?.type, call)
         )
     }
+    assertKeywordsOnly(call, LIGHT_KEYS[type])
     assertKnownKeywords(call, LIGHT_KEYS[type])
     // Vectors and scalars are validated here for the same reason as the camera:
     // an osc() descriptor read bare reached uniform3fv and NaN'd the light.
@@ -617,6 +650,7 @@ function buildEnvironment(call) {
     if (!arg || arg.type !== 'OutputRef') {
         throw sceneError('environment() expects a surface reference (o0..o7)', located(arg, call))
     }
+    assertOnePositional(call, 'the surface reference')
     assertKnownKeywords(call, ENVIRONMENT_KEYS)
     return {
         surface: arg.name,
@@ -681,6 +715,15 @@ function internMaterial(materialCall, materials) {
             located(materialCall.args?.[0], materialCall)
         )
     }
+    assertOnePositional(materialCall, 'the material source')
+    // material() has no keyword of its own: every value belongs to a term.
+    const keyword = Object.keys(materialCall.kwargs ?? {})[0]
+    if (keyword !== undefined) {
+        throw sceneError(
+            `material() takes no keyword arguments; found '${keyword}'`,
+            located(materialCall.kwargs[keyword], materialCall)
+        )
+    }
 
     const material = {
         baseColor: [1, 1, 1],
@@ -701,7 +744,8 @@ function internMaterial(materialCall, materials) {
             }
             sourceSeen = link.name
             if (link.name === 'solid') {
-                assertKnownKeywords(link, new Set(['color']))
+                assertKeywordsOnly(link, SOLID_KEYS)
+                assertKnownKeywords(link, SOLID_KEYS)
                 material.baseColor = vectorKw(link, 'color', material.baseColor, 3, {
                     nonNegative: true
                 })
@@ -711,6 +755,7 @@ function internMaterial(materialCall, materials) {
                 if (!arg || arg.type !== 'OutputRef') {
                     throw sceneError('surface() expects a surface reference (o0..o7)', located(arg, link))
                 }
+                assertOnePositional(link, 'the surface reference')
                 material.albedoSurface = arg.name
                 material.baseColor = vectorKw(link, 'tint', material.baseColor, 3, {
                     nonNegative: true
@@ -719,7 +764,8 @@ function internMaterial(materialCall, materials) {
                 material.uvOffset = vectorKw(link, 'uvOffset', material.uvOffset, 2)
             }
         } else if (link.name === 'pbr') {
-            assertKnownKeywords(link, new Set(['metallic', 'roughness']))
+            assertKeywordsOnly(link, PBR_KEYS)
+            assertKnownKeywords(link, PBR_KEYS)
             material.pbr.metallic = numberKw(link, 'metallic', material.pbr.metallic, {
                 min: 0,
                 max: 1
@@ -729,7 +775,8 @@ function internMaterial(materialCall, materials) {
                 max: 1
             })
         } else if (link.name === 'emit') {
-            assertKnownKeywords(link, new Set(['strength']))
+            assertKeywordsOnly(link, EMIT_KEYS)
+            assertKnownKeywords(link, EMIT_KEYS)
             material.emission = numberKw(link, 'strength', 1, {
                 min: 0,
                 rangeLabel: 'non-negative'

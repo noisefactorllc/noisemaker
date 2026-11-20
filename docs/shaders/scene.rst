@@ -254,7 +254,8 @@ does too: a scene that declares no camera gets ``fov: 60``, ``near: 0.1``,
 ``far: 1000``, ``pos: [0, 0, 5]`` and ``target: [0, 0, 0]``. Declaring
 ``camera()`` with no keywords is the same thing written out.
 
-Unknown keywords are errors. ``fov`` must lie between ``0`` and ``179``
+Unknown keywords are errors, and so is a positional argument: ``camera(60)``
+raises ``camera() takes keyword arguments only``. ``fov`` must lie between ``0`` and ``179``
 degrees, ``near`` and ``far`` must both be greater than zero, and ``far`` must
 be greater than ``near``.
 
@@ -344,7 +345,8 @@ defaults to ``"directional"``; an unrecognised value raises
      - Softness of the cone edge.
 
 A keyword outside a type's column is an error: ``pos`` on a directional light
-raises ``Unknown keyword 'pos' for light()``.
+raises ``Unknown keyword 'pos' for light()``. A positional argument is an
+error too: ``light("point")`` raises ``light() takes keyword arguments only``.
 
 Any number of lights may be declared. A scene with no ``light()`` is lit by
 the ambient hemisphere alone (``ambient``, ``sky``, ``ground``) — it compiles
@@ -375,7 +377,9 @@ the scene and shows up in reflections.
    ).write(o0)
 
 The positional argument must be a surface reference (``o0``–``o7``); anything
-else raises ``environment() expects a surface reference``. ``intensity``
+else raises ``environment() expects a surface reference``, and a second
+positional raises ``environment() takes one positional argument, the surface
+reference``. ``intensity``
 defaults to ``1`` and must be a finite non-negative number. Declare at most
 one: a second raises ``Only one environment() per scene is supported``.
 
@@ -692,6 +696,11 @@ inherit — renders as matte white: ``solid(color: [1, 1, 1])`` with
 
 Supplying two sources, omitting the source entirely, or using an unknown term
 raises a scene error. A node accepts only one ``material()``.
+
+A term reports an argument it does not read. ``solid()``, ``pbr()`` and
+``emit()`` take keywords only, so ``pbr(0.7)`` raises ``pbr() takes keyword
+arguments only``. ``surface()`` and ``material()`` take one positional
+argument, and ``material()`` takes no keyword.
 
 Materials **inherit**: a material on a ``group()`` applies to every descendant
 that does not declare its own.

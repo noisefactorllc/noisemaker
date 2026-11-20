@@ -1641,6 +1641,68 @@ scene(
   assert.strictEqual(ir.environment.surface, 'o1', 'a single environment still compiles')
 }
 
+// A scene call reports an argument it does not read.
+//
+// camera(), light(), solid(), pbr() and emit() read keywords only, and
+// environment(), surface() and material() read one positional. What they did
+// not read was dropped: `pbr(0.7)` compiled clean with the roughness still 1.
+{
+  const mat = term => `scene(mesh("sphere").material(${term})).write(o0)`
+  for (const [label, program, message] of [
+    ['camera()', 'scene(camera(60)).write(o0)',
+      /camera\(\) takes keyword arguments only; found '60' \(expected: fov, near, far, pos, target\)/],
+    ['camera() beside a keyword', 'scene(camera(60, fov: 50)).write(o0)',
+      /camera\(\) takes keyword arguments only; found '60'/],
+    ['light()', 'scene(light("point")).write(o0)',
+      /light\(\) takes keyword arguments only; found '"point"'/],
+    ['solid()', mat('solid([1, 0, 0])'),
+      /solid\(\) takes keyword arguments only; found '\[\.\.\.\]' \(expected: color\)/],
+    ['pbr()', mat('solid(color: [1, 0, 0]).pbr(0.7)'),
+      /pbr\(\) takes keyword arguments only; found '0\.7' \(expected: metallic, roughness\)/],
+    ['pbr() with an object literal', mat('solid(color: [1, 0, 0]).pbr({ roughness: 0.7 })'),
+      /pbr\(\) takes keyword arguments only; found '\{\.\.\.\}'/],
+    ['emit()', mat('solid(color: [1, 0, 0]).emit(2)'),
+      /emit\(\) takes keyword arguments only; found '2' \(expected: strength\)/],
+    ['environment()', 'scene(environment(o3, 5), mesh("sphere")).write(o0)',
+      /environment\(\) takes one positional argument, the surface reference/],
+    ['surface()', mat('surface(o2, 5)'),
+      /surface\(\) takes one positional argument, the surface reference/],
+    ['material() with a second positional', mat('solid(color: [1, 0, 0]), 5'),
+      /material\(\) takes one positional argument, the material source/],
+    ['material() with a keyword', mat('solid(color: [1, 0, 0]), roughness: 0.7'),
+      /material\(\) takes no keyword arguments; found 'roughness'/]
+  ]) {
+    let thrown = null
+    try {
+      irFor(`search synth\n${program}`)
+    } catch (err) {
+      thrown = err
+    }
+    assert.ok(thrown, `${label}: expected a compile error`)
+    assert.match(thrown.message, message, `${label}: unexpected message`)
+    assert.match(thrown.message, /line [1-9]\d* col [1-9]\d*/,
+      `${label}: expected a real source position, got "${thrown.message}"`)
+  }
+
+  // The same values written as each call reads them still compile.
+  const ir = irFor(`search synth
+    scene(
+      camera(fov: 50),
+      light(type: "point"),
+      environment(o3, intensity: 0.5),
+      mesh("sphere").material(solid(color: [1, 0, 0]).pbr(roughness: 0.7).emit(strength: 2)),
+      mesh("box").material(surface(o2, tint: [1, 1, 1]))
+    ).write(o0)`)
+  assert.strictEqual(ir.camera.fov, 50)
+  assert.strictEqual(ir.lights[0].type, 'point')
+  assert.strictEqual(ir.environment.surface, 'o3')
+  const materials = Object.values(ir.materials)
+  assert.deepStrictEqual(materials[0].baseColor, [1, 0, 0])
+  assert.strictEqual(materials[0].pbr.roughness, 0.7)
+  assert.strictEqual(materials[0].emission, 2)
+  assert.strictEqual(materials[1].albedoSurface, 'o2')
+}
+
 // mesh() with no positional names the argument that is missing.
 //
 // The count check only fired above one, so zero fell through to litValue and
