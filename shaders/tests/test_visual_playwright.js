@@ -2454,6 +2454,7 @@ const measureCubemapExport = async ({ size }) => {
 
   const census = (data, width, fromRow, toRow) => {
     let sky = 0
+    let green = 0
     let count = 0
     let sumR = 0
     let sumB = 0
@@ -2465,6 +2466,7 @@ const measureCubemapExport = async ({ size }) => {
         const r = data[at]
         const b = data[at + 2]
         if (b > r) sky++
+        if (data[at + 1] > b) green++
         sumR += r
         sumB += b
         const luma = (r + data[at + 1] + b) / 3
@@ -2473,7 +2475,13 @@ const measureCubemapExport = async ({ size }) => {
         count++
       }
     }
-    return { skyFraction: sky / count, meanR: sumR / count, meanB: sumB / count, range: maxLuma - minLuma }
+    return {
+      skyFraction: sky / count,
+      greenFraction: green / count,
+      meanR: sumR / count,
+      meanB: sumB / count,
+      range: maxLuma - minLuma
+    }
   }
   const hash = (data) => {
     let h = 0
@@ -2580,26 +2588,36 @@ async function testSceneCubemapExport(browser, port, backendName) {
   if (down.skyFraction > 0.2) return fail(`-Y is ${(down.skyFraction * 100).toFixed(1)}% sky, not floor`)
   if (down.meanR <= down.meanB) return fail(`-Y is not floor-coloured (meanR ${down.meanR.toFixed(1)} <= meanB ${down.meanB.toFixed(1)})`)
 
-  // Every equator face carries the horizon across its middle: one half all
-  // sky, the other all floor. Which half is which is the readback's row order,
-  // and that is BACKEND-RELATIVE for a pipeline surface — measured here, and
-  // measured identically for a plain 2D program: WebGL2's readPixels returns
-  // the image top-down (matching the canvas), WebGPU's returns it row-reversed.
-  // A scene export therefore lands in exactly the orientation the 2D cubemap
-  // renderers land in on the same backend, which is the contract that matters:
-  // the same consumer code assembles either. The check is written per backend
-  // rather than relaxed, so a flip on ONE backend still fails.
-  const skyFirst = backendName !== 'webgpu'
+  // Every equator face carries the horizon across its middle. A face is an
+  // image with its top row first, on both backends: the first half of its rows
+  // is all sky and the second half all floor.
   for (const face of [0, 1, 4, 5]) {
     const s = measured.stats[face]
-    const [sky, floor] = skyFirst ? [s.top, s.bottom] : [s.bottom, s.top]
-    const half = skyFirst ? 'top' : 'bottom'
-    if (sky.skyFraction < 0.6) {
-      return fail(`${names[face]} ${half} half is only ${(sky.skyFraction * 100).toFixed(1)}% sky — face is upside down`)
+    if (s.top.skyFraction < 0.6) {
+      return fail(`${names[face]} top half is only ${(s.top.skyFraction * 100).toFixed(1)}% sky — face is upside down`)
     }
-    if (floor.skyFraction > 0.35) {
-      return fail(`${names[face]} other half is ${(floor.skyFraction * 100).toFixed(1)}% sky — face is upside down`)
+    if (s.bottom.skyFraction > 0.35) {
+      return fail(`${names[face]} bottom half is ${(s.bottom.skyFraction * 100).toFixed(1)}% sky — face is upside down`)
     }
+  }
+
+  // The +Y and -Y faces have no horizon. Their row order shows in an object
+  // that lies off the middle of each, toward +Z: the sphere overhead, whose
+  // green beats its blue, and the green sphere on the floor, whose blue beats
+  // its red as the sky's does. The top row of +Y points along -Z and the top
+  // row of -Y along +Z, so the first sphere is in the bottom half of its face
+  // and the second in the top half of its own.
+  const [upTop, upBottom] = [measured.stats[2].top, measured.stats[2].bottom]
+  if (upBottom.greenFraction < upTop.greenFraction + 0.1) {
+    return fail(`+Y has its overhead sphere in the top half ` +
+      `(${(upTop.greenFraction * 100).toFixed(1)}% green over blue above, ` +
+      `${(upBottom.greenFraction * 100).toFixed(1)}% below) — face is upside down`)
+  }
+  const [downTop, downBottom] = [measured.stats[3].top, measured.stats[3].bottom]
+  if (downTop.skyFraction < downBottom.skyFraction + 0.1) {
+    return fail(`-Y has its green sphere in the bottom half ` +
+      `(${(downTop.skyFraction * 100).toFixed(1)}% blue over red above, ` +
+      `${(downBottom.skyFraction * 100).toFixed(1)}% below) — face is upside down`)
   }
 
   return {
@@ -2607,8 +2625,7 @@ async function testSceneCubemapExport(browser, port, backendName) {
     backend: backendName,
     status: 'pass',
     reason: `six distinct faces at ${CUBE_EXPORT_SIZE}px; +Y ${(up.skyFraction * 100).toFixed(0)}% sky, ` +
-      `-Y ${(down.skyFraction * 100).toFixed(0)}% sky, horizon splits all four equator faces ` +
-      `sky-${skyFirst ? 'first' : 'last'} (this backend's surface readback row order)`,
+      `-Y ${(down.skyFraction * 100).toFixed(0)}% sky, sky above floor on all four equator faces`,
     metrics: measured
   }
 }

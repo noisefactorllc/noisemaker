@@ -233,6 +233,6 @@ Technical Notes
 
 - **Face order is fixed**: ``+X, -X, +Y, -Y, +Z, -Z`` (indices 0–5), consistent across the camera, driver, export names, and cross layout.
 - **Readback works on both backends.** The ``renderCubemap`` method reads the offscreen output surface directly (via ``copyTextureToBuffer`` on WebGPU). This avoids the canvas IOSurface readback race that affects on-screen captures.
-- **Pixel row orientation depends on the rendered path.** For the cubemap effects, ``readPixels`` returns top-down rows on both backends. For a ``scene()`` program, WebGL2 returns sky-first rows and WebGPU returns sky-last rows. Reverse the WebGPU scene rows before encoding an upright image.
+- **Pixel rows are top-down** on both backends, for a cubemap effect and for a ``scene()`` program: the first row of a face's ``data`` is the top row of its image. Encode the faces, or lay them out in the cross, as they are returned.
 - **Volume size limits**: ``x16``–``x128`` (128³ is the current ceiling).
 - ``outputSurface`` defaults to ``o0`` and must match the surface the DSL writes to.

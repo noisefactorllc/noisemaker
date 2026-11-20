@@ -9,6 +9,7 @@ import { isReadbackPerformanceWarning } from '../../scripts/lib/shader-parity-at
 
 // Effects show their input as authored: never mirrored or flipped, on either
 // backend. Each case renders through CanvasRenderer on the presented canvas,
+// or reads the faces of a cubemap export as a host receives them,
 // with the backend asserted in the page, and compares the output with the
 // authored image. testPattern(pattern: uvMap) carries u in red and v in green,
 // so red rises to the right and green rises to the top of the presented frame.
@@ -39,6 +40,13 @@ function litMean(png, x0, y0, x1, y1, f) {
     }
     assert.ok(lit > 16, `band ${x0},${y0}-${x1},${y1} must contain lit pixels`)
     return sum / lit
+}
+
+// Mean of f(red, green, blue) over rows y0 to y1 of an image, rows top first.
+function bandMean(png, y0, y1, f) {
+    let sum = 0
+    for (let y = y0; y < y1; y++) for (let x = 0; x < size; x++) sum += f(...at(png, x, y))
+    return sum / ((y1 - y0) * size)
 }
 
 // The authored image with its pixels taken from (sx(x), sy(y)), rows top first.
@@ -181,6 +189,46 @@ render(o0)`,
             }
         },
     })),
+    // A cubemap export hands back each face as an image with its top row
+    // first, on both backends. The same media image lies as a floor under the
+    // camera, which stands at the middle of the volume. A face that looks
+    // along the ground has nothing above its horizon and the floor below it.
+    // The -Y face looks down with its top row toward +Z, and the image's top
+    // row, the blue half, is the far side, -Z: blue is in its bottom half.
+    {
+        name: 'render/renderCubemapSurface exports each face top row first',
+        effects: ['render/renderCubemapSurface', 'synth3d/heightmap3d', 'synth/solid', 'synth/media'],
+        media: 'cube',
+        cubemap: true,
+        matchWebGL2: true,
+        dsl: `search synth3d, render, synth
+heightmap3d(heightTex: solid(color: #ffffff), tex: media(imageSize: [${size}, ${size}]), volumeSize: x64, heightScale: 0.35)
+  .renderCubemapSurface().write(o0)
+render(o0)`,
+        check(faces, authored, label) {
+            const red = (face, y0, y1) => bandMean(face, y0, y1, r => r)
+            const blue = (face, y0, y1) => bandMean(face, y0, y1, (r, g, b) => b)
+            for (const [name, face] of [['+X', faces[0]], ['-X', faces[1]], ['+Z', faces[4]], ['-Z', faces[5]]]) {
+                const [above, below] = [red(face, 0, size / 4), red(face, size * 3 / 4, size)]
+                assert.ok(above < 16 && below > 128,
+                    `${label}: the ${name} face must show the floor below its horizon (red ${above.toFixed(0)} above, ${below.toFixed(0)} below)`)
+            }
+            const [near, far] = [blue(faces[3], 0, size / 4), blue(faces[3], size * 3 / 4, size)]
+            assert.ok(far - near > 64,
+                `${label}: the -Y face must show the image's top row at its bottom (blue ${near.toFixed(0)} above, ${far.toFixed(0)} below)`)
+        },
+    },
+    // A noise volume has no two rows alike on any face, so each of the six
+    // faces WebGPU returns must be the face WebGL2 returns.
+    ...[['render/renderCubemapSurface', 'renderCubemapSurface()'], ['render/renderCubemap3d', 'renderCubemap3d(threshold: 0.55)']].map(([effect, call]) => ({
+        name: `${effect} exports the faces WebGL2 exports`,
+        effects: [effect, 'synth3d/noise3d'],
+        cubemap: true,
+        matchWebGL2: true,
+        dsl: `search synth3d, render
+noise3d(volumeSize: x64, speed: 0).${call}.write(o0)
+render(o0)`,
+    })),
 ]
 
 const failures = []
@@ -223,8 +271,10 @@ try {
             }, { baseUrl, backend, size })
             // Each case starts from a fresh pipeline, so particle state
             // never carries over from the previous case.
-            async function frame(dsl, effects = [], frames = 2, media = 'uv') {
-                const name = await page.evaluate(async ({ dsl, effects, frames, media }) => {
+            // The presented frame of a program, or the six faces of its
+            // cubemap export as renderCubemap() returns them.
+            async function frame(dsl, effects = [], frames = 2, media = 'uv', cubemap = false) {
+                const { name, faces } = await page.evaluate(async ({ dsl, effects, frames, media, cubemap, size }) => {
                     await renderer.loadEffects(effects)
                     await renderer.dispose()
                     await renderer.compile(dsl)
@@ -235,20 +285,31 @@ try {
                     }
                     for (let i = 0; i < frames; i++) renderer.render(0)
                     await renderer.pipeline.backend.device?.queue.onSubmittedWorkDone()
-                    return renderer.pipeline.backend.getName().toLowerCase()
-                }, { dsl, effects, frames, media })
+                    const name = renderer.pipeline.backend.getName().toLowerCase()
+                    if (!cubemap) return { name }
+                    const text = data => {
+                        let binary = ''
+                        for (let i = 0; i < data.length; i += 0x8000) binary += String.fromCharCode.apply(null, data.subarray(i, i + 0x8000))
+                        return btoa(binary)
+                    }
+                    return { name, faces: (await renderer.renderCubemap({ size })).map(face => text(face.data)) }
+                }, { dsl, effects, frames, media, cubemap, size })
                 assert.equal(name, backend, 'requested backend must execute')
+                if (cubemap) return faces.map(data => ({ data: Buffer.from(data, 'base64') }))
                 return PNG.sync.read(await page.locator('canvas').screenshot())
             }
             const authored = await frame(`search synth\n${uvMap}.write(o0)\nrender(o0)`)
             for (const c of cases) {
                 const label = `${backend} ${c.name}`
                 try {
-                    const view = await frame(c.dsl, c.effects, c.frames, c.media)
+                    const view = await frame(c.dsl, c.effects, c.frames, c.media, c.cubemap)
                     if (c.check) c.check(view, authored, label)
                     if (c.matchWebGL2 && backend === 'webgl2') webgl2Frames.set(c.name, view)
                     if (c.matchWebGL2 && backend === 'webgpu') {
-                        const diff = meanAbsDiff(view, webgl2Frames.get(c.name))
+                        const reference = webgl2Frames.get(c.name)
+                        const diff = c.cubemap
+                            ? Math.max(...view.map((face, i) => meanAbsDiff(face, reference[i])))
+                            : meanAbsDiff(view, reference)
                         assert.ok(diff <= 1, `${label}: WebGPU must match WebGL2 (mean difference ${diff.toFixed(2)})`)
                     }
                     console.log(`PASS ${label}`)

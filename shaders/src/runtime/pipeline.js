@@ -546,6 +546,24 @@ function reportSinkError(error, sink) {
     if (typeof sink?.onError === 'function') sink.onError(error)
 }
 
+/**
+ * Turn the rows of a read-back image over in place: its last row becomes its
+ * first.
+ * @param {{width:number, height:number, data:Uint8Array}} image
+ * @returns {{width:number, height:number, data:Uint8Array}} image
+ */
+function reverseRows(image) {
+    const { width, height, data } = image
+    const rowBytes = width * 4
+    const row = new Uint8Array(rowBytes)
+    for (let top = 0, bottom = (height - 1) * rowBytes; top < bottom; top += rowBytes, bottom -= rowBytes) {
+        row.set(data.subarray(top, top + rowBytes))
+        data.copyWithin(top, bottom, bottom + rowBytes)
+        data.set(row, bottom)
+    }
+    return image
+}
+
 export class Pipeline {
     constructor(graph, backend, options = {}) {
         this.graph = graph
@@ -2005,7 +2023,8 @@ export class Pipeline {
 
     /**
      * Render the current graph once per cube face into 6 face pixel buffers.
-     * Faces are ordered +X,-X,+Y,-Y,+Z,-Z (GL cubemap order).
+     * Faces are ordered +X,-X,+Y,-Y,+Z,-Z (GL cubemap order). Each face is an
+     * image with its top row first, on both backends.
      *
      * The returned array is reused and its entries overwritten on every call;
      * copy the faces (or their `data`) if you need to retain them across calls.
@@ -2069,7 +2088,10 @@ export class Pipeline {
                 if (!surface) {
                     throw new Error(`renderCubemap: output surface "${outputSurface}" not found — the composition must write its result to it (e.g. .renderCubemapSurface().write(${outputSurface}), or scene(...).write(${outputSurface}))`)
                 }
-                this._cubeFaces[face] = await this.backend.readPixels(surface.read)
+                const pixels = await this.backend.readPixels(surface.read)
+                // WebGPU holds a surface bottom row first and reads it back as
+                // it holds it. WebGL2's readback is already top row first.
+                this._cubeFaces[face] = this.backend.getName() === 'WebGPU' ? reverseRows(pixels) : pixels
             }
         } finally {
             // In a finally: a face that throws — a missing surface, a failed

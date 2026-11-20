@@ -210,8 +210,7 @@ function sceneRendererStub(events) {
     }
 }
 
-async function cubeExportRenderer(isScene, events) {
-    const backend = new MockBackend()
+async function cubeExportRenderer(isScene, events, backend = new MockBackend()) {
     backend.onExecutePass = () => events.push('pipeline')
     const graph = {
         passes: [{ id: 'p0', program: 'blit' }],
@@ -519,5 +518,67 @@ test('a throwing face still restores the pipeline size', async () => {
         throw new Error(`pipeline stranded at ${pipeline.width}x${pipeline.height}, want 8x8`)
     }
 })
+
+/**
+ * A face is an image with its top row first, whichever backend drew it. WebGPU
+ * holds a surface bottom row first and reads it back as it holds it, so those
+ * rows are turned over on the way out. The backend here reads back a face
+ * whose rows are numbered in the order it holds them; an odd number of rows
+ * leaves one in the middle that must stay where it is.
+ */
+const ROWS = 3
+
+class RowsBackend extends MockBackend {
+    constructor(name) {
+        super()
+        this.name = name
+    }
+
+    readPixels() {
+        const data = new Uint8Array(SIZE * ROWS * 4)
+        for (let row = 0; row < ROWS; row++) data.fill(row + 1, row * SIZE * 4, (row + 1) * SIZE * 4)
+        return { width: SIZE, height: ROWS, data }
+    }
+
+    getName() { return this.name }
+}
+
+/** The row number each row of a face carries, first row first. */
+const rowsOf = (face) => Array.from({ length: face.height }, (_, row) => face.data[row * face.width * 4])
+
+for (const [name, rows] of [['WebGL2', '1,2,3'], ['WebGPU', '3,2,1']]) {
+    test(`a cubemap effect's faces come back top row first on ${name}`, async () => {
+        const backend = new RowsBackend(name)
+        const graph = {
+            passes: [{ id: 'p0', program: 'renderCubemapSurface' }],
+            textures: new Map(),
+            programs: { renderCubemapSurface: { fragment: 'void main() {}' } },
+            renderSurface: 'o0'
+        }
+        const pipeline = new Pipeline(graph, backend)
+        await pipeline.init(SIZE, SIZE)
+
+        const faces = await pipeline.renderCubemap({ size: SIZE, outputSurface: 'o0' })
+
+        for (let f = 0; f < 6; f++) {
+            if (rowsOf(faces[f]).join(',') !== rows) {
+                throw new Error(`face ${f} rows ${rowsOf(faces[f]).join(',')} != ${rows}`)
+            }
+            if (faces[f].data.length !== SIZE * ROWS * 4) throw new Error(`face ${f} changed size`)
+        }
+    })
+
+    test(`a scene's faces come back top row first on ${name}`, async () => {
+        const { renderer } = await cubeExportRenderer(true, [], new RowsBackend(name))
+
+        const faces = await renderer.renderCubemap({ size: SIZE, outputSurface: 'o0' })
+
+        for (let f = 0; f < 6; f++) {
+            if (rowsOf(faces[f]).join(',') !== rows) {
+                throw new Error(`face ${f} rows ${rowsOf(faces[f]).join(',')} != ${rows}`)
+            }
+        }
+    })
+}
 
 runTests()

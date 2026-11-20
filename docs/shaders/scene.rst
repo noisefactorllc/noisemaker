@@ -947,8 +947,9 @@ A ``scene()`` program exports a cubemap through the same ``renderCubemap()``
 API as a cubemap-renderer program (see :doc:`cubemaps`): the scene
 renders six times through cube-face cameras — fov 90, square, at the scene
 camera's position, the full pass stack including the tonemap per face — and
-the faces come back in GL order (+X, -X, +Y, -Y, +Z, -Z) in the same
-orientation contract the 2D path returns. All six faces are one instant: scene
+the faces come back in GL order (+X, -X, +Y, -Y, +Z, -Z), each with its top
+row first on both backends, as a cubemap-renderer program returns them. All
+six faces are one instant: scene
 animation state advances once per export, not per face. Faces are never tiled,
 and a configured reflection probe is captured once for the first face and
 frozen for the rest — it is a world-space cubemap and does not change between
