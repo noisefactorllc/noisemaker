@@ -389,6 +389,7 @@ export function validate(ast) {
                 // handed to the scene compiler as raw AST, and it reports errors
                 // from `loc`; without this every scene error says line 0 col 0.
                 if (c.loc) mappedCall.loc = c.loc
+                if (c.positionalsByIndex) mappedCall.positionalsByIndex = true
                 if (c.kwargs) {
                     const kw = {}
                     for (const [k,v] of Object.entries(c.kwargs)) kw[k] = substitute(v, resolving)
@@ -402,6 +403,7 @@ export function validate(ast) {
             const mappedArgs = node.args.map(a => substitute(a, resolving))
             let mappedCall = {type:'Call', name:node.name, args:mappedArgs}
             if (node.loc) mappedCall.loc = node.loc
+            if (node.positionalsByIndex) mappedCall.positionalsByIndex = true
             if (node.kwargs) {
                 const kw = {}
                 for (const [k,v] of Object.entries(node.kwargs)) kw[k] = substitute(v, resolving)
@@ -483,6 +485,18 @@ export function validate(ast) {
             mapped.elements = useResolvedElements(node._resolvedElements)
         }
         return mapped
+    }
+
+    // Remove the marks this function leaves on call nodes while it compiles.
+    // They are its own, and no compiled plan carries one.
+    function dropMarks(node) {
+        if (!node || typeof node !== 'object') return
+        if (Array.isArray(node)) {
+            for (const item of node) dropMarks(item)
+            return
+        }
+        delete node.positionalsByIndex
+        for (const value of Object.values(node)) dropMarks(value)
     }
 
     function declareVar(v) {
@@ -1839,6 +1853,7 @@ export function validate(ast) {
         if (compiled) plans.push(compiled)
     }
     declareVarsBefore(Infinity)
+    dropMarks(plans)
 
     // Include original variable declarations for unparsing
     const vars = ast.vars || []

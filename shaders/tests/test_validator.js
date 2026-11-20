@@ -614,6 +614,54 @@ test('a let-bound call applied through a second let still binds by index',
         expectSlots(result, [3, 8, 9])
     })
 
+// The merged call binds by index wherever its let is used afterwards: applied
+// with no argument, held by another let, given as an argument, or merged into
+// another let-bound call.
+registerOp('synth.slotsource', {
+    name: 'slotsource',
+    args: [
+        { name: 'first', type: 'float', default: 10 },
+        { name: 'second', type: 'float', default: 1 },
+        { name: 'third', type: 'float', default: 4 }
+    ]
+})
+registerStarterOps(['synth.slotsource'])
+
+registerOp('filter.surfprobe', {
+    name: 'surfprobe',
+    args: [
+        { name: 'tex', type: 'surface', default: 'none' },
+        { name: 'amount', type: 'float', default: 0.5 }
+    ]
+})
+
+for (const [label, program] of [
+    ['applied with no argument', 'let m = n(7, 8)\nm().write(o0)'],
+    ['held by another let', 'let m = n(7, 8)\nlet k = m\nk().write(o0)'],
+    ['given as a surface argument by name', 'let m = n(7, 8)\nnoise().surfprobe(tex: m).write(o0)'],
+    ['given as a surface argument where it is written', 'noise().surfprobe(tex: n(7, 8)).write(o0)'],
+    ['held inside another let-bound call', 'let b = surfprobe(tex: n(7, 8))\nnoise().b().write(o0)']
+]) {
+    test(`a let-bound call merged with positionals binds by index when it is ${label}`,
+        `search synth, filter\nlet n = slotsource(first: 3)\n${program}`, (result) => {
+            const args = result.plans[0].chain.find(s => s.op === 'synth.slotsource').args
+            const slots = [args.first, args.second, args.third]
+            if (JSON.stringify(slots) !== '[3,8,4]') throw new Error(`Expected [3,8,4], got ${JSON.stringify(slots)}`)
+            if (result.diagnostics.length > 0) throw new Error(`Expected no diagnostics, got ${JSON.stringify(result.diagnostics)}`)
+            if (JSON.stringify(result.plans).includes('positionalsByIndex')) {
+                throw new Error('Expected no compiled plan to carry the mark of a merged call')
+            }
+        })
+}
+
+test('a scene node merged through a let carries no mark of the merge',
+    'search synth\nlet m = mesh(pos: [1, 0, 0])\nscene(camera(), m("sphere")).write(o0)', (result) => {
+        if (result.diagnostics.length > 0) throw new Error(`Expected no diagnostics, got ${JSON.stringify(result.diagnostics)}`)
+        if (JSON.stringify(result.plans).includes('positionalsByIndex')) {
+            throw new Error('Expected the scene AST to carry no mark of a merged call')
+        }
+    })
+
 test('positionals past the last slot of a let-bound call are reported',
     'search synth\nlet n = slotprobe(first: 3)\nnoise().n(7, 8, 9, 10).write(o0)', (result) => {
         expectSlots(result, [3, 8, 9], ['S009'])
