@@ -250,6 +250,12 @@ const GBUF_BYTES_PER_SAMPLE = GBUF_TEXTURES.reduce(
 const ALL_TEXTURES = [...GBUF_TEXTURES, ...PLANAR_GBUF_TEXTURES, ...WORK_TEXTURES]
 
 /**
+ * WebGPU's sampler for the reflection probe: linear, as WebGL2 filters every
+ * cube texture. WebGL2 takes its filter from the texture and ignores this.
+ */
+const PROBE_SAMPLER_TYPES = Object.freeze({ u_probeSampler: 'default' })
+
+/**
  * One deferred-lighting pass, built once and rewritten in place each frame.
  *
  * The three variants — the main view, the mirrored planar view, and each probe
@@ -287,6 +293,7 @@ function lightingPassState(id, gbuf, target, cubeFace) {
   if (cubeFace !== undefined) pass.cubeFace = cubeFace
   pass.clear = true
   pass.uniforms = {}
+  pass.samplerTypes = PROBE_SAMPLER_TYPES
   return { pass, lightCount: -1 }
 }
 

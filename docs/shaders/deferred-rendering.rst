@@ -290,9 +290,11 @@ one face per frame round-robin thereafter. A full refresh therefore takes six
 frames, and the probe keeps updating for the lifetime of the scene.
 
 Sampling takes 24 golden-angle taps around the reflection vector, with the disc
-radius growing as ``roughness²``. Background pixels are captured with zero alpha,
-and that alpha blends the probe against its fallback — environment specular if
-an ``environment()`` exists, otherwise ``background``.
+radius growing as ``roughness²``. Each tap filters the cube linearly, and a face
+holds the same rows on both backends, so both sample the same texels. Background
+pixels are captured with zero alpha, and that alpha blends the probe against its
+fallback — environment specular if an ``environment()`` exists, otherwise
+``background``.
 
 The probe is direction-only: there is no parallax correction, so it is accurate
 at its capture point and approximate elsewhere. It contributes through ambient

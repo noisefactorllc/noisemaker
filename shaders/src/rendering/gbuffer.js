@@ -1094,6 +1094,9 @@ struct SceneUniforms {
 @group(0) @binding(6) var u_envTexture: texture_2d<f32>;
 @group(0) @binding(7) var u_reflectionProbe: texture_cube<f32>;
 @group(0) @binding(8) var u_sampler: sampler;
+// The probe has its own sampler because WebGL2 filters a cube texture
+// linearly and every other input of this pass with nearest.
+@group(0) @binding(9) var u_probeSampler: sampler;
 
 struct VertexOutput {
   @builtin(position) position: vec4f,
@@ -1188,21 +1191,30 @@ fn sampleReflectionProbe(direction: vec3f, roughness: f32) -> vec4f {
       + tangent * (cos(angle) * radius)
       + bitangent * (sin(angle) * radius)
     );
-    color += textureSampleLevel(u_reflectionProbe, u_sampler, sampleDirection, 0.0);
+    color += textureSampleLevel(u_reflectionProbe, u_probeSampler, sampleDirection, 0.0);
   }
   return color / f32(PROBE_SPECULAR_SAMPLES);
 }
 
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4f {
-  let depth = textureSampleLevel(u_depth, u_sampler, input.v_texCoord, 0.0).r;
+  // A fullscreen pass stores its rows flipped against the G-buffer, whose rows
+  // the mesh vertex stage puts in WebGL2's order, and each reader of a 2D
+  // target inverts v to compensate. A probe face has no such reader: it is
+  // sampled by direction, so a capture reads the G-buffer row it writes and
+  // the face keeps the G-buffer's rows, as it does on WebGL2.
+  var gbufferUV = input.v_texCoord;
+  if (scene.u_probeCapture > 0.5) {
+    gbufferUV.y = 1.0 - gbufferUV.y;
+  }
+  let depth = textureSampleLevel(u_depth, u_sampler, gbufferUV, 0.0).r;
   if (depth <= 0.0) {
     let alpha = select(1.0, 0.0, scene.u_probeCapture > 0.5);
     return vec4f(scene.u_backgroundColor, alpha);
   }
-  let albedoMetallic = textureSampleLevel(u_albedoMetallic, u_sampler, input.v_texCoord, 0.0);
-  let normalRoughness = textureSampleLevel(u_normalRoughness, u_sampler, input.v_texCoord, 0.0);
-  let positionEmission = textureSampleLevel(u_positionEmission, u_sampler, input.v_texCoord, 0.0);
+  let albedoMetallic = textureSampleLevel(u_albedoMetallic, u_sampler, gbufferUV, 0.0);
+  let normalRoughness = textureSampleLevel(u_normalRoughness, u_sampler, gbufferUV, 0.0);
+  let positionEmission = textureSampleLevel(u_positionEmission, u_sampler, gbufferUV, 0.0);
 
   let albedo = albedoMetallic.rgb;
   let metallic = clamp(albedoMetallic.a, 0.0, 1.0);
