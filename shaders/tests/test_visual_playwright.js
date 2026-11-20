@@ -884,6 +884,34 @@ scene(
 ).write(o0)
 render(o0)`
 
+/**
+ * The lit colour target of the page's scene at a fixed time, for a comparison
+ * in node.
+ *
+ * The frame crosses the bridge as base64 text and is decoded here. Sent as a
+ * JSON array it is one number per channel, which takes many times longer to
+ * serialise and parse than the render it carries.
+ */
+async function readLitColor(page) {
+  const image = await page.evaluate(async () => {
+    const renderer = window.__noisemakerCanvasRenderer
+    renderer.stop()
+    // Reset the clock first: u_time reaches the scene passes through
+    // frameState, so an unreset clock makes "a fixed time" depend on how
+    // long the page happened to run before this point.
+    renderer._clock?.reset()
+    // A fixed time so both backends render the same frame.
+    await renderer.render(0.25)
+    const { width, height, data } = await renderer.sceneRenderer.backend.readPixels('scene_lit_color')
+    let text = ''
+    for (let i = 0; i < data.length; i += 0x8000) {
+      text += String.fromCharCode.apply(null, data.subarray(i, i + 0x8000))
+    }
+    return { width, height, data: btoa(text) }
+  })
+  return { width: image.width, height: image.height, data: Buffer.from(image.data, 'base64') }
+}
+
 async function litColorFor(browser, port, backendName) {
   const backendQuery = backendName === 'webgpu' ? 'wgsl' : 'glsl'
   const url = `http://127.0.0.1:${port}/demo/shaders/index.html?backend=${backendQuery}`
@@ -900,18 +928,7 @@ async function litColorFor(browser, port, backendName) {
       { timeout: 15000 }
     )
     await page.waitForTimeout(500)
-    return await page.evaluate(async () => {
-      const renderer = window.__noisemakerCanvasRenderer
-      renderer.stop()
-      // Reset the clock first: u_time reaches the scene passes through
-      // frameState, so an unreset clock makes "a fixed time" depend on how
-      // long the page happened to run before this point.
-      renderer._clock?.reset()
-      // A fixed time so both backends render the same frame.
-      await renderer.render(0.25)
-      const image = await renderer.sceneRenderer.backend.readPixels('scene_lit_color')
-      return { width: image.width, height: image.height, data: Array.from(image.data) }
-    })
+    return await readLitColor(page)
   } finally {
     await context.close()
   }
@@ -1114,14 +1131,7 @@ async function volumeLitColorFor(browser, port, backendName) {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 })
     await page.locator('#app-container').waitFor({ state: 'visible', timeout: 30000 })
     await loadVolumeScene(page, 0)
-    return await page.evaluate(async () => {
-      const renderer = window.__noisemakerCanvasRenderer
-      renderer.stop()
-      renderer._clock?.reset()
-      await renderer.render(0.25)
-      const image = await renderer.sceneRenderer.backend.readPixels('scene_lit_color')
-      return { width: image.width, height: image.height, data: Array.from(image.data) }
-    })
+    return await readLitColor(page)
   } finally {
     await context.close()
   }
@@ -1390,14 +1400,7 @@ async function voxelLitColorFor(browser, port, backendName) {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 })
     await page.locator('#app-container').waitFor({ state: 'visible', timeout: 30000 })
     await loadVolumeScene(page, 0, 'voxel')
-    return await page.evaluate(async () => {
-      const renderer = window.__noisemakerCanvasRenderer
-      renderer.stop()
-      renderer._clock?.reset()
-      await renderer.render(0.25)
-      const image = await renderer.sceneRenderer.backend.readPixels('scene_lit_color')
-      return { width: image.width, height: image.height, data: Array.from(image.data) }
-    })
+    return await readLitColor(page)
   } finally {
     await context.close()
   }
