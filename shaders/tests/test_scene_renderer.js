@@ -476,6 +476,36 @@ function treeWithMaterial(material) {
   assert.strictEqual(u.u_emissionStrength, 0, 'invalid emission falls back zero')
 }
 
+// Every pass the scene renderer submits carries the mark of its frame state.
+//
+// WebGL2 applies a pass's colour clear, cull mode, kept depth and typed-array
+// vectors only under that mark. A scene pass submitted without it would be
+// drawn as a pass of an effect definition is.
+{
+  for (const [label, tree] of [
+    ['a mesh scene', treeWithMaterial({ baseColor: [1, 1, 1], pbr: { metallic: 0, roughness: 1 }, emission: 0 })],
+    ['a scene with a reflection probe', treeWithLights(
+      [{ type: 'directional', direction: [0, -1, 0], color: [1, 1, 1], intensity: 1 }],
+      { reflectionProbe: [0, 2, -1], reflectionProbeSize: 64, reflections: 0.8 }
+    )],
+    ['a scene with a volume and a planar reflection', reflectedVolumeTree()]
+  ]) {
+    const backend = stubBackend()
+    const states = []
+    const executePass = backend.executePass
+    backend.executePass = function (pass, state) {
+      states.push(state)
+      return executePass.call(this, pass, state)
+    }
+    const renderer = new SceneRenderer(backend, null)
+    await renderer.initialize(320, 240)
+    await renderer.render(tree, { elapsed: 0 }, 'scene_color')
+    assert.ok(states.length > 0, `${label}: precondition, the scene submits passes`)
+    assert.ok(states.every(state => state?.scenePasses === true),
+      `${label}: every pass is submitted under the scene frame state mark`)
+  }
+}
+
 // Pipeline surfaces are injected into the scene frame state (read side)
 {
   const backend = stubBackend()

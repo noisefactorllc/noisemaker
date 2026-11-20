@@ -374,7 +374,8 @@ export class SceneRenderer {
     this._frameState = {
       // The passes of this frame come from the scene renderer, not from an
       // effect definition. WebGL2 applies the pass fields that 1.x does not
-      // read only to them (see WebGL2Backend.executePass).
+      // read, and reads a typed array as a vector uniform, only for them
+      // (see WebGL2Backend.executePass and bindUniforms).
       scenePasses: true,
       frameIndex: 0,
       time: 0,
