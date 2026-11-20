@@ -42,7 +42,9 @@
     "test:shaders:canvas-sizing": "playwright test --project=shaders-chromium shaders/tests/playwright/canvas-sizing.spec.js",
     "test:shaders:orientation": "node shaders/tests/test_effect_orientation.mjs",
     "test:shaders:classic-effects": "node shaders/tests/test_classic_effects_parity.mjs && node scripts/attest-shader-parity.mjs classicNoisedeck/effects && node shaders/tests/test_glsl_mod_parity.mjs && node shaders/tests/test_classic_effects_tiling.mjs",
-    "test:shaders:particles:fps": "node shaders/tests/test_particle_heightmap_fps.mjs && node shaders/tests/test_particle_heightmap_fps.mjs --alpha-depth"
+    "test:shaders:particles:fps": "node shaders/tests/test_particle_heightmap_fps.mjs && node shaders/tests/test_particle_heightmap_fps.mjs --alpha-depth",
+    "test:shaders:agreement": "node scripts/cross-backend-agreement.mjs",
+    "test:shaders:agreement:harness": "node shaders/tests/test_cross_backend_agreement.mjs && node shaders/tests/test_cross_backend_agreement_render.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

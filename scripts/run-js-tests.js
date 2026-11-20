@@ -77,6 +77,7 @@ const testEntries = [
   { file: 'shaders/tests/test_backend_diagnostics.js', parity: false },
   { file: 'shaders/tests/test_frame_metrics.js', parity: false },
   { file: 'shaders/tests/test_definition_schema.js', parity: false },
+  { file: 'shaders/tests/test_cross_backend_agreement.mjs', parity: false },
   { file: 'test/program-state.test.js', parity: false },
   { file: 'test/generators.test.js', parity: false },
   { file: 'test/parser.test.js', parity: false },
