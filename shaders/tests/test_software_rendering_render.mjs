@@ -108,7 +108,7 @@ try {
     // 'off' (default): the animation loop runs as before, with no detection.
     {
         const { page, errors } = await open('off')
-        await wait(400)
+        await page.waitForFunction(() => window.renderer.frameCount > 3, null, { timeout: 10000 })
         const s = await state(page)
         assert.deepEqual(s.software, { mode: 'off', active: false, report: null })
         assert.equal(s.running, true)
