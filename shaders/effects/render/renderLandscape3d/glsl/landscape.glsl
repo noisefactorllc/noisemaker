@@ -150,6 +150,28 @@ vec3 isosurfaceNormal(vec3 p, vec3 fallback) {
     return fallback;
 }
 
+// A voxel that stops the voxel ray. Cells outside the volume are empty.
+bool voxelOccupied(ivec3 cell) {
+    if (any(lessThan(cell, ivec3(0))) || any(greaterThanEqual(cell, ivec3(volumeSize)))) return false;
+    float density = texelFetch(analyticalGeo, ivec2(cell.x, cell.y + cell.z * volumeSize), 0).a;
+    return density > 0.0 && density >= threshold;
+}
+
+// A ray through a voxel edge crosses two boundaries at one distance and enters
+// the cell beyond the edge, where two of its faces meet. Rounding decides
+// whether the crossings compare equal. Where a neighboring voxel covers one of
+// those faces, the rays on either side of the edge show the other one, so the
+// cell shows the first face that its neighbors leave exposed. `toward` is the
+// ray's step along each axis, and `normal` the face of the first crossed axis
+// in y, x, z order.
+vec3 exposedFace(ivec3 cell, bvec3 crossed, ivec3 toward, vec3 normal) {
+    if (int(crossed.x) + int(crossed.y) + int(crossed.z) < 2) return normal;
+    if (crossed.y && !voxelOccupied(cell - ivec3(0, toward.y, 0))) return vec3(0.0, -float(toward.y), 0.0);
+    if (crossed.x && !voxelOccupied(cell - ivec3(toward.x, 0, 0))) return vec3(-float(toward.x), 0.0, 0.0);
+    if (crossed.z && !voxelOccupied(cell - ivec3(0, 0, toward.z))) return vec3(0.0, 0.0, -float(toward.z));
+    return normal;
+}
+
 #if VIEW_MODE == 2
 // Inverse of the billboard renderer's X -> Y -> Z rotation.
 vec3 inverseRotation(vec3 p) {
@@ -225,18 +247,19 @@ void renderPerspective(vec2 uv) {
         geoOut = vec4(worldNormal * 0.5 + 0.5, clamp(hit.distance / 320.0, 0.0, 1.0));
         return;
     }
+    bvec3 crossed = bvec3(false);
     for (int step = 0; step < volumeSize * 3; step++) {
         if (any(lessThan(cell, ivec3(0))) || any(greaterThanEqual(cell, ivec3(volumeSize))) || distance >= leave) break;
         ivec2 atlas = ivec2(cell.x, cell.y + cell.z * volumeSize);
         float density = texelFetch(analyticalGeo, atlas, 0).a;
         if (density > 0.0 && density >= threshold) {
-            vec3 worldNormal = forwardRotation(normal);
+            vec3 worldNormal = forwardRotation(exposedFace(cell, crossed, stepDir, normal));
             fragColor = vec4(lighting(texelFetch(volumeCache, atlas, 0).rgb, worldNormal, viewDirection), 1.0);
             geoOut = vec4(worldNormal * 0.5 + 0.5, clamp(distance / 320.0, 0.0, 1.0));
             return;
         }
         distance = min(min(nextT.x, nextT.y), nextT.z);
-        bvec3 crossed = lessThanEqual(nextT, vec3(distance));
+        crossed = lessThanEqual(nextT, vec3(distance));
         normal = vec3(0.0);
         if (crossed.y) normal.y = -float(stepDir.y);
         else if (crossed.x) normal.x = -float(stepDir.x);
@@ -286,11 +309,13 @@ void main() {
         return;
     }
     // A ray crosses at most 3*N cells, including tied boundaries.
+    bvec3 crossed = bvec3(false);
     for (int step = 0; step < volumeSize * 3; step++) {
         if (any(lessThan(cell, ivec3(0))) || distance >= leave) break;
         ivec2 atlas = ivec2(cell.x, cell.y + cell.z * volumeSize);
         float density = texelFetch(analyticalGeo, atlas, 0).a;
         if (density > 0.0 && density >= threshold) {
+            normal = exposedFace(cell, crossed, ivec3(-1), normal);
             vec3 color = texelFetch(volumeCache, atlas, 0).rgb;
             fragColor = vec4(lighting(color, normal, vec3(0.5773502692)), 1.0);
             geoOut = vec4(normal * 0.5 + 0.5, clamp(distance / (size * 4.0), 0.0, 1.0));
@@ -298,7 +323,7 @@ void main() {
         }
         distance = min(min(nextT.x, nextT.y), nextT.z);
         // Advance every tied axis so edge-only contacts cannot create stray voxels.
-        bvec3 crossed = lessThanEqual(nextT, vec3(distance));
+        crossed = lessThanEqual(nextT, vec3(distance));
         if (crossed.y) normal = vec3(0.0, 1.0, 0.0);
         else if (crossed.x) normal = vec3(1.0, 0.0, 0.0);
         else normal = vec3(0.0, 0.0, 1.0);
