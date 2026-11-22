@@ -1,12 +1,12 @@
 # heightGrid
 
-Arrange every slot allocated by `pointsEmit()` in a square XZ grid and set its Y elevation from height-map luminance. Sample the diffuse surface at the same grid coordinates for each particle's RGBA color. Both surfaces update every frame, independent of the emitter's layout and attrition. The height map's top row maps to the `-Z` edge. From above, a view along `-Y` with `+X` to screen-right matches the source image orientation. Velocities are reset to zero; per-particle seeds are retained.
+Arrange every slot allocated by `pointsEmit()` in an XZ grid and set its Y elevation from height-map luminance. The grid is `gridScale` wide, and its depth follows the shape of the frame, which every surface shares: a square frame gives a square grid, and on a frame that is not square the surfaces keep their proportions. Sample the diffuse surface at the same grid coordinates for each particle's RGBA color. Both surfaces update every frame, independent of the emitter's layout and attrition. The height map's top row maps to the `-Z` edge. From above, a view along `-Y` with `+X` to screen-right matches the source image orientation. Velocities are reset to zero; per-particle seeds are retained.
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | heightTex | surface | inputTex | - | Height source; defaults to the incoming 2D surface |
 | diffuseTex | surface | inputTex | - | Particle color and alpha source; defaults to the incoming 2D surface |
-| gridScale | float | 80 | 1-400 | Width and depth of the square grid in world units |
+| gridScale | float | 80 | 1-400 | Width of the grid in world units; the depth is this width times the frame's height over its width |
 | heightScale | float | 20 | -100-100 | Elevation for white; negative values invert the relief |
 | heightOffset | float | 0 | -100-100 | Elevation for black in world units |
 
