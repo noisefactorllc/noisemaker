@@ -9,6 +9,7 @@ uniform sampler2D diffuseTex;
 uniform float gridScale;
 uniform float heightScale;
 uniform float heightOffset;
+uniform float aspectInv;
 
 layout(location = 0) out vec4 outXYZ;
 layout(location = 1) out vec4 outVel;
@@ -21,12 +22,18 @@ void main() {
     vec2 uv = (vec2(coord) + 0.5) / vec2(stateSize);
     vec3 heightColor = texture(heightTex, uv).rgb;
     float elevation = dot(heightColor, vec3(0.2126, 0.7152, 0.0722));
+    // The grid is gridScale wide, and as deep as the frame's shape makes it.
+    // Every surface has the frame's shape, so what is drawn on the grid keeps
+    // its proportions. aspectInv is the frame's height over its width. It is
+    // computed outside the shader, so both backends multiply by one value,
+    // and on a square frame it is exactly 1.
+    float gridDepth = gridScale * aspectInv;
     // XZ ground plane, Y elevation. These are world coordinates, not UVs.
     // The image's top row lies at -Z, so a view from above along -Y with
     // screen right on +X shows the image as authored, not mirrored.
     outXYZ = vec4((uv.x - 0.5) * gridScale,
         elevation * heightScale + heightOffset,
-        (0.5 - uv.y) * gridScale, 1.0);
+        (0.5 - uv.y) * gridDepth, 1.0);
     outVel = vec4(0.0, 0.0, 0.0, texelFetch(velTex, coord, 0).w);
     outRGBA = texture(diffuseTex, uv);
 }

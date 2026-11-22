@@ -2,6 +2,7 @@ struct Uniforms {
     gridScale: f32,
     heightScale: f32,
     heightOffset: f32,
+    aspectInv: f32,
 }
 struct Outputs {
     @location(0) outXYZ: vec4f,
@@ -26,12 +27,18 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     let imageUV = uv;
     let heightColor = textureSampleLevel(heightTex, heightSampler, imageUV, 0.0).rgb;
     let elevation = dot(heightColor, vec3f(0.2126, 0.7152, 0.0722));
+    // The grid is gridScale wide, and as deep as the frame's shape makes it.
+    // Every surface has the frame's shape, so what is drawn on the grid keeps
+    // its proportions. aspectInv is the frame's height over its width. It is
+    // computed outside the shader, so both backends multiply by one value,
+    // and on a square frame it is exactly 1.
+    let gridDepth = u.gridScale * u.aspectInv;
     // The image's top row lies at -Z, so a view from above along -Y with
     // screen right on +X shows the image as authored, not mirrored.
     return Outputs(
         vec4f((uv.x - 0.5) * u.gridScale,
             elevation * u.heightScale + u.heightOffset,
-            (0.5 - uv.y) * u.gridScale, 1.0),
+            (0.5 - uv.y) * gridDepth, 1.0),
         vec4f(0.0, 0.0, 0.0, textureLoad(velTex, coord, 0).w),
         textureSampleLevel(diffuseTex, diffuseSampler, imageUV, 0.0)
     );

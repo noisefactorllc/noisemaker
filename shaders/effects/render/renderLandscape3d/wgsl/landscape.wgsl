@@ -161,6 +161,28 @@ fn forwardRotation(input: vec3f) -> vec3f {
     return vec3f(p.x * c.z - p.y * s.z, p.x * s.z + p.y * c.z, p.z);
 }
 
+// A voxel that stops the voxel ray. Cells outside the volume are empty.
+fn voxelOccupied(cell: vec3i) -> bool {
+    if (any(cell < vec3i(0)) || any(cell >= vec3i(u.volumeSize))) { return false; }
+    let density = textureLoad(analyticalGeo, vec2i(cell.x, cell.y + cell.z * u.volumeSize), 0).a;
+    return density > 0.0 && density >= u.threshold;
+}
+
+// A ray through a voxel edge crosses two boundaries at one distance and enters
+// the cell beyond the edge, where two of its faces meet. Rounding decides
+// whether the crossings compare equal. Where a neighboring voxel covers one of
+// those faces, the rays on either side of the edge show the other one, so the
+// cell shows the first face that its neighbors leave exposed. `toward` is the
+// ray's step along each axis, and `normal` the face of the first crossed axis
+// in y, x, z order.
+fn exposedFace(cell: vec3i, crossed: vec3<bool>, toward: vec3i, normal: vec3f) -> vec3f {
+    if (i32(crossed.x) + i32(crossed.y) + i32(crossed.z) < 2) { return normal; }
+    if (crossed.y && !voxelOccupied(cell - vec3i(0, toward.y, 0))) { return vec3f(0.0, -f32(toward.y), 0.0); }
+    if (crossed.x && !voxelOccupied(cell - vec3i(toward.x, 0, 0))) { return vec3f(-f32(toward.x), 0.0, 0.0); }
+    if (crossed.z && !voxelOccupied(cell - vec3i(0, 0, toward.z))) { return vec3f(0.0, 0.0, -f32(toward.z)); }
+    return normal;
+}
+
 fn renderPerspective(uv: vec2f) -> FragmentOutput {
     var out: FragmentOutput;
     out.fragColor = vec4f(u.bgColor * u.bgAlpha, u.bgAlpha);
@@ -219,18 +241,19 @@ fn renderPerspective(uv: vec2f) -> FragmentOutput {
         out.geoOut = vec4f(worldNormal * 0.5 + 0.5, clamp(hit.distance / 320.0, 0.0, 1.0));
         return out;
     }
+    var crossed = vec3<bool>(false);
     for (var step = 0; step < u.volumeSize * 3; step++) {
         if (any(cell < vec3i(0)) || any(cell >= vec3i(u.volumeSize)) || distance >= leave) { break; }
         let atlas = vec2i(cell.x, cell.y + cell.z * u.volumeSize);
         let density = textureLoad(analyticalGeo, atlas, 0).a;
         if (density > 0.0 && density >= u.threshold) {
-            let worldNormal = forwardRotation(normal);
+            let worldNormal = forwardRotation(exposedFace(cell, crossed, stepDir, normal));
             out.fragColor = vec4f(lighting(textureLoad(volumeCache, atlas, 0).rgb, worldNormal, viewDirection), 1.0);
             out.geoOut = vec4f(worldNormal * 0.5 + 0.5, clamp(distance / 320.0, 0.0, 1.0));
             return out;
         }
         distance = min(min(nextT.x, nextT.y), nextT.z);
-        let crossed = nextT <= vec3f(distance);
+        crossed = nextT <= vec3f(distance);
         normal = vec3f(0.0);
         if (crossed.y) { normal.y = -f32(stepDir.y); }
         else if (crossed.x) { normal.x = -f32(stepDir.x); }
@@ -277,18 +300,20 @@ fn main(@builtin(position) position: vec4f) -> FragmentOutput {
         out.geoOut = vec4f(normal * 0.5 + 0.5, clamp(hit.distance / (size * 4.0), 0.0, 1.0));
         return out;
     }
+    var crossed = vec3<bool>(false);
     for (var step = 0; step < u.volumeSize * 3; step++) {
         if (any(cell < vec3i(0)) || distance >= leave) { break; }
         let atlas = vec2i(cell.x, cell.y + cell.z * u.volumeSize);
         let density = textureLoad(analyticalGeo, atlas, 0).a;
         if (density > 0.0 && density >= u.threshold) {
+            normal = exposedFace(cell, crossed, vec3i(-1), normal);
             let color = textureLoad(volumeCache, atlas, 0).rgb;
             out.fragColor = vec4f(lighting(color, normal, vec3f(0.5773502692)), 1.0);
             out.geoOut = vec4f(normal * 0.5 + 0.5, clamp(distance / (size * 4.0), 0.0, 1.0));
             return out;
         }
         distance = min(min(nextT.x, nextT.y), nextT.z);
-        let crossed = nextT <= vec3f(distance);
+        crossed = nextT <= vec3f(distance);
         if (crossed.y) { normal = vec3f(0.0, 1.0, 0.0); }
         else if (crossed.x) { normal = vec3f(1.0, 0.0, 0.0); }
         else { normal = vec3f(0.0, 0.0, 1.0); }

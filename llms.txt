@@ -65,7 +65,8 @@ Start with the "Portable effect authoring" section of [llms-full.txt](https://no
 
 The [effect manifest](https://shaders.noisedeck.app/1/effects/manifest.json) lists every effect as `namespace/name`. Each effect's `help.md` gives its parameters with their types, defaults and ranges, as plain text: `https://raw.githubusercontent.com/noisefactorllc/noisemaker/v<version>/shaders/effects/<namespace>/<name>/help.md`, where `<version>` is the `version` in https://shaders.noisedeck.app/1/deployment-meta.json, the engine that the apps run.
 
-For app control, read [Foundry](https://foundry.noisedeck.app/llms-full.txt) or [Shade](https://shade.noisedeck.app/llms-full.txt). Their guides add shader-craft and reference-video workflows.
+For app control, read the hosting application's own guide. Its guide adds
+shader-craft and reference-video workflows.
 
 - [shade-mcp](https://github.com/noisefactorllc/shade-mcp): MCP server for effect search, source search, compile, render, metrics, parity, and structure checks.
 - [portable](https://github.com/noisefactorllc/portable): Portable effect package format with definition JSON, help docs, GLSL, WGSL, and viewer.

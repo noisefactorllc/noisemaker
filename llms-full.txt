@@ -6,8 +6,7 @@ It describes current behavior, not intended behavior.
 Use `/llms.txt` for concise project orientation. This file contains the complete development contract. An agent should load it when exact authoring, validation, or diagnostic behavior is necessary.
 
 Scope boundary: this contract covers the browser shader engine, its WebGL2 and
-WebGPU backends, and Shade MCP. Unity/HLSL, Blender, Godot, TouchDesigner,
-Three.js, Babylon.js, and other external ports are separate repositories with
+WebGPU backends, and Shade MCP. External ports are separate repositories with
 their own porting guides and parity harnesses. They are not a tenth engine
 surface in this contract. `testPixelParity` validates only the browser WebGL2
 and WebGPU backends and must not be cited as evidence for an external port.
@@ -895,9 +894,9 @@ its starter DSL and its assets. Discover the installed tool or app command
 schemas instead of assuming that a tool name, argument, binding or type from
 another version exists. Preserve the application's runtime and file format.
 
-For direct effect editing, read [Foundry's guide](https://foundry.noisedeck.app/llms-full.txt).
-For Shade's generation model or an external agent in its session, read
-[Shade's guide](https://shade.noisedeck.app/llms-full.txt). Those guides define
+For direct effect editing, read the editing application's own guide. For the
+hosting application's generation model or an external agent in its session,
+read that application's guide. Those guides define
 app commands; this contract defines the engine. Through a shared session,
 operate only on its shared program and effect. Private workspaces and drafts
 are not part of that session.
