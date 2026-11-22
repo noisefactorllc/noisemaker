@@ -19,7 +19,8 @@ The host must register new sinks on the replacement pipeline.
 Output Sinks
 ------------
 
-A sink implements three required methods and one optional method:
+A sink must implement ``configure()``, ``submit()``, and ``close()``. It may
+also implement ``deferRender()`` and ``onError(error)``.
 
 .. code-block:: javascript
 
@@ -27,7 +28,8 @@ A sink implements three required methods and one optional method:
         configure(descriptor) {},
         submit(textureId, presentationTimestamp) { return true },
         close(options) {},
-        deferRender() { return false } // optional
+        deferRender() { return false }, // optional
+        onError(error) {} // optional
     }
 
     const remove = renderer.addSink(sink)
@@ -49,6 +51,11 @@ A sink implements three required methods and one optional method:
     Releases sink resources. During backend loss, ``options.backendLost`` is
     ``true`` so the sink can abandon invalid GPU resources without trying to
     destroy them.
+
+``onError(error)`` (optional)
+    Receives errors when a registered sink's ``configure()``, ``submit()``, or
+    ``deferRender()`` method throws. The pipeline continues to the other sinks
+    and keeps rendering. The pipeline ignores errors that ``onError()`` throws.
 
 ``deferRender()`` (optional)
     Requests that the render loop defer drawing this tick while the sink catches

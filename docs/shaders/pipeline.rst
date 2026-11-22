@@ -241,10 +241,12 @@ compiles each distinct program name once. The expander gives programs
 effect-instance-scoped names and includes sorted compile-time define values in
 the name, so different define variants receive different backend entries.
 
-During recompilation, CanvasRenderer pauses rendering with ``isCompiling``.
-The ``recompile()`` method replaces the graph and recreates graph-dependent
-textures. CanvasRenderer then invokes ``compilePrograms()`` before rendering resumes. A DSL or
-expansion failure returns ``null`` before the graph swap.
+During recompilation, CanvasRenderer pauses rendering with ``isCompiling``. It
+builds a candidate graph and compiles its shader programs before it swaps the
+graph. If shader compilation fails, CanvasRenderer keeps the active graph, its
+programs, and its surfaces. It also restores ``currentDsl`` to the source of
+that graph. Later frames can then render the accepted program. See Section 16.1
+for the full hot reload protocol.
 
 ----
 
@@ -767,10 +769,14 @@ path.
 16.1 Hot Reload Protocol
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-CanvasRenderer sets ``isCompiling`` before invoking ``recompile()``. If source compilation or expansion fails, the method logs the failure.
-It returns ``null`` before replacing the existing graph. On success, ``recompile()`` assigns ``pipeline.graph`` and
-recreates graph-dependent surfaces and textures. CanvasRenderer then awaits
-``compilePrograms()`` before rendering resumes.
+CanvasRenderer sets ``isCompiling`` while it builds a candidate graph and
+compiles its shader programs. It compiles candidate programs before it replaces
+the active graph. If shader compilation fails, the backend restores its previous
+program set, and CanvasRenderer keeps the active graph and its surfaces. It
+restores ``currentDsl`` to the active graph's source and raises the error. Later
+frames can render the accepted program. After successful candidate compilation,
+CanvasRenderer swaps the graph and recreates graph-dependent surfaces and
+textures.
 
 16.2 Error Recovery
 ^^^^^^^^^^^^^^^^^^^
