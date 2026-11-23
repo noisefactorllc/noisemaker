@@ -18,6 +18,9 @@ description into pixels and writes the result into an ordinary pipeline
 surface, so 3D output composes with the existing 2D filter library rather than
 needing its own post-processing stack.
 
+The scene vocabulary and its renderer first shipped, as experimental features,
+in Noisemaker 1.5.0.
+
 Scene nodes are not effects and need no ``loadEffect()``; the one extra hosting
 step is described under `Hosting`_.
 

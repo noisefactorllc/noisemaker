@@ -82,16 +82,17 @@ The ``shaders.noisedeck.app`` CDN hosts shader bundles in per-patch directories.
 ::
 
     shaders.noisedeck.app/
-    ├── 1.0.0/      ← immutable exact release
-    ├── 1.0.1/      ← immutable exact release
-    ├── 1.0   → 1.0.1   ← rolling latest within the 1.0 minor series
-    ├── 1      → 1.0.1   ← rolling latest within major 1
+    ├── 1.0.359/    ← immutable exact release, the last of the 1.0 series
+    ├── 1.5.0/      ← immutable exact release
+    ├── 1.0   → 1.0.359   ← the 1.0 minor series, which ended at 1.0.359
+    ├── 1.5   → 1.5.0     ← rolling latest within the 1.5 minor series
+    ├── 1     → 1.5.0     ← rolling latest within major 1
 
 Three pinning levels are available to consumers:
 
 - ``shaders.noisedeck.app/1/`` — rolling latest within **major 1**. It automatically tracks every minor and patch release until ``2.0`` ships. At that point, ``/1/`` freezes and consumers explicitly migrate to ``/2/``. This is the recommended default for most integrations.
-- ``shaders.noisedeck.app/1.0/`` — rolling latest within the **1.0 minor series**. It stays pinned to the 1.0.x line and never automatically crosses a minor boundary.
-- ``shaders.noisedeck.app/1.0.1/`` — **exact pin**, immutable. Required for reproducible builds.
+- ``shaders.noisedeck.app/1.5/`` — rolling latest within the **1.5 minor series**. It stays pinned to the 1.5.x line and never automatically crosses a minor boundary. The 1.0 series ended at 1.0.359, so ``/1.0/`` stays at 1.0.359.
+- ``shaders.noisedeck.app/1.5.0/`` — **exact pin**, immutable. Required for reproducible builds.
 
 See :doc:`shaders/integration` for usage examples at each pinning level.
 

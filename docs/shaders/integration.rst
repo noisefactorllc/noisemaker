@@ -84,10 +84,10 @@ The CDN exposes three URL shapes for every release. Pick the one that matches ho
    * - ``shaders.noisedeck.app/1``
      - Rolling latest within **major 1**. It automatically tracks every minor and patch release (e.g., ``1.0.0`` → ``1.0.1`` → ``1.1.0``) until ``2.0`` ships. Then this URL freezes and consumers explicitly migrate to ``/2``.
      - Most integrations. No code change needed for minor upgrades.
-   * - ``shaders.noisedeck.app/1.0``
-     - Rolling latest within the **1.0 minor series**. Stays on the 1.0.x line even if 1.1 or 2.0 ships.
+   * - ``shaders.noisedeck.app/1.5``
+     - Rolling latest within the **1.5 minor series**. Stays on the 1.5.x line even if 1.6 or 2.0 ships. The 1.0 series ended at 1.0.359, so ``/1.0`` stays at 1.0.359.
      - When you want patch-level updates but explicit control over minor-version changes.
-   * - ``shaders.noisedeck.app/1.0.1``
+   * - ``shaders.noisedeck.app/1.5.0``
      - **Exact pin**, immutable. This directory's contents never change once published.
      - Reproducible builds, security-audited integrations, and frozen historical versions.
 
@@ -97,17 +97,17 @@ Example — rolling latest within major 1 (recommended default):
 
     const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
-Example — pinned to the 1.0 minor series:
+Example — pinned to the 1.5 minor series:
 
 .. code-block:: javascript
 
-    const SHADER_CDN = 'https://shaders.noisedeck.app/1.0'
+    const SHADER_CDN = 'https://shaders.noisedeck.app/1.5'
 
 Example — exact immutable pin:
 
 .. code-block:: javascript
 
-    const SHADER_CDN = 'https://shaders.noisedeck.app/1.0.1'
+    const SHADER_CDN = 'https://shaders.noisedeck.app/1.5.0'
 
 All subsequent examples in this guide use ``shaders.noisedeck.app/1`` — substitute any pinning level above.
 
@@ -292,7 +292,7 @@ element's size wins; a diagnostic warns when it differs from the options.
       layout in `Vendored Bundles`_
     - An absolute URL of ``shaders/`` for source mode (see `Source Imports`_)
 
-    The CDN provides ``/1.0`` for minor pinning and ``/1.0.1`` for an exact immutable pin.
+    The CDN provides ``/1.5`` for minor pinning and ``/1.5.0`` for an exact immutable pin.
 
     The renderer reads ``${basePath}/effects/manifest.json`` with ``fetch()``.
     A relative ``basePath`` therefore resolves against the page URL. In source
