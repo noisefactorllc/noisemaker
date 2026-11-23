@@ -47,6 +47,11 @@ stored at every voxel in that column) — producing a voxel heightfield
 volume from arbitrary 2D input. It is the generator half of a landscape
 chain; see ``renderLandscape3d`` below.
 
+The terrain keeps the frame's proportions inside the volume's square footprint.
+On a wide frame, it spans the volume's width and a centered part of its depth.
+On a tall frame, it spans the depth and a centered part of the width. On a
+square frame, it spans both dimensions. Columns outside the terrain are empty.
+
 Volumetric filters (filter3d)
 -----------------------------
 

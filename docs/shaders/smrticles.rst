@@ -474,7 +474,9 @@ Available Behaviors
    * - ``heightGrid``
      - Not a simulation: arranges every agent into a fixed XZ grid with Y set
        from a height map, and color from a diffuse map — a landscape's worth
-       of positions rather than a physics or flow-field behavior
+       of positions rather than a physics or flow-field behavior. The frame's
+       height-to-width ratio sets grid depth relative to grid width, so both
+       maps keep their proportions
 
 Independent Texture Inputs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
