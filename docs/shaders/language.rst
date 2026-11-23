@@ -36,15 +36,26 @@ Grammar
    WriteTarget    ::= OutputRef | XyzRef | VelRef | RgbaRef | MeshRef | 'none'
    Write3DCall    ::= 'write3d' '(' ( VolRef | OutputRef | Ident ) ',' ( GeoRef | OutputRef | Ident ) ')'
    Call           ::= Ident '(' ArgList? ')'
-   ArgList        ::= Expr ( ',' Expr )* ','? | Kwarg ( ',' Kwarg )* ','?
+   ArgList        ::= Expr ( ',' Expr )* ','? | Kwarg ( ',' Kwarg )* ','? | MixedArgs
+   MixedArgs      ::= Arg ( ',' Arg )* ','?  (experimental)
+   Arg            ::= Kwarg | Expr
    Kwarg          ::= Ident ':' Expr
    Expr           ::= Term ( ( '+' | '-' ) Term )*
    Term           ::= Unary ( ( '*' | '/' ) Unary )*
    Unary          ::= ( '+' | '-' )* Primary
    Primary        ::= Number | 'Math.PI' | String | Boolean | Color | Array | Func | Ident | Member
-                    | Chain | SurfaceRef | '(' Expr ')'
+                    | Chain | Object | SurfaceRef | '(' Expr ')'
+   Object         ::= '{' ( Ident ':' Expr ( ',' Ident ':' Expr )* ','? )? '}'  (experimental)
    Array          ::= '[' ( Expr ( ',' Expr )* )? ']'
    Member         ::= Ident ( '.' Segment )+
+   SceneCall      ::= 'scene' '(' SceneArg ( ',' SceneArg )* ')'  (experimental)
+   SceneArg       ::= Kwarg | CameraCall | LightCall | EnvironmentCall | NodeChain
+   NodeChain      ::= ( MeshCall | VolumeCall | GroupCall ) ( '.' NodeLink )*
+   VolumeCall     ::= 'volume' '(' ArgList ')'  (experimental)
+   NodeLink       ::= MaterialCall | 'reflector' '(' ')'
+   MaterialCall   ::= 'material' '(' MaterialSpec ')'
+   MaterialSpec   ::= ( 'solid' | 'surface' ) '(' ArgList? ')' ( '.' MaterialTerm )*
+   MaterialTerm   ::= ( 'pbr' | 'emit' ) '(' ArgList? ')'
    Func           ::= '(' ')' '=>' Expr
    SurfaceRef     ::= OutputRef | SourceRef | VolRef | GeoRef | XyzRef | VelRef | RgbaRef | MeshRef
    OutputRef      ::= 'o' OutputDigit
@@ -73,8 +84,53 @@ Grammar
 An ``Ident`` is never a ``Keyword``. A ``Namespace`` must name a registered
 namespace. Otherwise the parser reports ``P004``.
 ``Chain`` in ``Primary`` cannot contain ``WriteCall`` or ``Write3DCall``
-(``P005``). Positional and keyword arguments cannot be mixed in one call
-(``P007``), except in ``midi()`` and ``audio()``.
+(``P005``). Positional and keyword arguments may be mixed in ordinary calls.
+
+``VolumeCall`` is an ordinary ``ArgList`` constrained by the scene compiler
+rather than by the grammar: it takes exactly one positional argument, a volume
+reference ``( VolRef | Ident )`` naming ``vol0``–``vol7`` — written directly or
+reached through a ``let`` binding — and every other argument is a keyword.
+Positional and keyword arguments may appear in any order, and a trailing comma
+is permitted, as they are in any other ``ArgList``. Keyword *values* are
+constrained there too, not by the grammar: ``mode`` is an ordinary ``String`` to
+the parser and one of ``"smooth"`` or ``"voxel"`` to the compiler. See
+:ref:`shader-scene` for the keyword set.
+
+.. stability:begin grammar
+
+Productions marked ``(experimental)`` are experimental. See :ref:`shader-experimental`.
+
+.. stability:end grammar
+
+``SceneCall`` and everything reachable from it (``SceneArg``, ``NodeChain``,
+``VolumeCall``, ``NodeLink``, ``MaterialCall``, ``MaterialSpec`` and
+``MaterialTerm``) form the scene vocabulary: see :ref:`shader-scene`.
+
+.. _shader-language-object-literals:
+
+``Object`` was added to serve them. No call takes an object as a value yet.
+
+.. stability:begin lang.objectLiteral
+
+.. note::
+
+   Experimental. Complete and supported in Noisemaker 1.x, outside the 1.x stability guarantee. It seeds the Noisemaker 2.x feature set. See :ref:`shader-experimental`.
+
+.. stability:end lang.objectLiteral
+
+.. code-block:: none
+
+  search synth
+
+  let look = { tint: [0.8, 0.95, 1], roughness: 0.65 }
+
+  scene(mesh("sphere")).write(o0)
+  render(o0)
+
+A ``let`` can hold an object literal, and the literal is kept when the program
+is re-emitted from its parsed form. An effect parameter given an object
+reports it or falls back to its default, and ``scene()`` reports one as an
+error wherever it reads a value.
 
 **Precedence & Associativity:**
 
@@ -139,9 +195,7 @@ Language Features
 Functions & Arguments
 ^^^^^^^^^^^^^^^^^^^^^
 
-Functions accept arguments either positionally or as named keywords. The two
-forms are mutually exclusive within a single call, except for the special
-``midi()`` and ``audio()`` value calls documented under `Live Input`_.
+Functions accept arguments positionally, as named keywords, or as a mix of both within a single call.
 
 **Positional arguments:**
 
@@ -155,7 +209,58 @@ forms are mutually exclusive within a single call, except for the special
 
   noise(type: 10, octaves: 2, scaleX: 50)
 
-Numeric arguments support inline arithmetic (``+``, ``-``, ``*``, ``/``), a leading ``+`` or ``-``, and the constant ``Math.PI``. The parser folds arithmetic to one number, so every operand must be a number: ``time * 0.5`` is a parser error (``P001``, "Expected number"). Color arguments accept unquoted ``#RGB``, ``#RRGGBB`` or ``#RRGGBBAA`` hex codes.
+.. _shader-language-mixed-arguments:
+
+**Mixed arguments:**
+
+.. stability:begin lang.mixedArguments
+
+.. note::
+
+   Experimental. Complete and supported in Noisemaker 1.x, outside the 1.x stability guarantee. It seeds the Noisemaker 2.x feature set. See :ref:`shader-experimental`.
+
+.. stability:end lang.mixedArguments
+
+Positional and keyword arguments may be interleaved in any order. This is what
+lets :ref:`scene() <shader-scene>` carry renderer settings as keywords alongside
+its child nodes as positional arguments.
+
+.. code-block:: none
+
+  search synth
+
+  scene(ambient: 0.15, camera(fov: 60), mesh("sphere"), background: [0, 0, 0]).write(o0)
+  render(o0)
+
+The binding rule: keywords claim their own parameter slots by name, wherever
+they appear in the call. The positionals are then bound **in source order to the
+slots no keyword claimed**, left to right. A positional never occupies a slot a
+keyword already holds — where it would have landed on one, it shifts to the next
+unfilled slot instead. This is deliberate, and it is what makes the interleaving
+above work at all.
+
+Given ``blur(amount, angle, quality)``, all three of these bind ``amount: 0.9``,
+``angle: 0.5`` and ``quality: 4``:
+
+.. code-block:: none
+
+  blur(0.9, 0.5, 4)
+  blur(0.9, angle: 0.5, 4)
+  blur(angle: 0.5, 0.9, 4)
+
+In the second call, ``4`` would have reached ``angle`` by position; because
+``angle:`` is already claimed, it shifts to ``quality``. A positional left
+over once every slot is filled binds to nothing. The program still compiles,
+and the validator reports the warning ``S009``: ``Too many positional
+arguments for blur(): 'blur' takes 3``.
+
+``//`` comments may appear inside an argument list, an array literal or an
+object literal, between arguments. They are skipped by the parser, so a
+program re-emitted from its parsed form (as the demo does when a parameter is
+changed) comes back without them; comments on their own lines between
+statements survive that round trip.
+
+Numeric arguments support inline arithmetic (``+``, ``-``, ``*``, ``/``) and constants like ``Math.PI``. Color arguments accept unquoted ``#RGB`` or ``#RRGGBB`` hex codes.
 
 **Vector parameters:**
 
@@ -301,6 +406,64 @@ You can omit both arguments or pass ``name`` as a positional argument. Keyword a
 * Marking effect groups for UI controls or programmatic manipulation.
 * Defining reusable patterns within complex compositions.
 * Enabling downstream tools to identify and operate on logical effect groups.
+
+Scenes
+^^^^^^
+
+.. stability:begin scene
+
+.. note::
+
+   Experimental. Complete and supported in Noisemaker 1.x, outside the 1.x stability guarantee. It seeds the Noisemaker 2.x feature set. See :ref:`shader-experimental`.
+
+.. stability:end scene
+
+``scene()`` describes a 3D scene — a camera, lights, and a hierarchy of meshes
+with PBR materials — which the deferred renderer resolves into a surface. It
+behaves like any other generator and must terminate in ``.write(oN)``, so its
+output composes with the 2D effect library.
+
+.. code-block:: none
+
+  scene(
+    ambient: 0.15,
+    camera(fov: 60, pos: [0, 3, 8], target: [0, 0, 0]),
+    light(type: "directional", dir: [-1, -1, -1], intensity: 2),
+    mesh("sphere", radius: 1.5, pos: [0, 1, 0])
+      .material(solid(color: [0.9, 0.9, 0.95]).pbr(metallic: 0.1, roughness: 0.6))
+  ).write(o0)
+
+The scene vocabulary is ``scene``, ``camera``, ``light``, ``environment``,
+``mesh``, ``volume``, ``group``, ``material``, ``solid``, ``surface``, ``pbr``
+and ``emit``. ``reflector()`` is a chain link on a node inside the scene, not
+a vocabulary word of its own.
+
+Every call is first resolved against the registered effects in the active search
+order. ``solid`` is both a scene material source and the ``synth/solid``
+generator, and a top-level ``solid()`` under ``search synth`` still compiles to
+the 2D effect.
+
+Only ``scene`` falls through to the scene layer when no effect matches, and it
+must start its chain — ``noise().scene(...)`` would discard the incoming surface
+and instead raises ``scene() is a generator and must start a chain``. The other
+eleven names are scene *children*; they live inside a ``scene()`` call and never
+reach the chain. Used as a chain element with no effect behind them they raise
+``Unknown effect: '<name>'. Scene nodes like <name>() are only valid inside
+scene().``
+
+Arguments inside ``scene()`` are preserved as AST and handed to the scene
+compiler rather than validated against the effect registry, which is why terms
+like ``reflector()`` need no registration and why scene errors surface as
+``SyntaxError`` with a line and column rather than as validator diagnostics.
+
+Transform components and light intensity accept the same three automation
+descriptors as effect uniforms in place of numbers: ``osc()``, ``midi()`` and
+``audio()``. They are evaluated against the same normalized loop time and the
+same live MIDI and audio state, so a scene and the effects around it respond to
+one performance.
+
+See :ref:`shader-scene` for the full node, material and settings reference, and
+:ref:`shader-deferred-rendering` for how the scene is drawn.
 
 Namespaces
 ----------
@@ -626,10 +789,7 @@ Runtime Behavior
 
 The pipeline evaluates oscillators each frame from the current animation time. It normalizes time to a 0..1 range over the animation duration (default 10 seconds). It applies the speed multiplier and offset before computing the waveform value.
 
-The oscillator's ``min`` and ``max`` are normalized percentages. The receiving
-effect parameter maps that normalized value onto its own declared range. For
-example, ``min: 0.1, max: 0.8`` traverses 10%–80% of that parameter's range.
-The bounds are not absolute parameter values.
+The waveform yields a value in ``0..1``. ``min`` and ``max`` (each in ``0..1``, default the whole range) narrow it to a sub-range, and the result is then mapped onto the consuming parameter's own declared range — so ``osc(min: 0.2, max: 0.8)`` on ``scale`` sweeps the middle 60% of whatever ``scale`` allows, and no oscillator needs to know a parameter's units. A ``min`` or ``max`` outside ``0..1`` is clamped to it (an effect uniform warns; a :ref:`scene <shader-scene>` rejects it).
 
 Live Input
 ----------
@@ -804,8 +964,33 @@ The ``pointsEmit`` and ``pointsRender`` wrappers manage these surfaces. Behavior
 
 * **Mesh Geometry Textures:** ``mesh0``-``mesh7`` are texture pairs storing mesh geometry data from loaded OBJ files.
 * Each mesh surface consists of a positions texture (vertex XYZ + W) and a normals texture (normal XYZ + UV).
-* **Loading:** Use ``meshLoader()`` in the pipeline and load OBJ files via the API (``canvas.loadOBJFromURL()`` or ``canvas.loadOBJFromString()``).
-* **Rendering:** Chain ``meshRender()`` after ``meshLoader()``: ``meshLoader().meshRender().write(o0)``. ``meshRender()`` reads ``mesh0`` and renders it with lighting and transforms. It has no ``mesh`` parameter, and it cannot start a chain.
+* **Loading:** Use ``meshLoader()`` in the pipeline and load mesh files via the API — ``canvas.loadOBJFromURL()`` / ``canvas.loadOBJFromString()`` for OBJ, ``canvas.loadGLTFFromURL()`` / ``canvas.loadGLTFFromString()`` for glTF and GLB. Each takes the target surface as its second argument, defaulting to ``mesh0``.
+* **Rendering:** Use ``meshRender()`` to render mesh geometry with lighting and transforms. It takes no surface argument: the effect is bound to ``mesh0``, so load into that surface to render it.
+
+.. _shader-language-gltf:
+
+**glTF and GLB loading:**
+
+.. stability:begin gltf
+
+.. note::
+
+   Experimental. Complete and supported in Noisemaker 1.x, outside the 1.x stability guarantee. It seeds the Noisemaker 2.x feature set. See :ref:`shader-experimental`.
+
+.. stability:end gltf
+
+``canvas.loadGLTFFromURL()`` and ``canvas.loadGLTFFromString()`` load glTF and GLB mesh files. Each takes the target surface as its second argument, defaulting to ``mesh0``.
+
+.. code-block:: javascript
+
+    await canvas.loadEffects(['render/meshLoader', 'render/meshRender'])
+    await canvas.compile(`
+        search render
+        meshLoader().meshRender(rotateX: 40, rotateY: 30).write(o0)
+        render(o0)
+    `)
+    const loaded = await canvas.loadGLTFFromURL('model.glb', 'mesh0')
+    // loaded: { success, vertexCount }, and error when success is false
 
 Feedback Loops
 ^^^^^^^^^^^^^^
@@ -915,6 +1100,10 @@ Diagnostics
      - Semantic
      - Warning
      - Deprecated effect
+   * - S009
+     - Semantic
+     - Warning
+     - Too many positional arguments
    * - R001
      - Runtime
      - Error

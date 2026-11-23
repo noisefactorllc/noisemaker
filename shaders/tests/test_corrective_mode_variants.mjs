@@ -6,6 +6,40 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
 import crypto from 'node:crypto'
 import { PNG } from 'pngjs'
+import { correctiveBaselines, hostGpuInventory } from './corrective_baselines.js'
+
+// An interrupted run must not leave the browser process tree behind:
+// Playwright's own SIGTERM handler closes its browsers but never exits, and
+// its SIGINT handler races this test's teardown. These close what this test
+// owns and then exit. The 'exit' listener is the last-resort fallback for the
+// process.exit() paths below, where only synchronous work still runs.
+let activeBrowser = null
+let shuttingDown = false
+
+async function shutdownAndExit(code) {
+    if (shuttingDown) return
+    shuttingDown = true
+    const browser = activeBrowser
+    activeBrowser = null
+    try {
+        await browser?.close()
+    } catch {
+        // Already closed.
+    }
+    try {
+        releaseServer()
+    } catch {
+        // Server already released.
+    }
+    process.exit(code)
+}
+
+process.on('SIGINT', () => { shutdownAndExit(130) })
+process.on('SIGTERM', () => { shutdownAndExit(143) })
+process.on('exit', () => {
+    try { activeBrowser?.close() } catch { /* already closed */ }
+    try { releaseServer() } catch { /* already released */ }
+})
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '../..')
@@ -17,9 +51,10 @@ const { acquireServer, releaseServer } = await import(pathToFileURL(path.join(re
 const baseUrl = await acquireServer(undefined, repoRoot, effectsDir)
 const browser = await chromium.launch({
     headless: true,
-    args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan',
+    args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--enable-webgpu-developer-features',
         process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=vulkan'],
 })
+activeBrowser = browser
 
 const textureModes = [
     'canvas', 'crosshatch', 'halftone', 'paper', 'stucco',
@@ -222,6 +257,8 @@ function directionalTextureStats(png) {
 
 try {
     const rendered = {}
+    let webglRenderer = ''
+    let webgpuAdapter = null
     const softDsl = `search synth, filter
 
 solid(color: #808080)
@@ -290,6 +327,18 @@ render(o0)`
     for (const preferWebGPU of [false, true]) {
         const expected = preferWebGPU ? 'WebGPU' : 'WebGL2'
         const { page, errors } = await install(preferWebGPU)
+        if (preferWebGPU) {
+            webgpuAdapter = await page.evaluate(async () => {
+                const adapter = await navigator.gpu?.requestAdapter()
+                return adapter ? { vendor: adapter.info.vendor, architecture: adapter.info.architecture, device: adapter.info.device, description: adapter.info.description } : null
+            })
+        } else {
+            webglRenderer = await page.evaluate(() => {
+                const gl = document.createElement('canvas').getContext('webgl2')
+                const extension = gl?.getExtension('WEBGL_debug_renderer_info')
+                return extension ? gl.getParameter(extension.UNMASKED_RENDERER_WEBGL) : ''
+            })
+        }
         for (const mode of textureModes) {
             const dsl = `search synth, filter
 
@@ -500,9 +549,10 @@ render(o0)`
         `Mosaic Tiles must pixelize each tile to a representative source sample; equal-neighbor ratio=${mosaicPlateau.toFixed(4)}`)
     const mosaicHashes = Object.fromEntries(['WebGL2', 'WebGPU'].map(backend => [backend,
         crypto.createHash('sha256').update(rendered[backend].mosaic.data).digest('hex')]))
+    const baselines = correctiveBaselines({ renderer: webglRenderer, ...webgpuAdapter, hostGpus: hostGpuInventory() })
     assert.deepEqual(mosaicHashes, {
-        WebGL2: '06c2f1c8648179a8cc813fd02a202e9b502c5994948a241fb1ba18a301f9785b',
-        WebGPU: '06c2f1c8648179a8cc813fd02a202e9b502c5994948a241fb1ba18a301f9785b',
+        WebGL2: baselines.mosaic,
+        WebGPU: baselines.mosaic,
     }, 'Mosaic mode pixels must remain byte-identical while Shifted is corrected')
     const shiftedHashes = Object.fromEntries(['WebGL2', 'WebGPU'].map(backend => [backend,
         crypto.createHash('sha256').update(rendered[backend].shifted.data).digest('hex')]))
@@ -527,12 +577,9 @@ render(o0)`
     }
     const paperHashes = Object.fromEntries(['WebGL2', 'WebGPU'].map(backend => [backend,
         crypto.createHash('sha256').update(rendered[backend].paper.data).digest('hex')]))
-    // The WebGPU pin moved with the WGSL texture fixes 059c1dff and 0b0f4560, which
-    // stopped WebGPU from sampling the frame upside down. It now matches WebGL2 within
-    // 1 LSB on 4 pixels; the earlier pin c22a69b7... was the flipped output.
     assert.deepEqual(paperHashes, {
         WebGL2: '26624775e320302ac79ff2151bcb66a24308fc8580c4a73a3966a72fc67328e9',
-        WebGPU: '1286b203e2811383a996f475762cb266b6e7f771345474f0613eaaaf38bfa858',
+        WebGPU: baselines.paperWebGPU,
     }, 'original Paper Texture pixels must retain their backend-specific contracts')
     const softStats = softTextureStats(rendered.WebGL2.soft)
     assert.ok(softStats.unique > 100, `Soft Texture needs continuous tonal variation: ${JSON.stringify(softStats)}`)

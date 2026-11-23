@@ -801,19 +801,19 @@ const controlFlowPrograms = [
 const controlFlowShape = plans => plans.map(plan => plan.chain ? { ops: plan.chain.map(step => step.op), comments: plan.leadingComments } : {
     type: plan.type,
     name: plan.name,
-    expr: JSON.stringify(plan.expr),
-    cond: JSON.stringify(plan.cond),
-    condition: JSON.stringify(plan.source?.condition),
-    value: JSON.stringify(plan.source?.value),
+    expr: JSON.stringify(plan.expr, (key, value) => key === 'loc' ? undefined : value),
+    cond: JSON.stringify(plan.cond, (key, value) => key === 'loc' ? undefined : value),
+    condition: JSON.stringify(plan.source?.condition, (key, value) => key === 'loc' ? undefined : value),
+    value: JSON.stringify(plan.source?.value, (key, value) => key === 'loc' ? undefined : value),
     comments: (plan.source || plan).leadingComments,
     then: plan.then && controlFlowShape(plan.then),
     thenEnd: plan.source?.then?.trailingComments,
     elif: plan.elif?.map((entry, index) => ({
-        cond: JSON.stringify(entry.cond),
+        cond: JSON.stringify(entry.cond, (key, value) => key === 'loc' ? undefined : value),
         then: controlFlowShape(entry.then),
         end: plan.source?.elif?.[index]?.then?.trailingComments
     })),
-    elifConditions: plan.source?.elif?.map(entry => JSON.stringify(entry.condition)),
+    elifConditions: plan.source?.elif?.map(entry => JSON.stringify(entry.condition, (key, value) => key === 'loc' ? undefined : value)),
     else: plan.else && controlFlowShape(plan.else),
     elseEnd: plan.source?.else?.trailingComments,
     hasElse: plan.source ? plan.source.else !== null : undefined

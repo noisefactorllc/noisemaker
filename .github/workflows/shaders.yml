@@ -2,7 +2,7 @@ name: Shaders
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, scene-graph ]
     paths:
       - 'shaders/**'
       - '!shaders/README-SHADERS.md'
@@ -95,15 +95,16 @@ jobs:
     - name: Run shader structure tests
       run: npm run test:shaders:structure
 
+    - name: Run effect string catalog tests
+      run: npm run test:shaders:i18n
+
   # WebGL2/WebGPU suites need a real GPU; hosted runners only offer software
   # Vulkan, where these suites take over an hour. They run on a self-hosted
-  # Apple Silicon runner in the noisemaker-gpu runner group. That group only
-  # accepts this workflow file from main, so pull requests (including forks,
-  # which can rewrite this file) never reach the machine. Pull requests get
-  # the hosted suites above; main verifies the GPU suites before bundling.
+  # Apple Silicon runner in the noisemaker-gpu runner group. Only trusted
+  # branch pushes run on this runner; pull requests use the hosted suites.
   gpu:
     name: GPU tests
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/scene-graph')
     runs-on:
       group: noisemaker-gpu
       labels: [noisemaker-gpu]
@@ -132,6 +133,12 @@ jobs:
 
     - name: Verify WebGPU uploads, resampling, and storage execution
       run: npm run test:shaders:render:webgpu
+
+    - name: Verify scenes on both GPU backends
+      run: npm run test:shaders:visual
+
+    - name: Verify pixel pins on both GPU backends
+      run: npm run test:shaders:pins
 
     - name: Verify alpha compositing on both GPU backends
       run: npm run test:shaders:alpha

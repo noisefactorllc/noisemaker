@@ -25,7 +25,7 @@ import { parse } from '../lang/parser.js'
 import { registerParamAliases } from '../lang/paramAliases.js'
 import { registerEffectAlias } from '../lang/effectAliases.js'
 import { registerStarterOps } from '../lang/validator.js'
-import { createRuntime, compileGraphFor, swapGraph } from '../runtime/compiler.js'
+import { createRuntime, compileGraph, compileGraphFor, swapGraph } from '../runtime/compiler.js'
 import { WebGPUBackend } from '../runtime/backends/webgpu.js'
 import { resolveSoftwareRendering } from './software-rendering.js'
 import { registerEffect, getEffect, unregisterEffect } from '../runtime/registry.js'
@@ -34,6 +34,27 @@ import { mergeIntoEnums } from '../lang/enums.js'
 import { stdEnums } from '../lang/std_enums.js'
 import { MidiState, AudioState, MidiInputManager, AudioInputManager, ExternalInputManager } from '../runtime/external-input.js'
 import { expandPalette } from '../runtime/palette-expansion.js'
+import { SCENE_COLOR_TEXTURE } from '../rendering/scene-compiler.js'
+
+let sceneModules = null
+async function loadSceneModules() {
+    if (!sceneModules) {
+        const [tree, renderer, clock, bindings] = await Promise.all([
+            import('../scene/tree.js'),
+            import('../rendering/scene-renderer.js'),
+            import('../scene/clock.js'),
+            import('../scene/bindings.js')
+        ])
+        sceneModules = {
+            SceneTree: tree.SceneTree,
+            SceneRenderer: renderer.SceneRenderer,
+            Clock: clock.Clock,
+            collectBindings: bindings.collectBindings,
+            evaluateBindings: bindings.evaluateBindings
+        }
+    }
+    return sceneModules
+}
 import { writeUniformAliases } from '../runtime/uniform-aliases.js'
 
 // Re-export for convenience
@@ -333,6 +354,22 @@ export class CanvasRenderer {
         // Cached mesh data for re-upload after backend switch
         // Map<meshId, {positionData, normalData, uvData, width, height, vertexCount}>
         this._meshCache = new Map()
+
+        // Scene rendering state (for scene() DSL programs)
+        this._isScene = false
+        this._sceneRenderPending = null
+        // True from the moment a cubemap export is asked for until it settles,
+        // including the wait for an in-flight loop render. See _renderSceneCubemap.
+        this._cubemapExportActive = false
+        this._sceneTree = null
+        this._sceneRenderer = null
+        this._clock = null
+
+        // Tile region for tiled hi-res export, or null. The pipeline keeps its
+        // own copy for the 2D passes; the scene renderer is handed this one on
+        // every render, because a scene tiles by sub-frustum rather than by
+        // shifting a fragment coordinate.
+        this._tileRegion = null
 
         // Bound render loop for proper `this` context
         this._boundRenderLoop = this._renderLoop.bind(this)
@@ -743,6 +780,26 @@ export class CanvasRenderer {
         return this._isRunning
     }
 
+    /** @returns {boolean} Whether current program is a scene() program */
+    get isScene() {
+        return this._isScene
+    }
+
+    /** @returns {SceneTree|null} Current scene tree (if scene program) */
+    get sceneTree() {
+        return this._sceneTree
+    }
+
+    /** @returns {SceneRenderer|null} Current scene renderer (if scene program) */
+    get sceneRenderer() {
+        return this._sceneRenderer
+    }
+
+    /** @returns {Clock|null} Scene clock (if scene program) */
+    get clock() {
+        return this._clock
+    }
+
     /** @returns {number} Loop duration in seconds */
     get loopDuration() {
         return this._loopDuration
@@ -907,9 +964,15 @@ export class CanvasRenderer {
 
     /**
      * Set tile region for tiled large-resolution rendering.
+     *
+     * Reaches both renderers. The pipeline hands `tileOffset` /
+     * `fullResolution` to 2D effects so they can shift their fragment
+     * coordinate into full-image space; a scene program has no such coordinate,
+     * so the scene renderer turns the same region into a camera sub-frustum.
      * @param {{offset: number[], fullResolution: number[]}} region
      */
     setTileRegion(region) {
+        this._tileRegion = region || null
         if (this._pipeline) this._pipeline.setTileRegion(region)
     }
 
@@ -917,17 +980,130 @@ export class CanvasRenderer {
      * Clear tile region, returning to normal rendering.
      */
     clearTileRegion() {
+        this._tileRegion = null
         if (this._pipeline) this._pipeline.clearTileRegion()
     }
 
     /**
-     * Render the active effect into 6 cubemap faces. See Pipeline.renderCubemap.
+     * Render the active program into 6 cubemap faces. See Pipeline.renderCubemap
+     * for the contract: faces in GL order (+X,-X,+Y,-Y,+Z,-Z), read back from
+     * the output surface, in the orientation the 2D cubemap renderers produce.
      * The returned array is reused on each call — copy the faces if retaining.
+     * @param {object} [config] - See Pipeline.renderCubemap
      * @returns {Promise<Array<{width,height,data}>>} reused buffer — copy if retaining
      */
-    renderCubemap(config) {
-        if (this._pipeline) return this._pipeline.renderCubemap(config)
-        return Promise.resolve([])
+    async renderCubemap(config) {
+        if (!this._pipeline) return []
+        if (this._isScene) return this._renderSceneCubemap(config)
+        return this._pipeline.renderCubemap(config)
+    }
+
+    /**
+     * Cubemap export of a scene program.
+     *
+     * A scene has no cubemap-renderer shader for `cubeBasis` to reach, so the
+     * six faces come from six renders of the scene through cube-face cameras.
+     * Everything downstream of the face is the 2D path's, unchanged: the
+     * pipeline still blits the scene texture into its surface, runs whatever 2D
+     * effects follow, and reads the surface back — so consumers see the same
+     * six buffers, in the same order and orientation, whichever kind of program
+     * produced them.
+     *
+     * The scene state is advanced ONCE for the whole capture rather than per
+     * face: an export is a single instant, and six faces of six different
+     * instants would not close into a cube.
+     *
+     * An export takes the same guard a loop frame takes, for its whole
+     * duration. Two scene renders in flight at once share the backend's frame
+     * brackets (one command encoder on WebGPU), the scene renderer's pass state
+     * and the pipeline's size — which this path changes underneath anything
+     * that captured it before an await. So the export first drains a render
+     * already in flight, then holds _sceneRenderPending itself: loop frames
+     * that land during a capture take the established skip-and-present route,
+     * exactly as they do for a slow scene render.
+     * @private
+     * @param {object} [config] - See Pipeline.renderCubemap
+     * @returns {Promise<Array<{width,height,data}>>} reused buffer — copy if retaining
+     */
+    async _renderSceneCubemap(config = {}) {
+        if (!this._sceneRenderer || !this._sceneTree) return []
+        // Reentrancy is not a scheduling question. A second export would
+        // overwrite the first's saved probe amortization with the first's own
+        // forced state, and the live loop would never get its rotation back.
+        if (this._cubemapExportActive) {
+            throw new Error('renderCubemap: a cubemap export is already in flight — await it before starting another')
+        }
+        this._cubemapExportActive = true
+        let guard = null
+        try {
+            // A loop render can span many frames (a light-count change
+            // recompiles shaders), and the loop starts at most one at a time,
+            // so this drains rather than spins.
+            while (this._sceneRenderPending) await this._sceneRenderPending
+            const running = this._runSceneCubemapExport(config)
+            // Frames reusing the guard await THIS promise, so it must never
+            // reject: a failed export would otherwise become an unhandled
+            // rejection on an innocent frame. The caller still gets `running`.
+            guard = running.then(() => {}, () => {})
+            this._sceneRenderPending = guard
+            return await running
+        } finally {
+            if (this._sceneRenderPending === guard) this._sceneRenderPending = null
+            this._cubemapExportActive = false
+        }
+    }
+
+    /**
+     * The capture itself, once the guard is held.
+     *
+     * The scene renderer and tree are captured up front and used throughout:
+     * dispose() and compile() both null those fields, either can land between
+     * two faces, and an export that reached back through `this` for its
+     * teardown would throw a TypeError out of its own finally at that point —
+     * losing the real outcome. It finishes on the renderer it started with.
+     * @private
+     * @param {object} config - See Pipeline.renderCubemap
+     * @returns {Promise<Array<{width,height,data}>>} reused buffer — copy if retaining
+     */
+    async _runSceneCubemapExport(config) {
+        const sceneRenderer = this._sceneRenderer
+        const sceneTree = this._sceneTree
+        const pipeline = this._pipeline
+        const clock = this._clock
+        // Draining an in-flight render spans awaits, and a teardown can land in
+        // that window. Same answer as being asked to export nothing at all.
+        if (!sceneRenderer || !sceneTree || !pipeline) return []
+        const size = config.size ?? 512
+        const normalizedTime = config.time ?? 0
+        this._advanceSceneState(normalizedTime * this._loopDuration * 1000, normalizedTime)
+
+        // The scene renderer's G-buffer has to be the face size while the faces
+        // render; the pipeline resizes itself inside renderCubemap.
+        const previousWidth = pipeline.width
+        const previousHeight = pipeline.height
+        const resized = previousWidth !== size || previousHeight !== size
+        if (resized) sceneRenderer.resize(size, size)
+        // A tile region belongs to the live 2D view. The scene renderer already
+        // ignores it for a face — a face is sampled by direction, so a screen
+        // tile would capture a fraction of it — but the pipeline does not, and
+        // any 2D effect downstream of scene() would shade all six faces as one
+        // tile of a larger image. Restored after, so a tiled hi-res render that
+        // exports mid-run keeps its tile.
+        const tileRegion = this._tileRegion
+        if (tileRegion) pipeline.clearTileRegion()
+        sceneRenderer.beginCubemapExport()
+        try {
+            return await pipeline.renderCubemap({
+                ...config,
+                onFace: (face) => sceneRenderer.renderCubemapFace(
+                    sceneTree, clock, face, SCENE_COLOR_TEXTURE)
+            })
+        } finally {
+            sceneRenderer.endCubemapExport()
+            if (tileRegion) pipeline.setTileRegion(tileRegion)
+            // Back to whatever the pipeline restored itself to.
+            if (resized) sceneRenderer.resize(pipeline.width, pipeline.height)
+        }
     }
 
     /**
@@ -938,6 +1114,9 @@ export class CanvasRenderer {
     resize(width, height) {
         this._width = width
         this._height = height
+        if (this._sceneRenderer) {
+            this._sceneRenderer.resize(width, height)
+        }
         if (this._pipeline && this._pipeline.resize) {
             this._pipeline.resize(width, height)
         }
@@ -1032,7 +1211,21 @@ export class CanvasRenderer {
      * Render a single frame at a specific time
      * @param {number} normalizedTime - Time value 0-1
      */
-    render(normalizedTime) {
+    async render(normalizedTime) {
+        // Scene programs draw into SCENE_COLOR_TEXTURE first; the pipeline
+        // below then blits that into its surface and runs any 2D effects.
+        // Awaited, so a single-shot render + readback sees the scene it just
+        // asked for rather than the previous frame's.
+        //
+        // Gated on _isScene rather than awaiting unconditionally: a program
+        // with no scene has nothing to wait for, and awaiting anyway pushes
+        // the pipeline past a microtask. render() is synchronous for 2D
+        // programs and hosts call it that way — set a uniform, render, read
+        // the canvas back — so the readback would see the previous frame.
+        if (this._isScene) {
+            await this._renderScene(normalizedTime * this._loopDuration * 1000, normalizedTime)
+        }
+
         if (this._pipeline && !this._isContextLost) {
             try {
                 this._pipeline.render(normalizedTime)
@@ -1048,47 +1241,170 @@ export class CanvasRenderer {
     }
 
     /**
+     * Draw the scene tree into SCENE_COLOR_TEXTURE, if this is a scene
+     * program. No-op otherwise. Runs before pipeline execution so the
+     * pipeline's blit carries the result into its surface the same frame.
+     * @private
+     * @param {number} timeMs - Timestamp to advance the scene clock with
+     * @param {number} normalizedTime - Shared animation loop position in [0, 1]
+     */
+    async _renderScene(timeMs, normalizedTime) {
+        if (!this._isScene || !this._sceneRenderer || !this._sceneTree) return
+        // A scene render spans await points — shader compilation when the light
+        // count changes, and GPU backpressure. Reuse the in-flight one rather
+        // than starting a second pass over the same textures and queueing
+        // unbounded work behind it.
+        if (this._sceneRenderPending) return this._sceneRenderPending
+
+        // The promise stored in _sceneRenderPending is the *guarded* one. Every
+        // frame that reuses an in-flight render awaits this exact object, so
+        // handing back a raw one turns a scene failure into an unhandled
+        // rejection on the reusing frame: it skips that frame's pipeline run
+        // and never reaches _onError. _runSceneRender absorbs the failure, so
+        // this promise resolves, always.
+        //
+        // .finally() callbacks never run synchronously, so `pending` is always
+        // assigned by the time the field is cleared — even if the render body
+        // fails before its first await.
+        const pending = this._runSceneRender(timeMs, normalizedTime).finally(() => {
+            if (this._sceneRenderPending === pending) this._sceneRenderPending = null
+        })
+        this._sceneRenderPending = pending
+        return pending
+    }
+
+    /**
+     * Move the scene to one instant: clock, bindings, world matrices.
+     *
+     * Shared by the per-frame render and by cubemap export, which runs it once
+     * for the whole six-face capture rather than once per face.
+     * @private
+     * @param {number} timeMs - Timestamp to advance the scene clock with
+     * @param {number} normalizedTime - Shared animation loop position in [0, 1]
+     */
+    _advanceSceneState(timeMs, normalizedTime) {
+        if (this._clock) {
+            this._clock.tick(timeMs)
+        }
+        if (this._sceneBindings && this._sceneBindings.length > 0 && sceneModules) {
+            // The third argument is the pipeline's own externalState record —
+            // the same object setMidiState/setAudioState write into — so
+            // midi()/audio() scene bindings read exactly what effect
+            // uniforms read, not a copy that could go stale.
+            sceneModules.evaluateBindings(this._sceneBindings, normalizedTime, this._pipeline?.externalState)
+        }
+        this._sceneTree.updateWorldMatrices()
+    }
+
+    /**
+     * Draw one scene frame. Reports failures through _onError rather than
+     * rejecting, so callers sharing this promise can still present.
+     * @private
+     * @param {number} timeMs - Timestamp to advance the scene clock with
+     * @param {number} normalizedTime - Shared animation loop position in [0, 1]
+     */
+    async _runSceneRender(timeMs, normalizedTime) {
+        try {
+            this._advanceSceneState(timeMs, normalizedTime)
+            await this._sceneRenderer.render(
+                this._sceneTree, this._clock, SCENE_COLOR_TEXTURE, this._tileRegion)
+        } catch (err) {
+            console.error('Scene render error:', err)
+            if (this._onError) {
+                this._onError(err)
+            }
+        }
+    }
+
+    /**
      * Render the next frame while the animation loop is stopped: advance one
      * 60 fps frame of the loop (1 / (60 * loopDuration), wrapping at 1) and
      * render once, so simulations take exactly one step.
      * @param {number} [fromTime=this.lastTime] - Normalized time to step from
      * @returns {number|null} The rendered normalized time, or null when nothing rendered
      */
-    stepFrame(fromTime = this.lastTime) {
+    stepFrame(fromTime) {
         if (this._isRunning) {
             console.warn('[CanvasRenderer] stepFrame() renders only while the animation loop is stopped.')
             return null
         }
         if (!this._pipeline || this._isContextLost) return null
-        const time = (fromTime + 1 / (60 * this._loopDuration)) % 1
-        this._renderSingleFrame(time)
+        // For a program with no scene only an omitted argument means the last
+        // time, the stable behaviour: any other value is used as a number, so
+        // null steps from time 0. A scene program also takes null as the time
+        // of the step it has queued, or the last time.
+        const base = this._isScene
+            ? fromTime ?? this._sceneStepTime ?? this.lastTime
+            : (fromTime === undefined ? this.lastTime : fromTime)
+        const time = (base + 1 / (60 * this._loopDuration)) % 1
+        if (this._isScene) {
+            const pipeline = this._pipeline
+            this._sceneStepTime = time
+            const pending = (this._sceneStepQueue ?? Promise.resolve()).then(() => {
+                if (this._pipeline === pipeline && !this._isRunning) return this._renderSingleFrame(time)
+            })
+            this._sceneStepQueue = pending
+            const clear = () => {
+                if (this._sceneStepQueue === pending) {
+                    this._sceneStepQueue = null
+                    this._sceneStepTime = null
+                }
+            }
+            pending.then(clear, clear)
+        } else {
+            this._renderSingleFrame(time)
+        }
         return time
     }
 
     /** @private Render one frame outside the animation loop and report it like the loop does. */
     _renderSingleFrame(time) {
         const before = this._frameCount
-        this.render(time)
-        if (this._frameCount !== before && this._onFrame) {
-            this._onFrame(this._frameCount)
+        const isScene = this._isScene
+        const rendered = this.render(time)
+        const report = () => {
+            if (this._frameCount !== before && this._onFrame) this._onFrame(this._frameCount)
         }
+        if (isScene) return rendered.then(report)
+        report()
     }
 
     /** @private Main render loop */
-    _renderLoop(time) {
+    async _renderLoop(time) {
         if (!this._isRunning) return
 
         this._animationFrameId = requestAnimationFrame(this._boundRenderLoop)
 
-        if (this._pipeline && this._pipeline.shouldDeferRender?.()) {
+        const elapsedSeconds = (time - this._loopStartTime) / 1000
+        const normalizedTime = (elapsedSeconds % this._loopDuration) / this._loopDuration
+
+        // Scene programs draw into SCENE_COLOR_TEXTURE before the pipeline
+        // runs, so the pipeline's blit picks the result up this frame.
+        //
+        // A render already in flight is deliberately NOT awaited here. One can
+        // span many frames — SceneRenderer.render() recompiles shaders when the
+        // light count changes — and blocking every rAF frame on it would stall
+        // the whole canvas for that duration. Skipping to the pipeline blits
+        // the last completed scene texture instead, and the in-flight render
+        // lands on whichever frame it finishes in. Single-shot render() keeps
+        // the strict await: a capture must see the frame it asked for.
+        // Same _isScene gate as render(): a 2D frame has no scene to wait for,
+        // and awaiting anyway moves every draw out of the rAF callback and into
+        // a microtask after it.
+        const deferRender = this._pipeline && this._pipeline.shouldDeferRender?.()
+        if (!deferRender && this._isScene && !this._sceneRenderPending) {
+            await this._renderScene(time, normalizedTime)
+            // Teardown can land while the scene render is in flight.
+            if (!this._isRunning) return
+        }
+
+        if (deferRender) {
             // An output sink is behind (for example an encoder backlog). Skip
             // this draw so the sink's GPU work can complete; time still advances.
             this._deferredFrameCount++
         } else if (this._pipeline) {
             try {
                 const renderStart = performance.now()
-                const elapsedSeconds = (time - this._loopStartTime) / 1000
-                const normalizedTime = (elapsedSeconds % this._loopDuration) / this._loopDuration
                 this._pipeline.render(normalizedTime)
                 const renderEnd = performance.now()
 
@@ -1218,6 +1534,19 @@ export class CanvasRenderer {
         this._clearContextRecovery()
         this._advanceLifecycle({ backendLost: loseContext || resetCanvas })
 
+        // Clean up scene rendering state
+        this._isScene = false
+        this._sceneTree = null
+        this._sceneRenderer = null
+        // A disposed scene's in-flight render must not be handed to the first
+        // frame of whatever is compiled next: that tree was never ticked or
+        // bound for it, and its textures may be gone.
+        this._sceneRenderPending = null
+        if (this._clock) {
+            this._clock.reset()
+            this._clock = null
+        }
+
         if (!this._pipeline) {
             if (resetCanvas) {
                 this.resetCanvas()
@@ -1315,6 +1644,25 @@ export class CanvasRenderer {
             return null
         }
 
+        this._currentDsl = dsl
+
+        // Compile once, here: the graph tells us whether this is a scene
+        // program, and is then handed to createRuntime so the pipeline is built
+        // from it rather than from a second compile of the same source.
+        const graph = compileGraph(dsl, { shaderOverrides })
+
+        // Prepare scene state without replacing the active scene. Compilation
+        // can fail or be cancelled before the new pipeline is ready.
+        let nextSceneTree = null
+        let nextSceneBindings = null
+        let nextClock = null
+        if (graph._isScene) {
+            const { SceneTree, Clock, collectBindings } = await loadSceneModules()
+            nextSceneTree = SceneTree.fromIR(graph.sceneIR)
+            nextSceneBindings = collectBindings(nextSceneTree)
+            nextClock = new Clock()
+        }
+
         if (!this._pipeline) {
             let initialPipeline
             try {
@@ -1323,7 +1671,8 @@ export class CanvasRenderer {
                     width: this._width,
                     height: this._height,
                     preferWebGPU: this._preferWebGPU,
-                    shaderOverrides
+                    shaderOverrides,
+                    graph
                 })
             } catch (err) {
                 if (!this._isLifecycleCurrent(lifecycleGeneration)) return null
@@ -1352,7 +1701,7 @@ export class CanvasRenderer {
                 // running graph. A rejected shader throws here and leaves the
                 // accepted graph, its programs and its surfaces in place, so
                 // the next frames render the accepted program.
-                const newGraph = compileGraphFor(compilationPipeline, dsl, { shaderOverrides })
+                const newGraph = compileGraphFor(compilationPipeline, dsl, { shaderOverrides, graph })
                 if (newGraph) {
                     await compilationPipeline.compilePrograms(newGraph)
                     if (!this._isLifecycleCurrent(lifecycleGeneration) ||
@@ -1361,7 +1710,11 @@ export class CanvasRenderer {
                     }
                 }
                 if (!newGraph || !swapGraph(compilationPipeline, newGraph)) {
-                    // Recompile failed, need to create a new pipeline from scratch
+                    // Recompile failed, need to create a new pipeline from scratch.
+                    // This is a first pipeline in every respect except that one
+                    // already existed, so it takes the same graph handoff — the
+                    // source is already compiled, a few lines up. A scene also
+                    // takes the same external-input replay as the branch above.
                     compilationPipeline.isCompiling = false
                     const previousPipeline = compilationPipeline
                     const replacementPipeline = await this._createRuntime(dsl, {
@@ -1369,7 +1722,8 @@ export class CanvasRenderer {
                         width: this._width,
                         height: this._height,
                         preferWebGPU: this._preferWebGPU,
-                        shaderOverrides
+                        shaderOverrides,
+                        graph
                     })
                     if (!this._isLifecycleCurrent(lifecycleGeneration) ||
                         this._pipeline !== previousPipeline) {
@@ -1378,6 +1732,19 @@ export class CanvasRenderer {
                     }
                     this._pipeline = replacementPipeline
                     this._watchDeviceLoss(replacementPipeline)
+                    // Scene bindings read midi()/audio() through
+                    // pipeline.externalState. Dropped here, every one of them
+                    // pins at its minimum for the rest of the session. The
+                    // replacement of a program with no scene gets the state
+                    // when the host next sets it, the stable behaviour.
+                    if (graph._isScene) {
+                        if (this._midiState) {
+                            replacementPipeline.setMidiState(this._midiState)
+                        }
+                        if (this._audioState) {
+                            replacementPipeline.setAudioState(this._audioState)
+                        }
+                    }
                     try {
                         previousPipeline?.dispose?.()
                     } catch (err) {
@@ -1405,6 +1772,51 @@ export class CanvasRenderer {
         if (!this._isLifecycleCurrent(lifecycleGeneration) ||
             this._pipeline !== compiledPipeline) {
             return null
+        }
+
+        // Commit the scene state only after the replacement pipeline is ready.
+        // A failed recompile must leave the previous scene usable.
+        if (graph._isScene) {
+            this._isScene = true
+            this._sceneTree = nextSceneTree
+            this._sceneBindings = nextSceneBindings
+            this._clock = nextClock
+        } else {
+            this._isScene = false
+            this._sceneTree = null
+            this._sceneRenderer?.dispose()
+            this._sceneRenderer = null
+            this._sceneRenderPending = null
+            this._sceneBindings = null
+            this._clock = null
+        }
+
+        // The scene renderer needs the pipeline's backend, so it is built (or
+        // rebuilt, after a backend swap) once the pipeline is in place.
+        if (this._isScene && this._pipeline?.backend) {
+            const { SceneRenderer } = await loadSceneModules()
+            if (this._sceneRenderer?.backend !== this._pipeline.backend) {
+                this._sceneRenderer?.dispose?.()
+                // The retired renderer's in-flight promise belongs to a tree
+                // and a set of textures this one does not share.
+                this._sceneRenderPending = null
+                this._sceneRenderer = new SceneRenderer(this._pipeline.backend, this._pipeline)
+                await this._sceneRenderer.initialize(this._width, this._height)
+            } else {
+                // Same backend, same renderer, new tree. Geometry textures are
+                // cached by mesh type and params and never evicted on their
+                // own, so live-editing mesh("sphere", segments: N) stranded
+                // three textures per distinct value for the life of the
+                // backend. A render still in flight may be drawing from that
+                // cache, so let it settle first; the next frame re-uploads
+                // whatever the new tree declares.
+                if (this._sceneRenderPending) await this._sceneRenderPending
+                if (!this._isLifecycleCurrent(lifecycleGeneration) ||
+                    this._pipeline !== compiledPipeline) {
+                    return null
+                }
+                this._sceneRenderer.releaseGeometry()
+            }
         }
 
         // A context loss stops the render loop. When the loss was resolved by
@@ -2257,17 +2669,14 @@ export class CanvasRenderer {
     }
 
     // =========================================================================
-    // Mesh Loading (for meshLoader effect OBJ import)
+    // Mesh Loading (for meshLoader effect OBJ / glTF import)
     // =========================================================================
 
-    /** @private Pack mesh data, cache it, and upload to backend */
-    _packCacheAndUploadMesh(meshId, meshData, packMeshDataForTextures) {
+    /** @private Pack geometry, cache it, and upload to backend */
+    _packCacheAndUploadMesh(meshId, geometry) {
         const texWidth = 256
         const texHeight = 256
-        const packed = packMeshDataForTextures(
-            meshData.positions, meshData.normals, meshData.uvs,
-            texWidth, texHeight
-        )
+        const packed = geometry.toPackedTextures(texWidth, texHeight)
         this._meshCache.set(meshId, {
             positionData: packed.positionData,
             normalData: packed.normalData,
@@ -2296,11 +2705,11 @@ export class CanvasRenderer {
 
         try {
             // Dynamic import to avoid loading parser until needed
-            const { loadOBJ, packMeshDataForTextures } = await import('../runtime/obj-parser.js')
+            const { loadOBJ } = await import('../runtime/obj-parser.js')
 
-            const meshData = await loadOBJ(url)
+            const geometry = await loadOBJ(url)
 
-            const result = this._packCacheAndUploadMesh(meshId, meshData, packMeshDataForTextures)
+            const result = this._packCacheAndUploadMesh(meshId, geometry)
             return { success: true, vertexCount: result.vertexCount }
         } catch (err) {
             console.error('[Canvas] Failed to load OBJ:', err)
@@ -2321,13 +2730,199 @@ export class CanvasRenderer {
         }
 
         try {
-            const { parseOBJ, packMeshDataForTextures } = await import('../runtime/obj-parser.js')
+            const { parseOBJ } = await import('../runtime/obj-parser.js')
 
-            const meshData = parseOBJ(objText)
-            const result = this._packCacheAndUploadMesh(meshId, meshData, packMeshDataForTextures)
+            const geometry = parseOBJ(objText)
+            const result = this._packCacheAndUploadMesh(meshId, geometry)
             return { success: true, vertexCount: result.vertexCount }
         } catch (err) {
             console.error('[Canvas] Failed to parse OBJ:', err)
+            return { success: false, vertexCount: 0, error: err.message }
+        }
+    }
+
+    /**
+     * @private Concatenate a glTF's primitives into the single Geometry a mesh
+     * surface holds.
+     *
+     * A glTF mesh is a list of primitives (one per material), and a scene is a
+     * list of meshes — but a mesh surface is one packed vertex buffer. Taking
+     * only the first primitive would silently drop most of a multi-material
+     * model, so every primitive is appended and its indices rebased.
+     *
+     * Node transforms are not applied (the loader does not read them), so a
+     * file that positions its parts by node matrix merges with them all at the
+     * origin. That limitation is the loader's, documented in its header.
+     * @param {import('../geometry/geometry.js').Geometry[]} geometries
+     * @param {Function} Geometry - The Geometry class, handed in because the
+     *   mesh modules load on demand rather than at canvas import time.
+     * @returns {import('../geometry/geometry.js').Geometry}
+     */
+    _mergeGeometries(geometries, Geometry) {
+        if (geometries.length === 1) return geometries[0]
+
+        let totalVerts = 0
+        let totalIndices = 0
+        for (const geo of geometries) {
+            totalVerts += geo.vertexCount
+            totalIndices += geo.indices.length
+        }
+
+        const positions = new Float32Array(totalVerts * 3)
+        const normals = new Float32Array(totalVerts * 3)
+        const uvs = new Float32Array(totalVerts * 2)
+        const indices = new Uint32Array(totalIndices)
+
+        let vertexBase = 0
+        let indexBase = 0
+        for (const geo of geometries) {
+            positions.set(geo.positions, vertexBase * 3)
+            normals.set(geo.normals, vertexBase * 3)
+            uvs.set(geo.uvs, vertexBase * 2)
+            for (let i = 0; i < geo.indices.length; i++) {
+                indices[indexBase + i] = geo.indices[i] + vertexBase
+            }
+            vertexBase += geo.vertexCount
+            indexBase += geo.indices.length
+        }
+
+        return new Geometry({ positions, normals, uvs, indices })
+    }
+
+    /**
+     * @private Resolve a JSON glTF's `buffers[]` into ArrayBuffers.
+     *
+     * The parser takes bytes, not URIs — see the loader's module header — so
+     * fetching is the call site's job. Base64 `data:` URIs decode in place;
+     * relative URIs resolve against `baseUrl` and are fetched.
+     * @param {object} json - Parsed glTF JSON
+     * @param {?string} baseUrl - URL the glTF came from, or null
+     * @returns {Promise<ArrayBuffer[]>}
+     */
+    async _resolveGLTFBuffers(json, baseUrl) {
+        const buffers = json.buffers || []
+        const resolved = []
+
+        for (const buffer of buffers) {
+            const uri = buffer.uri
+            if (!uri) {
+                // A uri-less buffer is the GLB BIN chunk, which a JSON glTF
+                // does not have. Zero-fill so accessors read as zeros rather
+                // than throwing on a null chunk.
+                resolved.push(new ArrayBuffer(buffer.byteLength || 0))
+                continue
+            }
+
+            if (uri.startsWith('data:')) {
+                const comma = uri.indexOf(',')
+                if (comma < 0 || !uri.slice(0, comma).endsWith(';base64')) {
+                    throw new Error('glTF buffer data: URI must be base64-encoded')
+                }
+                const binary = atob(uri.slice(comma + 1))
+                const bytes = new Uint8Array(binary.length)
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+                resolved.push(bytes.buffer)
+                continue
+            }
+
+            if (!baseUrl) {
+                throw new Error(
+                    `glTF buffer "${uri}" is external; load it by URL so the reference can resolve`)
+            }
+            const response = await fetch(new URL(uri, baseUrl).href)
+            if (!response.ok) {
+                throw new Error(`Failed to fetch glTF buffer "${uri}": ${response.status}`)
+            }
+            resolved.push(await response.arrayBuffer())
+        }
+
+        return resolved
+    }
+
+    /**
+     * @private Turn glTF bytes or JSON into one Geometry.
+     * @param {ArrayBuffer|Uint8Array|string|object} source
+     * @param {?string} baseUrl - Base for resolving external buffer URIs
+     * @returns {Promise<import('../geometry/geometry.js').Geometry>}
+     */
+    async _geometryFromGLTF(source, baseUrl) {
+        const { parseGLB, parseGLTF } = await import('../geometry/gltf-loader.js')
+        const { Geometry } = await import('../geometry/geometry.js')
+
+        let parsed
+        if (source instanceof ArrayBuffer || ArrayBuffer.isView(source)) {
+            const bytes = source instanceof ArrayBuffer
+                ? new Uint8Array(source)
+                : new Uint8Array(source.buffer, source.byteOffset, source.byteLength)
+            // GLB magic is 'glTF'; anything else is a JSON glTF handed over as
+            // bytes (a fetched .gltf, most often).
+            const isGLB = bytes.byteLength >= 4 &&
+                bytes[0] === 0x67 && bytes[1] === 0x6C && bytes[2] === 0x54 && bytes[3] === 0x46
+            if (isGLB) {
+                parsed = parseGLB(bytes)
+            } else {
+                const json = JSON.parse(new TextDecoder().decode(bytes))
+                parsed = parseGLTF(json, await this._resolveGLTFBuffers(json, baseUrl))
+            }
+        } else {
+            const json = typeof source === 'string' ? JSON.parse(source) : source
+            parsed = parseGLTF(json, await this._resolveGLTFBuffers(json, baseUrl))
+        }
+
+        const geometries = parsed.toGeometries()
+        if (geometries.length === 0) {
+            throw new Error('glTF file contains no mesh primitives')
+        }
+        return this._mergeGeometries(geometries, Geometry)
+    }
+
+    /**
+     * Load a glTF or GLB mesh file from URL and upload to a mesh surface.
+     * @param {string} url - URL to a .glb or .gltf file
+     * @param {string} [meshId='mesh0'] - Target mesh surface (mesh0-mesh7)
+     * @returns {Promise<{success: boolean, vertexCount: number, error?: string}>}
+     */
+    async loadGLTFFromURL(url, meshId = 'mesh0') {
+        if (!this._pipeline || !this._pipeline.backend) {
+            console.warn('[loadGLTFFromURL] Pipeline not ready')
+            return { success: false, vertexCount: 0, error: 'Pipeline not ready' }
+        }
+
+        try {
+            const response = await fetch(url)
+            if (!response.ok) {
+                throw new Error(`Failed to fetch glTF: ${response.status}`)
+            }
+            const geometry = await this._geometryFromGLTF(await response.arrayBuffer(), url)
+
+            const result = this._packCacheAndUploadMesh(meshId, geometry)
+            return { success: true, vertexCount: result.vertexCount }
+        } catch (err) {
+            console.error('[Canvas] Failed to load glTF:', err)
+            return { success: false, vertexCount: 0, error: err.message }
+        }
+    }
+
+    /**
+     * Load a glTF mesh directly from in-memory content.
+     * @param {ArrayBuffer|Uint8Array|string|object} source - GLB bytes, or a
+     *   glTF JSON string or object. JSON glTF may only reference base64
+     *   `data:` buffers here; external buffers need loadGLTFFromURL.
+     * @param {string} [meshId='mesh0'] - Target mesh surface (mesh0-mesh7)
+     * @returns {Promise<{success: boolean, vertexCount: number, error?: string}>}
+     */
+    async loadGLTFFromString(source, meshId = 'mesh0') {
+        if (!this._pipeline || !this._pipeline.backend) {
+            console.warn('[loadGLTFFromString] Pipeline not ready')
+            return { success: false, vertexCount: 0, error: 'Pipeline not ready' }
+        }
+
+        try {
+            const geometry = await this._geometryFromGLTF(source, null)
+            const result = this._packCacheAndUploadMesh(meshId, geometry)
+            return { success: true, vertexCount: result.vertexCount }
+        } catch (err) {
+            console.error('[Canvas] Failed to parse glTF:', err)
             return { success: false, vertexCount: 0, error: err.message }
         }
     }
@@ -2518,6 +3113,29 @@ export class CanvasRenderer {
     }
 
     /**
+     * Whether a runtime volumeSize update must be refused because a scene
+     * volume() marches the atlas this pass's chain writes.
+     *
+     * compileGraph rejects a program whose volume() reads a chain written at
+     * anything but the marcher's atlas size — but a slider drag patches pass
+     * uniforms in place and never returns to the compiler, so the same program
+     * can be dragged into the sheared state it was not allowed to compile in.
+     * Refusing the write leaves the uniform at the size the program compiled
+     * with, which is the only one the marcher can decode.
+     * @private
+     * @param {object} pass - The pass being written
+     * @param {string} uniformName - Shader uniform name being written
+     * @param {any} value - The value about to be written
+     * @returns {boolean} True when the write must be skipped
+     */
+    _sceneVolumeSizeRefused(pass, uniformName, value) {
+        if (uniformName !== 'volumeSize') return false
+        if (!this._pipeline?.applySceneVolumeAtlasConstraint) return false
+        const scopeName = pass.scopedParams?.volumeSize || 'volumeSize'
+        return this._pipeline.applySceneVolumeAtlasConstraint(scopeName, value) !== value
+    }
+
+    /**
      * Apply parameter values to the pipeline
      * @param {object} effect - Current effect
      * @param {object} parameterValues - Parameter values to apply
@@ -2578,6 +3196,9 @@ export class CanvasRenderer {
                 // write so a stale local value doesn't clobber the chain's
                 // source via the scopedParams propagation below.
                 if (binding.uniformName === 'volumeSize' && pass.inheritsVolumeSize) continue
+                // A chain a scene volume() marches is pinned to the atlas size
+                // the marcher decodes — see _sceneVolumeSizeRefused.
+                if (this._sceneVolumeSizeRefused(pass, binding.uniformName, converted)) continue
                 pass.uniforms[binding.uniformName] = Array.isArray(converted) ? converted.slice() : converted
 
                 // Propagate to chain-scoped variant so resolveDimension() sees the update,
@@ -2666,6 +3287,11 @@ export class CanvasRenderer {
                 if (uniformName === 'volumeSize' && pass.inheritsVolumeSize) continue
 
                 const converted = this.convertParameterForUniform(value, spec)
+
+                // A chain a scene volume() marches is pinned to the atlas size
+                // the marcher decodes — see _sceneVolumeSizeRefused.
+                if (this._sceneVolumeSizeRefused(pass, uniformName, converted)) continue
+
                 pass.uniforms[uniformName] = Array.isArray(converted) ? converted.slice() : converted
                 writeUniformAliases(pass, paramName, uniformName, converted)
 

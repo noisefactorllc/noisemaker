@@ -323,7 +323,7 @@ element's size wins; a diagnostic warns when it differs from the options.
     await renderer.compile(dsl)            // Compile DSL string into a shader pipeline
     renderer.start()                       // Start the render loop
     renderer.stop()                        // Stop the render loop
-    renderer.render(0.5)                   // Render a single frame (time 0-1)
+    renderer.render(0.5)                   // Render a single frame (time 0-1); await it for a scene program
     renderer.stepFrame()                   // Advance one frame when the loop is stopped
     renderer.softwareRendering             // { mode, active, report }
 
@@ -349,6 +349,21 @@ element's size wins; a diagnostic warns when it differs from the options.
     await renderer.loadEffects(['synth/noise', 'filter/bloom'])
     renderer.getEffectsFromManifest('synth')  // List effects in a namespace
 
+    // Scene programs — after compile of a program containing scene()
+    renderer.isScene                       // true for a scene() program
+    renderer.sceneTree                     // live tree: camera, lights, getById(), ... (null for 2D)
+    renderer.sceneRenderer                 // the deferred renderer (null for 2D)
+    renderer.clock                         // { elapsed, delta, frame } (null for 2D)
+
+    // Loaded models for meshRender() — mesh0..mesh7 surfaces
+    await renderer.loadOBJFromURL(url, 'mesh0')
+    await renderer.loadGLTFFromURL(url, 'mesh0')   // .gltf or .glb; also loadOBJFromString / loadGLTFFromString
+
+    // Frame timing
+    renderer.lastRenderTime                // last pipeline frame, ms
+    renderer.getFrameTimeStats()           // { mean, std, min, max, count } over the last 120 frames
+    renderer.resetFrameTimeStats()
+
 ``loadEffects()`` does not reject when an effect fails to load; the ``failed`` property of the array it returns lists ``{ effectId, error }`` for each effect that could not load.
 
 Create the source canvas's 2D context with ``willReadFrequently: true``.
@@ -358,7 +373,38 @@ The renderer does not create a context on the source canvas.
 
 See :doc:`software-rendering` for detection and single-frame mode behavior.
 See :doc:`renderer-output` for sink lifecycle, asynchronous frame export, and
-the packed RGBA8 frame contract.
+the packed RGBA8 frame contract, and :ref:`shader-scene` for the scene tree
+and what a scene host needs.
+
+Compile failures
+^^^^^^^^^^^^^^^^
+
+``compile()`` rejects with a plain object, not an ``Error``, when the program
+fails validation:
+
+.. code-block:: javascript
+
+    try {
+        await renderer.compile(dsl)
+    } catch (err) {
+        if (Array.isArray(err.diagnostics)) {
+            // { code: 'ERR_COMPILATION_FAILED', diagnostics: [{ code, message, severity, location: { line, column } }] }
+            for (const d of err.diagnostics) console.error(`${d.code} ${d.message} (line ${d.location?.line})`)
+        } else {
+            // A parse error, or a scene() error, is a SyntaxError whose message ends "at line N col M"
+            console.error(err.message || err)
+        }
+    }
+
+The canvas keeps its last frame (or stays blank on a first compile) until a
+later compile succeeds; nothing is drawn to signal the failure.
+
+Scene programs
+^^^^^^^^^^^^^^
+
+A program containing ``scene()`` is hosted the same way. Load the 2D effects
+after the scene before ``compile()``; the scene nodes need no effect loading.
+See :ref:`shader-scene`.
 
 ProgramState
 ^^^^^^^^^^^^
@@ -500,7 +546,13 @@ Use ``extractEffectNamesFromDsl`` for DSL from user input, saved presets, or dyn
 
 Returns ``[{ effectId, namespace, name }, ...]`` for every call site in the DSL that resolves against ``renderer.manifest``. The helper skips unknown calls, so you can safely pass the resulting list to ``loadEffects()``.
 
-The static-DSL quickstart loads its single effect directly by ID. Use ``extractEffectNamesFromDsl`` when you do not know the DSL text while writing the application.
+In source mode the helper is not exported by the engine entry points; it lives in ``demo/shaders/lib/demo-ui.js`` (which the bundle re-exports). A page that knows its program can pass the effect ids to ``loadEffects()`` directly instead.
+
+The static-DSL quickstart at the top of this guide loads its single effect by ID directly — reach for ``extractEffectNamesFromDsl`` when the DSL text isn't known at write time.
+
+.. note::
+
+   The current bundle's ``extractEffectNamesFromDsl`` is regex-based and consumes inline ``//`` comments on the same line as the ``search`` directive (it folds the comment text into the namespace name). If your DSL uses inline comments after ``search``, either move them to their own line or strip line comments before calling: ``dsl.replace(/\/\/.*$/gm, '')``.
 
 Parameter Types
 ---------------

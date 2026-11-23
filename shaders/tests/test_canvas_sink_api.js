@@ -122,6 +122,7 @@ function captureWarnings(fn) {
 function stalePipeline(events, name) {
     return {
         backend: {},
+        resetSceneVolumeAtlasWarnings() {},
         setMidiState() {},
         setAudioState() {},
         dispose(options) { events.push([`${name} dispose`, options]) }
@@ -420,6 +421,45 @@ test('successful fallback recreation installs a fresh pipeline then disposes the
     assert.deepEqual(events, ['replacement created', 'old pipeline dispose'])
 })
 
+test('fallback recreation of a program with no scene leaves external input state to the host', async () => {
+    const previousPipeline = {
+        width: 16,
+        height: 16,
+        graph: { id: 'old graph' },
+        isCompiling: false,
+        async compilePrograms() {},
+        createSurfaces() {
+            throw new Error('force full recreation')
+        },
+        dispose() {}
+    }
+    const received = []
+    const replacement = {
+        backend: {},
+        setMidiState(state) { received.push(['midi', state]) },
+        setAudioState(state) { received.push(['audio', state]) }
+    }
+    const renderer = bareRenderer(previousPipeline)
+    renderer._currentDsl = ''
+    renderer._midiState = { marker: 'midi' }
+    renderer._audioState = { marker: 'audio' }
+    renderer._createRuntime = async () => replacement
+
+    const originalError = console.error
+    console.error = () => {}
+    try {
+        assert.equal(await renderer.compile('search synth\nrender(o0)'), replacement)
+    } finally {
+        console.error = originalError
+    }
+
+    assert.deepEqual(received, [], 'as in 1.x, the replacement takes no state the host did not set on it')
+
+    const midiState = { marker: 'next midi' }
+    renderer.setMidiState(midiState)
+    assert.deepEqual(received, [['midi', midiState]], 'the next state the host sets reaches the replacement')
+})
+
 test('failed fallback recreation retains the active old pipeline without closing its sink', async () => {
     let disposals = 0
     const previousPipeline = {
@@ -713,7 +753,7 @@ for (const lossDuringCompile of [false, true]) {
         await renderer.dispose()
         try {
             await withSilencedConsole(async () => {
-                await assert.rejects(renderer.compile(REJECTED_DSL), (err) => err.code === 'ERR_COMPILATION_FAILED')
+                await assert.rejects(renderer.compile(RUNTIME_REJECTED_DSL), (err) => err.code === 'ERR_COMPILATION_FAILED')
                 if (!lossDuringCompile) listeners.get('webglcontextlost')({ preventDefault() {} })
                 assert.equal(renderer._contextRecoveryTimer, null, 'a rejected compile must not leave automatic recovery scheduled')
                 await listeners.get('webglcontextrestored')()
@@ -817,6 +857,10 @@ test('a failed compile does not block the next queued compile', async () => {
 
 const ACCEPTED_DSL = 'search synth\nrender(o0)'
 const REJECTED_DSL = 'search synth\nnoise(notAParam: 1).write(o0)\nrender(o0)'
+// CanvasRenderer.compile() builds the graph before it creates a runtime, so a
+// test whose stubbed runtime rejects the program compiles a source the graph
+// compiler accepts.
+const RUNTIME_REJECTED_DSL = 'search synth\nrender(o1)'
 
 function rejectedCompileError() {
     return {
@@ -874,7 +918,7 @@ test('a rejected recompile keeps currentDsl on the source of the retained pipeli
         (err) => err.code === 'ERR_COMPILATION_FAILED'
     ))
 
-    assert.deepEqual(created, [ACCEPTED_DSL, REJECTED_DSL])
+    assert.deepEqual(created, [ACCEPTED_DSL])
     assert.equal(renderer.pipeline, accepted, 'the rejected compile keeps the previous pipeline')
     assert.equal(renderer.currentDsl, ACCEPTED_DSL, 'currentDsl names the source of the retained pipeline')
     assert.deepEqual(events, [], 'the retained pipeline is not disposed')
@@ -924,7 +968,7 @@ test('context restore after a rejected compile rebuilds the last accepted source
         await listeners.get('webglcontextrestored')()
     })
 
-    assert.deepEqual(created, [ACCEPTED_DSL, REJECTED_DSL, ACCEPTED_DSL])
+    assert.deepEqual(created, [ACCEPTED_DSL, ACCEPTED_DSL])
     assert.equal(renderer.pipeline, restored)
     assert.equal(renderer.currentDsl, ACCEPTED_DSL)
     assert.equal(renderer._isRunning, true, 'the render loop resumes after the restore')

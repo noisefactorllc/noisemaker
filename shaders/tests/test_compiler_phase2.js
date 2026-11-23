@@ -74,6 +74,11 @@ let eff = rotate(1, 0.1)
 gen().eff().write(o0)
 `, (result) => {
     const plan = result.plans[0]
+    // plan.chain also carries compiler builtins such as the terminal _write
+    const effects = plan.chain.filter((step) => !step.op.startsWith('_'))
+    if (effects.length !== 2) throw new Error(`Expected 2 effect steps, got ${effects.length}`)
+    if (effects[0].op !== 'synth.osc') throw new Error('Expected synth.osc first')
+    if (effects[1].op !== 'filter.rotate') throw new Error('Expected filter.rotate second')
     if (plan.chain.length !== 3) throw new Error(`Expected 3 steps, got ${plan.chain.length}`)
     if (plan.chain[0].op !== 'synth.osc') throw new Error('Expected synth.osc first')
     if (plan.chain[1].op !== 'filter.rotate') throw new Error('Expected filter.rotate second')

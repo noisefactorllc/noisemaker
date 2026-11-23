@@ -44,6 +44,8 @@ function compile(code) {
     return validate(ast)
 }
 
+let failed = 0
+
 function test(name, code, check) {
     try {
         console.log(`Running test: ${name}`)
@@ -57,10 +59,14 @@ function test(name, code, check) {
     } catch (e) {
         console.error(`FAIL: ${name}`)
         console.error(e)
-        process.exitCode = 1
+        failed++
     }
 }
 
+process.on('exit', () => { if (failed > 0) process.exitCode = 1 })
+
+// Effects render into their own internal texture; the terminal write() becomes
+// a trailing blit into the user surface (o0..o7 are user-only).
 test('Expand Simple Chain', 'search synth, filter\nosc(10).write(o0)', (result) => {
     if (result.errors.length > 0) throw new Error(result.errors[0].message)
     // osc renders to its node texture; write(o0) adds a blit pass into global_o0.
@@ -76,12 +82,8 @@ test('Expand Simple Chain', 'search synth, filter\nosc(10).write(o0)', (result) 
 
 test('Expand Blend Chain', 'search synth, filter\nosc(10).blend(read(o0)).write(o1)', (result) => {
     if (result.errors.length > 0) throw new Error(result.errors[0].message)
-    // osc -> blend -> write(o1)
-    // osc is node_0. blend is node_1. The write blit is node_2.
-    // osc pass: outputs node_0_out
-    // blend pass: inputs src=node_0_out, tex=global_o0; outputs node_1_out
-    // blit pass: inputs src=node_1_out; outputs global_o1
-
+    // osc -> blend -> blit
+    // osc is node_0, blend is node_1; the write(o1) terminal becomes a blit.
     if (result.passes.length !== 3) throw new Error(`Expected 3 passes, got ${result.passes.length}`)
 
     const oscPass = result.passes[0]

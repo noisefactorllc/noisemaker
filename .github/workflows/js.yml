@@ -2,7 +2,7 @@ name: JavaScript
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, scene-graph ]
     paths:
       - 'js/**'
       - '!js/doc/**'

@@ -219,7 +219,7 @@ The current implementation validates at these stages:
 #. **DSL Parsing:** The parser enforces syntax and the mandatory ``search``
    directive, throwing ``SyntaxError`` for parse failures.
 #. **DSL Semantics:** The validator resolves names, chain structure, arguments,
-   enums, and automation. It returns ``S001``–``S008`` diagnostics. Error-level
+   enums, and automation. It returns ``S001``–``S009`` diagnostics. Error-level
    diagnostics become ``ERR_COMPILATION_FAILED`` in ``compileGraph()``.
 #. **Expansion:** Missing registered effects or a program with no render/write
    target become ``ERR_EXPANSION_FAILED``.

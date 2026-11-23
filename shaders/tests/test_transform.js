@@ -132,7 +132,8 @@ function assertFalse(value, message) {
 
 test('listSteps - simple chain', () => {
     const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
-    const steps = listSteps(compiled)
+    const allSteps = listSteps(compiled)
+    const steps = allSteps.filter((s) => s.kind === 'effect')
 
     assertEqual(steps.length, 2, 'Should have 2 steps')
     assertEqual(steps[0].stepIndex, 0, 'First effect should keep its compiled step index')
@@ -149,6 +150,13 @@ test('listSteps - simple chain', () => {
     assertFalse(steps[1].isStarterPosition, 'Second step should not be in starter position')
     assertFalse(steps[1].canReplaceWithStarter, 'Second step cannot be replaced with starter')
     assertTrue(steps[1].canReplaceWithNonStarter, 'Second step can be replaced with non-starter')
+
+    // The terminal write is reported, but as a builtin that cannot be targeted
+    const builtins = allSteps.filter((s) => s.kind === 'builtin')
+    assertEqual(builtins.length, 1, 'Chain should report one builtin node')
+    assertEqual(builtins[0].effectName, '_write', 'Builtin should be the terminal write')
+    assertFalse(builtins[0].canReplaceWithStarter, 'Builtin cannot be replaced with starter')
+    assertFalse(builtins[0].canReplaceWithNonStarter, 'Builtin cannot be replaced with non-starter')
 })
 
 test('listSteps - multiple chains', () => {
@@ -156,9 +164,9 @@ test('listSteps - multiple chains', () => {
 noise(10).kaleid(6).write(o0)
 voronoi(5).bloom(0.5).write(o1)
 `)
-    const steps = listSteps(compiled)
+    const steps = listSteps(compiled).filter((s) => s.kind === 'effect')
 
-    assertEqual(steps.length, 4, 'Should have 4 steps total')
+    assertEqual(steps.length, 4, 'Should have 4 effect steps total')
 
     // Verify plan indices
     assertEqual(steps[0].planIndex, 0, 'First step should be in plan 0')

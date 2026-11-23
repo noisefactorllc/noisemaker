@@ -50,7 +50,9 @@ for (const [id, params, expected] of [
     const ast = parse(lex(dsl))
     const calls = ast.plans.flatMap(plan => plan.chain).filter(call => call.type === 'Call' && call.name === definition.func)
     assert.equal(calls.length, 1, `${id} target executes once`)
-    const numericArgs = Object.fromEntries(Object.entries(calls[0].kwargs || {}).filter(([key]) => ['int', 'float'].includes(definition.globals[key]?.type)))
+    // An argument node also carries where it was written; the check is on what it holds.
+    const numericArgs = Object.fromEntries(Object.entries(calls[0].kwargs || {}).filter(([key]) => ['int', 'float'].includes(definition.globals[key]?.type))
+        .map(([key, { type, value }]) => [key, { type, value }]))
     assert.deepEqual(numericArgs, expected, `${id} demo overrides must not replace declared defaults`)
     if (id === 'points/heightGrid') assert.equal(calls[0].kwargs.heightTex.type, 'Read', 'input wiring survives')
 }

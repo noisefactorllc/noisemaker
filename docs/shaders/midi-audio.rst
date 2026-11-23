@@ -625,6 +625,20 @@ Nested results map onto the receiving field's range: 0–1 for ``min``/``max``,
 ``offset``, and 1–9999 for ``seed``. A literal ``sensitivity: 1`` is a direct
 value; an automation result of 1 feeding ``sensitivity`` maps to 10.
 
+All three descriptors also drive :ref:`scene graph <shader-scene>` nodes:
+``midi()`` and ``audio()`` are accepted in place of a number in a node's
+``pos``, ``rot`` and ``scale`` components and in a light's ``intensity`` (not
+in a camera or in a light's position), resolved from the same ``MidiState``
+and ``AudioState`` as effect uniforms, so 3D motion and 2D automation respond
+to one performance. A scene ``rot`` component spans ``0..360`` degrees;
+``pos``, ``scale`` and ``intensity`` receive the ``0..1`` value directly, and
+a ``min`` or ``max`` outside ``0..1`` is a compile error in a scene.
+
+.. code-block:: dsl
+
+    light(type: "point", intensity: midi(channel: 1, mode: midiMode.velocity))
+    group(pos: [0, 1, 0], mesh("sphere", pos: [0, audio(band: audioBand.low), 0]))
+
 Host Integration
 ----------------
 

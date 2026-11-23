@@ -69,6 +69,9 @@ export {
 } from './renderer/canvas.js'
 export { detectSoftwareRendering, classifySoftwareRendering } from './renderer/software-rendering.js'
 
+// Stability registry
+export { featureStability, listFeatures } from './stability.js'
+
 // ProgramState & UI Utilities
 // Re-export for downstream use (noisedeck, shade, etc.)
 export { ProgramState } from '../../demo/shaders/lib/program-state.js'

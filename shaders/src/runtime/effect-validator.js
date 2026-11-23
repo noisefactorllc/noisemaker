@@ -16,6 +16,7 @@
 import { Effect } from './effect.js'
 import { VALID_TAGS } from './tags.js'
 import { stdEnums } from '../lang/std_enums.js'
+import { FEATURES } from '../stability.js'
 
 const GLOBAL_TYPES = [
     'float', 'int', 'boolean', 'vec2', 'vec3', 'vec4', 'mat3',
@@ -73,7 +74,7 @@ const BYTE_LAYOUT_KEYS = new Set(['name', 'offset', 'size', 'type'])
 const DIM_SPEC_KEYS = new Set(['param', 'power', 'multiply', 'default', 'paramDefault', 'screenDivide', 'scale', 'clamp', 'inputOverride', 'inherit'])
 
 const TOP_LEVEL_KEYS = new Set([
-    'name', 'namespace', 'func', 'description', 'tags', 'globals', 'passes',
+    'name', 'namespace', 'func', 'description', 'feature', 'tags', 'globals', 'passes',
     'textures', 'textures3d', 'shaders', 'uniformLayout', 'uniformLayouts',
     'paramAliases', 'openCategories', 'defaultProgram', 'hidden', 'deprecatedBy',
     'externalTexture', 'externalMesh', 'builtinMeshes', 'outputTex3d', 'outputGeo',
@@ -1056,6 +1057,9 @@ export function validateEffectDefinition(def) {
     }
     if (source.description !== undefined && typeof source.description !== 'string') {
         errors.push('"description" must be a string')
+    }
+    if (source.feature !== undefined && !(typeof source.feature === 'string' && Object.hasOwn(FEATURES, source.feature))) {
+        errors.push(`"feature" must be a feature ID of the stability registry, got ${JSON.stringify(source.feature)}`)
     }
     if (source.tags !== undefined) {
         if (!Array.isArray(source.tags)) {

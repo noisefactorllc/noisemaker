@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/pin-cases/render3d-voxel.json",
+  "resolution": [
+    192,
+    192
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 192,
+        "height": 192,
+        "nonzeroRgbPixels": 36864,
+        "uniqueColors": 6,
+        "sha256": "38a067b5363fcfb5e704058ee77ee14e9cc66111cbd1548de361e95cd7813af4"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 192,
+        "height": 192,
+        "nonzeroRgbPixels": 36864,
+        "uniqueColors": 6,
+        "sha256": "ea5005a87cb61ddad1d6fe579318f5edf895a2e857656ffce50266ed1db0e14a"
+      }
+    }
+  }
+}

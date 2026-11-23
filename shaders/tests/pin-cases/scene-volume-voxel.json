@@ -1,0 +1,12 @@
+{
+  "effects": [
+    "synth3d/noise3d"
+  ],
+  "dsl": "search synth3d\nnoise3d(speed: 0, seed: 4, scale: 3).write3d(vol0, geo0)\nscene(\n  background: [0.02, 0.02, 0.03],\n  ambient: 0.25,\n  camera(fov: 55, pos: [0, 4, -1.6], target: [0, 0, 0]),\n  light(type: \"directional\", dir: [0.4, -1, 0.6], intensity: 2.2),\n  mesh(\"plane\", width: 12, height: 12)\n    .material(solid(color: [0.05, 0.1, 0.9]).pbr(metallic: 0, roughness: 0.9)),\n  volume(vol0, threshold: 0.5, mode: \"voxel\", pos: [0, 0, 0])\n    .material(solid(color: [0.95, 0.15, 0.05]).pbr(metallic: 0, roughness: 0.6))\n).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    192,
+    192
+  ],
+  "settleMs": 2000
+}

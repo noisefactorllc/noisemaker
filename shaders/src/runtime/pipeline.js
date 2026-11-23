@@ -318,7 +318,7 @@ function evaluateAutomation(config, normalizedTime, range, externalState, depth 
  * @param {number} normalizedTime - Time normalized to animation duration (0..1)
  * @returns {number} The evaluated oscillator value
  */
-function evaluateOscillator(osc, normalizedTime, externalState, depth = 0, stack = new Set(), context) {
+export function evaluateOscillator(osc, normalizedTime, externalState, depth = 0, stack = new Set(), context) {
     const { oscType } = osc
     const min = resolveAutomationField(
         osc.min, normalizedTime, AUTOMATION_FIELD_RANGES.unit, externalState, depth, stack, 0, context)
@@ -381,7 +381,7 @@ function evaluateOscillator(osc, normalizedTime, externalState, depth = 0, stack
  * @param {number} currentTime - Current time (Date.now())
  * @returns {number} The evaluated value in min..max range
  */
-function evaluateMidi(config, midiState, currentTime, min = config.min, max = config.max,
+export function evaluateMidi(config, midiState, currentTime, min = config.min, max = config.max,
     sensitivity = config.sensitivity) {
     if (config._invalid || !midiState) return min
 
@@ -496,7 +496,7 @@ function isValidAudioSelector(config) {
  * @param {import('./external-input.js').AudioState} audioState - Current audio state
  * @returns {number} The evaluated value in min..max range
  */
-function evaluateAudio(config, audioState, min = config.min, max = config.max) {
+export function evaluateAudio(config, audioState, min = config.min, max = config.max) {
     if (config._invalid) return min
     if (!audioState) return min
 
@@ -544,6 +544,24 @@ function evaluateAudio(config, audioState, min = config.min, max = config.max) {
  */
 function reportSinkError(error, sink) {
     if (typeof sink?.onError === 'function') sink.onError(error)
+}
+
+/**
+ * Turn the rows of a read-back image over in place: its last row becomes its
+ * first.
+ * @param {{width:number, height:number, data:Uint8Array}} image
+ * @returns {{width:number, height:number, data:Uint8Array}} image
+ */
+function reverseRows(image) {
+    const { width, height, data } = image
+    const rowBytes = width * 4
+    const row = new Uint8Array(rowBytes)
+    for (let top = 0, bottom = (height - 1) * rowBytes; top < bottom; top += rowBytes, bottom -= rowBytes) {
+        row.set(data.subarray(top, top + rowBytes))
+        data.copyWithin(top, bottom, bottom + rowBytes)
+        data.set(row, bottom)
+    }
+    return image
 }
 
 export class Pipeline {
@@ -1213,6 +1231,62 @@ export class Pipeline {
             console.warn(`[Pipeline] Capping volumeSize from ${value} to ${clamped}: the ${value}x${value * value} volume atlas exceeds this device's max texture size (${maxTextureSize})`)
         }
         return clamped
+    }
+
+    /**
+     * The scene volume() constraint on a volumeSize uniform scope, if any.
+     *
+     * A volume() node marches a fixed-size atlas, so the chain writing the
+     * surface it reads is pinned to that size — compileGraph enforces it and
+     * records the pinned scopes on the graph (`sceneVolumeAtlasScopes`). The
+     * runtime UI paths patch pass uniforms in place and never recompile, so
+     * this is where the same contract is kept for a slider drag.
+     *
+     * The lookup is exact: a chain writing an unmarched surface keeps its own
+     * scope and stays free to resize.
+     * @param {string} scopeName - 'volumeSize' or a scoped variant
+     * @returns {{surface: string, size: number}|null} The constraint, or null
+     */
+    sceneVolumeAtlasConstraint(scopeName) {
+        return this.graph?.sceneVolumeAtlasScopes?.[scopeName] || null
+    }
+
+    /**
+     * Resolve a runtime volumeSize update against the scene volume() contract:
+     * the requested value when the scope is free, the pinned size when it is
+     * not. Refusing rather than accepting matches the compile-time behaviour —
+     * a stretched atlas renders a plausible-looking wrong volume, so silently
+     * letting the drag through is the one outcome that reports nothing.
+     * @param {string} scopeName - 'volumeSize' or a scoped variant
+     * @param {any} value - Requested value
+     * @returns {any} The value to apply
+     */
+    applySceneVolumeAtlasConstraint(scopeName, value) {
+        if (typeof value !== 'number') return value
+        const constraint = this.sceneVolumeAtlasConstraint(scopeName)
+        if (!constraint || value === constraint.size) return value
+
+        if (!this._warnedVolumeConstraints) this._warnedVolumeConstraints = new Set()
+        const warnKey = `${scopeName}:${value}`
+        if (!this._warnedVolumeConstraints.has(warnKey)) {
+            this._warnedVolumeConstraints.add(warnKey)
+            console.warn(`[Pipeline] Refusing volumeSize x${value} on the chain writing ${constraint.surface}: the scene's volume(${constraint.surface}) marches a ${constraint.size}-cube atlas and would decode a x${value} chain at the wrong slice stride. Keeping volumeSize x${constraint.size}.`)
+        }
+        return constraint.size
+    }
+
+    /**
+     * Forget which refusals have already been reported.
+     *
+     * The memo above is keyed by scope and requested value, and it is the
+     * refusal's only signal — the drag is reverted in place and nothing is
+     * returned to the caller. Carried across a graph swap it would mute every
+     * later refusal of a value already refused once, so a hot recompile leaves
+     * the guard working and silent. Called from swapGraph(), where the graph
+     * the memo was built against is replaced.
+     */
+    resetSceneVolumeAtlasWarnings() {
+        this._warnedVolumeConstraints = null
     }
 
     /**
@@ -1949,7 +2023,8 @@ export class Pipeline {
 
     /**
      * Render the current graph once per cube face into 6 face pixel buffers.
-     * Faces are ordered +X,-X,+Y,-Y,+Z,-Z (GL cubemap order).
+     * Faces are ordered +X,-X,+Y,-Y,+Z,-Z (GL cubemap order). Each face is an
+     * image with its top row first, on both backends.
      *
      * The returned array is reused and its entries overwritten on every call;
      * copy the faces (or their `data`) if you need to retain them across calls.
@@ -1957,38 +2032,73 @@ export class Pipeline {
      * graph ends in (renderCubemap3d / renderCubemapSurface) — not a parameter here.
      * yieldBetweenFaces awaits an animation frame before each face render so a
      * host render loop keeps painting during large (e.g. 1024px) captures.
-     * @param {{size?:number, outputSurface?:string, time?:number, yieldBetweenFaces?:boolean}} cfg
+     *
+     * onFace is awaited before each face's passes run. A scene program has no
+     * cubemap-renderer shader for `cubeBasis` to reach, so its six faces come
+     * from six renders of the scene through cube-face cameras — that is what
+     * the hook does, drawing the face into the texture this pipeline then blits
+     * and reads back. Everything else about the capture stays shared: the
+     * resize, the face order, the readback and the reused return buffer.
+     *
+     * That hook order — the scene face BEFORE this pipeline's passes — is why
+     * the scene path takes one priming render first. Whatever the scene reads
+     * from this pipeline (a volume atlas a scene volume() marches, a surface a
+     * material samples) is produced by these passes, so without priming, face 0
+     * would read the last pre-export frame's while faces 1-5 read this export's.
+     *
+     * KNOWN LIMITATION: priming makes all six faces read state produced at the
+     * same size and the same instant, but a stateful chain — cellularAutomata3d,
+     * reactionDiffusion3d — advances one generation per render call, not per
+     * `time`. Those still step once per face, so their six faces are six
+     * consecutive generations rather than one. Fixing that means the pipeline
+     * being able to replay a chain without advancing it, which it cannot.
+     * @param {{size?:number, outputSurface?:string, time?:number, yieldBetweenFaces?:boolean, onFace?:?function(number):(void|Promise<void>)}} cfg
      * @returns {Promise<Array<{width:number,height:number,data:Uint8Array}>>} reused buffer — copy if retaining
      */
-    async renderCubemap({ size = 512, outputSurface = 'o0', time = 0, yieldBetweenFaces = false } = {}) {
+    async renderCubemap({ size = 512, outputSurface = 'o0', time = 0, yieldBetweenFaces = false, onFace = null } = {}) {
         const prevW = this.width, prevH = this.height
         if (this.width !== size || this.height !== size) this.resize(size, size)
         if (!this._cubeFaces) this._cubeFaces = new Array(6)
-        for (let face = 0; face < 6; face++) {
-            if (yieldBetweenFaces) {
-                // Race rAF against a timer: rAF alone never fires in a
-                // hidden/backgrounded tab, which would otherwise stall this
-                // loop indefinitely instead of just yielding a paint.
-                await new Promise((resolve) => {
-                    let settled = false
-                    const finish = () => {
-                        if (settled) return
-                        settled = true
-                        resolve()
-                    }
-                    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(finish)
-                    setTimeout(finish, 120)
-                })
+        try {
+            // Prime, for the scene path only: a 2D graph's own passes ARE the
+            // face, so an extra render before face 0 would only advance it.
+            // After the resize, so what the faces read was produced at the size
+            // they read it at.
+            if (onFace) this.render(time)
+            for (let face = 0; face < 6; face++) {
+                if (yieldBetweenFaces) {
+                    // Race rAF against a timer: rAF alone never fires in a
+                    // hidden/backgrounded tab, which would otherwise stall this
+                    // loop indefinitely instead of just yielding a paint.
+                    await new Promise((resolve) => {
+                        let settled = false
+                        const finish = () => {
+                            if (settled) return
+                            settled = true
+                            resolve()
+                        }
+                        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(finish)
+                        setTimeout(finish, 120)
+                    })
+                }
+                this.setUniform('cubeBasis', CUBE_FACE_BASES[face])
+                if (onFace) await onFace(face)
+                this.render(time)
+                const surface = this.surfaces.get(outputSurface)
+                if (!surface) {
+                    throw new Error(`renderCubemap: output surface "${outputSurface}" not found — the composition must write its result to it (e.g. .renderCubemapSurface().write(${outputSurface}), or scene(...).write(${outputSurface}))`)
+                }
+                const pixels = await this.backend.readPixels(surface.read)
+                // WebGPU holds a surface bottom row first and reads it back as
+                // it holds it. WebGL2's readback is already top row first.
+                this._cubeFaces[face] = this.backend.getName() === 'WebGPU' ? reverseRows(pixels) : pixels
             }
-            this.setUniform('cubeBasis', CUBE_FACE_BASES[face])
-            this.render(time)
-            const surface = this.surfaces.get(outputSurface)
-            if (!surface) {
-                throw new Error(`renderCubemap: output surface "${outputSurface}" not found — the composition must write its cubemap-renderer result to it (e.g. .renderCubemapSurface().write(${outputSurface}))`)
-            }
-            this._cubeFaces[face] = await this.backend.readPixels(surface.read)
+        } finally {
+            // In a finally: a face that throws — a missing surface, a failed
+            // readback, a scene hook that rejected — must not strand the canvas
+            // at export resolution until something else happens to resize it.
+            if (prevW !== size || prevH !== size) this.resize(prevW, prevH)
         }
-        if (prevW !== size || prevH !== size) this.resize(prevW, prevH)
         return this._cubeFaces
     }
 
@@ -2011,9 +2121,21 @@ export class Pipeline {
         }
 
         // Clamp volumeSize so the 3D volume atlas (volumeSize × volumeSize²)
-        // fits the device's max texture size — see clampVolumeSize().
+        // fits the device's max texture size — see clampVolumeSize(). A chain
+        // a scene volume() marches is pinned instead: the volN globals are a
+        // fixed size regardless of the device, so the clamp cannot help there
+        // and the pin has to win.
         if (this.isVolumeSizeUniform(name) && typeof value === 'number') {
             value = this.clampVolumeSize(value)
+            // An unscoped write fans out to every `_chain_N` variant below, so
+            // a pin on any one chain constrains it. A scoped write reaches
+            // only its own chain.
+            let scopeName = name
+            if (name === 'volumeSize' && !this.sceneVolumeAtlasConstraint(name)) {
+                const pinned = Object.keys(this.graph?.sceneVolumeAtlasScopes || {})
+                if (pinned.length > 0) scopeName = pinned[0]
+            }
+            value = this.applySceneVolumeAtlasConstraint(scopeName, value)
         }
 
         const oldValue = this.globalUniforms[name]
@@ -2138,14 +2260,17 @@ export class Pipeline {
         if (!this.graph || !this.graph.passes || !sourcePass.uniforms) return
         let value = sourcePass.uniforms[uniformName]
         if (uniformName === 'volumeSize' && typeof value === 'number') {
-            const clamped = this.clampVolumeSize(value)
-            if (clamped !== value) {
-                value = clamped
+            // Device clamp first, then the scene volume() pin — a marched
+            // atlas has one legal size and the clamp cannot satisfy it.
+            const resolved = this.applySceneVolumeAtlasConstraint(
+                scopedName, this.clampVolumeSize(value))
+            if (resolved !== value) {
+                value = resolved
                 // The UI paths write the raw value to the source pass before
                 // broadcasting; keep the source aligned with what the chain gets.
-                sourcePass.uniforms[uniformName] = clamped
+                sourcePass.uniforms[uniformName] = resolved
                 if (scopedName in sourcePass.uniforms) {
-                    sourcePass.uniforms[scopedName] = clamped
+                    sourcePass.uniforms[scopedName] = resolved
                 }
             }
         }

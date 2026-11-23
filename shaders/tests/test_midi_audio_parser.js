@@ -155,16 +155,11 @@ test('parses the exact identity-first mixed form emitted by Noisedeck', () => {
     assertEqual(config.sensitivity, 2, 'sensitivity should compile after identity kwargs')
 })
 
-test('non-MIDI calls still reject mixed positional and keyword arguments', () => {
-    let threw = false
-    try {
-        parse(lex('search synth\nnoise(scale: 1, 2).write(o0)'))
-    } catch (e) {
-        threw = true
-        assert(e.message.includes('Cannot mix positional and keyword arguments'),
-            'global DSL rule should remain intact outside midi()')
-    }
-    assert(threw, 'non-MIDI calls must still reject mixed arguments')
+test('ordinary calls retain mixed positional and keyword arguments', () => {
+    const ast = parse(lex('search synth\nnoise(scale: 1, 2).write(o0)'))
+    const call = ast.plans[0].chain[0]
+    assertEqual(call.kwargs.scale.value, 1, 'keyword is retained')
+    assertEqual(call.args[0].value, 2, 'positional is retained')
 })
 
 test('midi throws on missing channel', () => {

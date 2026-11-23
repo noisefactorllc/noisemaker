@@ -49,11 +49,11 @@ test('validate preserves an explicit column on caller-supplied AST locations', (
     assert.deepEqual(result.diagnostics[0].location, { line: 2, column: 9 })
 })
 
-test('compile does not invent a location for an unlocated AST node', () => {
+test('compile reports the location of an unknown call', () => {
     const result = compile('search synth\n  missing().write(o0)')
     const diagnostic = result.diagnostics.find(d => d.identifier === 'missing')
     assert.equal(diagnostic.code, 'S001')
-    assert.equal(Object.hasOwn(diagnostic, 'location'), false)
+    assert.deepEqual(diagnostic.location, { line: 2, column: 3 })
 })
 
 test('valid source retains its compiled effect and builtin indexes', () => {
@@ -299,7 +299,7 @@ test('valid automation invocations retain AST defaults and keys', () => {
             seed: { type: 'Number', value: 1 }, loc: { line: 2, col: 9 }
         },
         {
-            type: 'Midi', channel: { type: 'Number', value: 1 },
+            type: 'Midi', channel: { type: 'Number', value: 1, loc: { line: 2, col: 29 } },
             mode: { type: 'Member', path: ['midiMode', 'velocity'] },
             min: { type: 'Number', value: 0 }, max: { type: 'Number', value: 1 },
             sensitivity: { type: 'Number', value: 1 }, cc: undefined, nrpn: undefined,
@@ -561,7 +561,7 @@ test('valid subchains preserve permissive arguments, defaults, body and compiled
         const source = `search synth\nread(o0).subchain(${args}) { .diagFilter() }.write(o1)`
         const ast = parse(lex(source))
         assert.deepEqual(ast.plans[0].chain[1], {
-            type: 'Subchain', name, id, body: [{ type: 'Call', name: 'diagFilter', args: [] }],
+            type: 'Subchain', name, id, body: [{ type: 'Call', name: 'diagFilter', args: [], loc: { line: 2, col: source.split('\n')[1].indexOf('diagFilter') + 1 } }],
             loc: { line: 2, col: 10 }
         })
         const result = compile(source)
@@ -606,15 +606,25 @@ test('permissive subchain arguments keep their compiled shape and gain stable re
     ])
 })
 
+for (const [name, source, line, column] of [
+    ['positional then keyword', 'search synth\ndiagProbe(1, x: 2)', 2, 1],
+    ['keyword then positional', 'search synth\ndiagProbe(x: 1, 2)', 2, 1],
+    ['CRLF tab and UTF-16', '// 😀\r\nsearch synth\r\n\tdiagProbe(1, x: 2)', 3, 2]
+]) {
+    test(`mixed call retains arguments and source location: ${name}`, () => {
+        const call = parse(lex(source)).plans[0].chain[0]
+        assert.equal(call.args[0].value, 1 === call.kwargs.x.value ? 2 : 1)
+        assert.equal(call.kwargs.x.value, source.includes('x: 1') ? 1 : 2)
+        assert.deepEqual(call.loc, { line, col: column })
+    })
+}
+
 const callFormFailures = [
     ['from named arguments', 'search synth\nlet x = from(a: 1, b: 2)', "'from' does not support named arguments at line 2 col 9", 2, 9],
     ['from missing second argument', 'search synth\nlet x = from(synth)', "'from' requires exactly two arguments (namespace, call) at line 2 col 9", 2, 9],
     ['from namespace not an identifier', 'search synth\nlet x = from(1, probe())', "'from' namespace argument must be an identifier at line 2 col 9", 2, 9],
     ['from second argument not a call', 'search synth\nlet x = from(synth, 1)', "'from' second argument must be a call expression at line 2 col 9", 2, 9],
     ['inline namespace', 'search synth\nnd.noise()', "Inline namespace syntax 'nd.noise()' is not allowed. Use 'search nd' at the start of the program instead, at line 2 col 1", 2, 1],
-    ['positional then keyword', 'search synth\ndiagProbe(1, x: 2)', 'Cannot mix positional and keyword arguments at line 2 col 14', 2, 14],
-    ['keyword then positional', 'search synth\ndiagProbe(x: 1, 2)', 'Cannot mix positional and keyword arguments at line 2 col 17', 2, 17],
-    ['CRLF tab and UTF-16', '// 😀\r\nsearch synth\r\n\tdiagProbe(1, x: 2)', 'Cannot mix positional and keyword arguments at line 3 col 15', 3, 15],
     ['UTF-16 inline namespace column', 'search synth\nlet x = "😀"; nd.noise()', "Inline namespace syntax 'nd.noise()' is not allowed. Use 'search nd' at the start of the program instead, at line 2 col 15", 2, 15]
 ]
 
@@ -683,7 +693,7 @@ test('number coercion diagnostics represent unavailable locations explicitly', (
                 assert.equal(JSON.stringify(error), '{}')
                 assert.deepEqual(error.diagnostic, {
                     code: 'P001', stage: 'parser', severity: 'error',
-                    message: 'Expected number', location: null, span: null
+                    message: 'Expected number', location: source.includes('diagProbe') ? { line: 2, column: 9 } : null, span: null
                 })
                 return true
             })
@@ -727,12 +737,12 @@ test('array literal ASTs keep their public shape with private source provenance'
     const array = parse(lex(source)).vars[0].expr
     assert.deepEqual(array, {
         type: 'ArrayLiteral',
-        elements: [{ type: 'Number', value: 1 }, { type: 'Number', value: 2 }],
+        elements: [{ type: 'Number', value: 1, loc: { line: 2, col: 10 } }, { type: 'Number', value: 2, loc: { line: 2, col: 13 } }],
         loc: { line: 2, col: 9 }
     })
     assert.deepEqual(JSON.parse(JSON.stringify(array)), {
         type: 'ArrayLiteral',
-        elements: [{ type: 'Number', value: 1 }, { type: 'Number', value: 2 }],
+        elements: [{ type: 'Number', value: 1, loc: { line: 2, col: 10 } }, { type: 'Number', value: 2, loc: { line: 2, col: 13 } }],
         loc: { line: 2, col: 9 }
     })
     assert.deepEqual(Object.getOwnPropertyDescriptor(array, 'position'), {
@@ -778,7 +788,7 @@ test('remaining expectation diagnostics preserve unavailable caller-token coordi
 test('valid call forms retain from-override namespaces and mixed automation arguments', () => {
     const ast = parse(lex('search synth\nlet x = from(synth, probe())'))
     assert.deepEqual(ast.vars[0].expr, {
-        type: 'Call', name: 'probe', args: [],
+        type: 'Call', name: 'probe', args: [], loc: { line: 2, col: 21 },
         namespace: {
             name: 'synth', path: ['synth'], explicit: true, source: 'from',
             resolved: 'synth', searchOrder: ['synth'], fromOverride: true

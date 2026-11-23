@@ -1,3 +1,5 @@
+.. _shader-3d-pipeline:
+
 The 3D Pipeline
 ===============
 
@@ -11,6 +13,17 @@ A 3D chain follows the same sequence as a 2D chain:
 3. A renderer converts it to pixels.
 
 Each intermediate value is a volume rather than an image.
+
+.. note::
+
+   This is volumetric rendering: chains of density fields carried in ``vol``
+   and ``geo`` surfaces. It is a separate subsystem from :ref:`shader-scene`,
+   which describes cameras, meshes and PBR materials and is drawn by the
+   :ref:`deferred renderer <shader-deferred-rendering>`. The two can be
+   composited together, since both terminate in ordinary surfaces.
+
+   Volumetric rendering, described on this page, is stable. Unifying the two
+   subsystems is planned work.
 
 .. code-block:: dsl
 
@@ -84,6 +97,9 @@ A renderer consumes the volume and produces the frame:
      - Lit variant of ``render3d``
    * - ``renderCubemapSurface`` / ``renderCubemap3d``
      - Six seamless cube faces for skyboxes and planetary surfaces — see the
+       Cubemaps guide. No longer the only route to a cubemap: a
+       :ref:`scene() <shader-scene>` program exports through the same API
+
        Cubemaps guide
    * - ``renderLandscape3d``
      - Isometric or perspective raymarcher for ``heightmap3d`` volumes: smooth

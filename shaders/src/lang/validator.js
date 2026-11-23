@@ -6,6 +6,7 @@ import { normalizeMemberPath, pathStartsWith, applyEnumPrefix } from './enumPath
 import { resolveParamAliases } from './paramAliases.js'
 import { checkEffectAlias } from './effectAliases.js'
 import { decodeJsonStringLiteralContent } from './stringLiterals.js'
+import { SURFACE } from '../stability.js'
 
 /**
  * STRICT ALLOWLIST FOR STRING PARAMETERS
@@ -41,6 +42,16 @@ const stateValues = new Set(['time','frame','mouse','resolution','seed','a','u1'
 const STARTER_OPS = new Set()
 
 const SURFACE_PASSTHROUGH_CALLS = new Set(['read'])
+
+/**
+ * Scene DSL function names.
+ * These are recognized as scene description primitives and pass through
+ * the validator without requiring an ops registration. The scene compiler
+ * (a later pipeline stage) is responsible for interpreting them.
+ */
+// The scene vocabulary is what the stability registry lists.
+const SCENE_FUNCTIONS = new Set(Object.keys(SURFACE.sceneCalls))
+
 const validatorHooks = {}
 
 const AUTOMATION_FIELDS = {
@@ -240,10 +251,27 @@ export function validate(ast) {
         return false
     }
 
+    // A call written with both positional and keyword arguments. A call
+    // merged from a `let` (see resolveCall) has both too, but is not written
+    // this way.
+    function isWrittenMixed(call) {
+        if (call.positionalsByIndex) return false
+        return !!(call.args && call.args.length > 0 && call.kwargs && Object.keys(call.kwargs).length > 0)
+    }
+
     function resolveCall(call) {
         // console.log('Resolving call:', call.name, symbols.has(call.name));
         if (symbols.has(call.name)) {
             const val = symbols.get(call.name)
+            // A `let` that holds the scene call of its own name. A call of
+            // that name is applied to it once, where the call is written, and
+            // the `let` itself is read as it is. Applied again each time it is
+            // read, as a call of an effect is, it would carry each of the
+            // let's arguments twice.
+            const selfNamed = val.type === 'Call' && val.name === call.name &&
+                SCENE_FUNCTIONS.has(call.name) && !canResolveOpName(call.name)
+            if (selfNamed && call.letApplied) return call
+            if (selfNamed && expanding.at(-1) === call.name) return {...call, letApplied: true}
             // console.log('Found symbol:', val);
             if (val.type === 'Ident') {
                 return {...call, name: val.name}
@@ -267,6 +295,19 @@ export function validate(ast) {
                     for (const [k, v] of Object.entries(call.kwargs)) mergedKw[k] = v
                 }
                 const merged = {type:'Call', name: val.name, args: mergedArgs}
+                // Keywords and positionals that meet only through this merge
+                // are not a call in the mixed form: neither part is written
+                // that way, so the positionals bind by index (see the binding
+                // loop).
+                if (mergedKw && mergedArgs.length > 0 && !isWrittenMixed(val) && !isWrittenMixed(call)) {
+                    merged.positionalsByIndex = true
+                }
+                if (val.letApplied || selfNamed) merged.letApplied = true
+                // Carry a source position across the rebuild, preferring the
+                // call site over the binding. Without it every diagnostic about
+                // a `let`-aliased call reported "line 0 col 0".
+                const loc = call.loc ?? val.loc
+                if (loc) merged.loc = loc
                 if (mergedKw) merged.kwargs = mergedKw
                 if (call.namespace) {
                     merged.namespace = {...call.namespace}
@@ -275,6 +316,12 @@ export function validate(ast) {
                 }
                 return merged
             }
+        }
+        // A scene call written where no `let` of its name exists is settled
+        // there: a `let` of that name declared later is not applied to it.
+        if (!call.letApplied && !symbols.has(call.name) &&
+            SCENE_FUNCTIONS.has(call.name) && !canResolveOpName(call.name)) {
+            return {...call, letApplied: true}
         }
         return call
     }
@@ -324,9 +371,45 @@ export function validate(ast) {
 
     const reportedAutomationCycles = new Set()
 
+    // Whether the program names scene() anywhere, as a call or as the value
+    // of a `let`. Only such a program resolves the elements of its array
+    // literals; in every other program substitute() leaves an array literal
+    // untouched, the stable behaviour.
+    function namesScene(node) {
+        if (!node || typeof node !== 'object') return false
+        if (Array.isArray(node)) return node.some(namesScene)
+        if ((node.type === 'Call' || node.type === 'Ident') && node.name === 'scene') return true
+        return Object.values(node).some(namesScene)
+    }
+    const sceneProgram = namesScene(ast)
+
+    // What substitute() is in: the names it is reading through their `let`
+    // (innermost last), the depth of the array and object literals around the
+    // node, and whether the node belongs to the scene() call being compiled.
+    const expanding = []
+    let literalDepth = 0
+    let inScene = false
+
+    // Resolve one element of an array literal. An element substitute() cannot
+    // read, such as a chain that starts with read(), stays as it is written:
+    // only scene() reads the result, and it reports what it cannot use. Any
+    // other failure is the program's and is thrown on.
+    function resolveElement(element) {
+        try {
+            return substitute(element)
+        } catch (error) {
+            if (!(error instanceof TypeError)) throw error
+            return element
+        }
+    }
+
     function substitute(node, resolving = []) {
         if (!node) return node
         if (node.type === 'Ident' && resolving.includes(node.name)) {
+            // Outside scene() nothing reads the resolved elements of an array
+            // literal, and the stable language reports nothing for a name
+            // there. The name stays a name.
+            if (literalDepth > 0 && !inScene) return node
             const cycleStart = resolving.indexOf(node.name)
             const cycle = [...resolving.slice(cycleStart), node.name]
             const cycleKey = cycle.join(' -> ')
@@ -337,7 +420,16 @@ export function validate(ast) {
             return {type:'Number', value:0, _automationInvalid:true}
         }
         if (node.type === 'Ident' && symbols.has(node.name)) {
-            const result = substitute(clone(symbols.get(node.name)), [...resolving, node.name])
+            // Inside a literal, a name that leads back to the `let` being read
+            // stays a name: reading it again would never end.
+            if (literalDepth > 0 && expanding.includes(node.name)) return node
+            expanding.push(node.name)
+            let result
+            try {
+                result = substitute(clone(symbols.get(node.name)), [...resolving, node.name])
+            } finally {
+                expanding.pop()
+            }
             if (result && typeof result === 'object') {
                 result._varRef = node.name
             }
@@ -356,6 +448,12 @@ export function validate(ast) {
             const mapped = node.chain.map(c => {
                 const mappedArgs = c.args.map(a => substitute(a, resolving))
                 let mappedCall = {type:'Call', name:c.name, args:mappedArgs}
+                // Carry the source location across the rebuild. Scene nodes are
+                // handed to the scene compiler as raw AST, and it reports errors
+                // from `loc`; without this every scene error says line 0 col 0.
+                if (c.loc) mappedCall.loc = c.loc
+                if (c.positionalsByIndex) mappedCall.positionalsByIndex = true
+                if (c.letApplied) mappedCall.letApplied = true
                 if (c.kwargs) {
                     const kw = {}
                     for (const [k,v] of Object.entries(c.kwargs)) kw[k] = substitute(v, resolving)
@@ -368,6 +466,9 @@ export function validate(ast) {
         if (node.type === 'Call') {
             const mappedArgs = node.args.map(a => substitute(a, resolving))
             let mappedCall = {type:'Call', name:node.name, args:mappedArgs}
+            if (node.loc) mappedCall.loc = node.loc
+            if (node.positionalsByIndex) mappedCall.positionalsByIndex = true
+            if (node.letApplied) mappedCall.letApplied = true
             if (node.kwargs) {
                 const kw = {}
                 for (const [k,v] of Object.entries(node.kwargs)) kw[k] = substitute(v, resolving)
@@ -375,7 +476,112 @@ export function validate(ast) {
             }
             return resolveCall(mappedCall)
         }
+        // A name inside an array literal resolves only inside scene(). In
+        // every other call the elements stay as written, the stable
+        // behaviour: an element that is a name is not a number there. In a
+        // program that names
+        // scene() the literal carries its resolved elements beside the
+        // written ones, and scene() takes them
+        // (see useResolvedElements). They are resolved again each time the
+        // literal is substituted, so a name takes the value it has at the
+        // literal's `let`, or at the first later use where it has one.
+        if (node.type === 'ArrayLiteral') {
+            if (!sceneProgram) return node
+            literalDepth++
+            try {
+                return {
+                    ...node,
+                    _resolvedElements: (node._resolvedElements ?? node.elements).map(resolveElement)
+                }
+            } finally {
+                literalDepth--
+            }
+        }
+        if (node.type === 'Object') {
+            const properties = {}
+            literalDepth++
+            try {
+                for (const [key, value] of Object.entries(node.properties || {})) {
+                    properties[key] = substitute(value)
+                }
+            } finally {
+                literalDepth--
+            }
+            return { ...node, properties }
+        }
+        // The three animation descriptors carry their arguments as named
+        // fields rather than in `args`, so a generic walk misses them and the
+        // binding never resolves. Rebuilding only Oscillator left the other two
+        // behind: the 2D path's resolveMidiParam/resolveAudioParam see an Ident,
+        // return undefined and fall back to the parameter's DEFAULT, so
+        // `let ch = 5; midi(channel: ch)` silently played channel 1; inside a
+        // scene() the same node reaches the scene compiler and throws.
+        if (node.type === 'Oscillator') {
+            return {
+                ...node,
+                oscType: substitute(node.oscType),
+                min: substitute(node.min),
+                max: substitute(node.max),
+                speed: substitute(node.speed),
+                offset: substitute(node.offset),
+                seed: substitute(node.seed)
+            }
+        }
+        if (node.type === 'Midi') {
+            return {
+                ...node,
+                channel: substitute(node.channel),
+                mode: substitute(node.mode),
+                min: substitute(node.min),
+                max: substitute(node.max),
+                sensitivity: substitute(node.sensitivity),
+                name: substitute(node.name),
+                id: substitute(node.id)
+            }
+        }
+        if (node.type === 'Audio') {
+            return {
+                ...node,
+                band: substitute(node.band),
+                min: substitute(node.min),
+                max: substitute(node.max)
+            }
+        }
         return node
+    }
+
+    // Give scene() the resolved elements of every array literal in its
+    // arguments. They are bound where each literal was written, so a `let`
+    // that holds a literal keeps the values its names had at that `let`.
+    function useResolvedElements(node) {
+        if (!node || typeof node !== 'object') return node
+        if (Array.isArray(node)) return node.map(useResolvedElements)
+        const mapped = {}
+        for (const [key, value] of Object.entries(node)) {
+            if (key === '_resolvedElements' && node.type === 'ArrayLiteral') continue
+            mapped[key] = useResolvedElements(value)
+        }
+        if (node.type === 'ArrayLiteral' && node._resolvedElements) {
+            mapped.elements = useResolvedElements(node._resolvedElements)
+        }
+        return mapped
+    }
+
+    // Remove the marks this function leaves on call and array literal nodes
+    // while it compiles. They are its own, and no compiled plan carries one:
+    // outside scene() an array literal keeps only its elements as written.
+    function dropMarks(node) {
+        if (!node || typeof node !== 'object') return
+        if (Array.isArray(node)) {
+            for (const item of node) dropMarks(item)
+            return
+        }
+        if (node.type === 'Call') {
+            delete node.positionalsByIndex
+            delete node.letApplied
+        }
+        if (node.type === 'ArrayLiteral') delete node._resolvedElements
+        for (const value of Object.values(node)) dropMarks(value)
     }
 
     function declareVar(v) {
@@ -984,6 +1190,48 @@ export function validate(ast) {
                     }
                 }
                 if (!spec) {
+                    // Only scene() is a chain element. Its vocabulary — camera,
+                    // mesh, light, material and the rest — lives *inside* the
+                    // call, preserved as AST and never reaching this loop. Any
+                    // of those names appearing here is a mistake, and passing
+                    // them through turned a typo into a silent no-op that
+                    // compiled clean and rendered nothing.
+                    if (call.name !== 'scene' && SCENE_FUNCTIONS.has(call.name)) {
+                        pushDiag('S001', original, `Unknown effect: '${call.name}'. Scene nodes like ${call.name}() are only valid inside scene().`)
+                        continue
+                    }
+                    // scene() passes through the validator without an ops
+                    // registration; the scene compiler interprets it later.
+                    if (call.name === 'scene') {
+                        // scene() renders the scene it describes; it has no
+                        // input. Mid-chain it compiled clean and silently threw
+                        // the incoming surface away. This also catches a second
+                        // scene() in one chain before the scene compiler's
+                        // one-scene-per-program check.
+                        if (current !== null) {
+                            pushDiag('S001', original, 'scene() is a generator and must start a chain')
+                            continue
+                        }
+                        let sceneAst
+                        inScene = true
+                        try {
+                            sceneAst = useResolvedElements(substitute(clone(original)))
+                        } finally {
+                            inScene = false
+                        }
+                        const idx = tempIndex++
+                        const step = {
+                            op: `_scene.${call.name}`,
+                            args: { _ast: sceneAst },
+                            from: current,
+                            temp: idx,
+                            scene: true
+                        }
+                        if (original.leadingComments) { step.leadingComments = original.leadingComments }
+                        chain.push(step)
+                        current = idx
+                        continue
+                    }
                     pushDiag('S001', original, `Unknown effect: '${call.name}'`)
                     continue
                 }
@@ -1032,21 +1280,66 @@ export function validate(ast) {
                 }
                 const seen = new Set()
                 const specArgs = spec.args || []
+                // Positional arguments are consumed in source order against the
+                // slots a keyword has not already filled. `call.args` holds only
+                // the positionals (the parser routes keywords into `kw`), so it
+                // must be walked with its own cursor rather than indexed by slot
+                // — otherwise the first keyword shifts every later positional
+                // and the trailing one falls off the end.
+                let posCursor = 0
+                // A call not written in the mixed form binds each positional
+                // to the slot at its own index instead: a call with no
+                // keyword, or one whose keywords and positionals met through
+                // a `let`. There a positional whose slot a keyword holds binds
+                // to nothing.
+                const byIndex = !kw || call.positionalsByIndex === true
+                // Members a positional hex colour has claimed but not yet
+                // reached, by parameter name. See the splat branch below.
+                let splatValues = null
                 for (let i = 0; i < specArgs.length; i++) {
                     const def = specArgs[i]
-                    let node = kw && kw[def.name] !== undefined ? kw[def.name] : call.args[i]
-                    node = substitute(node)
-                    const argKey = def.name
-                    if (!kw && node && node.type === 'Color' && def.type !== 'color' && def.name === 'r' && specArgs[i + 1]?.name === 'g' && specArgs[i + 2]?.name === 'b') {
-                        const [r, g, b] = node.value
-                        args[argKey] = r
-                        const defG = specArgs[i + 1]
-                        args[defG.name] = g
-                        const defB = specArgs[i + 2]
-                        args[defB.name] = b
-                        i += 2
+                    if (byIndex) posCursor = i
+                    const fromKeyword = kw && kw[def.name] !== undefined
+                    // A single positional hex colour claims a whole r/g/b
+                    // triple, and a keyword overrides its own member of it.
+                    // Detected at the 'r' slot whether or not a keyword has
+                    // filled that slot: gating the detection on `!fromKeyword`
+                    // stood the splat down for `tint(#804020, r: 0.25)`, so the
+                    // Color fell into the 'g' float slot, defaulted g AND b and
+                    // reported a bogus S002 about 'g'.
+                    //
+                    // In a call bound by index the colour stands in the places
+                    // of r, g and b, so the next slot takes the fourth
+                    // positional. Outside the mixed form the colour splats
+                    // only in a call with no keyword.
+                    if ((!kw || !byIndex) && def.type !== 'color' && def.name === 'r' &&
+                        specArgs[i + 1]?.name === 'g' && specArgs[i + 2]?.name === 'b') {
+                        const positional = substitute(call.args[posCursor])
+                        if (positional && positional.type === 'Color') {
+                            posCursor++
+                            const [r, g, b] = positional.value
+                            splatValues = {
+                                [def.name]: r,
+                                [specArgs[i + 1].name]: g,
+                                [specArgs[i + 2].name]: b
+                            }
+                        }
+                    }
+                    // A splatted colour supplies this slot: take the component
+                    // rather than consuming a positional for it.
+                    if (!fromKeyword && splatValues && splatValues[def.name] !== undefined) {
+                        args[def.name] = splatValues[def.name]
                         continue
                     }
+                    let node
+                    if (fromKeyword) {
+                        node = kw[def.name]
+                    } else if (posCursor < call.args.length) {
+                        node = call.args[posCursor]
+                        posCursor++
+                    }
+                    node = substitute(node)
+                    const argKey = def.name
                     if (kw && kw[def.name] !== undefined) seen.add(def.name)
                     // Array literal — additive input form. Only fires when
                     // the source contains a literal `[…]`. Existing programs
@@ -1509,6 +1802,16 @@ export function validate(ast) {
                         }
                     }
                 }
+
+                // Positionals left over after every slot is filled correspond to
+                // no parameter. They bind to nothing, and the call renders
+                // without them. That is a warning, not an error: a program
+                // that passes them compiled before this was reported.
+                if (byIndex) posCursor = specArgs.length
+                if (posCursor < call.args.length) {
+                    const extra = call.args[posCursor]
+                    pushDiag('S009', extra || call, `Too many positional arguments for ${call.name}(): '${call.name}' takes ${specArgs.length}`)
+                }
                 const hook = typeof call.name === 'string' ? validatorHooks[call.name] : null
                 if (typeof hook === 'function') {
                     const starterInfo = getStarterInfo(original)
@@ -1643,6 +1946,7 @@ export function validate(ast) {
         if (compiled) plans.push(compiled)
     }
     declareVarsBefore(Infinity)
+    dropMarks(plans)
 
     // Include original variable declarations for unparsing
     const vars = ast.vars || []

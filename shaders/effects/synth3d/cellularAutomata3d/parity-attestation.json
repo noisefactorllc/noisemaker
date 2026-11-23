@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "synth3d/cellularAutomata3d",
-  "sourceHash": "3e752b25238864ff2533df53b03bdbec375827caf1d0b639c27573fe35f9594d",
+  "sourceHash": "50da9abc7d2481b63c4c3be6b72e1a5316ecdc2cec5ecbbd07e8cc4967f66dbc",
   "caseHash": "b04841e8e826ef1c7e4f2b6c93039c14e66ebcaef50df74945d6ce4e97fd13ea",
   "resolution": [
     64,

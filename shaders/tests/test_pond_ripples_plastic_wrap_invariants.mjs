@@ -6,6 +6,40 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
 import { PNG } from 'pngjs'
+import { correctiveBaselines, hostGpuInventory } from './corrective_baselines.js'
+
+// An interrupted run must not leave the browser process tree behind:
+// Playwright's own SIGTERM handler closes its browsers but never exits, and
+// its SIGINT handler races this test's teardown. These close what this test
+// owns and then exit. The 'exit' listener is the last-resort fallback for the
+// process.exit() paths below, where only synchronous work still runs.
+let activeBrowser = null
+let shuttingDown = false
+
+async function shutdownAndExit(code) {
+    if (shuttingDown) return
+    shuttingDown = true
+    const browser = activeBrowser
+    activeBrowser = null
+    try {
+        await browser?.close()
+    } catch {
+        // Already closed.
+    }
+    try {
+        releaseServer()
+    } catch {
+        // Server already released.
+    }
+    process.exit(code)
+}
+
+process.on('SIGINT', () => { shutdownAndExit(130) })
+process.on('SIGTERM', () => { shutdownAndExit(143) })
+process.on('exit', () => {
+    try { activeBrowser?.close() } catch { /* already closed */ }
+    try { releaseServer() } catch { /* already released */ }
+})
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -25,7 +59,7 @@ const width = 96
 const height = 96
 const defaultPondHash = 'fc7d901982ab7f080faa0770f203b5c0c2846efc2864fa0db4e37921807845a9'
 const defaultPondWebgpuHash = defaultPondHash
-const defaultPlasticHash = 'a2553a928da58a3a8513306d6c2b9420bf31eef4fdb51687e8dc1b9c6e2f3ccc'
+
 
 const sourceDsl = `search synth
 
@@ -189,7 +223,7 @@ async function render(page, dsl, expectedBackend, tileRegion = null) {
     return PNG.sync.read(await (await page.$('canvas')).screenshot({ type: 'png' }))
 }
 
-async function assertBackend(browser, baseUrl, preferWebGPU, expectedBackend) {
+async function assertBackend(browser, baseUrl, preferWebGPU, expectedBackend, defaultPlasticHash) {
     const page = await browser.newPage({ viewport: { width, height } })
     const diagnostics = []
     if (preferWebGPU) await page.goto(`${baseUrl}/shaders/effects/manifest.json`, { waitUntil: 'load' })
@@ -285,9 +319,26 @@ async function main() {
             process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=vulkan',
         ],
     })
+    activeBrowser = browser
     try {
-        const webgl = await assertBackend(browser, baseUrl, false, 'WebGL2')
-        const webgpu = await assertBackend(browser, baseUrl, true, 'WebGPU')
+        const identityPage = await browser.newPage()
+        await identityPage.goto(`${baseUrl}/shaders/effects/manifest.json`, { waitUntil: 'load' })
+        const identity = await identityPage.evaluate(async () => {
+            const gl = document.createElement('canvas').getContext('webgl2')
+            const extension = gl?.getExtension('WEBGL_debug_renderer_info')
+            const adapter = await navigator.gpu?.requestAdapter()
+            return {
+                renderer: extension ? gl.getParameter(extension.UNMASKED_RENDERER_WEBGL) : '',
+                vendor: adapter?.info.vendor,
+                architecture: adapter?.info.architecture,
+                device: adapter?.info.device,
+                description: adapter?.info.description
+            }
+        })
+        await identityPage.close()
+        const baselines = correctiveBaselines({ ...identity, hostGpus: hostGpuInventory() })
+        const webgl = await assertBackend(browser, baseUrl, false, 'WebGL2', baselines.plasticDefault)
+        const webgpu = await assertBackend(browser, baseUrl, true, 'WebGPU', baselines.plasticDefault)
         const pondDefaultParity = difference(webgpu.pondDefault, webgl.pondDefault)
         const pondMaxParity = difference(webgpu.pondMax, webgl.pondMax)
         const plasticParity = difference(webgpu.plasticDefault, webgl.plasticDefault)

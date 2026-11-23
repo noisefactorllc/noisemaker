@@ -67,7 +67,9 @@ console.log('\n=== MIDI Integration ===\n')
 
 test('midi() compiles to runtime config and resolves correctly', () => {
     // Compile DSL with midi()
-    const result = compile('search synth\nnoise(scale: midi(channel: 1, min: 0.1, max: 1)).write(o0)')
+    // min/max on automation are a normalized [0, 1] sub-range; the absolute
+    // output range comes from the consuming parameter's spec.
+    const result = compile('search synth\nnoise(scale: midi(channel: 1, min: 0, max: 1)).write(o0)')
 
     // Get the compiled midi config from the step args
     const scaleArg = result.plans[0].chain[0].args.scale
@@ -75,8 +77,8 @@ test('midi() compiles to runtime config and resolves correctly', () => {
     // Verify it compiled correctly
     assertEqual(scaleArg.type, 'Midi', 'should have type Midi')
     assertEqual(scaleArg.channel, 1, 'should have channel')
-    assertEqual(scaleArg.min, 0.1, 'should have normalized min')
-    assertEqual(scaleArg.max, 1, 'should have normalized max')
+    assertEqual(scaleArg.min, 0, 'should have min')
+    assertEqual(scaleArg.max, 1, 'should have max')
 
     // Now test that it resolves correctly at runtime
     const { pipeline, midiState } = createTestPipeline()
@@ -87,12 +89,12 @@ test('midi() compiles to runtime config and resolves correctly', () => {
     midiState.getChannel(1).gate = 1
     midiState.getChannel(1).time = Date.now()  // Just happened
 
-    // Resolve (should use velocity mode by default)
-    const value = pipeline.resolveUniformValue(scaleArg, 0)
+    // Resolve against a consumer range of 1-10 (velocity mode by default)
+    const value = pipeline.resolveUniformValue(scaleArg, 0, { min: 1, max: 10 })
 
-    // velocity mode with no decay: rawValue = velocity/127 = 100/127
-    // mapped to 0.1-1: 0.1 + (100/127) * 0.9
-    assertApprox(value, 0.1 + (100/127) * 0.9, 0.01, 'should resolve midi value correctly')
+    // velocity mode with no decay: pct = velocity/127 = 100/127
+    // mapped to 1-10: 1 + (100/127) * 9 ≈ 8.09
+    assertApprox(value, 1 + (100/127) * 9, 0.1, 'should resolve midi value correctly')
 })
 
 test('midi with different modes resolves correctly', () => {
@@ -103,19 +105,20 @@ test('midi with different modes resolves correctly', () => {
     assertEqual(scaleArg.mode, 2, 'should have gateVelocity mode (2)')
 
     const { pipeline, midiState } = createTestPipeline()
+    const range = { min: 0, max: 100 }
 
     // Gate is off - should return min
     midiState.getChannel(2).velocity = 127
     midiState.getChannel(2).gate = 0
 
-    let value = pipeline.resolveUniformValue(scaleArg, 0)
+    let value = pipeline.resolveUniformValue(scaleArg, 0, range)
     assertEqual(value, 0, 'should return min when gate is off')
 
     // Gate is on - should return velocity mapped
     midiState.getChannel(2).gate = 1
 
-    value = pipeline.resolveUniformValue(scaleArg, 0)
-    assertEqual(value, 1, 'should return max when gate is on and velocity is 127')
+    value = pipeline.resolveUniformValue(scaleArg, 0, range)
+    assertEqual(value, 100, 'should return max when gate is on and velocity is 127')
 })
 
 test('midi sensitivity affects trigger falloff', () => {
@@ -193,7 +196,7 @@ console.log('\n=== Audio Integration ===\n')
 
 test('audio() compiles to runtime config and resolves correctly', () => {
     // Compile DSL with audio()
-    const result = compile('search synth\nnoise(scale: audio(band: audioBand.low, min: 0.1, max: 1)).write(o0)')
+    const result = compile('search synth\nnoise(scale: audio(band: audioBand.low, min: 0, max: 1)).write(o0)')
 
     // Get the compiled audio config from the step args
     const scaleArg = result.plans[0].chain[0].args.scale
@@ -201,8 +204,8 @@ test('audio() compiles to runtime config and resolves correctly', () => {
     // Verify it compiled correctly
     assertEqual(scaleArg.type, 'Audio', 'should have type Audio')
     assertEqual(scaleArg.band, 0, 'should have low band (0)')
-    assertEqual(scaleArg.min, 0.1, 'should have normalized min')
-    assertEqual(scaleArg.max, 1, 'should have normalized max')
+    assertEqual(scaleArg.min, 0, 'should have min')
+    assertEqual(scaleArg.max, 1, 'should have max')
 
     // Now test that it resolves correctly at runtime
     const { pipeline, audioState } = createTestPipeline()
@@ -210,11 +213,11 @@ test('audio() compiles to runtime config and resolves correctly', () => {
     // Simulate audio input
     audioState.low = 0.5
 
-    // Resolve
-    const value = pipeline.resolveUniformValue(scaleArg, 0)
+    // Resolve against a consumer range of 1-10
+    const value = pipeline.resolveUniformValue(scaleArg, 0, { min: 1, max: 10 })
 
-    // 0.5 mapped to 0.1-1: 0.1 + 0.5 * 0.9 = 0.55
-    assertApprox(value, 0.55, 0.01, 'should resolve audio value correctly')
+    // 0.5 mapped to the consumer range 1-10 is 5.5.
+    assertApprox(value, 5.5, 0.01, 'should resolve audio value correctly')
 })
 
 test('audio with different bands resolves correctly', () => {
@@ -250,7 +253,7 @@ console.log('\n=== Combined MIDI + Audio ===\n')
 test('multiple parameters can use different automation sources', () => {
     // Compile with both midi and audio on different parameters
     const result = compile(`search synth
-noise(scale: midi(channel: 1, min: 0.1, max: 0.5), speed: audio(band: audioBand.mid, min: 0.5, max: 1)).write(o0)`)
+noise(scale: midi(channel: 1, min: 0, max: 1), speed: audio(band: audioBand.mid, min: 0, max: 1)).write(o0)`)
 
     const step = result.plans[0].chain[0]
 
@@ -270,19 +273,19 @@ noise(scale: midi(channel: 1, min: 0.1, max: 0.5), speed: audio(band: audioBand.
     midiState.getChannel(1).time = Date.now()  // Just happened
     audioState.mid = 0.5
 
-    const scaleValue = pipeline.resolveUniformValue(scaleArg, 0)
-    const speedValue = pipeline.resolveUniformValue(speedArg, 0)
+    const scaleValue = pipeline.resolveUniformValue(scaleArg, 0, { min: 1, max: 5 })
+    const speedValue = pipeline.resolveUniformValue(speedArg, 0, { min: 0.5, max: 2 })
 
-    // scale: 127/127 * 0.4 + 0.1 = 0.5
-    assertApprox(scaleValue, 0.5, 0.01, 'scale should resolve from midi')
-    // speed: 0.5 * 0.5 + 0.5 = 0.75
-    assertApprox(speedValue, 0.75, 0.01, 'speed should resolve from audio')
+    // scale: 1 + (127/127) * 4 = 5
+    assertApprox(scaleValue, 5, 0.01, 'scale should resolve from midi')
+    // speed: 0.5 + 0.5 * 1.5 = 1.25
+    assertApprox(speedValue, 1.25, 0.01, 'speed should resolve from audio')
 })
 
 test('static values still work alongside automation', () => {
     // Compile with mix of static and automated values
     const result = compile(`search synth
-noise(scale: 5, speed: midi(channel: 1, min: 0.5, max: 1)).write(o0)`)
+noise(scale: 5, speed: midi(channel: 1, min: 0, max: 1)).write(o0)`)
 
     const step = result.plans[0].chain[0]
 
@@ -301,11 +304,11 @@ noise(scale: 5, speed: midi(channel: 1, min: 0.5, max: 1)).write(o0)`)
     midiState.getChannel(1).time = Date.now()  // Just happened
 
     const scaleValue = pipeline.resolveUniformValue(scaleArg, 0)
-    const speedValue = pipeline.resolveUniformValue(speedArg, 0)
+    const speedValue = pipeline.resolveUniformValue(speedArg, 0, { min: 0.5, max: 2 })
 
     assertEqual(scaleValue, 5, 'static value should resolve as-is')
-    // 64/127 * 0.5 + 0.5 ≈ 0.752
-    assertApprox(speedValue, 0.5 + (64/127) * 0.5, 0.01, 'midi value should resolve correctly')
+    // 0.5 + (64/127) * 1.5 ≈ 1.26
+    assertApprox(speedValue, 0.5 + (64/127) * 1.5, 0.01, 'midi value should resolve correctly')
 })
 
 // ============================================================================
@@ -315,25 +318,25 @@ noise(scale: 5, speed: midi(channel: 1, min: 0.5, max: 1)).write(o0)`)
 console.log('\n=== Edge Cases ===\n')
 
 test('midi resolves to min when no external state', () => {
-    const result = compile('search synth\nnoise(scale: midi(channel: 1, min: 0.5, max: 1)).write(o0)')
+    const result = compile('search synth\nnoise(scale: midi(channel: 1, min: 0, max: 1)).write(o0)')
     const scaleArg = result.plans[0].chain[0].args.scale
 
     // Pipeline without external state
     const pipeline = new Pipeline(null, null)
 
-    const value = pipeline.resolveUniformValue(scaleArg, 0)
-    assertEqual(value, 0.5, 'should return min when no midi state')
+    const value = pipeline.resolveUniformValue(scaleArg, 0, { min: 5, max: 10 })
+    assertEqual(value, 5, 'should return min when no midi state')
 })
 
 test('audio resolves to min when no external state', () => {
-    const result = compile('search synth\nnoise(scale: audio(band: audioBand.high, min: 0.3, max: 0.7)).write(o0)')
+    const result = compile('search synth\nnoise(scale: audio(band: audioBand.high, min: 0, max: 1)).write(o0)')
     const scaleArg = result.plans[0].chain[0].args.scale
 
     // Pipeline without external state
     const pipeline = new Pipeline(null, null)
 
-    const value = pipeline.resolveUniformValue(scaleArg, 0)
-    assertEqual(value, 0.3, 'should return min when no audio state')
+    const value = pipeline.resolveUniformValue(scaleArg, 0, { min: 3, max: 7 })
+    assertEqual(value, 3, 'should return min when no audio state')
 })
 
 test('oscillator still works correctly', () => {
@@ -346,12 +349,12 @@ test('oscillator still works correctly', () => {
     const pipeline = new Pipeline(null, null)
 
     // At time 0, sine wave starts at min: oscSine(0) = (1 - cos(0)) * 0.5 = 0
-    const value = pipeline.resolveUniformValue(scaleArg, 0)
+    const value = pipeline.resolveUniformValue(scaleArg, 0, { min: 0, max: 10 })
     assertApprox(value, 0, 0.1, 'oscillator should start at min')
 
     // At time 0.5, sine wave peaks: oscSine(0.5) = (1 - cos(π)) * 0.5 = 1
-    const valueMid = pipeline.resolveUniformValue(scaleArg, 0.5)
-    assertApprox(valueMid, 1, 0.01, 'oscillator should peak at max')
+    const valueMid = pipeline.resolveUniformValue(scaleArg, 0.5, { min: 0, max: 10 })
+    assertApprox(valueMid, 10, 0.1, 'oscillator should peak at max')
 })
 
 test('compiled out-of-range bounds produce normalized runtime endpoints', () => {

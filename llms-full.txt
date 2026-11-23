@@ -98,7 +98,7 @@ type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
 
 type Diagnostic = {
   code: "S001" | "S002" | "S003" | "S004" | "S005" | "S006" |
-        "S007" | "S008" | "P008" | "P009" | "P010"
+        "S007" | "S008" | "S009" | "P008" | "P009" | "P010"
   message: string
   severity: "error" | "warning"
   nodeId?: string | number | null  // null on the P008-P010 subchain warnings
@@ -197,10 +197,8 @@ P006 covers explicit subchain validation: non-string keyword argument values
 body dots (including EOF and comment-only scans), and empty bodies, locating
 the rejected or invocation token with the same rules. P007 covers invalid call
 forms: `from()` argument validation (named arguments, argument count, namespace
-identifier, and call-expression target), forbidden inline namespace syntax, and
-mixed positional/keyword arguments. P007 locations identify the invocation name
-token (for mixed-argument failures, the argument that breaks the ordering rule),
-or fall back
+identifier, and call-expression target), forbidden inline namespace syntax. P007 locations identify the invocation name
+token, or fall back
 or become `null` as described for caller-supplied tokens. Beyond the shared expectation
 path, P001 also covers missing expressions after `=` (in assignments and
 keyword arguments), missing array-closing brackets, non-identifier member
@@ -217,6 +215,24 @@ including repeated render statements rejected at end of input. Every parser
 throw path carries a structured diagnostic with source-derived coordinates
 where a lexer-produced token is available.
 
+<!-- stability:begin experimental-features -->
+
+## Experimental features
+
+These are new features that exist to seed the Noisemaker 2.x feature set. Node names, keywords, defaults, argument shapes, and rendered output may all change without a deprecation period. There is no flag to turn them on.
+
+- **The scene vocabulary** (`scene`): `scene()` adds a third dimension to the Polymorphic DSL. A scene program describes a camera, lights, and a hierarchy of meshes and volumes with PBR materials. Current limits: One `scene()` per program, one `environment()`. Primitives only; no loaded models inside `scene()`. The camera cannot be animated from the DSL; a light's position and direction cannot either. A program re-emitted from its parsed form comes back with the whole `scene()` on one line and its interior comments removed. [Documentation](https://docs.noisemaker.app/shaders/scene/)
+- **The deferred renderer** (`scene.deferred`): The renderer that draws `scene()` programs. It fills a G-buffer from the mesh hierarchy, lights it once in screen space with a Cook-Torrance BRDF, adds ambient occlusion and reflections, tonemaps, and presents into a texture the 2D pipeline then treats as an ordinary source. Current limits: One `reflector()` per scene. No cast shadows. [Documentation](https://docs.noisemaker.app/shaders/deferred-rendering/)
+- **Volume nodes** (`scene.volume`): `volume()` places a density volume in the scene graph. Its positional argument is one of the pipeline's eight volume surfaces, so a 3D program that fills an atlas with `write3d()` becomes a node beside the meshes rather than a separate fullscreen marcher with its own camera and lights. Current limits: `volume()` samples a fixed 64-cube atlas. [Documentation](https://docs.noisemaker.app/shaders/scene/#shader-scene-volumes)
+- **External inputs in scenes** (`scene.inputs`): Transform components and light intensity accept `midi()` for a MIDI channel and `audio()` for a frequency band, in place of numbers. Current limits: Descriptors on `pos`, `scale` and `intensity` produce `0..1`. [Documentation](https://docs.noisemaker.app/shaders/scene/#shader-scene-animation)
+- **Cubemap export of scenes** (`scene.cubemapExport`): A `scene()` program exports a cubemap through the same `renderCubemap()` API as a cubemap-renderer program. Current limits: Faces are never tiled, and a configured reflection probe is captured once for the first face and frozen for the rest. A second export started before the first settles is rejected. [Documentation](https://docs.noisemaker.app/shaders/scene/#shader-scene-cubemap-export)
+- **Tiled export of scenes** (`scene.tiledExport`): `setTileRegion` tiles a scene by restricting the camera to the tile's sub-frustum. Current limits: SSAO can seam within its kernel's projected reach, and local screen-space reflections cannot be tiled at all. The reflection probe is never tiled. [Documentation](https://docs.noisemaker.app/shaders/scene/#shader-scene-tiled-export)
+- **glTF loading** (`gltf`): `loadGLTFFromURL()` and `loadGLTFFromString()` load glTF and GLB mesh files. Each takes the target surface as its second argument, defaulting to `mesh0`. Current limits: Loaded models cannot be placed in a `scene()`. [Documentation](https://docs.noisemaker.app/shaders/language/#shader-language-gltf)
+- **Mixed argument order** (`lang.mixedArguments`): Keywords claim their own parameter slots by name, wherever they appear in the call. The positionals are then bound in source order to the slots no keyword claimed, left to right. [Documentation](https://docs.noisemaker.app/shaders/language/#shader-language-mixed-arguments)
+- **Object literals** (`lang.objectLiteral`): `{ key: value }` is an expression. Current limits: No call takes an object as a value yet. [Documentation](https://docs.noisemaker.app/shaders/language/#shader-language-object-literals)
+
+<!-- stability:end experimental-features -->
+
 ## Runtime overview
 
 The browser integration path is:
@@ -224,10 +240,9 @@ The browser integration path is:
 1. `CanvasRenderer.loadManifest()` discovers effect assets.
 2. `CanvasRenderer.loadEffect()` imports `definition.js`, loads shader source,
    registers the effect and its DSL operator, and registers starter state.
-3. `CanvasRenderer.compile(source)` builds a graph for the source.
-4. `compileGraph()`, reached through `compileGraphFor()`, lexes/parses/validates,
-   expands effect steps into passes, computes a liveness allocation map, and
-   returns a graph.
+3. `CanvasRenderer.compile(source)` calls `compileGraph(source)`.
+4. `compileGraph()` lexes/parses/validates, expands effect steps into passes,
+   computes a liveness allocation map, and returns a graph.
 5. `Pipeline.compilePrograms(graph)` compiles every referenced program for
    the active backend. `graph` is optional and defaults to the pipeline's
    current graph. When a program fails, the backend gets back the
@@ -236,8 +251,9 @@ The browser integration path is:
    normal canvas presentation.
 
 On an active pipeline, a hot recompile compiles the candidate before it takes
-effect: `compileGraphFor()` builds the candidate graph without changing the
-pipeline, `compilePrograms(graph)` compiles its shaders, and `swapGraph()` then
+effect: `compileGraphFor()` takes the candidate graph `compile()` built, or
+builds it, without changing the pipeline, `compilePrograms(graph)` compiles its
+shaders, and `swapGraph()` then
 makes it current. A rejected source or a failed program therefore leaves the
 accepted graph, its programs and its surfaces in place, so the next frames keep
 rendering the accepted program. `recompile()` composes `compileGraphFor()` and
@@ -348,6 +364,62 @@ such as `foo.o8` are unchanged. Other reference families still accept one or
 more digits at lexing; volume and geometry parameter resolution separately
 checks `0` through `7`.
 
+`scene()` is a chain vocabulary that is not a registered effect. An agent must
+not depend on a scene program parsing or rendering identically across releases
+the way it can for the effect surfaces.
+
+<!-- stability:begin scene -->
+
+> Experimental. Complete and supported in Noisemaker 1.x, outside the 1.x stability guarantee. It seeds the Noisemaker 2.x feature set. See [Experimental features](https://docs.noisemaker.app/shaders/experimental/).
+
+<!-- stability:end scene -->
+
+```ts
+type SceneSettingKey = "ambient" | "background" | "exposure" | "ground" |
+                       "sky" | "reflections" | "reflectionProbe" |
+                       "reflectionProbeSize" | "ssao" | "ssaoRadius"
+
+type SceneNodeIR = {
+  id: string | undefined
+  type: "mesh" | "volume" | "group"
+  transform: object          // pos/rot/scale, each 3 numbers or descriptors
+  children: number[]         // indices into SceneIR.nodes
+  parent: number | null
+  meshType?: string          // mesh() only, its one positional argument
+  meshParams?: Record<string, number>   // mesh() only
+  surface?: string           // volume() only, "vol0".."vol7"
+  threshold?: number         // volume() only, 0..1
+  mode?: "smooth" | "voxel"  // volume() only
+  material?: string          // key into SceneIR.materials
+  planarReflection?: true    // reflector() on a plane mesh
+}
+
+type SceneIR = {
+  camera: object                  // never null; omitted keywords defaulted
+  lights: object[]
+  environment: object | null
+  settings: { [K in SceneSettingKey]?: unknown }
+  materials: Record<string, object>
+  nodes: SceneNodeIR[]            // flat; hierarchy is parent/children indices
+}
+```
+
+`compileScene(compilationResult)` returns `SceneIR`, or `null` when the program
+has no `scene()`. `compileGraph()` attaches it as `graph.sceneIR` with
+`graph._isScene`, `SceneTree.fromIR()` builds the runtime tree, and the scene
+renderer draws into `SCENE_COLOR_TEXTURE` (`"scene_color"`, screen-sized
+`rgba16f`) before the pipeline executes its passes. A `scene()` step expands to
+**zero** passes: it only seeds the chain's current input with that texture,
+which is why the terminal `write(oN)` is the thing that makes a scene
+observable at all.
+
+A `volume()` node marches one of the `vol0`-`vol7` atlases, which are fixed at
+64 cubed (`VOLUME_ATLAS_SIZE`, declared identically in `compiler.js`,
+`volume-renderer.js`, and `pipeline.js`, and allocated as 64x4096 `rgba16f`). A
+`volume()` node therefore samples a 64-cube whatever `volumeSize` the producing
+chain declares; a mismatch is rejected at compile time rather than rescaled, and
+a runtime `volumeSize` change on a pinned surface is refused with a warning.
+
 Current connections are observable after compilation in
 `graph.passes[].inputs`, `graph.passes[].outputs`, `graph.renderSurface`, and at
 runtime in `pipeline.surfaces`, `pipeline.frameReadTextures`, and
@@ -356,7 +428,11 @@ runtime in `pipeline.surfaces`, `pipeline.frameReadTextures`, and
 Sources: `shaders/src/lang/lexer.js` - `lex()`;
 `shaders/src/lang/parser.js` - `parse()`;
 `shaders/src/lang/validator.js` - `validate()`, `toSurface()`;
-`shaders/src/runtime/pipeline.js` - `createSurfaces()`, `getFrameState()`.
+`shaders/src/runtime/pipeline.js` - `createSurfaces()`, `getFrameState()`;
+`shaders/src/rendering/scene-compiler.js` - `compileScene()`,
+`SCENE_COLOR_TEXTURE`; `shaders/src/scene/tree.js` - `SceneTree.fromIR()`;
+`shaders/src/runtime/compiler.js` - `VOLUME_ATLAS_SIZE`,
+`checkSceneVolumeAtlasSizes()`; `shaders/src/runtime/expander.js` - scene step.
 
 ### Act
 
@@ -385,12 +461,8 @@ ChainStmt        ::= Chain               (* validator requires terminal write *)
 Chain            ::= Call { Comments "." Comments ChainElement }
 ChainElement     ::= Call | WriteCall | Write3DCall | Subchain
 Call             ::= Identifier "(" [ ArgList ] ")"
-ArgList          ::= PositionalArgs | KeywordArgs | ExternalInputArgs
-PositionalArgs   ::= Expr { "," Expr } [ "," ]
-KeywordArgs      ::= Identifier ":" Expr
-                     { "," Identifier ":" Expr } [ "," ]
-ExternalInputArgs ::= ExternalInputArg { "," ExternalInputArg } [ "," ]
-ExternalInputArg ::= Expr | Identifier ":" Expr
+ArgList          ::= Argument { "," Argument } [ "," ]
+Argument         ::= Expr | Identifier ":" Expr
 WriteCall        ::= "write" "(" WriteTarget ")"
 WriteTarget      ::= OutputRef | XyzRef | VelRef | RgbaRef | MeshRef | "none"
 Write3DCall      ::= "write3d" "(" (Identifier | OutputRef | VolRef) ","
@@ -489,12 +561,8 @@ is unchanged.
 as `synth.noise()` are rejected. Put the namespace in `search`, or use
 `from(namespace, call())` to override resolution for one call.
 
-Positional and
-keyword arguments cannot be mixed except inside the special `midi()` and
-`audio()` value calls. In those two calls they can appear in either order.
-Positionals fill the still-unset positional fields densely, so a keyword does
-not consume its positional slot. `ExternalInputArgs` exists only for those two
-call names, not for registered effects or other special calls.
+Positional and keyword arguments may be mixed in either order. Keywords claim
+their named fields; positionals fill the remaining fields in source order.
 
 `read(oN)` has two different legal roles:
 
@@ -593,7 +661,6 @@ Disallowed forms include:
 - Multiple `render`.
 - Non-output `render`.
 - Namespaced call syntax.
-- Mixed positional/keyword arguments outside `midi()`/`audio()`.
 - `.write()` inside an expression.
 - Missing or invalid write targets.
 - Empty subchains.
@@ -607,6 +674,71 @@ Unknown
 subchain metadata keys are no longer a silent exception: they are discarded
 from the AST and reported with diagnostic code `P008`.
 
+`scene()` adds no grammar. Its call parses as an ordinary `Call`, and everything
+inside the parentheses is preserved as argument AST that the effect registry
+never sees — which is why terms like `reflector()` need no registration. The
+scene compiler, not the parser, imposes the shape:
+
+```ebnf
+SceneCall      ::= "scene" "(" SceneArg { "," SceneArg } ")"
+SceneArg       ::= KeywordArg | CameraCall | LightCall | EnvironmentCall |
+                   NodeChain
+NodeChain      ::= ( MeshCall | VolumeCall | GroupCall ) { "." NodeLink }
+VolumeCall     ::= "volume" "(" ArgList ")"
+NodeLink       ::= MaterialCall | "reflector" "(" ")"
+MaterialCall   ::= "material" "(" MaterialSpec ")"
+MaterialSpec   ::= ( "solid" | "surface" ) "(" [ ArgList ] ")"
+                   { "." MaterialTerm }
+MaterialTerm   ::= "pbr" "(" [ ArgList ] ")" | "emit" "(" [ ArgList ] ")"
+```
+
+Resolution and position rules:
+
+- `scene` is a **generator**: it must start its chain, or `scene() is a
+  generator and must start a chain`. Only one `scene()` per program.
+- The validator resolves every chain call against the registered effects first
+  and **only `scene` falls through** to the scene layer when nothing matches.
+  The other names in the scene vocabulary — `camera`, `light`, `environment`,
+  `mesh`, `volume`, `group`, `material`, `solid`, `surface`, `pbr`, `emit` — are
+  children *inside* a `scene()` call. Written as a chain element with no effect
+  behind them they are rejected rather than passed through, which used to turn a
+  typo into a no-op that compiled clean and rendered nothing. `solid` is the
+  exception in practice: `synth/solid` is a registered effect, so a top-level
+  `solid()` under `search synth` resolves to that 2D generator.
+- Permitted direct children of `scene()` are `camera`, `light`, `environment`,
+  `mesh`, `volume`, and `group`. Permitted links on a node are `.material()` and
+  `.reflector()`; transforms are keyword arguments on the node itself, so
+  `mesh("sphere").pos([0, 0, -4])` is an unknown-link error and not a placement.
+- Scene settings are the `SceneSettingKey` whitelist in Introspect, validated
+  as finite non-negative numbers or vec3 colours that never accept a descriptor.
+  Node keywords are whitelisted per node kind; an unrecognized key is an error
+  rather than a silent drop, unlike subchain metadata.
+- Transform components and a light's `intensity` accept `osc()`, `midi()`, and
+  `audio()` in place of a number, with the same arguments and enums they carry
+  on an effect uniform and the same `[0, 1]` `min`/`max` sub-range — except
+  that a scene rejects a `min`/`max` outside `[0, 1]` where an effect uniform
+  clamps it. The destination differs from an effect uniform: a `rot` component
+  maps the value onto `0..360` degrees, while `pos`, `scale` and `intensity`
+  receive the raw `0..1`. `osc()` is read as a descriptor only with a `type:`
+  keyword or a qualified `oscKind.` first positional (`osc(saw)` is the
+  `synth/osc` generator); `midi()` and `audio()` take any of the three enum
+  spellings. Descriptors are hoisted out of the tree at compile time and
+  advanced against the same clock and the same `MidiState` / `AudioState` the
+  pipeline resolves effect uniforms from. Camera keywords, a light's `pos`,
+  `dir` and `color`, `volume()`'s `threshold` and every `scene()` setting do
+  not accept them.
+
+`volume()` is the one node whose argument list mixes forms. Exactly one argument
+is positional and must be a `VolRef` (or an identifier bound to one by `let`)
+naming `vol0`-`vol7`; every other argument is a keyword, and the two may be
+interleaved in any order. Its keyword set is `id`, `pos`, `rot`, `scale`,
+`threshold` (default `0.5`, range `0..1`), and `mode` (default `"smooth"`, one
+of `"smooth"` or `"voxel"`). `mode` selects the marching algorithm only: the
+bound is always the local `[-1, 1]` cube, so a `volume()` at `scale: 1` spans
+two world units per axis where `mesh("box")` at `scale: 1` spans one. A
+raymarched isosurface has no UVs, so a `surface()` material — declared on the
+volume or inherited from its `group()` — is rejected.
+
 Sources: `shaders/src/lang/lexer.js` - `lex()`;
 `shaders/src/lang/parser.js` - `parseProgram()`, `parseCall()`,
 `transformMidiInvocation()`, `transformAudioInvocation()`,
@@ -614,6 +746,11 @@ Sources: `shaders/src/lang/lexer.js` - `lex()`;
 `decodeJsonStringLiteralContent()`; `shaders/src/lang/validator.js` -
 `compileAutomationDescriptor()`, `compileChainStatement()`, `processChain()`;
 `shaders/src/lang/unparser.js` - automation formatters.
+`parseSubchainCall()`, `parsePrimary()`; `shaders/src/lang/validator.js` -
+`compileChainStatement()`, `processChain()`, `SCENE_FUNCTIONS`;
+`shaders/src/rendering/scene-compiler.js` - `compileScene()`, `walkNode()`,
+`volumeReference()`, `volumeMode()`, `SCENE_SETTING_KEYS`, `VOLUME_KEYS`;
+`shaders/src/scene/bindings.js` - hoisted automation descriptors.
 
 ### Validate
 
@@ -628,13 +765,27 @@ Use these falsifiable stages:
 | backend compile | every referenced program in backend program map | compile completes without throw |
 | execution | `pipeline.lastPassCount` after a frame | equals number of non-skipped expanded passes after repeat expansion |
 
-Warnings (`S002`, `S007`, `S008`) do not make `compileGraph()` fail. Any semantic
+Warnings (`S002`, `S007`, `S008`, `S009`) do not make `compileGraph()` fail. Any semantic
 error does. `runDslProgram` is a convenient combined validator on either
 backend; its exact contract is in the MCP section.
 
+A program containing `scene()` passes through two extra stages between semantic
+validation and expansion, both of which throw rather than emitting diagnostics:
+
+| Stage | Measurement | Pass threshold |
+|---|---|---|
+| scene compile | `graph.sceneIR` | non-null with `nodes.length >= 0` and a `camera`; no thrown `SyntaxError` from `compileScene()` |
+| volume atlas | every `volume(volN)` against the `volumeSize` of the chain writing `volN` | no `ERR_VOLUME_ATLAS_SIZE`; a producer declaring no numeric `volumeSize`, or a surface nothing writes, is exempt |
+
+Expansion measures a scene the same way as any other program, with one
+adjustment: the scene step itself contributes zero passes, so `passes >= 1` is
+satisfied by the terminal `write(oN)` and whatever 2D chaining follows it.
+
 Sources: `shaders/src/lang/index.js` - `compile()`;
-`shaders/src/runtime/compiler.js` - `compileGraph()`;
-`shaders/src/runtime/pipeline.js` - `compilePrograms()`, `render()`.
+`shaders/src/runtime/compiler.js` - `compileGraph()`,
+`checkSceneVolumeAtlasSizes()`; `shaders/src/rendering/scene-compiler.js` -
+`compileScene()`; `shaders/src/runtime/pipeline.js` - `compilePrograms()`,
+`render()`.
 
 ### Diagnose
 
@@ -652,7 +803,7 @@ Declared diagnostic codes are:
 | `P004` | parser/error | Explicit search directive validation failures; additive `error.diagnostic` on the legacy `SyntaxError` |
 | `P005` | parser/error | Invalid render targets, expression-context writes, and invalid write/write3d target arguments; additive `error.diagnostic` on the legacy `SyntaxError` |
 | `P006` | parser/error | Invalid subchains (non-string arguments, missing body dot, empty body); additive `error.diagnostic` on the legacy `SyntaxError` |
-| `P007` | parser/error | Invalid call forms: `from()` argument validation, forbidden inline namespace syntax, and mixed positional/keyword arguments; additive `error.diagnostic` on the legacy `SyntaxError` |
+| `P007` | parser/error | Invalid call forms: `from()` argument validation, and forbidden inline namespace syntax; additive `error.diagnostic` on the legacy `SyntaxError` |
 | `P008` | parser/warning | Unknown subchain argument key (the value is discarded); returned in `compile()` diagnostics with `nodeId: null` |
 | `P009` | parser/warning | Duplicate subchain argument key (the last value wins); `nodeId: null` |
 | `P010` | parser/warning | Missing `,` between subchain arguments; `nodeId: null` |
@@ -664,6 +815,7 @@ Declared diagnostic codes are:
 | `S006` | semantic/error | starter chain missing terminal write |
 | `S007` | semantic/warning | deprecated parameter alias |
 | `S008` | semantic/warning | deprecated effect alias |
+| `S009` | semantic/warning | positional arguments left over after every parameter is filled; they bind to nothing |
 | `R001` | runtime/error | declared but not emitted by the compiler/backends shown here |
 
 Raw lexer/parser failures are `SyntaxError` instances with the unchanged legacy
@@ -682,11 +834,49 @@ specified and no write() found - add render(oN) or write(oN)` without a step,
 and `The runtime does not yet execute control flow ('<keyword>')` without a
 step for each top-level `if`, `break`, `continue` or `return` plan.
 
+Scene failures split across the two layers. The validator emits ordinary `S001`
+diagnostics; the scene compiler throws `SyntaxError` with ` at line <n> col <n>`
+appended, so it escapes `ERR_COMPILATION_FAILED` the same way a raw parse error
+does and cannot be read out of a diagnostics array:
+
+| Condition | Layer | Message |
+|---|---|---|
+| scene child name used as a chain element | validator, `S001` | `Unknown effect: '<name>'. Scene nodes like <name>() are only valid inside scene().` |
+| `scene()` not at a chain head | validator, `S001` | `scene() is a generator and must start a chain` |
+| chain without a terminal write | validator, `S001` | `Chain must have explicit write() or write3d() target` |
+| two `scene()` calls in one program | scene compiler, throw | `Only one scene() per program is supported` |
+| unknown `scene()` keyword | scene compiler, throw | `Unknown keyword '<key>' for scene() (expected: ...)` — every unknown-keyword error appends the accepted set |
+| unknown direct child, or a bare value as a child | scene compiler, throw | `Unknown scene child '<name>' (allowed: camera, light, environment, mesh, volume, group)`; for a non-call positional, `Unknown scene child '0.15'; scene() takes node chains as positional arguments (...) and settings as keyword arguments` |
+| camera/light/environment inside `group()` | scene compiler, throw | `Unknown group() child 'light()'; group() accepts only mesh(), volume(), group() children; light() belongs at scene() level` |
+| unknown link on a node | scene compiler, throw | `Unknown link '<name>()' on <kind>(); a scene node accepts only .material() and .reflector()` |
+| unknown node keyword | scene compiler, throw | `Unknown keyword '<key>' for volume() (expected: id, pos, rot, scale, threshold, mode)` (and the same form for `mesh("<type>")`, `group()`, `camera()`, `light()`, `environment()` and the material terms) |
+| unknown light or mesh type | scene compiler, throw | `Unknown light type '<value>' (expected: directional, point, spot)`, `Unknown mesh type '<value>' (expected: sphere, box, plane, cylinder, torus)` |
+| descriptor where a plain number is required | scene compiler, throw | `camera() pos does not accept osc(), midi() or audio(); descriptors animate a node's pos, rot and scale, and a light's intensity` |
+| descriptor `min`/`max` outside 0..1 | scene compiler, throw | `osc() min must be between 0 and 1: min and max are a normalized sub-range of the channel's own range, not values in it` |
+| `scene()` setting of the wrong shape | scene compiler, throw | `<setting> must be a finite number`, `<setting> must be non-negative`, `ssaoRadius must be greater than zero`, `<setting> must contain exactly 3 values`, `<setting> values must be non-negative`; a descriptor: `scene() <setting> does not accept osc(), midi() or audio(); ...` |
+| bad `intensity` | scene compiler, throw | light: `intensity must be a finite number or osc(), midi() or audio()`; environment: `intensity must be a finite number`, `environment() intensity does not accept osc(), midi() or audio(); ...`; both: `intensity must be non-negative` |
+| two `environment()` calls in one scene | scene compiler, throw | `Only one environment() per scene is supported` (anchored to the second) |
+| two `camera()` calls in one scene | scene compiler, throw | `Only one camera() per scene is supported` (anchored to the second) |
+| link on `camera()`, `light()` or `environment()` | scene compiler, throw | `Unknown link 'emit()' on light(); light() takes no links` |
+| bad `volume()` positional | scene compiler, throw | `volume() expects a volume reference (vol0..vol7)` |
+| second `volume()` positional | scene compiler, throw | `volume() takes one positional argument, the volume reference` |
+| positional on a call that reads keywords only | scene compiler, throw | `pbr() takes keyword arguments only; found '0.7' (expected: metallic, roughness)` (and the same form for `camera()`, `light()`, `solid()` and `emit()`) |
+| second positional on `environment()`, `surface()` or `material()` | scene compiler, throw | `environment() takes one positional argument, the surface reference`, `surface() takes one positional argument, the surface reference`, `material() takes one positional argument, the material source` |
+| keyword on `material()` | scene compiler, throw | `material() takes no keyword arguments; found '<key>'` |
+| node `id` that is a list, an object or another call | scene compiler, throw | `id must be a string, a number or a boolean; found '[...]'` (on `mesh()`, `volume()` and `group()`) |
+| bad `volume()` marching mode | scene compiler, throw | `Unknown volume mode '<value>' (expected: smooth, voxel)` |
+| `surface()` material on a volume | scene compiler, throw | `volume() cannot take a surface() material; an isosurface has no UVs` |
+| `reflector()` on a non-mesh node | scene compiler, throw | `reflector() is not supported on <kind>() nodes; planar reflection applies to a plane mesh` |
+| atlas/`volumeSize` mismatch | `compileGraph()`, throw | `{ code: "ERR_VOLUME_ATLAS_SIZE", errors }`, each naming the surface, the marched cube, and the `volumeSize` to set |
+
 Sources: `shaders/src/lang/diagnostics.js` - default export;
 `shaders/src/lang/lexer.js` - thrown `SyntaxError` sites;
 `shaders/src/lang/parser.js` - thrown `SyntaxError` sites;
-`shaders/src/runtime/compiler.js` - `compileGraph()`;
-`shaders/src/runtime/expander.js` - `expand()`.
+`shaders/src/runtime/compiler.js` - `compileGraph()`,
+`checkSceneVolumeAtlasSizes()`;
+`shaders/src/runtime/expander.js` - `expand()`;
+`shaders/src/lang/validator.js` - `processChain()`;
+`shaders/src/rendering/scene-compiler.js` - `sceneError()` and its throw sites.
 
 <!-- SURFACE:EFFECT -->
 ## Portable effect authoring
@@ -1611,6 +1801,7 @@ Parameter-related semantic failures use `Diagnostic`:
 - `S003`: undefined variable, variable read before its `let`, enum identifier,
   or inline choice.
 - `S007`: a deprecated parameter alias was rewritten.
+- `S009`: `Too many positional arguments for <call>(): '<call>' takes <n>`.
 
 Selected-device audio bindings the built-in manager cannot capture evaluate to
 `min`; the manager emits a console warning when the graph requires such a
@@ -1686,6 +1877,9 @@ type CompiledGraph = {
   allocations: Map<string, `phys_${number}`>
   textures: Map<string, RuntimeTextureSpec>
   renderSurface: string | null
+  _isScene: boolean
+  sceneIR: SceneIR | null
+  sceneVolumeAtlasScopes: Record<string, {surface: string, size: number}>
   mediaSteps: Array<{textureId: string, uniform: string, stepIndex: number, effect: string}> // per-step external texture bindings, one entry per distinct texture id in program order
   compiledAt: number                 // Date.now(), milliseconds since epoch
 }
@@ -2449,11 +2643,13 @@ type StepInfo = {
 }
 ```
 
-`stepIndex` is the compiled effect step's `temp`. Branch objects do not have
-`chain` and are skipped by these mutation helpers. Compiled nodes marked
-`builtin: true`, including `read`, `write`, 3D I/O, and subchain boundaries,
-are also excluded. A two-effect chain ending in `.write(o0)` therefore returns
-two entries while retaining the effects' original step and chain indexes.
+`stepIndex` is the compiled step's `temp`. Branch objects do not have `chain`
+and are skipped by these mutation helpers. `listSteps()` does not filter for
+effect nodes: it returns every member of `plan.chain`, including the terminal
+`write` builtin. A two-effect chain ending in `.write(o0)` therefore returns
+three entries. Use `kind` to tell them apart: compiler builtins report
+`kind: 'builtin'` with both `canReplaceWith*` flags false, so
+`steps.filter(s => s.kind === 'effect')` yields the user effects.
 `getCompatibleReplacements()` enumerates the currently registered `ops` and
 partitions them by starter state.
 
@@ -2604,9 +2800,8 @@ caller supplies `options.manifest`; dimensions without data are reported
 rejection; without it the prediction is returned and mutation is unchanged.
 
 Builtin step indexes use the same `Step with index <stepIndex> not found`
-failure as other non-target indexes. Callers do not need to parse builtin names
-because builtin nodes are absent from `listSteps()` and cannot be resolved by
-either mutation helper.
+failure as other non-target indexes. Builtin nodes appear in `listSteps()` with
+`kind: 'builtin'` and cannot be resolved by either mutation helper.
 
 Sources: `shaders/src/lang/transform.js` - all `success:false` paths.
 

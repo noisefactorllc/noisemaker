@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "synth3d/noise3d",
-  "sourceHash": "c07113155c28e6bec9cdff97b355109f65e10afcdf84e7d4b3831dac5ec57803",
+  "sourceHash": "7b2511aeef3a9faec2964d857dd72b96a5b8ed4a612d78631baa82acfebff7a9",
   "caseHash": "f0b5b5a1ec4df6c18011e997fd32668972d76dc1c7dae0885f1740c0862d5613",
   "resolution": [
     64,

@@ -6,7 +6,7 @@ import { registerEffect } from '../src/runtime/registry.js'
 import { expand } from '../src/runtime/expander.js'
 import { allocateResources } from '../src/runtime/resources.js'
 
-// Setup
+// Setup. Ops must be registered under the namespaces the program searches.
 registerOp('synth.osc', { name: 'osc', args: [{ name: 'freq', type: 'float', default: 60 }] })
 registerOp('filter.kaleid', { name: 'kaleid', args: [{ name: 'n', type: 'float', default: 4 }] })
 registerStarterOps(['synth.osc'])
