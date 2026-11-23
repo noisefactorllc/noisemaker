@@ -1239,13 +1239,8 @@ work, verify it, then update the checkpoint and append a log line.
     Portable's release vendor `60ebc7012877ac6282f44ee0bb5a799a27e140f6`
     matches the full artifact and passed
     [Test 45099218419](https://github.com/noisefactorllc/portable/actions/runs/45099218419).
-    Shade pin `0a72794b510937da3a36960296130ae586f1615a` passed
-    [CI 45099242867](https://github.com/noisefactorllc/shade/actions/runs/45099242867)
-    and [deployment 45099242858](https://github.com/noisefactorllc/shade/actions/runs/45099242858).
-    Live metadata reports that pin commit, the backend is healthy, and a
-    read-only check of the running application's knowledge tree matches its
-    release digest
-    `172827d5487cecaa55b5b67c9766816348c5e01c3ec674f3722d48e63612daf3`.
+    The Shade release that pins this contract passed its CI and deployment
+    checks, and the live service reports that release.
     Independent review accepted the pin/contract candidate with no findings.
     Exact-source Noisemaker CI and live contract readback remain pending.
     The completed checkpoint above remains unchanged until those pass.
