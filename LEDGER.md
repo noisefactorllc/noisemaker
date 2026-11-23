@@ -1181,6 +1181,55 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-22 — candidate pair: Noisemaker
+    `478f94eae7ebe34116dfc661ac52b373b884008b` and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. The candidate `.mcp.json`
+    pins that Shade source. Release `v0.5.4` resolves to it; its downloaded
+    artifact matches SHA-256
+    `5e2183af707e7197d5a5ff58e2a9d4482f357c7fb27561d140bb8b1d8c3161b2`
+    and passes `scripts/check-dist-selfcontained.mjs`. Noisemaker pull run
+    [45099197937](https://github.com/noisefactorllc/noisemaker/actions/runs/45099197937)
+    found no vendor change: every delivered subtree equals the release bytes,
+    still held by vendor commit `d4613d7dd703694b3b0dccb6cae348f2d0e8bb26`.
+    Audited the complete Noisemaker range `e0d5e42a..478f94ea`: agreement and
+    timing tests, height-grid and terrain proportions, landscape exposed-face
+    selection, parity attestations and documentation corrections. The effect
+    definitions, runtime and viewer APIs and worked test-pattern sources are
+    unchanged. Independent review identified ambiguous sink-reporter failure
+    accounting; the contract now states that a reporter exception adds no
+    further failure. Shade range `63e53ad8..1815133` changes dependencies,
+    quality/input tests and shader-craft arithmetic, extraction, bundling and
+    search. Tool schemas, harness exports and configuration are unchanged.
+    The contract now distinguishes emitted private helpers from public result
+    IDs, documents canonical-helper validation and retains the existing tool
+    result shapes. A configured-pin session on headless Chromium initialized
+    `shade-mcp` 0.5.4 / protocol `2025-06-18` with SDK 1.32.2 and captured the
+    worked calls, including successful WebGL2/WebGPU compilation and exact
+    pixel parity. The package range installed Playwright 1.65.1; its matching
+    headless browser was provisioned. No install bin links were created; a
+    regular launcher forwarded to the attested installed entrypoint.
+    Both-language bundle calls included private helpers and public-only IDs;
+    library search excluded private helpers. The recorded responses now match
+    that session. Shade's exact-source quality and CI runs
+    [44990321492](https://github.com/noisefactorllc/shade-mcp/actions/runs/44990321492)
+    and [44990321585](https://github.com/noisefactorllc/shade-mcp/actions/runs/44990321585)
+    passed; release run
+    [45099041223](https://github.com/noisefactorllc/shade-mcp/actions/runs/45099041223)
+    passed. On the candidate, `node scripts/run-js-tests.js --skip-parity`,
+    `npm run lint` and Shade's `NOISEMAKER` browser smoke all exited 0.
+    Portable's release vendor `60ebc7012877ac6282f44ee0bb5a799a27e140f6`
+    matches the full artifact and passed
+    [Test 45099218419](https://github.com/noisefactorllc/portable/actions/runs/45099218419).
+    Shade pin `0a72794b510937da3a36960296130ae586f1615a` passed
+    [CI 45099242867](https://github.com/noisefactorllc/shade/actions/runs/45099242867)
+    and [deployment 45099242858](https://github.com/noisefactorllc/shade/actions/runs/45099242858).
+    Live metadata reports that pin commit, the backend is healthy, and a
+    read-only check of the running application's knowledge tree matches its
+    release digest
+    `172827d5487cecaa55b5b67c9766816348c5e01c3ec674f3722d48e63612daf3`.
+    Independent review accepted the pin/contract candidate with no findings.
+    Exact-source Noisemaker CI and live contract readback remain pending.
+    The completed checkpoint above remains unchanged until those pass.
   - 2026-11-18 — audited the Noisemaker range
     `db2173e3..e0d5e42aeaacccb70281467ba8e84e693fd93b93` (trigger range
     `b631fc2c..e0d5e42`, earlier start `8902e695`, already recorded above).
