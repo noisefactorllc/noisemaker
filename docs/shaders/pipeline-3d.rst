@@ -99,8 +99,6 @@ A renderer consumes the volume and produces the frame:
      - Six seamless cube faces for skyboxes and planetary surfaces — see the
        Cubemaps guide. No longer the only route to a cubemap: a
        :ref:`scene() <shader-scene>` program exports through the same API
-
-       Cubemaps guide
    * - ``renderLandscape3d``
      - Isometric or perspective raymarcher for ``heightmap3d`` volumes: smooth
        ``isosurface`` mode or flat-face ``voxel`` mode, with lighting. The
