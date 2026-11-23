@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "synth3d/heightmap3d",
-  "sourceHash": "5a3439ed6279a714160f8458e277eee25db455552663635a14af38c85342dc86",
+  "sourceHash": "b11a56993eced71ca5bce8c7cc2b10899838a2c6edd77afa1b25d2256090edab",
   "caseHash": "74b4938614784c41d5923e61327c6e96858d5458bb14adba3304ba0e9ce5634c",
   "resolution": [
     96,
@@ -11,14 +11,14 @@
     "webgl2": {
       "width": 96,
       "height": 80,
-      "nonzeroRgbPixels": 6500,
+      "nonzeroRgbPixels": 6684,
       "nonzeroAlphaPixels": 7680,
       "uniqueColors": 16
     },
     "webgpu": {
       "width": 96,
       "height": 80,
-      "nonzeroRgbPixels": 6500,
+      "nonzeroRgbPixels": 6684,
       "nonzeroAlphaPixels": 7680,
       "uniqueColors": 16
     }

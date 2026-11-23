@@ -249,11 +249,104 @@ render(o0)`)
         await page.close()
     }
 }
+// Seen from directly above, the terrain has the proportions of the frame, and it
+// shows its images as authored on a frame of any shape: a square frame, a wide
+// one and a tall one. Each terrain here fits inside its frame.
+const frameShapes = [
+    { width: 128, height: 128, posZ: -40 },
+    { width: 256, height: 128, posZ: -40 },
+    { width: 128, height: 256, posZ: -120 },
+]
+const outOfProportion = []
+async function runFrameShapes(preferWebGPU) {
+    const backend = preferWebGPU ? 'webgpu' : 'webgl2'
+    for (const { width, height, posZ } of frameShapes) {
+        const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 })
+        const errors = []
+        page.on('pageerror', error => errors.push(error.message))
+        page.on('console', message => {
+            if (isReadbackPerformanceWarning(message.type(), message.text())) return
+            if (['error', 'warning'].includes(message.type())) errors.push(message.text())
+        })
+        try {
+            await page.goto(`${baseUrl}/shaders/effects/manifest.json`)
+            await page.setContent(`<link rel="icon" href="data:,"><style>body{margin:0}canvas{display:block}</style><canvas width="${width}" height="${height}"></canvas>`)
+            await page.evaluate(async ({ baseUrl, preferWebGPU, width, height }) => {
+                const { CanvasRenderer } = await import(`${baseUrl}/shaders/src/index.js`)
+                window.renderer = new CanvasRenderer({ canvas: document.querySelector('canvas'), width, height,
+                    basePath: `${baseUrl}/shaders`, preferWebGPU })
+                await renderer.loadManifest()
+                await renderer.loadEffects(['synth3d/heightmap3d', 'render/renderLandscape3d', 'synth/solid', 'synth/testPattern'])
+            }, { baseUrl, preferWebGPU, width, height })
+            async function frame(program) {
+                const name = await page.evaluate(async program => {
+                    await renderer.compile(program)
+                    renderer.stop()
+                    for (let i = 0; i < 3; i++) renderer.render(0)
+                    await renderer.pipeline.backend.device?.queue.onSubmittedWorkDone()
+                    return renderer.pipeline.backend.getName().toLowerCase()
+                }, program)
+                assert.equal(name, backend, 'requested backend must execute')
+                return PNG.sync.read(await page.locator('canvas').screenshot({ omitBackground: true }))
+            }
+            const authored = await frame('search synth\ntestPattern(pattern: uvMap).write(o0)\nrender(o0)')
+            const topDown = await frame(`search synth, synth3d, render
+heightmap3d(heightTex: solid(color: #ffffff), tex: testPattern(pattern: uvMap), volumeSize: x16, heightScale: 1)
+  .renderLandscape3d(viewMode: perspective, rotateX: 1.5708, posZ: ${posZ}, bgAlpha: 0, ambient: 1, diffuseIntensity: 0, specularIntensity: 0).write(o0)
+render(o0)`)
+            // The box of the terrain's pixels; the background is transparent.
+            const box = { x0: width, x1: -1, y0: height, y1: -1 }
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    if (topDown.data[(y * width + x) * 4 + 3] === 0) continue
+                    box.x0 = Math.min(box.x0, x); box.x1 = Math.max(box.x1, x)
+                    box.y0 = Math.min(box.y0, y); box.y1 = Math.max(box.y1, y)
+                }
+            }
+            const label = `${backend} ${width} x ${height}`
+            assert.ok(box.x1 >= box.x0, `${label}: the terrain must be visible`)
+            assert.ok(box.x0 > 0 && box.y0 > 0 && box.x1 < width - 1 && box.y1 < height - 1,
+                `${label}: the terrain must fit inside the frame (x ${box.x0} to ${box.x1}, y ${box.y0} to ${box.y1})`)
+            const boxWidth = box.x1 - box.x0 + 1, boxHeight = box.y1 - box.y0 + 1
+            assert.ok(Math.abs(box.x0 + box.x1 - (width - 1)) <= 3 && Math.abs(box.y0 + box.y1 - (height - 1)) <= 3,
+                `${label}: the terrain must be centered in the frame (x ${box.x0} to ${box.x1}, y ${box.y0} to ${box.y1})`)
+            // Points toward the corners: of the whole frame in the authored image, of the terrain in the view.
+            const sample = (png, area) => {
+                const dx = Math.round((area.x1 - area.x0 + 1) * 0.27), dy = Math.round((area.y1 - area.y0 + 1) * 0.27)
+                const at = (x, y) => Array.from(png.data.slice((y * width + x) * 4, (y * width + x) * 4 + 3))
+                return { topLeft: at(area.x0 + dx, area.y0 + dy), topRight: at(area.x1 - dx, area.y0 + dy), bottomLeft: at(area.x0 + dx, area.y1 - dy) }
+            }
+            const image = sample(authored, { x0: 0, x1: width - 1, y0: 0, y1: height - 1 }), view = sample(topDown, box)
+            const across = rgb => rgb.topRight[0] - rgb.topLeft[0]
+            const down = rgb => rgb.bottomLeft[1] - rgb.topLeft[1]
+            assert.ok(Math.abs(across(image)) > 64 && Math.abs(down(image)) > 64, 'the uvMap reference must vary along both axes')
+            assert.ok(Math.sign(across(view)) === Math.sign(across(image)) && Math.abs(across(view)) > 64,
+                `${label}: seen from above, image right must be screen right (red ${view.topLeft[0]} -> ${view.topRight[0]})`)
+            assert.ok(Math.sign(down(view)) === Math.sign(down(image)) && Math.abs(down(view)) > 64,
+                `${label}: seen from above, image top must be screen top (green ${view.topLeft[1]} -> ${view.bottomLeft[1]}, authored ${image.topLeft[1]} -> ${image.bottomLeft[1]})`)
+            assert.ok(Math.abs(view.bottomLeft[0] - view.topLeft[0]) <= 24 && Math.abs(view.topRight[1] - view.topLeft[1]) <= 24,
+                `${label}: seen from above, the image must not be rotated`)
+            const shape = width / height
+            if (Math.abs(boxWidth / boxHeight - shape) > shape * 0.1) {
+                outOfProportion.push(`${label}: seen from above, the terrain is ${boxWidth} by ${boxHeight} pixels, and its frame is ${width} by ${height}`)
+            }
+            assert.deepEqual(errors, [], `${label} console must be clean`)
+        } finally {
+            await page.close()
+        }
+    }
+    if (!outOfProportion.some(line => line.startsWith(backend))) {
+        console.log(`PASS heightmap seen from above shows its images as authored, in the frame's proportions (${backend})`)
+    }
+}
 try {
     const gl = await runBackend(false)
     const gpu = await runBackend(true)
     assertPixelsEqual(gpu.data, gl.data, 'displayed WebGL2 and WebGPU heightfield pixels must match exactly')
     console.log('PASS exact displayed-pixel parity')
+    await runFrameShapes(false)
+    await runFrameShapes(true)
+    assert.deepEqual(outOfProportion, [])
 } finally {
     await browser.close()
     await releaseServer()
