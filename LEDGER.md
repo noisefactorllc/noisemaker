@@ -1097,7 +1097,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `e0d5e42aeaacccb70281467ba8e84e693fd93b93` / shade-mcp `63e53ad89dc43526335da6e947ed31667929e43b`, 2026-11-18
+- **Checkpoint:** noisemaker `847698510fabe64b188bc7481f0b5c01a6feafaf` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-22
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -1181,6 +1181,25 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-22 — completed delivery pair: Noisemaker
+    `847698510fabe64b188bc7481f0b5c01a6feafaf` and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. The immutable `.mcp.json`
+    pin is that Shade source; delivered release `v0.5.4` resolves to the
+    same source. Its selected vendor subtrees are byte-identical to the
+    existing Noisemaker vendor, as established in the candidate entry below.
+    The remaining Noisemaker range `478f94ea..84769851` changes only that
+    pin, this ledger and the contract; it adds no runtime drift to the
+    completed source audit and configured-pin capture recorded below.
+    Independent review accepted the candidate with no findings.
+    Exact-source [JavaScript 45100303769](https://github.com/noisefactorllc/noisemaker/actions/runs/45100303769),
+    [CodeQL 45100303647](https://github.com/noisefactorllc/noisemaker/actions/runs/45100303647),
+    [Site 45100303717](https://github.com/noisefactorllc/noisemaker/actions/runs/45100303717)
+    and [Downstream 45100303677](https://github.com/noisefactorllc/noisemaker/actions/runs/45100303677)
+    passed. The site release completed for that source; live deployment
+    metadata reports it. A full GET of `https://noisemaker.app/llms-full.txt`
+    returned HTTP 200 and exactly matched the committed file, SHA-256
+    `bbfe34ead38b05ca62e3c6718320692087ca159b846dc32ccc138c59ee6f8628`.
+    The checkpoint and contract snapshot now name that qualified candidate.
   - 2026-11-22 — candidate pair: Noisemaker
     `478f94eae7ebe34116dfc661ac52b373b884008b` and Shade MCP
     `1815133b47eaa33aee11d4a677cfea2f3939cf38`. The candidate `.mcp.json`
