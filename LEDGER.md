@@ -1202,9 +1202,12 @@ work, verify it, then update the checkpoint and append a log line.
     The checkpoint and contract snapshot now name that qualified candidate.
   - 2026-11-22 — candidate pair: Noisemaker
     `478f94eae7ebe34116dfc661ac52b373b884008b` and Shade MCP
-    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. The candidate `.mcp.json`
-    pins that Shade source. Release `v0.5.4` resolves to it; its downloaded
-    artifact matches SHA-256
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. At that candidate the
+    configured `.mcp.json` still pinned the previous Shade source
+    `63e53ad89dc43526335da6e947ed31667929e43b` (`v0.5.3`); the pin advanced
+    to `1815133` in checkpoint commit `847698510`, which published the
+    configured pin, this ledger and the contract together. Release
+    `v0.5.4` resolves to `1815133`; its downloaded artifact matches SHA-256
     `5e2183af707e7197d5a5ff58e2a9d4482f357c7fb27561d140bb8b1d8c3161b2`
     and passes `scripts/check-dist-selfcontained.mjs`. Noisemaker pull run
     [45099197937](https://github.com/noisefactorllc/noisemaker/actions/runs/45099197937)
