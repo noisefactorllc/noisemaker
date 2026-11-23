@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "render/renderLandscape3d",
-  "sourceHash": "5a3439ed6279a714160f8458e277eee25db455552663635a14af38c85342dc86",
+  "sourceHash": "b11a56993eced71ca5bce8c7cc2b10899838a2c6edd77afa1b25d2256090edab",
   "caseHash": "52b5c5b1c922e9bc1479c4396a9c51b76a6caffb337473988dc2e1eaad1c0257",
   "resolution": [
     96,
@@ -11,14 +11,14 @@
     "webgl2": {
       "width": 96,
       "height": 80,
-      "nonzeroRgbPixels": 7542,
+      "nonzeroRgbPixels": 7552,
       "nonzeroAlphaPixels": 7680,
       "uniqueColors": 623
     },
     "webgpu": {
       "width": 96,
       "height": 80,
-      "nonzeroRgbPixels": 7542,
+      "nonzeroRgbPixels": 7552,
       "nonzeroAlphaPixels": 7680,
       "uniqueColors": 623
     }

@@ -9,7 +9,8 @@ import { shaderTestBrowserOptions } from '../../scripts/lib/shader-test-browser.
 // crosses both at one distance and enters the cell beyond the edge. Whether
 // the two crossings compare equal depends on how a shader compiler rounds the
 // ray, so a pixel on such an edge must show what the pixels beside it show
-// wherever the surface is one continuous wall.
+// wherever the surface is one continuous wall. Each case here puts its rays
+// on such edges by its shape, so the crossings are equal on every compiler.
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 process.env.SHADE_PROJECT_ROOT = root
@@ -18,10 +19,12 @@ const { acquireServer, releaseServer } = await import('../../vendor/shade-mcp/ha
 const baseUrl = await acquireServer(undefined, root, process.env.SHADE_EFFECTS_DIR)
 const browser = await chromium.launch(shaderTestBrowserOptions())
 
-// The default heightmap3d program at volume size x128, as a port's parity run
-// renders it. Its pixel at x 138, row 70 looks at a cliff through a voxel edge.
+// The default heightmap3d program at volume size x128 on a 257 by 129 frame, as
+// a port's parity run renders it. The frame is an odd number of pixels wide and
+// the program has no horizontal pan, so the rays of its center column cross x
+// and z boundaries at one distance.
 const measured = {
-    width: 257, height: 129, x: 138, y: 70, panY: -0.18,
+    width: 257, height: 129,
     dsl: `search synth, synth3d, render
 
 noise(scaleX: 90, scaleY: 90, colorMode: mono, speed: 0).write(o1)
@@ -44,14 +47,6 @@ const centerCliff = { width: 129, height: 129, fill: [0, 8, 16, 8], dsl: cliffPr
 // ray of the screen diagonal crosses x and y boundaries at one distance.
 const diagonalCliff = { width: 128, height: 128, fill: [12, 0, 4, 16], dsl: cliffProgram('viewMode: perspective, rotateX: 0, lightDirection: vec3(-1, 0, 0)') }
 const WHITE = '255,255,255,255'
-
-// Single-precision values one step apart, centered on a value.
-function floatSteps(center, count) {
-    const value = new Float32Array(1), bits = new Int32Array(value.buffer)
-    value[0] = center
-    const origin = bits[0]
-    return Array.from({ length: count * 2 + 1 }, (_, i) => { bits[0] = origin + i - count; return value[0] })
-}
 
 async function openRenderer(backend, { width, height }) {
     const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 })
@@ -93,37 +88,37 @@ async function openRenderer(backend, { width, height }) {
 // Every backend and view is checked before the verdict, so one run shows each failure.
 const failures = []
 try {
-    const atMeasuredPan = {}
+    const centerColumns = {}
     for (const backend of ['webgl2', 'webgpu']) {
-        // Orthographic view. Moving the view by single steps of panY moves the
-        // ray across the edge without leaving the cliff, so the pixel holds.
-        const ortho = await openRenderer(backend, measured)
-        const name = await ortho.page.evaluate(async dsl => {
+        // The measured program. On the rows where the pixels on both sides of
+        // the center column show one lit wall, the column shows that wall too.
+        const whole = await openRenderer(backend, measured)
+        const name = await whole.page.evaluate(async dsl => {
             const r = tieRenderer
             await r.compile(dsl); r.stop(); r.render(0); r.render(0); r.render(0)
             await r.pipeline.backend.device?.queue.onSubmittedWorkDone()
             return r.pipeline.backend.getName().toLowerCase()
         }, measured.dsl)
         assert.equal(name, backend, 'requested backend must execute')
-        const seen = new Map()
-        for (const panY of floatSteps(measured.panY, 24)) {
-            await ortho.page.evaluate(async panY => {
-                const r = tieRenderer
-                const step = r.pipeline.graph.passes.find(p => p.effectFunc === 'renderLandscape3d').stepIndex
-                r.applyStepParameterValues({ [`step_${step}`]: { panY } })
-                r.render(0); r.render(0)
-                await r.pipeline.backend.device?.queue.onSubmittedWorkDone()
-            }, panY)
-            const color = ortho.pixel(await ortho.shown(), measured.x, measured.y)
-            seen.set(color, [...(seen.get(color) || []), panY])
-            if (panY === Math.fround(measured.panY)) atMeasuredPan[backend] = color
+        const wholeFrame = await whole.shown()
+        const column = (measured.width - 1) / 2
+        const rgb = (x, y) => whole.pixel(wholeFrame, x, y).split(',').slice(0, 3).map(Number)
+        const rows = Array.from({ length: measured.height }, (_, y) => y)
+        const wallRows = rows.filter(y => {
+            const left = rgb(column - 1, y), right = rgb(column + 1, y)
+            return left[1] >= 128 && right[1] >= 128 && left.every((value, c) => Math.abs(value - right[c]) <= 8)
+        })
+        assert.ok(wallRows.length >= 3, `${backend}: the center column of the measured program must cross a lit wall`)
+        const offWall = wallRows.filter(y => {
+            const left = rgb(column - 1, y), right = rgb(column + 1, y)
+            return !rgb(column, y).every((value, c) => value >= Math.min(left[c], right[c]) - 2 && value <= Math.max(left[c], right[c]) + 2)
+        })
+        if (offWall.length) {
+            failures.push(`${backend}: in the measured program the center column looks at a lit wall through voxel edges, and ${offWall.length} of its ${wallRows.length} pixels there show another face, such as ${whole.pixel(wholeFrame, column, offWall[0])}`)
         }
-        if (seen.size !== 1) {
-            failures.push(`${backend}: the pixel on the voxel edge must not change while the ray stays on the cliff; saw ` +
-                [...seen].map(([color, pans]) => `${color} at ${pans.length} values of panY`).join(' and '))
-        }
-        assert.deepEqual(ortho.errors, [], `${backend} console errors`)
-        await ortho.page.close()
+        centerColumns[backend] = rows.map(y => whole.pixel(wholeFrame, column, y)).join(' ')
+        assert.deepEqual(whole.errors, [], `${backend} console errors`)
+        await whole.page.close()
 
         // Orthographic view, on every compiler. Where the pixels on both sides
         // of the center column look at the cliff face, so does the column.
@@ -153,8 +148,8 @@ try {
         assert.deepEqual(diagonal.errors, [], `${backend} console errors`)
         await diagonal.page.close()
     }
-    if (atMeasuredPan.webgpu !== atMeasuredPan.webgl2) {
-        failures.push(`both backends must show the same pixel at the measured view; webgl2 shows ${atMeasuredPan.webgl2}, webgpu shows ${atMeasuredPan.webgpu}`)
+    if (centerColumns.webgpu !== centerColumns.webgl2) {
+        failures.push('both backends must show the same center column in the measured program')
     }
     assert.deepEqual(failures, [])
     console.log('PASS a voxel ray through an edge shows the face the neighboring voxels leave exposed, in both views and on both backends')

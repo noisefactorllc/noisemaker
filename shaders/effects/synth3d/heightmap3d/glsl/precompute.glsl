@@ -7,19 +7,46 @@ uniform sampler2D tex;
 uniform int volumeSize;
 uniform float heightScale;
 uniform float baseHeight;
+uniform float aspect;
+uniform float aspectInv;
 
 layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec4 geoOut;
 
+// The terrain keeps the frame's proportions inside the square footprint of the
+// volume. On a wide frame it spans the volume's width and a part of its depth,
+// on a tall frame the depth and a part of the width, and on a square frame all
+// of both. Each span is a whole, even count of columns, so the terrain is
+// centered. aspect and aspectInv are the frame's width over its height and the
+// inverse. They are computed outside the shader and the volume size is a power
+// of two, so both backends get the same counts.
+ivec2 terrainSpan() {
+    float halfSize = float(volumeSize) * 0.5;
+    return ivec2(
+        aspect < 1.0 ? max(2, 2 * int(floor(halfSize * aspect + 0.5))) : volumeSize,
+        aspectInv < 1.0 ? max(2, 2 * int(floor(halfSize * aspectInv + 0.5))) : volumeSize);
+}
+
+// The place of an XZ voxel column in the terrain, counted in columns from the
+// terrain's own corner. Volume z = 0 is toward the image's top row, so a view
+// from above along -Y, screen right on +X, shows the image as authored rather
+// than mirrored.
+ivec2 terrainColumn(ivec2 column) {
+    return ivec2(column.x, volumeSize - 1 - column.y) - (volumeSize - terrainSpan()) / 2;
+}
+
+bool inTerrain(ivec2 column) {
+    ivec2 image = terrainColumn(column);
+    return all(greaterThanEqual(image, ivec2(0))) && all(lessThan(image, terrainSpan()));
+}
+
 // Sample each image independently at the center of the XZ voxel column.
-// Volume z = 0 holds the image's top row, so a view from above along -Y,
-// screen right on +X, shows the image as authored rather than mirrored.
 ivec2 imageTexel(ivec2 column, ivec2 size) {
-    ivec2 image = ivec2(column.x, volumeSize - 1 - column.y);
-    return clamp(((image * 2 + 1) * size) / (volumeSize * 2), ivec2(0), size - 1);
+    return clamp(((terrainColumn(column) * 2 + 1) * size) / (terrainSpan() * 2), ivec2(0), size - 1);
 }
 
 float columnHeight(ivec2 column) {
+    if (!inTerrain(column)) return 0.0;
     vec3 rgb = texelFetch(heightTex, imageTexel(column, textureSize(heightTex, 0)), 0).rgb;
     float luminance = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
     return floor(clamp(luminance * heightScale + baseHeight, 0.0, 1.0) * float(volumeSize) + 0.5);

@@ -2,6 +2,8 @@ struct Uniforms {
     volumeSize: i32,
     heightScale: f32,
     baseHeight: f32,
+    aspect: f32,
+    aspectInv: f32,
 }
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var heightTex: texture_2d<f32>;
@@ -12,15 +14,41 @@ struct FragmentOutput {
     @location(1) geoOut: vec4f,
 }
 
+// The terrain keeps the frame's proportions inside the square footprint of the
+// volume. On a wide frame it spans the volume's width and a part of its depth,
+// on a tall frame the depth and a part of the width, and on a square frame all
+// of both. Each span is a whole, even count of columns, so the terrain is
+// centered. aspect and aspectInv are the frame's width over its height and the
+// inverse. They are computed outside the shader and the volume size is a power
+// of two, so both backends get the same counts.
+fn terrainSpan() -> vec2i {
+    let halfSize = f32(u.volumeSize) * 0.5;
+    return vec2i(
+        select(u.volumeSize, max(2, 2 * i32(floor(halfSize * u.aspect + 0.5))), u.aspect < 1.0),
+        select(u.volumeSize, max(2, 2 * i32(floor(halfSize * u.aspectInv + 0.5))), u.aspectInv < 1.0));
+}
+
+// The place of an XZ voxel column in the terrain, counted in columns from the
+// terrain's own corner. Volume z = 0 is toward the image's top row, so a view
+// from above along -Y, screen right on +X, shows the image as authored rather
+// than mirrored.
+fn terrainColumn(column: vec2i) -> vec2i {
+    return vec2i(column.x, u.volumeSize - 1 - column.y) - (vec2i(u.volumeSize) - terrainSpan()) / 2;
+}
+
+fn inTerrain(column: vec2i) -> bool {
+    let image = terrainColumn(column);
+    return all(image >= vec2i(0)) && all(image < terrainSpan());
+}
+
 // Native atlases and 2D surfaces use the same logical texel coordinates on both backends.
-// Volume z = 0 holds the image's top row, so a view from above along -Y,
-// screen right on +X, shows the image as authored rather than mirrored.
+// Sample each image independently at the center of the XZ voxel column.
 fn imageTexel(column: vec2i, size: vec2i) -> vec2i {
-    let image = vec2i(column.x, u.volumeSize - 1 - column.y);
-    return clamp(((image * 2 + 1) * size) / (u.volumeSize * 2), vec2i(0), size - 1);
+    return clamp(((terrainColumn(column) * 2 + 1) * size) / (terrainSpan() * 2), vec2i(0), size - 1);
 }
 
 fn columnHeight(column: vec2i) -> f32 {
+    if (!inTerrain(column)) { return 0.0; }
     let rgb = textureLoad(heightTex, imageTexel(column, vec2i(textureDimensions(heightTex))), 0).rgb;
     let luminance = dot(rgb, vec3f(0.2126, 0.7152, 0.0722));
     return floor(clamp(luminance * u.heightScale + u.baseHeight, 0.0, 1.0) * f32(u.volumeSize) + 0.5);
