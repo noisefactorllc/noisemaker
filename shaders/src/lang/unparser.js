@@ -923,8 +923,18 @@ function unparseCall(call, options = {}) {
             // program — vec3()/vec4()/hex paths run unchanged.
             const sourceForm = call.argSources?.[key]
 
-            // Check against default value
-            if (defaultSpec && defaultSpec.default !== undefined) {
+            // A value drawn by a random call is written as the call.
+            const randomSource = call.randomSources?.[key]
+            if (randomSource) {
+                parts.push(`${key}: ${formatLetExpr(randomSource, options)}`)
+                continue
+            }
+
+            // Check against default value. An authored seed is kept in a
+            // program with a seed directive, where leaving it out would make
+            // the effect inherit the program seed.
+            const keepAuthoredSeed = key === 'seed' && call.authoredSeed
+            if (defaultSpec && defaultSpec.default !== undefined && !keepAuthoredSeed) {
                 const formattedValue = formatValue(value, spec, options, sourceForm)
                 const formattedDefault = formatValue(defaultSpec.default, spec, options)
 
@@ -985,6 +995,31 @@ function formatLetExpr(expr, options = {}) {
     const numVal = (node) => (node && node.type === 'Number') ? node.value : undefined
 
     switch (expr.type) {
+        case 'Random': {
+            const parts = (expr.args || []).map(a => formatLetExpr(a, options))
+            for (const [k, v] of Object.entries(expr.kwargs || {})) {
+                parts.push(`${k}: ${formatLetExpr(v, options)}`)
+            }
+            return `${expr.fn}(${parts.join(', ')})`
+        }
+        case 'Binary': {
+            const precedence = { '+': 1, '-': 1, '*': 2, '/': 2 }
+            const side = (node, right) => {
+                const text = formatLetExpr(node, options)
+                if (node?.type !== 'Binary' || node._varRef) return text
+                const inner = precedence[node.op]
+                const outer = precedence[expr.op]
+                // Parenthesize a lower-precedence operand, and a right operand
+                // of equal precedence, which the parser would otherwise
+                // regroup to the left.
+                return inner < outer || (right && inner === outer) ? `(${text})` : text
+            }
+            return `${side(expr.left, false)} ${expr.op} ${side(expr.right, true)}`
+        }
+        case 'Unary': {
+            const text = formatLetExpr(expr.arg, options)
+            return expr.arg?.type === 'Binary' && !expr.arg._varRef ? `-(${text})` : `-${text}`
+        }
         case 'Number':
             return formatLosslessNumber(expr.value)
         case 'String':
@@ -1177,7 +1212,12 @@ export function unparse(compiled, overrides = {}, options = {}) {
     // Add search directive if present (with two line breaks after)
     if (searchNamespaces.length > 0 && !options.omitSearchDirective) {
         lines.push(`search ${searchNamespaces.join(', ')}`)
+        // The seed directive comes after every other directive.
+        if (compiled.seed !== undefined) lines.push(`seed ${compiled.seed}`)
         lines.push('') // First blank line after search
+    } else if (compiled.seed !== undefined) {
+        lines.push(`seed ${compiled.seed}`)
+        lines.push('')
     }
 
     // Keep statement order: each let is written before the first remaining
@@ -1442,6 +1482,8 @@ export function unparse(compiled, overrides = {}, options = {}) {
             // `[…]`. Absent for steps that didn't use any source-tagged
             // input form, so existing programs see no behavior change.
             if (step.argSources) call.argSources = step.argSources
+            if (step.randomSources) call.randomSources = { ...step.randomSources }
+            if (step.authoredSeed) call.authoredSeed = true
 
             // Start with original args (already keyed by param names)
             if (step.args) {
@@ -1484,6 +1526,11 @@ export function unparse(compiled, overrides = {}, options = {}) {
             // This prevents internal tracking values or stale values from leaking to DSL
             // Exception: internal _ prefixed args like _skip are always allowed
             for (const [key, value] of Object.entries(stepOverrides)) {
+                // An override that changes a drawn value replaces its random
+                // call; one that repeats the drawn value keeps the call.
+                if (call.randomSources?.[key] && formatValue(value) !== formatValue(step.args?.[key])) {
+                    delete call.randomSources[key]
+                }
                 // Always allow internal _ prefixed args (e.g., _skip)
                 if (key.startsWith('_')) {
                     call.kwargs[key] = value

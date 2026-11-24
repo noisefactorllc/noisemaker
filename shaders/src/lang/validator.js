@@ -7,6 +7,8 @@ import { resolveParamAliases } from './paramAliases.js'
 import { checkEffectAlias } from './effectAliases.js'
 import { decodeJsonStringLiteralContent } from './stringLiterals.js'
 import { SURFACE } from '../stability.js'
+import { joinKey } from './draws.js'
+import { RandomCallError, containsRandom, resolveRandom, sourceCallsRandom } from './randomize.js'
 
 /**
  * STRICT ALLOWLIST FOR STRING PARAMETERS
@@ -200,6 +202,90 @@ export function validate(ast) {
     }
 
     const symbols = new Map()
+
+    // Seeded randomization. A program without a seed directive draws from 0.
+    const programSeed = ast.seed ? ast.seed.value : 0
+    const hasSeedDirective = !!ast.seed
+    // The key scope of the statement being compiled: an `if` branch adds
+    // `if_<n>/b<k>`.
+    const keyScope = []
+    // Occurrence names: the elements of each effect name, counted in source
+    // order across the program.
+    const occurrenceCounts = new Map()
+    function nextOccurrence(effectName) {
+        const n = (occurrenceCounts.get(effectName) || 0) + 1
+        occurrenceCounts.set(effectName, n)
+        return `${effectName}_${n}`
+    }
+    let ifCount = 0
+    // Declarations of each `let` name in one key scope.
+    const letDeclarations = new Map()
+    // The key of the value an effect is passed into, while it compiles.
+    const valueKeys = []
+
+    function choicesFor(effect, param) {
+        let candidates = []
+        if (effect.type === 'Member' && effect.path?.length === 2) {
+            candidates = [`${effect.path[0]}.${effect.path[1]}`]
+        } else if (effect.type === 'Ident') {
+            candidates = (programSearchOrder || []).map(ns => `${ns}.${effect.name}`)
+                .filter(name => ops[name])
+            if (candidates.length > 1) {
+                throw new RandomCallError(effect, `choices(): effect name '${effect.name}' is ambiguous: ${candidates.join(', ')}`)
+            }
+        } else {
+            throw new RandomCallError(effect, 'choices() requires an effect name')
+        }
+        const spec = candidates.length ? ops[candidates[0]] : null
+        const effectName = effect.type === 'Member' ? effect.path.join('.') : effect.name
+        if (!spec) {
+            throw new RandomCallError(effect, `choices(): unknown effect '${effectName}'`)
+        }
+        if (param.type !== 'Ident') {
+            throw new RandomCallError(param, 'choices() requires a parameter name')
+        }
+        const def = (spec.args || []).find(d => d.name === param.name)
+        if (!def) {
+            throw new RandomCallError(param, `choices(): effect '${effectName}' has no parameter named '${param.name}'`)
+        }
+        if (!def.choices || typeof def.choices !== 'object') {
+            throw new RandomCallError(param, `choices(): parameter '${param.name}' of '${effectName}' has no choices`)
+        }
+        return Object.keys(def.choices)
+    }
+
+    function randomContext(key, seed = programSeed) {
+        return {
+            seed,
+            key: joinKey(...keyScope, key),
+            isShadowed: name => symbols.has(name),
+            choicesFor
+        }
+    }
+
+    // Resolve the random calls in a value written at `key`. Returns the
+    // resolved value, or undefined after reporting an error.
+    function resolveRandomAt(node, key) {
+        try {
+            return resolveRandom(node, randomContext(key))
+        } catch (error) {
+            if (!(error instanceof RandomCallError)) throw error
+            pushDiag(error.code, error.node || node, error.message)
+            return undefined
+        }
+    }
+
+    // Whether an effect call, or a chain of them, has a random call among
+    // its arguments.
+    function callsHaveRandom(node) {
+        if (!node || typeof node !== 'object') return false
+        if (node.type === 'Chain') return node.chain.some(callsHaveRandom)
+        if (node.type === 'Call') {
+            return [...(node.args || []), ...Object.values(node.kwargs || {})]
+                .some(arg => containsRandom(arg) || callsHaveRandom(arg))
+        }
+        return false
+    }
 
     function resolveEnum(path) {
         if (!Array.isArray(path) || path.length === 0) return undefined
@@ -435,6 +521,20 @@ export function validate(ast) {
             }
             return result
         }
+        if (node.type === 'Random') {
+            const mapped = {...node, args: (node.args || []).map(a => substitute(a, resolving))}
+            if (node.kwargs) {
+                mapped.kwargs = {}
+                for (const [k, v] of Object.entries(node.kwargs)) mapped.kwargs[k] = substitute(v, resolving)
+            }
+            return mapped
+        }
+        if (node.type === 'Binary') {
+            return {...node, left: substitute(node.left, resolving), right: substitute(node.right, resolving)}
+        }
+        if (node.type === 'Unary') {
+            return {...node, arg: substitute(node.arg, resolving)}
+        }
         if (AUTOMATION_FIELDS[node.type]) {
             const mapped = {...node}
             for (const field of AUTOMATION_FIELDS[node.type]) {
@@ -454,6 +554,8 @@ export function validate(ast) {
                 if (c.loc) mappedCall.loc = c.loc
                 if (c.positionalsByIndex) mappedCall.positionalsByIndex = true
                 if (c.letApplied) mappedCall.letApplied = true
+                // Not enumerable, so the compiled output is unchanged.
+                if (resolving.length > 0) Object.defineProperty(mappedCall, 'fromLet', { value: true })
                 if (c.kwargs) {
                     const kw = {}
                     for (const [k,v] of Object.entries(c.kwargs)) kw[k] = substitute(v, resolving)
@@ -585,7 +687,24 @@ export function validate(ast) {
     }
 
     function declareVar(v) {
-        const expr = substitute(clone(v.expr), [v.name])
+        let expr = substitute(clone(v.expr), [v.name])
+        if (expr && (expr.type === 'Chain' || expr.type === 'Call') && !(expr.type === 'Call' && /^vec[234]$/.test(expr.name))) {
+            if (callsHaveRandom(expr)) {
+                pushDiag('S013', v, `Random calls in an effect held by a let are not supported yet: '${v.name}'`)
+            }
+            // The elements of a chain held by a let are written here, so they
+            // are counted here, once, and not where the let is used.
+            for (const c of expr.type === 'Chain' ? expr.chain : [expr]) {
+                if (c && c.type === 'Call' && c.name) nextOccurrence(c.name)
+            }
+        } else if (containsRandom(expr)) {
+            const scopeKey = `${keyScope.join('/')}|${v.name}`
+            const k = (letDeclarations.get(scopeKey) || 0) + 1
+            letDeclarations.set(scopeKey, k)
+            const resolved = resolveRandomAt(expr, k === 1 ? `let:${v.name}` : `let:${v.name}#${k}`)
+            if (resolved === undefined) return
+            expr = resolved
+        }
         if (expr && isStarterChain(expr)) {
             const head = firstChainCall(expr)
             if (head) pushDiag('S006', head)
@@ -979,6 +1098,10 @@ export function validate(ast) {
                         pushDiag('S001', original, 'read() is a starter node and cannot be chained inline. Use standalone read() to start a new chain.')
                         continue
                     }
+                    if (containsRandom(original.surface)) {
+                        pushDiag('S013', original, 'A random call cannot choose a surface')
+                        continue
+                    }
                     const surface = toSurface(original.surface)
                     if (!surface) {
                         pushDiag('S001', original, 'read() requires a valid surface reference')
@@ -1251,6 +1374,14 @@ export function validate(ast) {
                     current = idx
                     continue
                 }
+                // The element's key for its draws: its occurrence name, or,
+                // for an effect passed as a value, the key of that value.
+                const occurrence = original.fromLet ? call.name : nextOccurrence(call.name)
+                const elementKey = valueKeys.length
+                    ? `${valueKeys[valueKeys.length - 1]}/e:${opName}`
+                    : `${opName}@${occurrence}`
+                let randomSources = null
+                let authoredSeed = false
                 const isStarter = isStarterOp(opName)
                 const starterlessRoot = current === null
                 const allowPassthroughRoot = allowStarterless && SURFACE_PASSTHROUGH_CALLS.has(opName)
@@ -1341,6 +1472,19 @@ export function validate(ast) {
                     node = substitute(node)
                     const argKey = def.name
                     if (kw && kw[def.name] !== undefined) seen.add(def.name)
+                    if (def.name === 'seed' && hasSeedDirective && node !== undefined) authoredSeed = true
+                    if (node && node.type === 'Func' && sourceCallsRandom(node.src)) {
+                        pushDiag('S013', original, `A random call cannot be evaluated at run time, in '${def.name}' of ${call.name}()`)
+                        node = undefined
+                    }
+                    if (node && containsRandom(node)) {
+                        const source = node
+                        node = resolveRandomAt(node, joinKey(elementKey, def.name))
+                        if (node !== undefined) {
+                            randomSources = randomSources || {}
+                            randomSources[argKey] = source
+                        }
+                    }
                     // Array literal — additive input form. Only fires when
                     // the source contains a literal `[…]`. Existing programs
                     // can never produce ArrayLiteral nodes (the lexer only
@@ -1383,12 +1527,24 @@ export function validate(ast) {
                     if (inlineSurface) {
                         surf = inlineSurface
                     } else if (node && node.type === 'Chain') {
-                        const idx = processChain(node.chain, null, {allowStarterless: true})
+                        valueKeys.push(joinKey(elementKey, argKey))
+                        let idx
+                        try {
+                            idx = processChain(node.chain, null, {allowStarterless: true})
+                        } finally {
+                            valueKeys.pop()
+                        }
                         if (idx !== null && idx !== undefined) {
                             surf = {kind:'temp', index: idx}
                         }
                     } else if (node && node.type === 'Call') {
-                        const idx = processChain([node], null, {allowStarterless: true})
+                        valueKeys.push(joinKey(elementKey, argKey))
+                        let idx
+                        try {
+                            idx = processChain([node], null, {allowStarterless: true})
+                        } finally {
+                            valueKeys.pop()
+                        }
                         if (idx !== null && idx !== undefined) {
                             surf = {kind:'temp', index: idx}
                         }
@@ -1787,6 +1943,9 @@ export function validate(ast) {
                 // Handle _skip meta-argument (skip this step in the pipeline)
                 if (kw && kw._skip !== undefined) {
                     const skipNode = kw._skip
+                    if (containsRandom(skipNode)) {
+                        pushDiag('S013', original, 'A random call cannot set _skip')
+                    }
                     if (skipNode && skipNode.type === 'Boolean') {
                         args._skip = skipNode.value
                     } else {
@@ -1855,6 +2014,8 @@ export function validate(ast) {
                 // Absent when no arg used a source-tagged input form, so
                 // existing programs add no new fields to compiled output.
                 if (argSources) { step.argSources = argSources }
+                if (randomSources) { step.randomSources = randomSources }
+                if (authoredSeed) { step.authoredSeed = true }
                 chain.push(step)
                 current = idx
             }
@@ -1907,15 +2068,30 @@ export function validate(ast) {
 
     function compileStmt(stmt) {
         if (stmt.type === 'IfStmt') {
-            reportReadsBeforeLet(stmt.condition)
-            const cond = evalCondition(stmt.condition)
-            const thenBranch = compileBlock(stmt.then)
-            const elif = []
-            for (const e of stmt.elif || []) {
-                reportReadsBeforeLet(e.condition)
-                elif.push({cond: evalCondition(e.condition), then: compileBlock(e.then)})
+            const ifKey = `if_${++ifCount}`
+            const resolveCondition = (condition, k) => {
+                if (!containsRandom(condition)) return condition
+                return resolveRandomAt(substitute(clone(condition)), joinKey(ifKey, `cond${k}`)) ?? {type: 'Boolean', value: false}
             }
-            const elseBranch = compileBlock(stmt.else)
+            const inBranch = (k, body) => {
+                keyScope.push(`${ifKey}/b${k}`)
+                try {
+                    return compileBlock(body)
+                } finally {
+                    keyScope.pop()
+                }
+            }
+            reportReadsBeforeLet(stmt.condition)
+            const cond = evalCondition(resolveCondition(stmt.condition, 0))
+            const thenBranch = inBranch(0, stmt.then)
+            const elif = []
+            let branch = 0
+            for (const e of stmt.elif || []) {
+                branch++
+                reportReadsBeforeLet(e.condition)
+                elif.push({cond: evalCondition(resolveCondition(e.condition, branch)), then: inBranch(branch, e.then)})
+            }
+            const elseBranch = inBranch(branch + 1, stmt.else)
             return withSource({type:'Branch', cond, then: thenBranch, elif, else: elseBranch}, stmt)
         }
         if (stmt.type === 'Break') {
@@ -1955,6 +2131,7 @@ export function validate(ast) {
 
     // Preserve trailing comments from program
     const result = {plans, diagnostics: diagnosticsList, render, vars, searchNamespaces}
+    if (hasSeedDirective) { result.seed = programSeed }
     if (ast.trailingComments) { result.trailingComments = ast.trailingComments }
     // The plans in source order. A let's `planIndex` points into this list,
     // so the unparser can keep statement order after hosts remove plans.

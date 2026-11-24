@@ -2,9 +2,10 @@
  * Recursive-descent parser for the Polymorphic DSL.
  *
  * Grammar (EBNF). docs/shaders/language.rst states the same grammar.
- * Program        ::= Ignored SearchDirective ( Ignored Statement )* ( Ignored RenderDirective )? Ignored
+ * Program        ::= Ignored SearchDirective ( Ignored SeedDirective )? ( Ignored Statement )* ( Ignored RenderDirective )? Ignored
  * SearchDirective::= 'search' Namespace ( ',' Namespace )*    // Required (P004)
  * Namespace      ::= Ident | Keyword                          // A registered namespace (P004)
+ * SeedDirective  ::= 'seed' Digit+                           // The program seed, 0 to 4294967295 (P011)
  * Statement      ::= VarAssign | ChainStmt | IfStmt | Break | Continue | Return
  * RenderDirective::= 'render' '(' OutputRef ')'
  * Block          ::= '{' ( Statement ';'* )* '}'
@@ -29,7 +30,10 @@
  * Term           ::= Unary ( ( '*' | '/' ) Unary )*
  * Unary          ::= ( '+' | '-' )* Primary
  * Primary        ::= Number | 'Math.PI' | String | Boolean | Color | Array | Func | Ident | Member
- *                  | Chain | SurfaceRef | '(' Expr ')'   // A Chain here has no write (P005)
+ *                  | RandomCall | Chain | SurfaceRef | '(' Expr ')'   // A Chain here has no write (P005)
+ * RandomCall     ::= ( 'rand' | 'randInt' | 'pick' | 'chance' | 'randColor' | 'choices' ) '(' ArgList? ')'
+ *                  // Contextual names, not keywords. Arithmetic may combine a RandomCall
+ *                  // with numbers; the validator resolves it.
  * Array          ::= '[' ( Expr ( ',' Expr )* )? ']'
  * Member         ::= Ident ( '.' Segment )+
  * Func           ::= '(' ')' '=>' Expr
@@ -150,6 +154,11 @@ export function parse(tokens, options = {}) {
     function skipComments() {
         while (peek()?.type === 'COMMENT') advance()
     }
+
+    // Random constructs. Their names are contextual: only a call of one of
+    // these names in a value is a random construct.
+    const RANDOM_FUNCTIONS = new Set(['rand', 'randInt', 'pick', 'chance', 'randColor', 'choices'])
+    const isDeferred = (node) => node && (node.type === 'Random' || node.type === 'Binary' || node.type === 'Unary')
 
     const exprStartTokens = new Set([
         'PLUS', 'MINUS', 'NUMBER', 'HEX', 'FUNC', 'STRING',
@@ -519,6 +528,7 @@ export function parse(tokens, options = {}) {
         const plans = []
         const vars = []
         let render = null
+        let programSeed = null
         const trailingComments = []
 
         const appendStatement = (stmt) => {
@@ -548,6 +558,37 @@ export function parse(tokens, options = {}) {
             'IDENT', 'RENDER', 'WRITE', 'WRITE3D', 'TRUE', 'FALSE',
             'IF', 'ELIF', 'ELSE', 'BREAK', 'CONTINUE', 'RETURN'
         ])
+
+        // `seed` begins the seed directive only where a statement could not
+        // begin: a call (`seed(`) or a chain (`seed.`) is not a directive.
+        function isSeedDirectiveStart() {
+            const t = peek()
+            if (t.type !== 'IDENT' || t.lexeme !== 'seed') return false
+            const next = tokens[current + 1]?.type
+            return next !== 'LPAREN' && next !== 'DOT'
+        }
+
+        // Parse the seed directive: seed <uint32>
+        function parseSeedDirective() {
+            const t = advance() // consume 'seed'
+            if (programSeed !== null) {
+                throw parserError('P011', `Only one seed directive is allowed per program at line ${t.line} col ${t.col}`, t)
+            }
+            if (plans.length || vars.length || render) {
+                throw parserError('P011', `'seed' directive must appear before other statements at line ${t.line} col ${t.col}`, t)
+            }
+            if (programSearchOrder === null) {
+                throw parserError('P011', `'seed' directive must follow the search directive at line ${t.line} col ${t.col}`, t)
+            }
+            const valueToken = peek()
+            if (valueToken.type !== 'NUMBER' || !/^[0-9]+$/.test(valueToken.lexeme) ||
+                Number(valueToken.lexeme) > 4294967295) {
+                throw parserError('P011', `The seed must be a whole number from 0 to 4294967295 at line ${valueToken.line} col ${valueToken.col}`, valueToken)
+            }
+            advance()
+            programSeed = {value: Number(valueToken.lexeme), loc: locOf(t)}
+            while (peek().type === 'SEMICOLON') advance()
+        }
 
         // Parse the search directive: search ns1, ns2, ns3
         function parseSearchDirective() {
@@ -616,6 +657,10 @@ export function parse(tokens, options = {}) {
                 parseSearchDirective()
                 continue
             }
+            if (isSeedDirectiveStart()) {
+                parseSeedDirective()
+                continue
+            }
             if (peek().type === 'RENDER') {
                 consumeRender()
                 // Attach leading comments to render if present
@@ -643,6 +688,7 @@ export function parse(tokens, options = {}) {
         }
 
         const program = { type: 'Program', plans, render }
+        if (programSeed !== null) { program.seed = programSeed }
         if (vars.length) { program.vars = vars }
         if (trailingComments.length) { program.trailingComments = trailingComments }
 
@@ -1169,6 +1215,10 @@ export function parse(tokens, options = {}) {
         while (peek().type === 'PLUS' || peek().type === 'MINUS') {
             const op = advance().type
             const right = parseMultiplicative()
+            if (isDeferred(node) || isDeferred(right)) {
+                node = {type: 'Binary', op: op === 'PLUS' ? '+' : '-', left: node, right, loc: node.loc}
+                continue
+            }
             const l = toNumber(node)
             const r = toNumber(right)
             node = {type: 'Number', value: op === 'PLUS' ? l + r : l - r, loc: node.loc}
@@ -1181,6 +1231,10 @@ export function parse(tokens, options = {}) {
         while (peek().type === 'STAR' || peek().type === 'SLASH') {
             const op = advance().type
             const right = parseUnary()
+            if (isDeferred(node) || isDeferred(right)) {
+                node = {type: 'Binary', op: op === 'STAR' ? '*' : '/', left: node, right, loc: node.loc}
+                continue
+            }
             const l = toNumber(node)
             const r = toNumber(right)
             node = {type: 'Number', value: op === 'STAR' ? l * r : l / r, loc: node.loc}
@@ -1196,6 +1250,7 @@ export function parse(tokens, options = {}) {
         if (peek().type === 'MINUS') {
             advance()
             const val = parseUnary()
+            if (isDeferred(val)) return {type: 'Unary', op: '-', arg: val, loc: val.loc}
             return {type: 'Number', value: -toNumber(val), loc: val.loc}
         }
         return parsePrimary()
@@ -1287,6 +1342,12 @@ export function parse(tokens, options = {}) {
                     advance()
                     advance()
                     return {type: 'Number', value: Math.PI, loc: locOf(token)}
+                }
+                if (RANDOM_FUNCTIONS.has(token.lexeme) && tokens[current + 1]?.type === 'LPAREN') {
+                    const call = parseCall()
+                    const node = {type: 'Random', fn: call.name, args: call.args, loc: call.loc}
+                    if (call.kwargs) node.kwargs = call.kwargs
+                    return node
                 }
                 if (tokens[current + 1]?.type === 'LPAREN' || hasCallAfterDot(current)) {
                     const chain = parseChain('expression')

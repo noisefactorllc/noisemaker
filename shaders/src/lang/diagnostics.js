@@ -17,6 +17,7 @@ const diagnostics = {
   P008: { stage: 'parser', severity: 'warning', message: 'Unknown subchain argument key' },
   P009: { stage: 'parser', severity: 'warning', message: 'Duplicate subchain argument key' },
   P010: { stage: 'parser', severity: 'warning', message: "Missing ',' between subchain arguments" },
+  P011: { stage: 'parser', severity: 'error', message: 'Invalid seed directive' },
   S001: { stage: 'semantic', severity: 'error', message: 'Unknown identifier' },
   S002: { stage: 'semantic', severity: 'warning', message: 'Argument out of range' },
   S003: { stage: 'semantic', severity: 'error', message: 'Variable used before assignment' },
@@ -26,6 +27,8 @@ const diagnostics = {
   S007: { stage: 'semantic', severity: 'warning', message: 'Deprecated parameter alias' },
   S008: { stage: 'semantic', severity: 'warning', message: 'Deprecated effect' },
   S009: { stage: 'semantic', severity: 'error', message: 'Too many positional arguments' },
+  S012: { stage: 'semantic', severity: 'error', message: 'Invalid random call' },
+  S013: { stage: 'semantic', severity: 'error', message: 'Random call not allowed here' },
   R001: { stage: 'runtime', severity: 'error', message: 'Runtime error' }
 }
 

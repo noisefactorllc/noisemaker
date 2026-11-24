@@ -15,9 +15,10 @@ Grammar
 
 .. code-block:: none
 
-   Program        ::= Ignored SearchDirective ( Ignored Statement )* ( Ignored RenderDirective )? Ignored
+   Program        ::= Ignored SearchDirective ( Ignored SeedDirective )? ( Ignored Statement )* ( Ignored RenderDirective )? Ignored
    SearchDirective::= 'search' Namespace ( ',' Namespace )*
    Namespace      ::= Ident | Keyword
+   SeedDirective  ::= 'seed' Digit+
    Statement      ::= VarAssign | ChainStmt | IfStmt | Break | Continue | Return
    RenderDirective::= 'render' '(' OutputRef ')'
    Block          ::= '{' ( Statement ';'* )* '}'
@@ -44,7 +45,8 @@ Grammar
    Term           ::= Unary ( ( '*' | '/' ) Unary )*
    Unary          ::= ( '+' | '-' )* Primary
    Primary        ::= Number | 'Math.PI' | String | Boolean | Color | Array | Func | Ident | Member
-                    | Chain | Object | SurfaceRef | '(' Expr ')'
+                    | RandomCall | Chain | Object | SurfaceRef | '(' Expr ')'
+   RandomCall     ::= ( 'rand' | 'randInt' | 'pick' | 'chance' | 'randColor' | 'choices' ) '(' ArgList? ')'
    Object         ::= '{' ( Ident ':' Expr ( ',' Ident ':' Expr )* ','? )? '}'  (experimental)
    Array          ::= '[' ( Expr ( ',' Expr )* )? ']'
    Member         ::= Ident ( '.' Segment )+
@@ -322,6 +324,41 @@ change values outside the block.
 * ``y(2)``: Creates a new Effect Instance by appending ``octaves: 2`` to the
   stored positional arguments. The original ``y`` remains unchanged
   (immutable).
+
+Seeded randomization
+^^^^^^^^^^^^^^^^^^^^
+
+A program can draw random values that stay in its source. The ``seed``
+directive, written after ``search``, sets the program seed, a whole number
+from 0 to 4294967295. A program without it draws from seed 0. Changing the
+seed changes every draw; the source does not change.
+
+.. code-block:: none
+
+  search synth
+  seed 7
+
+  let size = randInt(40, 90)
+  noise(scaleX: size, scaleY: size, octaves: pick(1, 2, 3)).write(o0)
+
+* ``rand()`` and ``rand(min, max)``: a decimal from ``min`` to ``max``.
+* ``randInt(min, max)``: a whole number from ``min`` to ``max``, both included.
+* ``pick(a, b, ...)``: one of its arguments. ``pick(choices(effect, parameter))``
+  picks one of a parameter's choices.
+* ``chance(p)``: ``true`` with probability ``p``, from 0 to 1.
+* ``randColor(h:, s:, v:)``: a color. A component left out is drawn.
+
+Each call draws from the seed and from where it is written: its effect, its
+parameter and its place in the value. Adding, removing or editing one call
+changes no other draw. A ``let`` draws once, and every use of it shares the
+value. A call with its own ``seed:`` argument draws the same value whatever
+the program seed.
+
+Random calls may appear in parameter values, ``let`` values, vectors,
+arithmetic, automation arguments and ``if`` conditions. They may not choose a
+surface or an effect, appear in a directive, or appear in an arrow function,
+which runs on every frame. The names are not keywords: a ``let`` may use them,
+and then hides the function where it is visible.
 
 Partials
 ^^^^^^^^
