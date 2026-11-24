@@ -79,6 +79,8 @@ export function compileGraph(source, options = {}) {
         // needs it: which volumeSize uniform scopes are pinned, and to what.
         sceneVolumeAtlasScopes: collectSceneVolumeAtlasScopes(volumeProducers),
         mediaSteps, // Per-step external texture bindings (e.g. imageTex_step_0)
+        // 'p3' when the program's gamut directive lets its colors leave sRGB.
+        gamut: compilationResult.gamut ?? null,
         compiledAt: Date.now()
     }
     // The state keys of the elements with an `_id:` (CanvasRenderer.keyOf());

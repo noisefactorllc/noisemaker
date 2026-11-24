@@ -135,3 +135,85 @@ test('WebGL2 present() uses the conversion program under display-p3, follows a c
     assert.equal(compiles, 1, 'a program that does not compile is not compiled again every frame')
     assert.deepEqual(used, [])
 })
+
+test('a program that declares gamut p3 presents through the unclamped conversion on a Display P3 canvas, and as before on srgb', () => {
+    const used = []
+    const gl = {
+        FRAMEBUFFER: 1, COLOR_BUFFER_BIT: 2, TEXTURE0: 3, TEXTURE_2D: 4, TRIANGLES: 5,
+        bindFramebuffer() {}, viewport() {}, clearColor() {}, clear() {}, activeTexture() {}, bindTexture() {},
+        uniform1i() {}, bindVertexArray() {}, drawArrays() {}, useProgram: program => used.push(program),
+    }
+    const backend = new WebGL2Backend(gl, null, { colorOutput: DISPLAY_P3 })
+    backend.textures.set('out', { handle: {} })
+    backend.presentProgram = { handle: 'srgb', uniforms: { texture: {} } }
+    backend.fullscreenVAO = {}
+    backend.createDisplayP3PresentProgram = ({ unclamped = false } = {}) => ({ handle: unclamped ? 'p3-unclamped' : 'p3', uniforms: { texture: {} } })
+    backend.present('out', { gamut: 'p3' })
+    backend.present('out')
+    backend.colorOutput = SRGB
+    backend.present('out', { gamut: 'p3' })
+    assert.deepEqual(used.filter(entry => entry !== null), ['p3-unclamped', 'p3', 'srgb'])
+
+    const { backend: gpu, modules } = webgpu(DISPLAY_P3)
+    gpu.getBlitPipeline({ unclamped: true })
+    assert.match(modules.at(-1), /return nmPresentDisplayP3Unclamped\(textureSample\(srcTex, srcSampler, input.uv\)\);/)
+    gpu.getBlitPipeline()
+    assert.match(modules.at(-1), /return nmPresentDisplayP3\(textureSample\(srcTex, srcSampler, input.uv\)\);/)
+    gpu.colorOutput = SRGB
+    gpu.getBlitPipeline({ unclamped: true })
+    assert.equal(modules.at(-1), SRGB_BLIT_WGSL, 'srgb ignores the directive')
+})
+
+test('the canvas sink presents with the current program\'s gamut', async () => {
+    const { CanvasSink } = await import('../src/runtime/sink.js')
+    const calls = []
+    let gamut = 'p3'
+    const sink = new CanvasSink({ present: (id, options) => calls.push([id, options]) }, () => gamut)
+    sink.submit('o0', 0)
+    gamut = null
+    sink.submit('o0', 0)
+    assert.deepEqual(calls, [['o0', { gamut: 'p3' }], ['o0', { gamut: null }]])
+    const plain = []
+    new CanvasSink({ present: (id, options) => plain.push(options) }).submit('o0', 0)
+    assert.deepEqual(plain, [{ gamut: null }])
+})
+
+test('the real WebGL2 program and WebGPU present() take the unclamped conversion for a program that declares gamut p3', () => {
+    const { backend, sources } = webgl2(DISPLAY_P3)
+    backend.createDisplayP3PresentProgram({ unclamped: true })
+    backend.createDisplayP3PresentProgram()
+    assert.match(sources[0], /fragColor = nmPresentDisplayP3Unclamped\(texture\(u_texture, v_texCoord\)\);/)
+    assert.match(sources[1], /fragColor = nmPresentDisplayP3\(texture\(u_texture, v_texCoord\)\);/)
+
+    const modules = []
+    const device = {
+        queue: { submit() {} },
+        addEventListener() {},
+        createShaderModule: descriptor => { modules.push(descriptor.code); return {} },
+        createRenderPipeline: descriptor => ({ descriptor, getBindGroupLayout: () => ({}) }),
+        createBindGroup: () => ({}),
+        createCommandEncoder: () => ({
+            beginRenderPass: () => ({ setPipeline() {}, setBindGroup() {}, draw() {}, end() {} }),
+            finish: () => ({}),
+        }),
+    }
+    const context = { canvas: { width: 4, height: 2 }, getCurrentTexture: () => ({ width: 4, height: 2, createView: () => ({}) }) }
+    const gpu = new WebGPUBackend(device, context, { canvasConfiguration: { format: 'rgba16float' }, colorOutput: DISPLAY_P3 })
+    gpu.textures.set('out', { width: 4, height: 2, view: {} })
+    gpu.present('out', { gamut: 'p3' })
+    assert.match(modules.at(-1), /return nmPresentDisplayP3Unclamped\(/)
+    gpu.present('out')
+    assert.match(modules.at(-1), /return nmPresentDisplayP3\(textureSample/)
+})
+
+test('the pipeline\'s canvas sink presents with the current graph\'s gamut, and follows a new graph', async () => {
+    const { Pipeline } = await import('../src/runtime/pipeline.js')
+    const calls = []
+    const backend = { present: (id, options) => calls.push(options), getName: () => 'stub', textures: new Map() }
+    const pipeline = new Pipeline({ passes: [], gamut: 'p3', renderSurface: 'o0' }, backend, {})
+    const [registration] = pipeline.sinkManager._registrations
+    registration.sink.submit('o0', 0)
+    pipeline.graph = { ...pipeline.graph, gamut: null }
+    registration.sink.submit('o0', 0)
+    assert.deepEqual(calls, [{ gamut: 'p3' }, { gamut: null }])
+})

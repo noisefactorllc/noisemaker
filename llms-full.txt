@@ -1890,6 +1890,7 @@ type CompiledGraph = {
   sceneIR: SceneIR | null
   sceneVolumeAtlasScopes: Record<string, {surface: string, size: number}>
   mediaSteps: Array<{textureId: string, uniform: string, stepIndex: number, effect: string}> // per-step external texture bindings, one entry per distinct texture id in program order
+  gamut: 'p3' | null                 // the program's gamut directive; 'p3' skips the sRGB clamp on a Display P3 canvas
   compiledAt: number                 // Date.now(), milliseconds since epoch
 }
 

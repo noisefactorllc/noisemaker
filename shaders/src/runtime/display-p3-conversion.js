@@ -20,6 +20,10 @@
  * cannot be unpremultiplied; its clamped color is converted as it is, and
  * keeps alpha 0, as an 8-bit srgb canvas keeps it.
  *
+ * A program that declares `gamut p3` skips the clamp of step 1, so its colors
+ * outside sRGB reach the display. The clamp of step 7 still keeps the result
+ * inside Display P3.
+ *
  * The constants are held once, here. The GLSL and WGSL functions are made from
  * them, and presentDisplayP3() is the same conversion in JavaScript, which the
  * tests and the corpus measurements use.
@@ -87,12 +91,15 @@ const clamp01 = v => Math.min(1, Math.max(0, v))
 /**
  * The present conversion of one premultiplied pixel, in JavaScript.
  * @param {number[]} rgba - Premultiplied, as a surface holds it
+ * @param {object} [options]
+ * @param {boolean} [options.clampToSrgb=true] - false for a program that declares `gamut p3`
  * @returns {number[]} Premultiplied Display P3
  */
-export function presentDisplayP3([r, g, b, a]) {
+export function presentDisplayP3([r, g, b, a], { clampToSrgb = true } = {}) {
     const alpha = clamp01(a)
-    if (alpha <= 0) return [...apply3(SRGB_TO_DISPLAY_P3, [r, g, b].map(c => decodeSrgb(clamp01(c)))).map(c => clamp01(encodeSrgb(c))), 0]
-    const straight = [r, g, b].map(c => clamp01(c) / alpha)
+    const first = clampToSrgb ? clamp01 : c => c
+    if (alpha <= 0) return [...apply3(SRGB_TO_DISPLAY_P3, [r, g, b].map(c => decodeSrgb(first(c)))).map(c => clamp01(encodeSrgb(c))), 0]
+    const straight = [r, g, b].map(c => first(c) / alpha)
     const p3 = apply3(SRGB_TO_DISPLAY_P3, straight.map(decodeSrgb)).map(encodeSrgb)
     return [...p3.map(c => clamp01(c * alpha)), alpha]
 }
@@ -113,7 +120,11 @@ const wgslFloat = glslFloat
 // GLSL and WGSL matrices take columns.
 const columns = SRGB_TO_DISPLAY_P3[0].map((_, column) => SRGB_TO_DISPLAY_P3.map(row => row[column]))
 
-/** The conversion in GLSL ES 3.00: nmPresentDisplayP3(vec4) -> vec4. */
+/**
+ * The conversion in GLSL ES 3.00: nmPresentDisplayP3(vec4) -> vec4, and
+ * nmPresentDisplayP3Unclamped(vec4) -> vec4 for a program that declares
+ * `gamut p3`.
+ */
 export const DISPLAY_P3_GLSL = `
 const mat3 NM_SRGB_TO_DISPLAY_P3 = mat3(
     ${columns.map(column => column.map(glslFloat).join(', ')).join(',\n    ')});
@@ -129,16 +140,25 @@ vec3 nmEncodeSrgb(vec3 v) {
     vec3 hi = ${glslFloat(SCALE)} * pow(m, vec3(1.0 / ${glslFloat(GAMMA)})) - ${glslFloat(OFFSET)};
     return sign(v) * mix(hi, lo, lessThanEqual(m, vec3(${glslFloat(ENCODE_EDGE)})));
 }
-vec4 nmPresentDisplayP3(vec4 c) {
-    float a = clamp(c.a, 0.0, 1.0);
-    if (a <= 0.0) return vec4(clamp(nmEncodeSrgb(NM_SRGB_TO_DISPLAY_P3 * nmDecodeSrgb(clamp(c.rgb, 0.0, 1.0))), 0.0, 1.0), 0.0);
-    vec3 rgb = clamp(c.rgb, 0.0, 1.0) / a;
-    rgb = nmEncodeSrgb(NM_SRGB_TO_DISPLAY_P3 * nmDecodeSrgb(rgb));
+vec4 nmConvertDisplayP3(vec3 premultiplied, float alpha) {
+    float a = clamp(alpha, 0.0, 1.0);
+    if (a <= 0.0) return vec4(clamp(nmEncodeSrgb(NM_SRGB_TO_DISPLAY_P3 * nmDecodeSrgb(premultiplied)), 0.0, 1.0), 0.0);
+    vec3 rgb = nmEncodeSrgb(NM_SRGB_TO_DISPLAY_P3 * nmDecodeSrgb(premultiplied / a));
     return vec4(clamp(rgb * a, 0.0, 1.0), a);
+}
+vec4 nmPresentDisplayP3(vec4 c) {
+    return nmConvertDisplayP3(clamp(c.rgb, 0.0, 1.0), c.a);
+}
+vec4 nmPresentDisplayP3Unclamped(vec4 c) {
+    return nmConvertDisplayP3(c.rgb, c.a);
 }
 `
 
-/** The conversion in WGSL: nmPresentDisplayP3(vec4f) -> vec4f. */
+/**
+ * The conversion in WGSL: nmPresentDisplayP3(vec4f) -> vec4f, and
+ * nmPresentDisplayP3Unclamped(vec4f) -> vec4f for a program that declares
+ * `gamut p3`.
+ */
 export const DISPLAY_P3_WGSL = `
 const NM_SRGB_TO_DISPLAY_P3 = mat3x3<f32>(
     ${columns.map(column => column.map(wgslFloat).join(', ')).join(',\n    ')});
@@ -154,14 +174,19 @@ fn nmEncodeSrgb(v: vec3<f32>) -> vec3<f32> {
     let hi = ${wgslFloat(SCALE)} * pow(m, vec3<f32>(1.0 / ${wgslFloat(GAMMA)})) - vec3<f32>(${wgslFloat(OFFSET)});
     return sign(v) * select(hi, lo, m <= vec3<f32>(${wgslFloat(ENCODE_EDGE)}));
 }
-fn nmPresentDisplayP3(c: vec4<f32>) -> vec4<f32> {
-    let a = clamp(c.a, 0.0, 1.0);
+fn nmConvertDisplayP3(premultiplied: vec3<f32>, alpha: f32) -> vec4<f32> {
+    let a = clamp(alpha, 0.0, 1.0);
     if (a <= 0.0) {
-        let shown = nmEncodeSrgb(NM_SRGB_TO_DISPLAY_P3 * nmDecodeSrgb(clamp(c.rgb, vec3<f32>(0.0), vec3<f32>(1.0))));
+        let shown = nmEncodeSrgb(NM_SRGB_TO_DISPLAY_P3 * nmDecodeSrgb(premultiplied));
         return vec4<f32>(clamp(shown, vec3<f32>(0.0), vec3<f32>(1.0)), 0.0);
     }
-    var rgb = clamp(c.rgb, vec3<f32>(0.0), vec3<f32>(1.0)) / a;
-    rgb = nmEncodeSrgb(NM_SRGB_TO_DISPLAY_P3 * nmDecodeSrgb(rgb));
+    let rgb = nmEncodeSrgb(NM_SRGB_TO_DISPLAY_P3 * nmDecodeSrgb(premultiplied / a));
     return vec4<f32>(clamp(rgb * a, vec3<f32>(0.0), vec3<f32>(1.0)), a);
+}
+fn nmPresentDisplayP3(c: vec4<f32>) -> vec4<f32> {
+    return nmConvertDisplayP3(clamp(c.rgb, vec3<f32>(0.0), vec3<f32>(1.0)), c.a);
+}
+fn nmPresentDisplayP3Unclamped(c: vec4<f32>) -> vec4<f32> {
+    return nmConvertDisplayP3(c.rgb, c.a);
 }
 `

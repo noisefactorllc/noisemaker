@@ -2,10 +2,11 @@
  * Recursive-descent parser for the Polymorphic DSL.
  *
  * Grammar (EBNF). docs/shaders/language.rst states the same grammar.
- * Program        ::= Ignored SearchDirective ( Ignored SeedDirective )? ( Ignored Statement )* ( Ignored RenderDirective )? Ignored
+ * Program        ::= Ignored SearchDirective ( Ignored GamutDirective ( Ignored SeedDirective )? | Ignored SeedDirective ( Ignored GamutDirective )? )? ( Ignored Statement )* ( Ignored RenderDirective )? Ignored
  * SearchDirective::= 'search' Namespace ( ',' Namespace )*    // Required (P004)
  * Namespace      ::= Ident | Keyword                          // A registered namespace (P004)
  * SeedDirective  ::= 'seed' Digit+                           // The program seed, 0 to 4294967295 (P011)
+ * GamutDirective ::= 'gamut' 'p3'                            // The program's colors may leave sRGB, at most once, before or after seed (P012)
  * Statement      ::= VarAssign | ChainStmt | IfStmt | MaybeStmt | Break | Continue | Return
  * PartDecl       ::= 'part' Ident '{' ( VarAssign | MaybeStmt | ChainStmt | ChainTail )* '}'   // Top level only
  * ChainTail      ::= ( Comment* '.' ChainElement | MaybeTail )+   // A part's chain fragment
@@ -535,6 +536,7 @@ export function parse(tokens, options = {}) {
         const vars = []
         let render = null
         let programSeed = null
+        let programGamut = null
         const parts = []
         const trailingComments = []
 
@@ -611,6 +613,36 @@ export function parse(tokens, options = {}) {
             while (peek().type === 'SEMICOLON') advance()
         }
 
+        // `gamut` begins the gamut directive only where a statement could not
+        // begin, as `seed` does.
+        function isGamutDirectiveStart() {
+            const t = peek()
+            if (t.type !== 'IDENT' || t.lexeme !== 'gamut') return false
+            const next = tokens[current + 1]?.type
+            return next !== 'LPAREN' && next !== 'DOT'
+        }
+
+        // Parse the gamut directive: gamut p3
+        function parseGamutDirective() {
+            const t = advance() // consume 'gamut'
+            if (programGamut !== null) {
+                throw parserError('P012', `Only one gamut directive is allowed per program at line ${t.line} col ${t.col}`, t)
+            }
+            if (plans.length || vars.length || parts.length || render) {
+                throw parserError('P012', `'gamut' directive must appear before other statements at line ${t.line} col ${t.col}`, t)
+            }
+            if (programSearchOrder === null) {
+                throw parserError('P012', `'gamut' directive must follow the search directive at line ${t.line} col ${t.col}`, t)
+            }
+            const valueToken = peek()
+            if (valueToken.type !== 'IDENT' || valueToken.lexeme !== 'p3') {
+                throw parserError('P012', `The gamut must be p3 at line ${valueToken.line} col ${valueToken.col}`, valueToken)
+            }
+            advance()
+            programGamut = {value: 'p3', loc: locOf(t)}
+            while (peek().type === 'SEMICOLON') advance()
+        }
+
         // Parse the search directive: search ns1, ns2, ns3
         function parseSearchDirective() {
             if (programSearchOrder !== null) {
@@ -682,6 +714,10 @@ export function parse(tokens, options = {}) {
                 parseSeedDirective()
                 continue
             }
+            if (isGamutDirectiveStart()) {
+                parseGamutDirective()
+                continue
+            }
             if (isPartDeclStart()) {
                 const decl = parsePartDecl()
                 if (leadingComments.length > 0) decl.leadingComments = leadingComments
@@ -719,6 +755,7 @@ export function parse(tokens, options = {}) {
 
         const program = { type: 'Program', plans, render }
         if (programSeed !== null) { program.seed = programSeed }
+        if (programGamut !== null) { program.gamut = programGamut }
         if (parts.length) { program.parts = parts }
         if (vars.length) { program.vars = vars }
         if (trailingComments.length) { program.trailingComments = trailingComments }

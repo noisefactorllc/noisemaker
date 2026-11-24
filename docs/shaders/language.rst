@@ -15,10 +15,11 @@ Grammar
 
 .. code-block:: none
 
-   Program        ::= Ignored SearchDirective ( Ignored SeedDirective )? ( Ignored Statement )* ( Ignored RenderDirective )? Ignored
+   Program        ::= Ignored SearchDirective ( Ignored GamutDirective ( Ignored SeedDirective )? | Ignored SeedDirective ( Ignored GamutDirective )? )? ( Ignored Statement )* ( Ignored RenderDirective )? Ignored
    SearchDirective::= 'search' Namespace ( ',' Namespace )*
    Namespace      ::= Ident | Keyword
    SeedDirective  ::= 'seed' Digit+
+   GamutDirective ::= 'gamut' 'p3'
    Statement      ::= VarAssign | ChainStmt | IfStmt | Break | Continue | Return
    RenderDirective::= 'render' '(' OutputRef ')'
    Block          ::= '{' ( Statement ';'* )* '}'
@@ -325,6 +326,29 @@ change values outside the block.
 * ``y(2)``: Creates a new Effect Instance by appending ``octaves: 2`` to the
   stored positional arguments. The original ``y`` remains unchanged
   (immutable).
+
+Wide gamut
+^^^^^^^^^^
+
+The ``gamut`` directive, written after ``search`` and before the first
+statement, declares that a program's colors may leave sRGB. The unparser writes
+it on its own line after ``search``. Its
+value is ``p3``. On a Display P3 canvas (the renderer's ``colorOutput:
+'display-p3'``), the present step then skips its sRGB clamp, so the program's
+colors outside sRGB reach the display. Every other program keeps the clamp and
+shows the colors it shows on an srgb canvas. A program has at most one
+``gamut`` directive.
+
+.. code-block:: none
+
+  search synth, filter
+  gamut p3
+
+  noise(scaleX: 4)
+    .bloom()
+    .write(o0)
+
+  render(o0)
 
 Seeded randomization
 ^^^^^^^^^^^^^^^^^^^^
@@ -1209,6 +1233,10 @@ Diagnostics
      - Parser
      - Error
      - Invalid seed directive
+   * - P012
+     - Parser
+     - Error
+     - Invalid gamut directive
    * - S001
      - Semantic
      - Error

@@ -18,6 +18,7 @@ const diagnostics = {
   P009: { stage: 'parser', severity: 'warning', message: 'Duplicate subchain argument key' },
   P010: { stage: 'parser', severity: 'warning', message: "Missing ',' between subchain arguments" },
   P011: { stage: 'parser', severity: 'error', message: 'Invalid seed directive' },
+  P012: { stage: 'parser', severity: 'error', message: 'Invalid gamut directive' },
   S001: { stage: 'semantic', severity: 'error', message: 'Unknown identifier' },
   S002: { stage: 'semantic', severity: 'warning', message: 'Argument out of range' },
   S003: { stage: 'semantic', severity: 'error', message: 'Variable used before assignment' },

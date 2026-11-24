@@ -1334,11 +1334,13 @@ export function unparse(compiled, overrides = {}, options = {}) {
     // Add search directive if present (with two line breaks after)
     if (searchNamespaces.length > 0 && !options.omitSearchDirective) {
         lines.push(`search ${searchNamespaces.join(', ')}`)
+        if (compiled.gamut !== undefined) lines.push(`gamut ${compiled.gamut}`)
         // The seed directive comes after every other directive.
         if (compiled.seed !== undefined) lines.push(`seed ${compiled.seed}`)
         lines.push('') // First blank line after search
-    } else if (compiled.seed !== undefined) {
-        lines.push(`seed ${compiled.seed}`)
+    } else if (compiled.seed !== undefined || compiled.gamut !== undefined) {
+        if (compiled.gamut !== undefined) lines.push(`gamut ${compiled.gamut}`)
+        if (compiled.seed !== undefined) lines.push(`seed ${compiled.seed}`)
         lines.push('')
     }
 

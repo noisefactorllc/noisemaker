@@ -4364,7 +4364,12 @@ export class WebGPUBackend extends Backend {
         return new Promise((resolve, reject) => (this._canvasCopyRequests ??= []).push({ resolve, reject }))
     }
 
-    present(textureId) {
+    /**
+     * @param {string} textureId - The surface to present
+     * @param {object} [options]
+     * @param {string|null} [options.gamut] - The program's gamut directive: 'p3' skips the sRGB clamp on a Display P3 canvas
+     */
+    present(textureId, { gamut = null } = {}) {
         if (!this.context) return
 
         const tex = this.textures.get(textureId)
@@ -4374,8 +4379,9 @@ export class WebGPUBackend extends Backend {
         // This handles format conversion (e.g., rgba16float -> bgra8unorm)
         const canvasTexture = this.context.getCurrentTexture()
         const exactPixels = tex.width === canvasTexture.width && tex.height === canvasTexture.height
-        const pipeline = this.getBlitPipeline()
-        const bindGroup = this.createBlitBindGroup(tex, exactPixels)
+        const blit = { unclamped: gamut === 'p3' }
+        const pipeline = this.getBlitPipeline(blit)
+        const bindGroup = this.createBlitBindGroup(tex, exactPixels, blit)
 
         const commandEncoder = this.device.createCommandEncoder()
         const canvasView = canvasTexture.createView()
@@ -4533,10 +4539,15 @@ export class WebGPUBackend extends Backend {
     }
 
     /**
-     * Get or create the blit pipeline for presenting to canvas
+     * Get or create the blit pipeline to the canvas: as before under srgb, and through the present
+     * conversion under display-p3, unclamped for a program that declares
+     * `gamut p3`. One pipeline is kept at a time.
+     * @param {object} [options]
+     * @param {boolean} [options.unclamped=false]
      */
-    getBlitPipeline() {
-        if (this._blitPipeline && this._blitPipelineColorOutput === this.colorOutput) return this._blitPipeline
+    getBlitPipeline({ unclamped = false } = {}) {
+        const key = this.colorOutput === DISPLAY_P3 ? `${DISPLAY_P3}${unclamped ? ':unclamped' : ''}` : this.colorOutput
+        if (this._blitPipeline && this._blitPipelineColorOutput === key) return this._blitPipeline
 
         const blitShaderSource = `
             struct VertexOutput {
@@ -4577,10 +4588,11 @@ export class WebGPUBackend extends Backend {
         const code = this.colorOutput === DISPLAY_P3
             ? blitShaderSource
                 .replace('@fragment', `${DISPLAY_P3_WGSL}\n            @fragment`)
-                .replace('return textureSample(srcTex, srcSampler, input.uv);', 'return nmPresentDisplayP3(textureSample(srcTex, srcSampler, input.uv));')
+                .replace('return textureSample(srcTex, srcSampler, input.uv);',
+                    `return ${unclamped ? 'nmPresentDisplayP3Unclamped' : 'nmPresentDisplayP3'}(textureSample(srcTex, srcSampler, input.uv));`)
             : blitShaderSource
         const module = this.device.createShaderModule({ code })
-        this._blitPipelineColorOutput = this.colorOutput
+        this._blitPipelineColorOutput = key
 
         this._blitPipeline = this.device.createRenderPipeline({
             layout: 'auto',
@@ -4606,8 +4618,8 @@ export class WebGPUBackend extends Backend {
     /**
      * Create a bind group for blitting a texture to the canvas
      */
-    createBlitBindGroup(tex, exactPixels = false) {
-        const pipeline = this.getBlitPipeline()
+    createBlitBindGroup(tex, exactPixels = false, blit = {}) {
+        const pipeline = this.getBlitPipeline(blit)
         // Interpolated UVs can drift from texel centers. Avoid mixing neighbors
         // during a same-size copy, but retain linear filtering when scaling.
         const sampler = this.samplers.get(exactPixels ? 'nearest' : 'default')

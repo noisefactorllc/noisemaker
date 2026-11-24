@@ -85,3 +85,13 @@ test('the GLSL and WGSL sources carry the same matrix, column by column', () => 
         assert.match(source, /nmPresentDisplayP3/)
     }
 })
+
+test('a program that declares gamut p3 keeps a color outside sRGB: Display P3 red reaches the display as P3 red', () => {
+    // Display P3 red, in extended sRGB: one channel over 1, two below 0.
+    const p3Red = displayP3ToSrgb([1, 0, 0])
+    assert.ok(p3Red[0] > 1 && p3Red[1] < 0 && p3Red[2] < 0)
+    close(presentDisplayP3([...p3Red, 1], { clampToSrgb: false }), [1, 0, 0, 1], 1e-6, 'unclamped')
+    close(presentDisplayP3([...p3Red, 1]), presentDisplayP3([1, 0, 0, 1]), 0, 'clamped to sRGB red by default')
+    close(presentDisplayP3([1.5, 1.5, 1.5, 1], { clampToSrgb: false }), [1, 1, 1, 1], 0, 'still clamped to the P3 gamut')
+    close(presentDisplayP3([0.3, 0.2, 0.1, 1], { clampToSrgb: false }), presentDisplayP3([0.3, 0.2, 0.1, 1]), 0, 'an sRGB color is the same either way')
+})

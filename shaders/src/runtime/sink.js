@@ -11,8 +11,13 @@ function validateSink(sink) {
 }
 
 export class CanvasSink {
-    constructor(backend) {
+    /**
+     * @param {object} backend
+     * @param {function(): (string|null)} [gamutOf] - The current program's gamut directive, which present reads
+     */
+    constructor(backend, gamutOf = () => null) {
         this.backend = backend
+        this._gamutOf = gamutOf
         this.descriptor = EMPTY_DESCRIPTOR
         this.closed = false
     }
@@ -22,7 +27,7 @@ export class CanvasSink {
     }
 
     submit(textureId, time) {
-        this.backend.present(textureId)
+        this.backend.present(textureId, { gamut: this._gamutOf() ?? null })
         return true
     }
 

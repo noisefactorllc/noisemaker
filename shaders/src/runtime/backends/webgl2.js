@@ -288,8 +288,10 @@ export class WebGL2Backend extends Backend {
      * The present program of the display-p3 path: the same sampling, through
      * the present conversion (display-p3-conversion.js). Made the first time a
      * Display P3 canvas is presented.
+     * @param {object} [options]
+     * @param {boolean} [options.unclamped=false] - Skip the sRGB clamp, for a program that declares `gamut p3`
      */
-    createDisplayP3PresentProgram() {
+    createDisplayP3PresentProgram({ unclamped = false } = {}) {
         const fs = `#version 300 es
         precision highp float;
         in vec2 v_texCoord;
@@ -297,7 +299,7 @@ export class WebGL2Backend extends Backend {
         out vec4 fragColor;
 ${DISPLAY_P3_GLSL}
         void main() {
-            fragColor = nmPresentDisplayP3(texture(u_texture, v_texCoord));
+            fragColor = ${unclamped ? 'nmPresentDisplayP3Unclamped' : 'nmPresentDisplayP3'}(texture(u_texture, v_texCoord));
         }`
         return this._linkPresentProgram(fs)
     }
@@ -2204,7 +2206,12 @@ ${DISPLAY_P3_GLSL}
         this._colorOutputReleased = true
     }
 
-    present(textureId) {
+    /**
+     * @param {string} textureId - The surface to present
+     * @param {object} [options]
+     * @param {string|null} [options.gamut] - The program's gamut directive: 'p3' skips the sRGB clamp on a Display P3 canvas
+     */
+    present(textureId, { gamut = null } = {}) {
         const gl = this.gl
         const tex = this.textures.get(textureId)
         if (!tex || !this.presentProgram || !this.fullscreenVAO) {
@@ -2212,22 +2219,29 @@ ${DISPLAY_P3_GLSL}
             return
         }
 
-        // The display-p3 path presents through the conversion; srgb as before.
-        // The conversion program is made once; if it does not link, its frames
-        // are skipped, as a missing srgb program's are.
-        if (this.colorOutput === DISPLAY_P3 && this._displayP3PresentProgram === undefined) {
-            let failure = null
-            try {
-                this._displayP3PresentProgram = this.createDisplayP3PresentProgram()
-            } catch (error) {
-                failure = error
-                this._displayP3PresentProgram = null
+        // The display-p3 path presents through the conversion, unclamped for a
+        // program that declares `gamut p3`; srgb as before. Each conversion
+        // program is made once; if it does not link, its frames are skipped,
+        // as a missing srgb program's are.
+        let presentProgram = this.presentProgram
+        if (this.colorOutput === DISPLAY_P3) {
+            const unclamped = gamut === 'p3'
+            const key = unclamped ? 'unclamped' : 'clamped'
+            this._displayP3PresentPrograms ??= {}
+            if (!(key in this._displayP3PresentPrograms)) {
+                let failure = null
+                try {
+                    this._displayP3PresentPrograms[key] = this.createDisplayP3PresentProgram({ unclamped })
+                } catch (error) {
+                    failure = error
+                    this._displayP3PresentPrograms[key] = null
+                }
+                if (!this._displayP3PresentPrograms[key]) {
+                    console.error(`Present skipped: the display-p3 present program did not ${failure ? 'compile' : 'link'}`, failure ?? '')
+                }
             }
-            if (!this._displayP3PresentProgram) {
-                console.error(`Present skipped: the display-p3 present program did not ${failure ? 'compile' : 'link'}`, failure ?? '')
-            }
+            presentProgram = this._displayP3PresentPrograms[key]
         }
-        const presentProgram = this.colorOutput === DISPLAY_P3 ? this._displayP3PresentProgram : this.presentProgram
         if (!presentProgram) return
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
@@ -2291,10 +2305,10 @@ ${DISPLAY_P3_GLSL}
             gl.deleteProgram(this.presentProgram.handle)
         }
         this.presentProgram = null
-        if (this._displayP3PresentProgram?.handle) {
-            gl.deleteProgram(this._displayP3PresentProgram.handle)
+        for (const program of Object.values(this._displayP3PresentPrograms ?? {})) {
+            if (program?.handle) gl.deleteProgram(program.handle)
         }
-        this._displayP3PresentProgram = null
+        this._displayP3PresentPrograms = {}
 
         if (this.fullscreenVAO) {
             gl.deleteVertexArray(this.fullscreenVAO)

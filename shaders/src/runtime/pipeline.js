@@ -594,7 +594,8 @@ export class Pipeline {
             fps: 60
         }
         if (typeof backend?.present === 'function') {
-            this.sinkManager.add(new CanvasSink(backend))
+            // The canvas presents with the current graph's gamut directive.
+            this.sinkManager.add(new CanvasSink(backend, () => this.graph?.gamut ?? null))
         }
         this._disposed = false
         // Queryable structured diagnostics for the historically-silent

@@ -2577,6 +2577,7 @@ export function validate(ast) {
     // Preserve trailing comments from program
     const result = {plans, diagnostics: diagnosticsList, render, vars, searchNamespaces}
     if (hasSeedDirective) { result.seed = programSeed }
+    if (ast.gamut) { result.gamut = ast.gamut.value }
     if (ast.parts) { result.parts = ast.parts }
     Object.defineProperty(result, 'letSources', { value: letSources, enumerable: false })
     if (ast.trailingComments) { result.trailingComments = ast.trailingComments }
