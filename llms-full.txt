@@ -64,6 +64,13 @@ Before updating this contract to a different Noisemaker or Shade MCP revision:
    validation calls. Confirm each returned effect and backend identity.
 5. Check the source evidence again before updating the traceability matrix.
 
+Step 3's comparison is over constant fields. A re-captured session matches the
+recorded transcript on every constant field; frame metrics and benchmark times
+hold the new session's values. Page console messages reach the response's
+`console_errors` array (`vendor/shade-mcp/harness/index.js` maps each captured
+message's text into it), so a software-GL host adds entries there that the
+recorded session does not have.
+
 Until all five steps are complete, unchanged sections remain authoritative only
 for the pinned snapshots. Running the separately pinned repository MCP
 configuration does not establish freshness for a different audited snapshot.
