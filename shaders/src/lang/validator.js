@@ -226,7 +226,7 @@ export function validate(ast) {
             }
             letIdUses.add(origin)
         }
-        elementIdRecords.set(args, { id, at })
+        elementIdRecords.set(args, { id, at, scope: idScope() })
     }
 
     // A read() or read3d() passed as a parameter value is a surface, not a
@@ -249,12 +249,16 @@ export function validate(ast) {
         }
         visit(plans)
         const byId = new Map()
+        // Ids inside a part body are a namespace of their own for each use
+        // of the part.
         for (const step of steps) {
             const record = { ...elementIdRecords.get(step.args), step }
-            if (!byId.has(record.id)) byId.set(record.id, [])
-            byId.get(record.id).push(record)
+            const key = `${record.scope}\u0000${record.id}`
+            if (!byId.has(key)) byId.set(key, [])
+            byId.get(key).push(record)
         }
-        for (const [id, records] of byId) {
+        for (const records of byId.values()) {
+            const id = records[0].id
             records.sort((a, b) => a.step.temp - b.step.temp)
             for (const record of records.slice(1)) {
                 record.step.idDuplicate = true
@@ -293,6 +297,52 @@ export function validate(ast) {
     // Occurrence names: the elements of each effect name, counted in source
     // order across the program.
     let occurrenceCounts = new Map()
+    // Key names in one naming body (the program outside parts, or one part
+    // body): the authored ids, written anywhere in it; the ids already
+    // claimed, in traversal order; and the other key names given so far.
+    let namingBody = null
+    // The key names of the enclosing uses, outermost first, and whether each
+    // has an `_id:`.
+    const usePath = []
+    const idScope = () => usePath.map(u => u.name).join('/')
+
+    function authoredIds(nodes) {
+        const ids = new Set()
+        const visit = (node) => {
+            if (!node || typeof node !== 'object') return
+            if (Array.isArray(node)) { node.forEach(visit); return }
+            if (node.type === 'PartDecl') return
+            for (const idNode of [node._id, node.kwargs?._id]) {
+                if (idNode?.type === 'String' && ELEMENT_ID.test(idNode.value)) ids.add(idNode.value)
+            }
+            for (const value of Object.values(node)) visit(value)
+        }
+        visit(nodes)
+        return ids
+    }
+
+    function newNamingBody(nodes) {
+        return { authored: authoredIds(nodes), claimed: new Set(), given: new Set() }
+    }
+
+    // An element's key name: its `_id:` if this is the first element of the
+    // body to claim it, otherwise its occurrence name, with `'` added while
+    // that name is an authored id or already given.
+    function keyNameFor(occurrence, idNode, at) {
+        const body = namingBody
+        if (idNode?.type === 'String' && ELEMENT_ID.test(idNode.value) && !body.claimed.has(idNode.value)) {
+            body.claimed.add(idNode.value)
+            return idNode.value
+        }
+        let name = occurrence
+        while (body.authored.has(name) || body.given.has(name)) name += "'"
+        body.given.add(name)
+        if (name !== occurrence) {
+            pushDiag('S014', at, `'${occurrence}' is another element's _id:, so this element draws as '${name}'`)
+        }
+        return name
+    }
+
     function nextOccurrence(effectName) {
         const n = (occurrenceCounts.get(effectName) || 0) + 1
         occurrenceCounts.set(effectName, n)
@@ -441,9 +491,6 @@ export function validate(ast) {
                 ownSeed = seedNode.value
             }
         }
-        if (use.kwargs?._id !== undefined) {
-            pushDiag('S012', use, '_id: on a use site arrives with element ids')
-        }
         const overrides = new Map()
         for (const [name, value] of Object.entries(use.kwargs || {})) {
             if (name.startsWith('_')) continue
@@ -457,6 +504,9 @@ export function validate(ast) {
         if (ownSeed !== null) seedScopes.push(ownSeed)
         const savedCounts = occurrenceCounts
         occurrenceCounts = new Map()
+        const savedNaming = namingBody
+        namingBody = newNamingBody(decl.body)
+        usePath.push({ name: useKey.slice('use@'.length), hasId: use.kwargs?._id !== undefined })
         const shadowed = new Map()
         for (const item of decl.body) {
             if (item.type === 'VarAssign' && !shadowed.has(item.name)) {
@@ -479,9 +529,22 @@ export function validate(ast) {
                 else symbols.delete(name)
             }
             occurrenceCounts = savedCounts
+            namingBody = savedNaming
+            usePath.pop()
             if (ownSeed !== null) seedScopes.pop()
             keyScope.splice(0, keyScope.length, ...savedScope)
         }
+    }
+
+    // A use's key name: its `_id:`, checked as an element's, or its
+    // occurrence name.
+    function useKeyName(use) {
+        const idNode = use.kwargs?._id
+        if (idNode !== undefined && (idNode?.type !== 'String' || !ELEMENT_ID.test(idNode.value))) {
+            pushDiag('S001', idNode?.loc ? idNode : use, "_id: takes a string literal of letters, digits and '_' that starts with a letter")
+            return keyNameFor(nextOccurrence('use'), undefined, use)
+        }
+        return keyNameFor(nextOccurrence('use'), idNode, use)
     }
 
     // A maybe's decision, drawn at `<scope>/maybe_<n>/decide`.
@@ -1337,7 +1400,7 @@ export function validate(ast) {
                     continue
                 }
                 if (original.type === 'Use') {
-                    const useKey = `use@${nextOccurrence('use')}`
+                    const useKey = `use@${useKeyName(original)}`
                     const decl = resolvePartTarget(original, useKey)
                     if (!decl) continue
                     withPart(decl, original, useKey, declare => {
@@ -1646,6 +1709,10 @@ export function validate(ast) {
                 // The element's key for its draws: its occurrence name, or,
                 // for an effect passed as a value, the key of that value.
                 const occurrence = original.fromLet ? call.name : nextOccurrence(call.name)
+                const keyName = original.fromLet ? occurrence : keyNameFor(occurrence, call.kwargs?._id, original)
+                if (call.kwargs?._id !== undefined && usePath.some(u => !u.hasId)) {
+                    pushDiag('S012', original, "an _id: inside a part needs an _id: on every use of that part")
+                }
                 // `_seed:` gives the element a scope of its own: its draws
                 // use that seed, and their keys restart at the element.
                 let elementSeed = null
@@ -1665,7 +1732,7 @@ export function validate(ast) {
                     ? opName
                     : valueKeys.length
                         ? `${valueKeys[valueKeys.length - 1]}/e:${opName}`
-                        : `${opName}@${occurrence}`
+                        : `${opName}@${keyName}`
                 // Whether unseeded effect seeds inherit here: with a seed
                 // directive, or inside a `_seed:` scope.
                 const inherits = hasSeedDirective || restartsKeys || seedScopes.length > 0
@@ -2451,7 +2518,7 @@ export function validate(ast) {
         }
         if (stmt.chain?.length === 1 && stmt.chain[0].type === 'Use' && !stmt.write && !stmt.write3d) {
             const use = stmt.chain[0]
-            const useKey = `use@${nextOccurrence('use')}`
+            const useKey = `use@${useKeyName(use)}`
             const decl = resolvePartTarget(use, useKey)
             const body = []
             if (decl) {
@@ -2481,6 +2548,7 @@ export function validate(ast) {
     // and the latest assignment of a name wins. Lets that come after the
     // last statement are still declared, so their own checks run.
     const statements = ast.plans || []
+    namingBody = newNamingBody([ast.plans || [], ast.vars || []])
     for (let index = 0; index < statements.length; index++) {
         statementIndex = index
         declareVarsBefore(index)

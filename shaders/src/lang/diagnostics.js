@@ -31,6 +31,7 @@ const diagnostics = {
   S011: { stage: 'semantic', severity: 'error', message: 'Element id in a let value used more than once' },
   S012: { stage: 'semantic', severity: 'error', message: 'Invalid random call' },
   S013: { stage: 'semantic', severity: 'error', message: 'Random call not allowed here' },
+  S014: { stage: 'semantic', severity: 'warning', message: 'Key name taken by an _id' },
   R001: { stage: 'runtime', severity: 'error', message: 'Runtime error' }
 }
 
