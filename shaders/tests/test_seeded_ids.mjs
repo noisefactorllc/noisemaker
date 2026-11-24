@@ -67,6 +67,6 @@ test('ids inside a part are a namespace of their own for each use', () => {
 
 test('an _id: inside a part needs an _id: on every use of it', () => {
     const part = 'part p {\n    .edge(_id: "e")\n}\n'
-    assert.ok(codes(compile(`${HEAD}${part}noise().use(p).write(o0)`)).includes('S012'))
+    assert.ok(codes(compile(`${HEAD}${part}noise().use(p).write(o0)`)).includes('S001'))
     assert.ok(codes(compile(`${HEAD}noise().use(edgePass, _id: 3).write(o0)\n`.replace('noise()', `${EDGE}noise()`))).includes('S001'))
 })

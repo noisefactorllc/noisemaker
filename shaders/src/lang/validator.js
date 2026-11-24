@@ -1720,7 +1720,7 @@ export function validate(ast) {
                 const occurrence = original.fromLet ? call.name : nextOccurrence(call.name)
                 const keyName = original.fromLet ? occurrence : keyNameFor(occurrence, call.kwargs?._id, original)
                 if (call.kwargs?._id !== undefined && usePath.some(u => !u.hasId)) {
-                    pushDiag('S012', original, "an _id: inside a part needs an _id: on every use of that part")
+                    pushDiag('S001', original, "an _id: inside a part needs an _id: on every use of that part")
                 }
                 // `_seed:` gives the element a scope of its own: its draws
                 // use that seed, and their keys restart at the element.
