@@ -1196,7 +1196,13 @@ function formatLetExpr(expr, options = {}) {
 function formatSourceStatement(node, options = {}, indent = '') {
     const inner = indent + '    '
     const comments = (node.leadingComments || []).map(c => `${indent}${c}\n`).join('')
-    const expr = value => formatLetExpr(value, options)
+    // A value is a parser node. An effect or chain passed as a value is
+    // written here, as authored; unparseCall() formats compiled values.
+    const expr = value => {
+        if (value?.type === 'Call' && !value._varRef) return callText(value.name, value.args, value.kwargs)
+        if (value?.type === 'Chain' && !value._varRef) return value.chain.map(el => element(el, indent)).join('.')
+        return formatLetExpr(value, options)
+    }
     const callText = (name, args, kwargs) => {
         const parts = (args || []).map(expr)
         for (const [k, v] of Object.entries(kwargs || {})) parts.push(`${k}: ${expr(v)}`)

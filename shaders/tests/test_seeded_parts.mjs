@@ -5,12 +5,12 @@ import { mergeIntoEnums } from '../src/lang/enums.js'
 import { chanceFrom, drawU32, pickIndex, randFrom, randIntFrom } from '../src/lang/draws.js'
 
 const renderer = new CanvasRenderer()
-for (const [namespace, name, path] of [['synth', 'Noise', 'synth/noise'], ['synth', 'Cell', 'synth/cell'], ['filter', 'Posterize', 'filter/posterize'], ['filter', 'Edge', 'filter/edge']]) {
+for (const [namespace, name, path] of [['synth', 'Noise', 'synth/noise'], ['synth', 'Cell', 'synth/cell'], ['filter', 'Posterize', 'filter/posterize'], ['filter', 'Edge', 'filter/edge'], ['synth', 'ReactionDiffusion', 'synth/reactionDiffusion'], ['mixer', 'BlendMode', 'mixer/blendMode']]) {
     const instance = (await import(`../effects/${path}/definition.js`)).default
     const choices = renderer.registerEffectWithRuntime({ namespace, name, instance })
     if (choices && Object.keys(choices).length > 0) await mergeIntoEnums(choices)
 }
-registerStarterOps(['synth.noise', 'synth.cell'])
+registerStarterOps(['synth.noise', 'synth.cell', 'synth.reactionDiffusion'])
 
 const errors = c => c.diagnostics.filter(d => d.severity === 'error')
 const codes = c => c.diagnostics.map(d => d.code)
@@ -121,4 +121,18 @@ test('parts, uses and maybes are written back as authored, and the round trip is
     assert.deepEqual(errors(again), [])
     assert.deepEqual(again.plans.map(p => (p.chain || []).map(s => s.args)), c.plans.map(p => (p.chain || []).map(s => s.args)))
     assert.equal(unparse(again), once)
+})
+
+test('an effect passed as a value in an authored statement is written as authored', () => {
+    const src = 'search synth, mixer, filter\nseed 3\n\nnoise()\n  maybe(0.5) {\n      .edge()\n  }\n  .blendMode(tex: reactionDiffusion(_id: "pond", zoom: x4, feed: rand(20, 40)))\n  .write(o0)'
+    const c = compile(src)
+    assert.deepEqual(errors(c), [])
+    const once = unparse(c)
+    assert.match(once, /\.blendMode\(tex: reactionDiffusion\(_id: "pond", zoom: x4, feed: rand\(20, 40\)\)\)/)
+    assert.equal(unparse(compile(once)), once)
+    for (const value of ['noise(scaleX: 40).edge()', 'read(o1)']) {
+        const text = unparse(compile(src.replace(/reactionDiffusion\(.*\)\)\)/, `${value})`)))
+        assert.ok(text.includes(`.blendMode(tex: ${value})`), text)
+        assert.equal(unparse(compile(text)), text)
+    }
 })
