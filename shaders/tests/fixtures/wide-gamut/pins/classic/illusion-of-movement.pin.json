@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/illusion-of-movement.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4078,
+        "uniqueColors": 4068,
+        "sha256": "489d5ed3c66290cde5f25ab468c04cb6b74e636a3d571fc2558db9900c762dae"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4078,
+        "uniqueColors": 4068,
+        "sha256": "ef9d2185c69c7ce941338220723f4edec8e3ab93f90e0bb76b9324f7f7bd0772"
+      }
+    }
+  }
+}

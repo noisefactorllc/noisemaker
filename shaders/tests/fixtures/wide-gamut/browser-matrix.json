@@ -1,0 +1,26 @@
+{
+  "browser": "Chromium 159.0.8154.6",
+  "headless": true,
+  "platform": "darwin",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/159.0.8154.6 Safari/537.36",
+  "display": {
+    "matchMediaP3": false,
+    "matchMediaSrgb": true,
+    "displaySupportsP3": false
+  },
+  "webgpu": {
+    "hasGetConfiguration": true,
+    "preferredFormat": "bgra8unorm",
+    "readBackColorSpace": "display-p3",
+    "readBackToneMapping": "standard",
+    "configured": "display-p3",
+    "resolved": "srgb"
+  },
+  "webgl2": {
+    "hasDrawingBufferColorSpace": true,
+    "initial": "srgb",
+    "configured": "display-p3",
+    "readBack": "display-p3",
+    "resolved": "srgb"
+  }
+}

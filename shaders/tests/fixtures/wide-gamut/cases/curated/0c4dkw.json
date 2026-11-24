@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:0C4dKw",
+    "dslFile": "programs/0C4dKw/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "classicNoisedeck/kaleido",
+    "filter/palette",
+    "synth/solid",
+    "render/pointsEmit",
+    "points/heightGrid",
+    "render/pointsRender",
+    "render/pointsBillboardRender",
+    "synth3d/heightmap3d",
+    "render/renderLandscape3d",
+    "mixer/split",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search synth, filter, synth3d, render, points, mixer, classicNoisedeck\n\nlet osc1 = osc(type: oscKind.saw)\nlet osc2 = osc(type: oscKind.noise, seed: 3310)\nlet osc3 = osc(type: oscKind.noise)\nlet osc4 = osc(type: oscKind.noise, seed: 2104)\nlet osc5 = osc(type: oscKind.noise, seed: 7169)\nlet osc6 = osc(type: oscKind.noise, seed: 8125)\nlet osc7 = osc(type: oscKind.sine, min: 0.07, max: 0.39)\nlet osc8 = osc(type: oscKind.sawInv)\n\nperlin(scale: 26.15, speed: 5)\n  .kaleido(\n    sides: 20,\n    metric: triangle,\n    loopOffset: triangle,\n    loopScale: 100,\n    speed: -100,\n    seed: 99,\n    direction: counterclock,\n    kernel: outline,\n    effectWidth: 3.347\n  )\n  .write(o0)\n\nread(o0)\n  .palette(index: grayscale, repeat: 2)\n  .write(o2)\n\nsolid(color: #000000)\n  .subchain(name: \"flow field particles\", id: \"myse\") {\n    .pointsEmit()\n    .heightGrid(\n      heightTex: read(o0),\n      diffuseTex: read(o2),\n      gridScale: 100,\n      heightScale: 74.7,\n      heightOffset: -49.4\n    )\n    .pointsRender(\n      density: 100,\n      intensity: 66.62,\n      viewMode: perspective,\n      rotateX: osc7,\n      rotateZ: osc8,\n      viewScale: 1.43\n    )\n    .pointsBillboardRender(\n      shapeMode: square,\n      blendMode: alpha,\n      depositOpacity: 100,\n      pointSize: 10.05,\n      sizeVariation: 100,\n      density: 1.98,\n      inputIntensity: 100,\n      viewMode: perspective,\n      rotateX: osc7,\n      rotateZ: osc8,\n      viewScale: 1.43,\n      aperture: 3.2,\n      focalDistance: 255\n    )\n  }\n  .write(o3)\n\nheightmap3d(\n  heightTex: read(o0),\n  tex: read(o2),\n  volumeSize: x128,\n  heightScale: 0.67\n)\n  .renderLandscape3d(\n    zoom: 2,\n    bgColor: #000000,\n    viewMode: perspective,\n    rotateX: osc7,\n    rotateZ: osc8\n  )\n  .split(\n    tex: read(o3),\n    invert: on,\n    rotation: osc8,\n    softness: 1,\n    speed: 2\n  )\n  .subchain(name: \"lens effects\", id: \"7efo\") {\n    .temporalAberration(\n      redDelay: 2,\n      greenDelay: 1,\n      blueDelay: 0\n    )\n    .bloom(taps: 15)\n    .lens(displacement: -0.46, aspectLens: false)\n    .vignette(alpha: 0.69)\n  }\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

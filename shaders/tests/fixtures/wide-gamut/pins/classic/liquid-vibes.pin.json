@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/liquid-vibes.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4053,
+        "sha256": "a85fe2a15962ec86de376b1961ba3be49c6d291cc1f9fada0f8e034780f3d97f"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4053,
+        "sha256": "e9a0ac5b5e58371ea8ce3e27ef0af29691e9935dfdeeac26de5ba4636336ef7b"
+      }
+    }
+  }
+}

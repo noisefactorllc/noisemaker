@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "low tech kaleido"
+  },
+  "effects": [
+    "classicNoisedeck/bitEffects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nbitEffects(colorScheme: 13, formula: 0, interp: 0, speed: 41, n: 1, rotation: 45, scale: 99).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

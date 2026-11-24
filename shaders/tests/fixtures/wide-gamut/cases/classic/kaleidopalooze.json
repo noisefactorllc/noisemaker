@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "kaleidopalooze"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/kaleido"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRotation: 0, kaleido: 7, metric: 0, wrap: true, palette: royal, type: 2, colorMode: 4, xScale: 52, yScale: 52, octaves: 1).write(o0)\nnoise(hueRange: 66, hueRotation: 36, speed: 46, refractAmt: 68, ridges: true, wrap: false, xScale: 88, yScale: 94, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 12, mix: -19, refractAAmt: 0, refractBAmt: 40).kaleido(direction: 2, effectWidth: 3, sides: 7, kernel: 0, speed: -10, loopOffset: 10, loopScale: 100, metric: 0, wrap: true).kaleido(direction: 2, effectWidth: 3, sides: 7, kernel: 0, speed: 10, loopOffset: 10, loopScale: 86, metric: 0, wrap: true).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

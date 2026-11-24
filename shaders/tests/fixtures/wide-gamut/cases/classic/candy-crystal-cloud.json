@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "candy crystal cloud"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 98, hueRotation: 48, speed: 9, loopOffset: 300, loopScale: 71, refractAmt: 37, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 89, yScale: 89, octaves: 1).write(o0)\nnoise(hueRange: 49, hueRotation: 75, speed: -2, loopOffset: 300, loopScale: 100, refractAmt: 71, wrap: true, type: 0, colorMode: 6, kaleido: 1, xScale: 86, yScale: 86, octaves: 1).coalesce(tex: read(o0), blendMode: 12, mix: 8, refractAAmt: 57, refractBAmt: 40).lensDistortion(aberration: 0, distortion: 0, speed: 0, loopScale: 100, alpha: 30, shape: 0, tint: #c038ff, vignetteAmt: 0).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

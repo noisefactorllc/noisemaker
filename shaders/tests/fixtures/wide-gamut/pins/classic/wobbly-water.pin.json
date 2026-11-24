@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/wobbly-water.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4093,
+        "uniqueColors": 4057,
+        "sha256": "110988a3f64281c948e7b5b3d3067ae8ed3ba2ec9e87482fa7f7cca2d1887ce1"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4093,
+        "uniqueColors": 4057,
+        "sha256": "7b414c38c83dacae9ad4c5d059ae71c3987287f9a5e1414c54356ecd4576e95b"
+      }
+    }
+  }
+}

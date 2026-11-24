@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/rainbow-worms.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3609,
+        "uniqueColors": 894,
+        "sha256": "b4faccb0e4e7d0c57039a5cbf7c29ad6ef648ffa1a0219d979ae6d4ce14cd0b4"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3609,
+        "uniqueColors": 894,
+        "sha256": "2fe6f24b1e7b24bf063c22fa401205aa6abea92a82225ae0f7a43f15ec40e215"
+      }
+    }
+  }
+}

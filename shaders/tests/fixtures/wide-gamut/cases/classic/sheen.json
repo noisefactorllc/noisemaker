@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "sheen"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 23, hueRotation: 52, speed: 11, refractAmt: 52, ridges: true, wrap: true, xScale: 93, yScale: 94, type: 3, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 100, hueRotation: 38, speed: 26, refractAmt: 14, ridges: true, wrap: true, xScale: 92, yScale: 66, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 14, mix: -58, refractAAmt: 0, refractBAmt: 0).refract().colorLab(colorMode: 2, dither: 0, hueRange: 102, hueRotation: 30, levels: 0, palette: justRed).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

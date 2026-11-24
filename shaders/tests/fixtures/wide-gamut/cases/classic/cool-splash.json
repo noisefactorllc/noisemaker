@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "cool splash"
+  },
+  "effects": [
+    "classicNoisedeck/shapes"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: -91, loopAOffset: 20, loopAScale: 27, speedB: 66, loopBOffset: 60, loopBScale: 71, palette: netOfGems, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

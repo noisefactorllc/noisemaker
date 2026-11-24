@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/dubstep-show.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 754,
+        "sha256": "7c60899310c3e11fdc8ae08e3a1cd710d5a2b4077cec9cdf2946b1616cbfd969"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 754,
+        "sha256": "910dc8a7edfaa7d0d1c7794b07199c362bec4548bbedba00a823b6704a7fd68c"
+      }
+    }
+  }
+}

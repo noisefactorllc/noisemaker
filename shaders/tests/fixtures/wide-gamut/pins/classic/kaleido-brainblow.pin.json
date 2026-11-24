@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/kaleido-brainblow.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 877,
+        "sha256": "1385751fd389436a02c408d591f06fd5f145dec8c6735112d44bfc1d7543b321"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 877,
+        "sha256": "2ae233c6929ddead78fb802cf102a6de95f5fe358dc5a0bfceed368e303f79f7"
+      }
+    }
+  }
+}

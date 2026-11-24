@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/sigil.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 283,
+        "sha256": "f98e4a0062fd9461d508e1baee713a7818d9230a88ce087b7f0427b766bcabb5"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 283,
+        "sha256": "f98e4a0062fd9461d508e1baee713a7818d9230a88ce087b7f0427b766bcabb5"
+      }
+    }
+  }
+}

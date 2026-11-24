@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/posterized-clouds.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2031,
+        "uniqueColors": 8,
+        "sha256": "cfd29d33223269d65f65f15b6b2559e2bbb61c50825148886b38c1977327b0de"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2031,
+        "uniqueColors": 8,
+        "sha256": "c24196da0080a121f1de38e79c0dfe3efd16c903ae79ae0cbc0a6b0c7c71118d"
+      }
+    }
+  }
+}

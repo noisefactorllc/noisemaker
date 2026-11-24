@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/edgy-fractal.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 28,
+        "sha256": "d2d88db312dc85d3ddf3d100c45b69a876e318e9c4b60deec03db9ec8be13c95"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 28,
+        "sha256": "3194f50b373ad0d491eb22f55b47fc9b004862a6da62c617fe089e1ac58de627"
+      }
+    }
+  }
+}

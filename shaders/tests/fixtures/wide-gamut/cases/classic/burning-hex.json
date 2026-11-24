@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "burning hex"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: 100, loopAOffset: 60, loopAScale: 100, speedB: 3, loopBOffset: 60, loopBScale: 100, palette: tungsten, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRotation: 0, kaleido: 6, metric: 2, palette: justRed, wrap: true, type: 3, colorMode: 4, xScale: 93, yScale: 93, octaves: 1).coalesce(tex: read(o0), blendMode: 15, mix: -61, refractAAmt: 5, refractBAmt: 0).refract().lensDistortion(aberration: 100, blendMode: 0, hueRange: 100, hueRotation: 0, blendMode: 1, modulate: true, passthru: 100, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

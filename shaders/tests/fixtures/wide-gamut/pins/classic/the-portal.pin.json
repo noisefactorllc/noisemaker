@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/the-portal.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2211,
+        "uniqueColors": 1522,
+        "sha256": "2a74376062214d03438792508f4d09d1b52336e8842bf84905293e01c7892dab"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2211,
+        "uniqueColors": 1522,
+        "sha256": "bac289a6bce8dcb7d17201a5c383227e931289baffb975bd1719fbd64d3a880c"
+      }
+    }
+  }
+}

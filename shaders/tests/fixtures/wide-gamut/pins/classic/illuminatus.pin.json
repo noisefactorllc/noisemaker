@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/illuminatus.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 955,
+        "sha256": "3bfeb0b4dc669fc6efa6c23747d5669bc741c6cd6e2fda1e2106fc28113deae0"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 955,
+        "sha256": "4850d542ee83a6bb87a9fcc081ad91dfbd8f252e2150f6babe92ce88788c54ec"
+      }
+    }
+  }
+}

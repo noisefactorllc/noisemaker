@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:wS37Vw",
+    "dslFile": "programs/wS37Vw/program.dsl"
+  },
+  "effects": [
+    "synth/cellularAutomata",
+    "filter/seamless",
+    "filter/translate",
+    "filter/posterize",
+    "filter/wormhole",
+    "filter/edge",
+    "filter/tetraColorArray",
+    "filter/snow",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/motionBlur",
+    "filter/smooth",
+    "filter/adjust"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nlet osc1 = osc(type: oscKind.sawInv)\nlet osc2 = osc(type: oscKind.noise, min: 0.65, max: 0.9, seed: 4220)\nlet midsReact = audio(band: 1, min: 39.855, max: 135.507)\n\ncellularAutomata(\n  tex: read(o0),\n  zoom: x64,\n  ruleIndex: maze,\n  smoothing: hermite,\n  speed: midsReact,\n  weight: 84.47\n)\n  .seamless(blend: 0.17, repeat: 1)\n  .translate(y: osc1)\n  .posterize(levels: 32)\n  .wormhole(\n    kink: 0.1,\n    stride: 1.58,\n    rotation: -22\n  )\n  .edge(\n    size: kernel7x7,\n    channel: luminance,\n    amount: 500,\n    threshold: 54.55\n  )\n  .tetraColorArray(\n    colorCount: 3,\n    color0: #f9f8fd,\n    color1: #3ac28a,\n    color2: #f89b71,\n    color3: #69cdfd,\n    color4: #1cc78c,\n    color5: #9d533d,\n    color6: #8a6b33,\n    color7: #aca83c,\n    rotation: back,\n    repeat: 5,\n    offset: 0.776,\n    alpha: 0.55,\n    smoothness: 0.754\n  )\n  .subchain(name: \"lens effects\", id: \"c9dk\") {\n    .snow(alpha: 0.86, density: 9.93)\n    .chromaticAberration(aberration: 25)\n    .bloom(\n      threshold: 0.75,\n      softKnee: 0.27,\n      intensity: 0.55,\n      taps: 32\n    )\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.26, alpha: 0.81)\n    .motionBlur()\n    .smooth()\n  }\n  .adjust(saturation: 0.83, contrast: 0.82)\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

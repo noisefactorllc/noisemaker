@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "hyperillusion"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRotation: 75, kaleido: 3, metric: 5, palette: vibrant, wrap: true, type: 0, colorMode: 4, xScale: 35, yScale: 35, octaves: 1).write(o0)\nnoise(hueRotation: 40, kaleido: 9, metric: 5, palette: modesto, wrap: true, type: 2, colorMode: 4, xScale: 1, yScale: 1, octaves: 1).composite(tex: read(o0), blendMode: 3).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/don-t-get-chummy.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4090,
+        "uniqueColors": 551,
+        "sha256": "36f18aae1b2a134d637512203f3a6a2bb61fea2b7bce83e8a04262dd43053254"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4090,
+        "uniqueColors": 551,
+        "sha256": "cd3f8da2e56453f589d31b607581b1a117ed1a579b81be0efcfb756fcf006cc0"
+      }
+    }
+  }
+}

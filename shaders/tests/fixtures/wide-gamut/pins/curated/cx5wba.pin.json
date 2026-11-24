@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/cx5wba.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 1574,
+        "sha256": "68630bee0b79097ae5745186358eda525faa37156a96890051f51f8d4fa5700b"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 1574,
+        "sha256": "a4c66895216f5fc7273359462e2faa0faba3ffab20a2073a2d9903ed2f7255f5"
+      }
+    }
+  }
+}

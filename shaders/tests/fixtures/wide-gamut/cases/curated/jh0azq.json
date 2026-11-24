@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:Jh0AzQ",
+    "dslFile": "programs/Jh0AzQ/program.dsl"
+  },
+  "effects": [
+    "synth/sacredGeometry",
+    "synth/noise",
+    "filter/palette",
+    "mixer/distortion",
+    "filter/lighting"
+  ],
+  "dsl": "search synth, filter, mixer\n\nsacredGeometry(\n  geometry: borromean,\n  scale: 10.66,\n  rings: 6,\n  starPoints: 12,\n  rotation: -28.373,\n  thickness: 0.7,\n  smoothness: 0.55,\n  fgColor: #436c15,\n  bgColor: #7213c9,\n  animation: unfold,\n  speed: 5,\n  pulseDepth: 0.587\n)\n  .write(o0)\n\nnoise(\n  type: bSpline4x4,\n  octaves: 4,\n  scaleX: 59.63,\n  scaleY: 53.309,\n  seed: 36,\n  wrap: false,\n  loopOffset: hexagon,\n  loopScale: 87.965,\n  speed: 0\n)\n  .palette(\n    index: vintagePhoto,\n    offset: 60.962,\n    repeat: 4,\n    alpha: 0.85\n  )\n  .distortion(\n    tex: read(o0),\n    mode: displace,\n    intensity: 19.55,\n    smoothing: 3.5,\n    aberration: 23.431,\n    antialias: true\n  )\n  .lighting(\n    normalStrength: 2.538,\n    smoothing: 6.677,\n    diffuseColor: #d1aeda,\n    specularIntensity: 0.889,\n    shininess: 240.393,\n    ambientColor: #b59bac,\n    lightDirection: vec3(0.712, 0.756, 0.709),\n    reflection: 25.101,\n    refraction: 16.666,\n    aberration: 13.482\n  )\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

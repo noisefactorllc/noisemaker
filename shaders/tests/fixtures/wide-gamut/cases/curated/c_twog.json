@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:c_tWOg",
+    "dslFile": "programs/c_tWOg/program.dsl"
+  },
+  "effects": [
+    "synth/polygon",
+    "mixer/split",
+    "filter/texture",
+    "filter/chrome",
+    "filter/scatter"
+  ],
+  "dsl": "search filter, mixer, synth, classicNoisedeck\n\npolygon(\n  sides: 52,\n  radius: 0.842,\n  smooth: 0.2,\n  rotation: 135.426,\n  fgColor: #e4e593,\n  fgAlpha: 0.988,\n  bgColor: #3e9e89,\n  bgAlpha: 0.977\n)\n  .write(o0)\n\npolygon(\n  radius: 0.77,\n  smooth: 0.029,\n  rotation: 23,\n  fgColor: #379ba3,\n  fgAlpha: 0.928,\n  bgColor: #a1991a,\n  bgAlpha: 0.989\n)\n  .split(\n    tex: read(o0),\n    invert: on,\n    position: -0.142,\n    rotation: 180,\n    softness: 1,\n    speed: 3\n  )\n  .texture(\n    mode: clumped,\n    alpha: 0.408,\n    scale: 1.417,\n    intensity: 63.53,\n    contrast: 26.009,\n    mono: false\n  )\n  .chrome(\n    detail: 73.341,\n    smoothness: 53.295,\n    distortion: 33.419\n  )\n  .scatter(\n    radius: 16.934,\n    smoothness: 9.709,\n    seed: 18\n  )\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

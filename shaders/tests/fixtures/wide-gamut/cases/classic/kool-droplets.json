@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "kool droplets"
+  },
+  "effects": [
+    "classicNoisedeck/noise"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 54, hueRotation: 100, speed: 56, loopOffset: 10, loopScale: 90, refractAmt: 22, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 93, yScale: 93, octaves: 1).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

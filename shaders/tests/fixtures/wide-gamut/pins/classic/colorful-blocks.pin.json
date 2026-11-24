@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/colorful-blocks.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3409,
+        "uniqueColors": 246,
+        "sha256": "927d74b4b45ebe19b30d4aecd3ca7627b5fc40ac21faca1e4a73268ed188146f"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3409,
+        "uniqueColors": 246,
+        "sha256": "756d65f02e4fbb93fb661f65cf8283a1822c82b193fe87055cfd9916e05f90fb"
+      }
+    }
+  }
+}

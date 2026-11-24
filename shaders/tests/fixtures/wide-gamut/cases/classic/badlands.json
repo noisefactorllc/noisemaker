@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "badlands"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 35, hueRotation: 86, speed: 100, octaves: 4, refractAmt: 0, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 100, yScale: 100).write(o0)\nnoise(hueRange: 41, hueRotation: 77, speed: 65, octaves: 5, refractAmt: 0, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 100, yScale: 100).coalesce(tex: read(o0), blendMode: 100, mix: -49, refractAAmt: 65, refractBAmt: 81).lensDistortion(aberration: 0, distortion: -47, speed: 0, loopScale: 100, alpha: 27, shape: 0, tint: #df6f62, vignetteAmt: -100).lensDistortion(aberration: 100, blendMode: 0, hueRange: 100, hueRotation: 0, blendMode: 1, modulate: true, passthru: 100, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

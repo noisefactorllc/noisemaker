@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:7zjzXA",
+    "dslFile": "programs/7zjzXA/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "filter/seamless",
+    "filter/adjust",
+    "render/pointsEmit",
+    "points/flow",
+    "render/pointsRender",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nlet osc1 = osc(type: oscKind.sawInv)\nlet bassReact = audio(band: 0, min: -12.726, max: -93.324)\n\nperlin(scale: 31.37, seed: 23)\n  .seamless(blend: 0.13, repeat: 1)\n  .adjust(\n    rotation: osc1,\n    hueRange: 200,\n    saturation: 4,\n    contrast: 1\n  )\n  .subchain(name: \"flow field particles\", id: \"p0wu\") {\n    .pointsEmit(stateSize: x512, attrition: 10)\n    .flow(\n      behavior: unruly,\n      stride: 25,\n      strideDeviation: 0\n    )\n    .pointsRender(\n      density: 100,\n      intensity: 85.04,\n      inputIntensity: 0\n    )\n  }\n  .adjust(\n    rotation: bassReact,\n    hueRange: 23.22,\n    saturation: 0.75,\n    brightness: 0.54,\n    contrast: 0.79\n  )\n  .subchain(name: \"lens effects\", id: \"5nr0\") {\n    .chromaticAberration(aberration: 17.12, passthru: 57.78)\n    .bloom(taps: 15)\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.13, alpha: 0.85)\n  }\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

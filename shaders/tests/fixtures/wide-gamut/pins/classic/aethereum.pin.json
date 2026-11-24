@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/aethereum.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3756,
+        "sha256": "bf19200805132c1bdccdb845e2ba37e783e8ca96dd2401b2eee070399abd112c"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3756,
+        "sha256": "703f2ab77c621aeb83331b8f4a685f2b716e8cffb2b8a7f4556d6a67fdacaac9"
+      }
+    }
+  }
+}

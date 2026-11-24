@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:d0pT9Q",
+    "dslFile": "programs/d0pT9Q/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "filter/seamless",
+    "filter/adjust",
+    "render/pointsEmit",
+    "points/flock",
+    "points/flow",
+    "render/pointsRender"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\nlet highsReact = audio(band: 2, min: 84, max: 168)\n\nperlin(scale: 38.37, octaves: 2)\n  .seamless(blend: 0.2, repeat: 1)\n  .adjust(\n    mode: hsv,\n    rotation: highsReact,\n    hueRange: 40\n  )\n  .subchain(name: \"flow field particles\", id: \"8hbt\") {\n    .pointsEmit(stateSize: x128)\n    .flock(separation: 1.8)\n    .flow(behavior: unruly, stride: 57)\n    .pointsRender(intensity: 90, inputIntensity: 25)\n  }\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

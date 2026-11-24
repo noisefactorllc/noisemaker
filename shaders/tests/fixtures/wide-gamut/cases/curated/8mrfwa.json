@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:8MrfWA",
+    "dslFile": "programs/8MrfWA/program.dsl"
+  },
+  "effects": [
+    "synth/cell",
+    "filter/palette",
+    "synth/noise",
+    "filter/tetraCosine",
+    "mixer/distortion",
+    "filter/lighting"
+  ],
+  "dsl": "search mixer, synth, filter\nlet bassReact = audio(band: 0, min: 4.5, max: 33)\n\ncell(\n  scale: 87.83,\n  cellScale: 100,\n  cellSmooth: 100,\n  variation: 100,\n  seed: 41\n)\n  .palette(\n    index: grayscale,\n    rotation: fwd,\n    alpha: 0.29\n  )\n  .write(o0)\n\nnoise(\n  type: catmullRom3x3,\n  octaves: 1,\n  scaleX: 100,\n  scaleY: 100,\n  seed: 36,\n  ridges: true,\n  loopOffset: horizontalScan,\n  loopScale: 76.35,\n  speed: bassReact,\n  colorMode: mono\n)\n  .tetraCosine(\n    colorMode: oklch,\n    offsetR: 0.814,\n    offsetG: 0.572,\n    offsetB: 0.229,\n    ampR: 0.731,\n    ampG: 0.638,\n    ampB: 0.727,\n    freqG: 3,\n    freqB: 4,\n    phaseR: 0.855,\n    phaseG: 0.469,\n    phaseB: 0.065,\n    rotation: fwd,\n    repeat: 5,\n    offset: 0.83,\n    alpha: 0.955\n  )\n  .distortion(\n    tex: read(o0),\n    mode: reflect,\n    intensity: 36.31,\n    wrap: clamp,\n    smoothing: 33.63,\n    aberration: 2.51,\n    antialias: true\n  )\n  .lighting(normalStrength: 0.73, smoothing: 3.6)\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

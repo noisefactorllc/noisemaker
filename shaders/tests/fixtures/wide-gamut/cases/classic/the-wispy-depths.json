@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "the wispy depths"
+  },
+  "effects": [
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\ncellNoise(colorMode: 0, speed: 5, palette: tungsten, scale: 10, cellScale: 75, smooth: 0, variation: 0, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRange: 43, hueRotation: 16, speed: 49, octaves: 3, refractAmt: 63, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 81, yScale: 81).coalesce(tex: read(o0), blendMode: 13, mix: 68, refractAAmt: 18, refractBAmt: 0).effects(effect: 6, effectAmt: 1, flip: 0, offsetX: 0, offsetY: 0, rotation: 0, saturation: 100, scaleAmt: 107).colorLab(colorMode: 2, dither: 0, hueRange: 100, hueRotation: 0, levels: 0, palette: sulphur).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

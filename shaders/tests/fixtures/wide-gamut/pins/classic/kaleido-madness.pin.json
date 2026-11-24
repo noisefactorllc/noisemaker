@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/kaleido-madness.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4092,
+        "uniqueColors": 519,
+        "sha256": "c63168153e395c215f0498128bfeba43d02bf495774bc5768cd7b699a5c03cca"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4092,
+        "uniqueColors": 519,
+        "sha256": "c8c2645a726aad2370b55f9fdd803b3cc682188afca2baa38527e58b3acc922e"
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:po0FqQ",
+    "dslFile": "programs/po0FqQ/program.dsl"
+  },
+  "effects": [
+    "synth/curl",
+    "synth/osc2d",
+    "mixer/focusBlur",
+    "filter/palette"
+  ],
+  "dsl": "search filter, mixer, synth\n\ncurl(\n  scale: 6.807,\n  seed: 357,\n  ridges: false,\n  intensity: 2,\n  outputMode: magnitude\n)\n  .write(o0)\n\nosc2d(\n  oscType: sawtooth,\n  freq: 3,\n  speed: 10,\n  rotation: -45,\n  seed: 169\n)\n  .focusBlur(\n    tex: read(o0),\n    depthSource: sourceA,\n    focalDistance: 59.56,\n    aperture: 1,\n    sampleBias: 5.75\n  )\n  .palette(index: sherbet, repeat: 4)\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

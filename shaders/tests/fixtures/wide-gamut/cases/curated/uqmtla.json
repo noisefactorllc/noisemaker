@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:UQMtLA",
+    "dslFile": "programs/UQMtLA/program.dsl"
+  },
+  "effects": [
+    "synth/noise",
+    "filter/seamless",
+    "filter/translate",
+    "filter/posterize",
+    "filter/wormhole",
+    "filter/edge",
+    "render/loopBegin",
+    "filter/warp",
+    "render/loopEnd",
+    "filter/snow",
+    "filter/chromaticAberration",
+    "filter/crt",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/motionBlur",
+    "filter/smooth",
+    "filter/adjust"
+  ],
+  "dsl": "search synth, filter, render, points, mixer, classicNoisedeck\n\nlet osc1 = osc(type: oscKind.saw)\nlet osc2 = osc(type: oscKind.noise, min: 0.65, max: 0.9, seed: 4220)\nlet highsReact = audio(band: 2, min: -70, max: -140)\n\nnoise(\n  type: catmullRom3x3,\n  octaves: 1,\n  scaleX: 100,\n  scaleY: 1,\n  loopOffset: verticalScan,\n  loopScale: 100,\n  speed: highsReact\n)\n  .seamless(repeat: 1)\n  .translate(y: osc1)\n  .posterize(\n    levels: 16,\n    gamma: 0.7,\n    _skip: true\n  )\n  .wormhole(\n    kink: 0.1,\n    stride: 2,\n    rotation: -22\n  )\n  .edge(\n    size: kernel7x7,\n    amount: 500,\n    mix: 0\n  )\n  .subchain(name: \"feedback loop with warp\", id: \"dqq0\") {\n    .loopBegin(alpha: 89.83, intensity: 81.01)\n    .warp(\n      strength: 100,\n      scale: 0.25,\n      speed: 1,\n      wrap: repeat\n    )\n    .loopEnd()\n  }\n  .subchain(name: \"lens effects\", id: \"c9dk\") {\n    .snow(alpha: 0.86, density: 9.93)\n    .chromaticAberration(aberration: 13.6, passthru: 74.69)\n    .crt(alpha: 0.57)\n    .bloom(\n      threshold: 0.75,\n      softKnee: 0.11,\n      intensity: 0.55,\n      taps: 32\n    )\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.26, alpha: 0.72)\n    .motionBlur()\n    .smooth()\n  }\n  .adjust(\n    rotation: 104.08,\n    hueRange: 57.93,\n    saturation: 0.87,\n    brightness: 0.9,\n    contrast: 0.77\n  )\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

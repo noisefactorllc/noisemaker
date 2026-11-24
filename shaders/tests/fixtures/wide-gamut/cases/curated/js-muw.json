@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:JS-Muw",
+    "dslFile": "programs/JS-Muw/program.dsl"
+  },
+  "effects": [
+    "synth/cell",
+    "filter/tetraCosine",
+    "filter/lighting",
+    "mixer/focusBlur",
+    "filter/feedback",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/adjust"
+  ],
+  "dsl": "search synth, filter, mixer, render, points\n\nlet osc1 = osc(type: oscKind.saw)\n\ncell(\n  shape: diamond,\n  scale: 81.26,\n  cellScale: 100,\n  cellSmooth: 66.5,\n  variation: 100,\n  speed: 5,\n  seed: 16\n)\n  .tetraCosine(\n    colorMode: oklch,\n    offsetR: 0.032,\n    offsetG: 0.546,\n    offsetB: 0.953,\n    ampR: 0.708,\n    ampG: 0.323,\n    ampB: 0.509,\n    freqR: 3,\n    freqG: 4,\n    freqB: 2,\n    phaseR: 0.311,\n    phaseG: 0.332,\n    phaseB: 0.127,\n    rotation: back,\n    repeat: 1.04,\n    offset: osc1\n  )\n  .write(o0)\n\nread(o0)\n  .lighting(\n    normalStrength: 5,\n    smoothing: 3.7,\n    specularIntensity: 1.18,\n    shininess: 133,\n    lightDirection: vec3(0.439, -0.428, 0.79),\n    reflection: 34.5,\n    refraction: 57.9,\n    aberration: 53.1\n  )\n  .focusBlur(\n    tex: read(o0),\n    focalDistance: 27.87,\n    aperture: 2.98,\n    sampleBias: 64\n  )\n  .feedback(\n    blendMode: lighten,\n    mix: 73.9,\n    intensity: -6.03\n  )\n  .subchain(name: \"lens effects\", id: \"1kos\") {\n    .temporalAberration()\n    .bloom(taps: 15)\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.12, alpha: 0.66)\n  }\n  .adjust(brightness: 1.77, contrast: 0.75)\n  .write(o2)\n\nrender(o2)",
+  "surface": "o2",
+  "resolution": [
+    64,
+    64
+  ]
+}

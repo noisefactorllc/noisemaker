@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/sippin-jippers.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4081,
+        "uniqueColors": 3768,
+        "sha256": "c1df64cfe6ba752509d4aeffbd7767fdfb9a36936dc771097720503d2d001020"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4081,
+        "uniqueColors": 3768,
+        "sha256": "4b164b07b3fd4dd090cd22ebc57aa6a939facebbc1a3c57fee4604bd9a3cad24"
+      }
+    }
+  }
+}

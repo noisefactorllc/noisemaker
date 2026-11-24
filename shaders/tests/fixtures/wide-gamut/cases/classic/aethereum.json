@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "aethereum"
+  },
+  "effects": [
+    "classicNoisedeck/noise"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 64, hueRotation: 95, speed: 11, loopOffset: 300, loopScale: 100, refractAmt: 53, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 96, yScale: 96, octaves: 1).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

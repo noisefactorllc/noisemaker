@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "pixelated water"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 5, hueRotation: 60, speed: 29, loopOffset: 60, loopScale: 55, refractAmt: 37, wrap: true, type: 10, colorMode: 6, kaleido: 1, xScale: 25, yScale: 25, octaves: 1).effects(effect: 100, effectAmt: 2, flip: 0, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

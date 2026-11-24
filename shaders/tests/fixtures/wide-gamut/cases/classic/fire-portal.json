@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "fire portal"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 48, hueRotation: 77, speed: 100, octaves: 5, refractAmt: 36, ridges: false, type: 10, colorMode: 6, kaleido: 1, xScale: 88, yScale: 88).write(o0)\nnoise(hueRotation: 40, kaleido: 8, metric: 4, palette: royal, wrap: true, type: 3, colorMode: 4, xScale: 100, yScale: 100, octaves: 1).coalesce(tex: read(o0), blendMode: 18, mix: 35, refractAAmt: 76, refractBAmt: 44).effects(effect: 0, effectAmt: 1, flip: 18, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

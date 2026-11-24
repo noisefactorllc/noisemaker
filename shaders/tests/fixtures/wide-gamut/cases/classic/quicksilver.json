@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "quicksilver"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 23, hueRotation: 70, speed: 19, refractAmt: 100, ridges: true, wrap: false, xScale: 98, yScale: 98, type: 3, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 46, hueRotation: 65, speed: 21, refractAmt: 100, ridges: true, wrap: false, xScale: 98, yScale: 98, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 11, mix: 55, refractAAmt: 100, refractBAmt: 100).lensDistortion(aberration: 16, distortion: -49, speed: 0, loopScale: 60, alpha: 11, shape: 0, tint: #4986bc, vignetteAmt: -100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

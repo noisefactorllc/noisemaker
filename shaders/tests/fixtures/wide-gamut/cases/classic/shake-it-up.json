@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "shake it up"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 20, hueRotation: 70, speed: 33, refractAmt: 3, ridges: false, wrap: false, xScale: 93, yScale: 84, type: 10, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 49, hueRotation: 39, speed: 26, refractAmt: 99, ridges: true, wrap: false, xScale: 39, yScale: 61, type: 0, colorMode: 6, kaleido: 1, octaves: 1).composite(tex: read(o0), blendMode: 3).lensDistortion(aberration: 60, blendMode: 0, hueRange: 0, hueRotation: 53, blendMode: 0, modulate: false, passthru: 36, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "noise blaster"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: -99, loopAOffset: 320, loopAScale: 32, speedB: 71, loopBOffset: 330, loopBScale: 73, palette: santaCruz, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRange: 46, hueRotation: 81, speed: 42, octaves: 7, refractAmt: 100, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 83, yScale: 83).composite(tex: read(o0), blendMode: 2, inputColor: #ffffff, mix: 12, range: 49).colorLab(colorMode: 2, dither: 0, hueRange: 100, hueRotation: 0, levels: 0, palette: sulphur).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

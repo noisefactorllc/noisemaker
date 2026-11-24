@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/a86kuw.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3602,
+        "sha256": "45db5e13f1186050562cb07ca1bc05e9705c905024bed823e198f079d07267d1"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3602,
+        "sha256": "791a5d8efcd85a6f8dff165213c28244b338e536a8df62709609f5cfdb7379d9"
+      }
+    }
+  }
+}

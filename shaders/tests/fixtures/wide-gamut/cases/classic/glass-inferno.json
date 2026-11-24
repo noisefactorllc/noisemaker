@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "glass inferno"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 44, hueRotation: 30, speed: 25, loopOffset: 30, loopScale: 58, refractAmt: 79, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 93, yScale: 93, octaves: 1).write(o0)\nnoise(hueRange: 100, hueRotation: 100, speed: 30, loopOffset: 300, loopScale: 61, refractAmt: 79, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 78, yScale: 78, octaves: 1).coalesce(tex: read(o0), blendMode: 12, mix: 19, refractAAmt: 12, refractBAmt: 55).lensDistortion(aberration: 17, distortion: -8, speed: -52, loopScale: 19, alpha: 53, shape: 1, tint: #a8532e, vignetteAmt: -100).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

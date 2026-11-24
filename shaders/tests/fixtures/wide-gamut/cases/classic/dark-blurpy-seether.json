@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "dark blurpy seether"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 0, hueRotation: 33, speed: 40, loopOffset: 210, loopScale: 81, refractAmt: 0, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 69, yScale: 69, octaves: 1).write(o0)\nnoise(hueRange: 13, hueRotation: 49, speed: 42, octaves: 2, refractAmt: 0, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 75, yScale: 75).composite(tex: read(o0), blendMode: 2, inputColor: #c7c7c7, mix: 5, range: 81).refract().refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

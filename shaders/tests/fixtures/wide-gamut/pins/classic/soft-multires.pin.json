@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/soft-multires.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4095,
+        "uniqueColors": 4085,
+        "sha256": "b317bd3c0581e7f2b52726312555f43b7ee19cf293a75fb030e94f607d9bc32f"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4095,
+        "uniqueColors": 4085,
+        "sha256": "39809670f4867548422ec489c4dec710471baa02d8ca69b08f521dbb94ecdffb"
+      }
+    }
+  }
+}

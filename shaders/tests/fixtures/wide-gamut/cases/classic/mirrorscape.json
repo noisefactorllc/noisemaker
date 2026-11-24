@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "mirrorscape"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 23, hueRotation: 31, speed: 18, refractAmt: 96, ridges: false, wrap: false, xScale: 100, yScale: 93, type: 3, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 44, hueRotation: 63, speed: 26, refractAmt: 97, ridges: false, wrap: false, xScale: 98, yScale: 91, type: 0, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 2, mix: 51, refractAAmt: 100, refractBAmt: 100).lensDistortion(aberration: 16, distortion: -12, speed: -7, loopScale: 56, alpha: 14, shape: 0, tint: #ebd93b, vignetteAmt: -100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/shiny-kaleido.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 378,
+        "sha256": "a9061198d06eb6279083c5b115195cdcc243290f9f9786138250f442593657fa"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 378,
+        "sha256": "aa64e84d8726d4469fa52437b59f9d1679ad7459b5762e9823a58b64efd06831"
+      }
+    }
+  }
+}

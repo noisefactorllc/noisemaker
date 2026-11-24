@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:_pKOnw",
+    "dslFile": "programs/_pKOnw/program.dsl"
+  },
+  "effects": [
+    "synth/cell",
+    "render/loopBegin",
+    "filter/plasticWrap",
+    "render/loopEnd",
+    "filter/relief",
+    "filter/palette",
+    "filter/lighting"
+  ],
+  "dsl": "search filter, synth, render, points, mixer\n\ncell(\n  scale: 95.69,\n  cellSmooth: 75.95,\n  seed: 15\n)\n  .subchain(name: \"feedback loop\", id: \"4knm\") {\n    .loopBegin(alpha: 51.01)\n    .plasticWrap(\n      highlight: 26.564,\n      detail: 0,\n      smoothness: 45.022,\n      lightDirection: vec3(-0.2888888889, 0.1222222222, 0.949528798)\n    )\n    .loopEnd()\n  }\n  .relief(smoothness: 34.25, detail: 100)\n  .palette(\n    index: mars,\n    rotation: fwd,\n    offset: 25.214,\n    alpha: 0.925\n  )\n  .lighting(\n    normalStrength: 3.79,\n    smoothing: 10,\n    refraction: 38.5\n  )\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

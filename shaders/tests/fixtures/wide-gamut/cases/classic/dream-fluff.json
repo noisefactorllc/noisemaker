@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "dream fluff"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 37, hueRotation: 51, speed: 36, octaves: 7, refractAmt: 100, ridges: false, type: 10, colorMode: 6, kaleido: 1, xScale: 98, yScale: 98).write(o0)\nnoise(hueRange: 100, hueRotation: 25, speed: 86, refractAmt: 0, ridges: false, wrap: false, xScale: 98, yScale: 98, type: 2, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 8, mix: -72, refractAAmt: 0, refractBAmt: 100).lensDistortion(aberration: 0, distortion: -26, speed: 10, loopScale: 71, alpha: 57, shape: 0, tint: #8a47ae, vignetteAmt: -66).lensDistortion(aberration: 100, blendMode: 0, hueRange: 0, hueRotation: 15, blendMode: 1, modulate: true, passthru: 86, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

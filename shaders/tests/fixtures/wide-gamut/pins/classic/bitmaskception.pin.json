@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/bitmaskception.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 640,
+        "uniqueColors": 11,
+        "sha256": "569c7085ed74772b88eb73d05d09d6eac86aaf7936d3cd9c9421af8d44545ca9"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 640,
+        "uniqueColors": 11,
+        "sha256": "2f7c0da098d47721fc627dffae32dd7db2b77394dc40bf0d721329f27d5c81a9"
+      }
+    }
+  }
+}

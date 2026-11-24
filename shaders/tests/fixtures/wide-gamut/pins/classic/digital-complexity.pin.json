@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/digital-complexity.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3681,
+        "uniqueColors": 2779,
+        "sha256": "0f1b42433d6aed3432f60593380523489523ed85c2ca8ddcd428eea8ca8dda4e"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3681,
+        "uniqueColors": 2779,
+        "sha256": "fb68f026cb2fd2a1be049c0b1e82c081680df63fdb11ff62e1d3c959a288f37c"
+      }
+    }
+  }
+}

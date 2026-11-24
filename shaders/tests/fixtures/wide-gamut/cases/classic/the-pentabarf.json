@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "the pentabarf"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 40, hueRotation: 44, speed: 100, octaves: 7, refractAmt: 0, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 66, yScale: 66).write(o0)\nnoise(hueRange: 48, hueRotation: 31, speed: 92, loopOffset: 50, loopScale: 93, refractAmt: 76, wrap: true, type: 1, colorMode: 6, kaleido: 1, xScale: 82, yScale: 82, octaves: 1).coalesce(tex: read(o0), blendMode: 2, mix: 24, refractAAmt: 54, refractBAmt: 12).colorLab(colorMode: 2, dither: 0, hueRange: 100, hueRotation: 0, levels: 22, palette: heatmap).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

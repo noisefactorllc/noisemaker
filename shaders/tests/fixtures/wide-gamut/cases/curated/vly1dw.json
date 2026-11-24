@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:VLy1Dw",
+    "dslFile": "programs/VLy1Dw/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "classicNoisedeck/kaleido",
+    "filter/adjust",
+    "filter/tetraColorArray",
+    "classicNoisedeck/coalesce",
+    "filter/lighting",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "classicNoisedeck/shapes3d"
+  ],
+  "dsl": "search synth, filter, classicNoisedeck, render, points, mixer\n\nlet osc1 = osc(type: oscKind.sawInv, speed: midsReact, offset: -0.72)\nlet osc2 = osc(type: oscKind.sine)\nlet osc3 = osc(type: oscKind.noise)\nlet osc4 = osc(type: oscKind.noise, seed: 6469)\nlet osc5 = osc(type: oscKind.noise, min: 0.24, max: 0.81, speed: 6, seed: 4673)\nlet osc6 = osc(type: oscKind.noise, min: 0.54, speed: 3, seed: 8436)\nlet osc7 = osc(type: oscKind.sine, max: 0.1, speed: 20)\nlet midsReact = audio(band: 1, min: 1, max: 3.4)\n\nperlin(\n  scale: 39.2,\n  ridges: true,\n  seed: 37\n)\n  .kaleido(\n    sides: 7,\n    loopScale: 52.32,\n    speed: 50.17,\n    kernel: shadow,\n    effectWidth: 10\n  )\n  .adjust(\n    mode: hsv,\n    rotation: osc1,\n    hueRange: 200,\n    saturation: 0.75,\n    contrast: 0.59\n  )\n  .tetraColorArray(\n    colorMode: oklch,\n    colorCount: 3,\n    color0: #6bb7baff,\n    color1: #130926ff,\n    color2: #5f97a9ff,\n    color3: #b37ac4ff,\n    color4: #c19d59ff,\n    color5: #898e48ff,\n    color6: #e230fdff,\n    color7: #6185f9ff,\n    rotation: fwd,\n    repeat: 0,\n    offset: 0.49,\n    alpha: 0.42,\n    smoothness: 0.839\n  )\n  .coalesce(\n    tex: read(o1),\n    blendMode: reflect,\n    mix: -32.55,\n    refractAAmt: 24,\n    refractBAmt: osc7,\n    refractADir: osc2\n  )\n  .lighting(\n    normalStrength: 5,\n    smoothing: 2.5,\n    specularIntensity: 0.55,\n    shininess: 116,\n    lightDirection: vec3(0.689, 0.378, 0.619),\n    reflection: 49.7,\n    refraction: 22,\n    aberration: 35.1\n  )\n  .subchain(name: \"lens effects\", id: \"e76d\") {\n    .chromaticAberration(aberration: 16.67, passthru: 55.49)\n    .bloom(\n      threshold: 0.35,\n      softKnee: 0.26,\n      intensity: 1.25,\n      radius: 49,\n      taps: 30\n    )\n    .lens(displacement: -0.47)\n    .vignette()\n  }\n  .write(o0)\n\nshapes3d(\n  shapeA: octahedron,\n  shapeAScale: osc6,\n  shapeBScale: osc5,\n  smoothness: 43.98,\n  spin: osc3,\n  spinSpeed: 0,\n  flip: osc4,\n  flipSpeed: 0,\n  bgColor: #000000ff\n)\n  .write(o1)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

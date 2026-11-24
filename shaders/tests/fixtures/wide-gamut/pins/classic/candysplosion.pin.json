@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/candysplosion.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4089,
+        "uniqueColors": 3746,
+        "sha256": "fce66849cd93fcde28353d4442cb1bccd4cd55cc1c992cb947d683566a6fd9b7"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4089,
+        "uniqueColors": 3746,
+        "sha256": "f94e4624d95083936db2d083d02924034506eaa46e960b6593e894612e56fadd"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/feedback-fun.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 980,
+        "sha256": "b123da02fe670a4ba86bb67a19f119afd564cba3d9ae5e88aeae99a97bd9cfaf"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 980,
+        "sha256": "b123da02fe670a4ba86bb67a19f119afd564cba3d9ae5e88aeae99a97bd9cfaf"
+      }
+    }
+  }
+}

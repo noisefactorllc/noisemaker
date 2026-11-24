@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "cyber soup"
+  },
+  "effects": [
+    "synth/pattern",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\npattern(fgColor: #4a88fb, bgColor: #000000, rotation: 111, scale: 12, type: 2, speed: 1, animation: 4).write(o0)\nnoise(hueRange: 20, hueRotation: 58, speed: 78, loopOffset: 300, loopScale: 100, refractAmt: 68, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 81, yScale: 81, octaves: 1).composite(tex: read(o0), blendMode: 2, inputColor: #000000, mix: 4, range: 71).colorLab(colorMode: 2, dither: 0, hueRange: 154, hueRotation: 0, levels: 0, palette: eventHorizon).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

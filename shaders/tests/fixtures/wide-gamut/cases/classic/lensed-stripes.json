@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "lensed stripes"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "synth/pattern",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: 45, loopAOffset: 10, loopAScale: 63, speedB: -75, loopBOffset: 20, loopBScale: 100, palette: justRed, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\npattern(fgColor: #5c5e4a, bgColor: #c12c5b, rotation: 89, scale: 17, type: 7, speed: 1, animation: 2).coalesce(tex: read(o0), blendMode: 5, mix: -10, refractAAmt: 0, refractBAmt: 100).lensDistortion(aberration: 21, distortion: -41, speed: 30, loopScale: 77, alpha: 62, shape: 0, tint: #d55b4d, vignetteAmt: -81).lensDistortion(aberration: 59, blendMode: 0, hueRange: 100, hueRotation: 0, blendMode: 1, modulate: true, passthru: 70, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

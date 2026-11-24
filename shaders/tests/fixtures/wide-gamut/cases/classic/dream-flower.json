@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "dream flower"
+  },
+  "effects": [
+    "classicNoisedeck/noise"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRotation: 57, kaleido: 6, metric: 2, palette: dealerHat, wrap: true, type: 3, colorMode: 4, xScale: 85, yScale: 85, octaves: 1).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

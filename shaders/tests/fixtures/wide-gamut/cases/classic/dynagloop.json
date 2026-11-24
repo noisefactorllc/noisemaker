@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "dynagloop"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 78, hueRotation: 3, speed: 100, refractAmt: 41, ridges: false, wrap: true, xScale: 78, yScale: 86, type: 3, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 41, hueRotation: 92, speed: 22, refractAmt: 30, ridges: false, wrap: true, xScale: 86, yScale: 95, type: 3, colorMode: 6, kaleido: 1, octaves: 1).composite(tex: read(o0), blendMode: 1, inputColor: #95201d, mix: 44, range: 58).lensDistortion(aberration: 52, distortion: -42, speed: 4, loopScale: 63, alpha: 1, shape: 0, tint: #cfd0ff, vignetteAmt: 51).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/dancing-cells.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 954,
+        "sha256": "3d084eead89c9e0bcd6992fa1b7b2905f9704a198797d2a4c1ec8a2966a6cc22"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 954,
+        "sha256": "b3c31ae11b06e748090d56f354fb0c4c2316091d56a558c881258ac4ce3f0be2"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/energy-current.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4054,
+        "sha256": "1cc061c2c2d1a4e8860b5c5d794b91469a97cf1b647674cb2ff1a53c9a4cdf51"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4054,
+        "sha256": "5cb8cf76c6baf77d344c4148ad949dc5d49088f39e4f747724267fa55360d8ce"
+      }
+    }
+  }
+}

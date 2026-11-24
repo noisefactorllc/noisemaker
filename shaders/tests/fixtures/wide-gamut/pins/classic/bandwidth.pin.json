@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/bandwidth.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2624,
+        "uniqueColors": 1297,
+        "sha256": "753d5afbc06cb4b3868fc3ec64ab96ddd1248466d0993fd5e3e9c57679db8492"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2624,
+        "uniqueColors": 1297,
+        "sha256": "6aa748e4bd2076220a458ecd403353a2f090b2f988a20540cce905d032886e47"
+      }
+    }
+  }
+}

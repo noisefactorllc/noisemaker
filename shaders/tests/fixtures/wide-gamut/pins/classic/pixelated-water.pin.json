@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/pixelated-water.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4032,
+        "uniqueColors": 64,
+        "sha256": "0046b2d3f58584bdf48387d2d2ac62ededf9ba5e646d172352d91577a5608018"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4032,
+        "uniqueColors": 64,
+        "sha256": "f5e8cafdbed0b363b543b5f2562d7443069c36d17bd31fc838a1ab0fc487392d"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/underwater-kaleido.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3989,
+        "uniqueColors": 3961,
+        "sha256": "e126c7a0b7a0c00b06dad5dfe237c7e13530114e21315275dbab2c371f4ed182"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3989,
+        "uniqueColors": 3961,
+        "sha256": "6342fc25471ac1be322dd9a8211e6029089cbae5ded2a5f2683773893f7f8f2d"
+      }
+    }
+  }
+}

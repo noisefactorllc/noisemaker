@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "don't get chummy"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 0, hueRotation: 58, speed: 35, octaves: 3, refractAmt: 58, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 59, yScale: 59).write(o0)\ncellNoise(colorMode: 2, speed: 1, palette: justRed, scale: 20, cellScale: 75, smooth: 50, variation: 0, cyclePalette: 0, rotatePalette: 0).composite(tex: read(o0), blendMode: 2, inputColor: #000000, mix: 68, range: 97).refract().colorLab(colorMode: 2, dither: 0, hueRange: 99, hueRotation: 0, levels: 0, palette: sulphur).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

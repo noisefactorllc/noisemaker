@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "wobble noise"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(speed: -30, loopOffset: 340, loopScale: 25, palette: dealerHat, type: 11, colorMode: 5, kaleido: 1, xScale: 77, yScale: 77, octaves: 1).write(o0)\nnoise(speed: 79, loopOffset: 340, loopScale: 59, palette: dealerHat, type: 11, colorMode: 5, kaleido: 1, xScale: 89, yScale: 89, octaves: 1).coalesce(tex: read(o0), blendMode: 5, mix: -5, refractAAmt: 3, refractBAmt: 12).refract().lensDistortion(aberration: 74, distortion: -31, speed: -2, loopScale: 59, alpha: 43, shape: 0, tint: #a78ed7, vignetteAmt: 30).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

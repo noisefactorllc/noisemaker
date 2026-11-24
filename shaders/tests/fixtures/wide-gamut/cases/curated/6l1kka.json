@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:6l1kKA",
+    "dslFile": "programs/6l1kKA/program.dsl"
+  },
+  "effects": [
+    "synth/shape",
+    "filter/palette",
+    "synth/solid",
+    "render/pointsEmit",
+    "points/heightGrid",
+    "render/pointsBillboardRender",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vaseline"
+  ],
+  "dsl": "search synth, points, render, filter, mixer\n\nshape(\n  loopAOffset: verticalScan,\n  loopBOffset: noiseSimplex,\n  loopBScale: 100,\n  speedA: 100,\n  speedB: -43\n)\n  .write(o1)\n\nread(o1)\n  .palette(\n    index: afterimage,\n    rotation: fwd,\n    alpha: 0.58\n  )\n  .write(o2)\n\nsolid(color: #000000)\n  .pointsEmit(stateSize: x128)\n  .heightGrid(\n    heightTex: read(o1),\n    diffuseTex: read(o2),\n    gridScale: 100,\n    heightScale: 10.7,\n    heightOffset: 29.3\n  )\n  .pointsBillboardRender(\n    blendMode: alpha,\n    pointSize: 4.16,\n    density: 100,\n    inputIntensity: 100,\n    viewMode: perspective,\n    rotateX: 0.37,\n    viewScale: 2.19,\n    posY: -31.3\n  )\n  .subchain(name: \"lens effects\", id: \"k6ns\") {\n    .temporalAberration()\n    .bloom(\n      threshold: 0.3,\n      intensity: 1.5,\n      taps: 15\n    )\n    .lens(displacement: -0.71, aspectLens: false)\n    .vaseline(alpha: 1)\n  }\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

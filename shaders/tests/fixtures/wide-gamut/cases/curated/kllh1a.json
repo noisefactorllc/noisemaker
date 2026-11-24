@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:KLlH1A",
+    "dslFile": "programs/KLlH1A/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "classicNoisedeck/kaleido",
+    "render/pointsEmit",
+    "points/lenia",
+    "points/flow",
+    "render/pointsRender",
+    "filter/blur",
+    "filter/adjust",
+    "filter/lighting"
+  ],
+  "dsl": "search synth, filter, classicNoisedeck, render, points, mixer\nlet bassReact = audio(band: 0, min: 3.822, max: 28.028)\n\nperlin(scale: 30.81, ridges: true)\n  .kaleido(\n    sides: 13,\n    metric: square,\n    loopOffset: square,\n    loopScale: 20.11,\n    speed: bassReact,\n    direction: clockwise,\n    _skip: true\n  )\n  .subchain(name: \"particle lenia\", id: \"1eyj\") {\n    .pointsEmit(attrition: 3.38)\n    .lenia(\n      muK: 16.5,\n      sigmaK: 7.6,\n      searchRadius: 20,\n      depositAmount: 3.4\n    )\n    .flow(\n      behavior: chaotic,\n      stride: 50,\n      strideDeviation: 0,\n      kink: 5.8\n    )\n    .pointsRender(\n      density: 100,\n      intensity: 47.95,\n      inputIntensity: 31.32\n    )\n  }\n  .blur(radiusX: 12, radiusY: 12)\n  .adjust(mode: hsv, rotation: 22.94)\n  .lighting(\n    normalStrength: 3.36,\n    smoothing: 9.8,\n    reflection: 16.9,\n    refraction: 13.9,\n    aberration: 17.7\n  )\n  .adjust(\n    hueRange: 200,\n    saturation: 1.78,\n    brightness: 1.53,\n    contrast: 0.62\n  )\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

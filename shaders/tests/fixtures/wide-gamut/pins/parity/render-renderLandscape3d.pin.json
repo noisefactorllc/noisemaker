@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/render/renderLandscape3d/parity-case.json",
+  "resolution": [
+    96,
+    80
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 96,
+        "height": 80,
+        "nonzeroRgbPixels": 7552,
+        "uniqueColors": 623,
+        "sha256": "83f0e49c1df44839e8e05c7733a7725d940a969f9f5735bbc6396eabfd267c3d"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 96,
+        "height": 80,
+        "nonzeroRgbPixels": 7552,
+        "uniqueColors": 623,
+        "sha256": "9377f5007c0a8601428ae65e46513063a8ae8c966e6b9141266f7c7a32d4a027"
+      }
+    }
+  }
+}

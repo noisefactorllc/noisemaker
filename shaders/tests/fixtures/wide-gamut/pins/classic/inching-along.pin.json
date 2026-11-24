@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/inching-along.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4014,
+        "sha256": "be30a97b1dbf535ea6c96f3be2e8b994df0ef4060a1a96b13e80b808ebbbdf0e"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4014,
+        "sha256": "872ab49c28510b3c66aeaa33120587773d185c0a54c631e6e3251665a0a11c38"
+      }
+    }
+  }
+}

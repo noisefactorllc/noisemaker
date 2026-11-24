@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/visions-of-a-desert-god.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 965,
+        "sha256": "3f1ec8c9d080bc4abe2dee987cd0c522a1ea5258b850f109a0cb4b2cfac98f73"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 965,
+        "sha256": "3f1ec8c9d080bc4abe2dee987cd0c522a1ea5258b850f109a0cb4b2cfac98f73"
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:8waOng",
+    "dslFile": "programs/8waOng/program.dsl"
+  },
+  "effects": [
+    "synth/gradient",
+    "filter/seamless",
+    "filter/warp",
+    "filter/historicPalette",
+    "filter/wormhole",
+    "filter/motionBlur",
+    "filter/translate",
+    "filter/rotate",
+    "filter/blur",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/adjust"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nlet osc1 = osc(type: oscKind.noise, max: 0.15, seed: 7292)\nlet osc2 = osc(type: oscKind.noise, max: 0.05)\nlet osc3 = osc(type: oscKind.noise, max: 0.23, seed: 7553)\nlet osc4 = osc(type: oscKind.sawInv, speed: bassReact)\nlet bassReact = audio(band: 0, min: 3, max: 22)\n\ngradient(\n  type: fourCorners,\n  rotation: 30.029,\n  repeat: 2,\n  speed: 1,\n  seed: 97,\n  color1: #fefaefff,\n  color2: #92a06bff,\n  color3: #222e76ff,\n  color4: #e19e47ff\n)\n  .seamless(blend: 0.18, repeat: 1)\n  .warp(\n    strength: 35.19,\n    scale: 0.68,\n    speed: 4\n  )\n  .historicPalette(\n    index: kenteCloth,\n    rotation: fwd,\n    offset: osc4,\n    repeat: 3,\n    alpha: 0.86,\n    smoothness: 1\n  )\n  .wormhole(\n    kink: 2.1,\n    stride: 2,\n    rotation: 31,\n    alpha: 0.979\n  )\n  .motionBlur(amount: 100)\n  .translate(x: osc1, y: osc3)\n  .rotate(rotation: osc2)\n  .blur(radiusX: 3, radiusY: 3)\n  .subchain(name: \"lens effects\", id: \"1epb\") {\n    .chromaticAberration(aberration: 25)\n    .bloom(taps: 15)\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.11)\n  }\n  .adjust(\n    rotation: -116.77,\n    hueRange: 200,\n    brightness: 1.44,\n    contrast: 0.58\n  )\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "reflective blobs"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 100, hueRotation: 60, speed: -5, loopOffset: 300, loopScale: 84, refractAmt: 10, wrap: true, type: 10, colorMode: 6, kaleido: 1, xScale: 56, yScale: 56, octaves: 1).write(o0)\nshapes(speedA: -10, loopAOffset: 330, loopAScale: 59, speedB: 14, loopBOffset: 330, loopBScale: 1, palette: justBlue, wrap: true, cyclePalette: 0, rotatePalette: 0).composite(tex: read(o0), blendMode: 1, inputColor: #000000, mix: 47, range: 40).refract().colorLab(colorMode: 2, dither: 0, hueRange: 100, hueRotation: 29, levels: 31, palette: blueSkies).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

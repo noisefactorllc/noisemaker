@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/dot-caught-my-eye.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3529,
+        "uniqueColors": 2597,
+        "sha256": "ad5f724449cd7182894cdaf830d418587269106de810c0e0553d2f23eb20cb01"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3529,
+        "uniqueColors": 2597,
+        "sha256": "003d39bf24260201554b83a15aee925cb810d3ea12af6b4d6b1b76a9e753dbd8"
+      }
+    }
+  }
+}

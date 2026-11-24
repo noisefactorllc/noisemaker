@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/points/hydraulic/parity-case.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3509,
+        "sha256": "ff6e2d3713f4abdcffed91af63402d1eb709a7711c2fb3ef136cae14c2e1d7c7"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3509,
+        "sha256": "e8dcde428803b60413c8d7e0e9728fe0a5bd5e79d40a7e67ab84ef54e92419f8"
+      }
+    }
+  }
+}

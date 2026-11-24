@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/kool-droplets.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4090,
+        "uniqueColors": 4059,
+        "sha256": "08685099a3579e8b7116b821ac9a2d3fae7e053bd4df90499e3139555d0d3f10"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4090,
+        "uniqueColors": 4059,
+        "sha256": "8c6481aadd15a2af937ba8bfca0e878927d31ac2b78c8f471a7c49aa3417c757"
+      }
+    }
+  }
+}

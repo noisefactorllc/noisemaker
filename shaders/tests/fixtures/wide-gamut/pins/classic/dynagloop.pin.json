@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/dynagloop.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4052,
+        "sha256": "c9a7f595abe9563fc204c41a2f0a0160cadfee8f5d364a189cc05b1ca58cfab5"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4052,
+        "sha256": "6e3dad7c661e3ed6099868b12853e1b18df515c087a38aeeb3c8b88cb5bb3edc"
+      }
+    }
+  }
+}

@@ -86,6 +86,8 @@ const testEntries = [
   { file: 'shaders/tests/test_frame_metrics.js', parity: false },
   { file: 'shaders/tests/test_definition_schema.js', parity: false },
   { file: 'shaders/tests/test_cross_backend_agreement.mjs', parity: false },
+  { file: 'shaders/tests/test_color_output.mjs', parity: false },
+  { file: 'shaders/tests/test_wide_gamut_corpus.mjs', parity: false },
   { file: 'test/scene-graph-ci.test.js', parity: false },
   { file: 'test/program-state.test.js', parity: false },
   { file: 'test/generators.test.js', parity: false },

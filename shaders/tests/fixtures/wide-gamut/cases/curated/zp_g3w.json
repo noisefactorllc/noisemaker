@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:zp_G3w",
+    "dslFile": "programs/zp_G3w/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "filter/adjust",
+    "render/loopBegin",
+    "filter/warp",
+    "filter/feedback",
+    "render/loopEnd",
+    "filter/lighting",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "synth/navierStokes",
+    "mixer/blendMode"
+  ],
+  "dsl": "search synth, filter, render, mixer\n\nperlin(\n  scale: 22.25,\n  octaves: 3,\n  ridges: true,\n  speed: 2\n)\n  .adjust(\n    mode: hsv,\n    rotation: 109.39,\n    hueRange: 44.57\n  )\n  .subchain(name: \"feedback loop with warp\", id: \"rp9q\") {\n    .loopBegin(alpha: 96.37)\n    .warp(strength: 5.39)\n    .feedback(mix: 60.63, refractBAmt: 5.8)\n    .loopEnd()\n  }\n  .lighting(\n    normalStrength: 5,\n    smoothing: 3.5,\n    specularIntensity: 1.14,\n    shininess: 134,\n    reflection: 38.7,\n    refraction: 35.3,\n    aberration: 29.7\n  )\n  .subchain(name: \"lens effects\", id: \"yqdu\") {\n    .temporalAberration()\n    .bloom(\n      threshold: 0.6,\n      intensity: 0.75,\n      taps: 15\n    )\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.27, alpha: 0.7)\n  }\n  .write(o0)\n\nnavierStokes(\n  tex: read(o0),\n  iterations: 40,\n  speed: 145,\n  dyeDecay: 98.34,\n  inputForce: 1,\n  inputDye: 1,\n  inputIntensity: 0\n)\n  .lighting(\n    normalStrength: 5,\n    smoothing: 2.5,\n    specularIntensity: 1.35,\n    shininess: 125,\n    reflection: 83.2,\n    refraction: 58.4,\n    aberration: 42.3\n  )\n  .blendMode(tex: read(o0), mode: overlay)\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

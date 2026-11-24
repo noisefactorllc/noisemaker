@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/rainbow-jelly.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4079,
+        "uniqueColors": 3464,
+        "sha256": "518fb8163b58c4052a45979e3e7042890eca2667d5ee6d4bcbffe1df3a4dd354"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4079,
+        "uniqueColors": 3464,
+        "sha256": "2f7844cf85e183b17e1a36b8b4fd62efdc8e2038bf7152f8bc9be3d6ba6ab3b0"
+      }
+    }
+  }
+}

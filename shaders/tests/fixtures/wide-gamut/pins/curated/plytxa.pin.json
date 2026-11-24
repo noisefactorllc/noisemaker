@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/plytxa.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 162,
+        "sha256": "0b5f7eca313dc972c37128d3d00a218fd6624addb1a3ae9f2662b5bcf71b1751"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 162,
+        "sha256": "76e5bb3b99222ecb7220b1a9579295c759cbb1a0ec57bb8643b45d2146b4060a"
+      }
+    }
+  }
+}

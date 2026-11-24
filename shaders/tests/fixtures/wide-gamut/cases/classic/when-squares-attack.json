@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "when squares attack"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: -31, loopAOffset: 300, loopAScale: 3, speedB: 13, loopBOffset: 40, loopBScale: 99, palette: grayscale, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\nshapes(speedA: 94, loopAOffset: 40, loopAScale: 51, speedB: 24, loopBOffset: 40, loopBScale: 8, palette: papaya, wrap: true, cyclePalette: 0, rotatePalette: 0).composite(tex: read(o0), blendMode: 113).colorLab(colorMode: 2, dither: 0, hueRange: 90, hueRotation: 0, levels: 0, palette: justCyan).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

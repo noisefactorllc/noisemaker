@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/the-entity.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3768,
+        "uniqueColors": 1781,
+        "sha256": "646d8a3889e9efe49af54d4c7cbe1ef790c07e9c3ccd6f3d4b66d27f3caf3a5b"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3768,
+        "uniqueColors": 1781,
+        "sha256": "cd64b80c002bb6d4ffc093f9fc1e770826dcb1f4eeea560c980c03b41c547906"
+      }
+    }
+  }
+}

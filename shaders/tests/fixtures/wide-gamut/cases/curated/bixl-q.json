@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:BiXL-Q",
+    "dslFile": "programs/BiXL-Q/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "filter/adjust",
+    "render/loopBegin",
+    "filter/warp",
+    "filter/feedback",
+    "render/loopEnd",
+    "synth/navierStokes",
+    "mixer/blendMode",
+    "filter/lighting",
+    "mixer/focusBlur"
+  ],
+  "dsl": "search synth, filter, render, mixer\n\nperlin(\n  scale: 21.39,\n  dimensions: 3,\n  ridges: true,\n  speed: 2\n)\n  .adjust(\n    mode: hsv,\n    rotation: 141.85,\n    hueRange: 34.38\n  )\n  .subchain(name: \"feedback loop with warp\", id: \"rp9q\") {\n    .loopBegin(alpha: 95.49)\n    .warp(\n      strength: 1.29,\n      scale: 1.7,\n      speed: 2\n    )\n    .feedback(\n      blendMode: lighten,\n      mix: 60.63,\n      refractBAmt: 1.35,\n      refractBDir: 170.14,\n      intensity: -7.02\n    )\n    .loopEnd()\n  }\n  .write(o0)\n\nnavierStokes(\n  tex: read(o0),\n  zoom: x2,\n  iterations: 40,\n  speed: 73.4,\n  dyeDecay: 98.34,\n  inputForce: 0.94,\n  inputDye: 1,\n  inputIntensity: 0\n)\n  .blendMode(\n    tex: read(o0),\n    mode: lighten,\n    mix: -0.46\n  )\n  .lighting(\n    normalStrength: 5,\n    smoothing: 2.5,\n    specularIntensity: 1.35,\n    shininess: 81,\n    reflection: 26.5,\n    refraction: 37.6,\n    aberration: 31.4\n  )\n  .focusBlur(\n    tex: read(o0),\n    focalDistance: 28.5,\n    aperture: 1.12,\n    sampleBias: 64\n  )\n  .adjust(\n    rotation: -24.45,\n    saturation: 0.87,\n    brightness: 0.98,\n    contrast: 0.7\n  )\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

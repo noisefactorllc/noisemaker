@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/cosmic-fabric.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4060,
+        "uniqueColors": 4059,
+        "sha256": "d709170ef856cdf9602040ed409e47e485e222931b672f576e758e68b9844c87"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4060,
+        "uniqueColors": 4059,
+        "sha256": "d3d35f61d5679ccbb83009a8af629cb870c7fe5d80f30591cfed12c5252464cf"
+      }
+    }
+  }
+}

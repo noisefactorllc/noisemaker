@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/filter/chromaticAberration/parity-case.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4095,
+        "sha256": "c96a3520bbe0e52a8919a09a584a8a061f79118d3eb9a6881dfc7e2d2965ea8b"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4095,
+        "sha256": "699944655c53068182a8001bf1ca039db6b661d222fe0cafeb5f924b1259a124"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/this-is-what-we-re-doing-now.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3770,
+        "uniqueColors": 3481,
+        "sha256": "ba33d689623b32b7a5345028261fa43f4980a933913985be4222522bcfce3017"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3770,
+        "uniqueColors": 3481,
+        "sha256": "ffa6b3cb8c788cce437cca61d671273f4611e8ca5251edb0ea1711c5e431ea59"
+      }
+    }
+  }
+}

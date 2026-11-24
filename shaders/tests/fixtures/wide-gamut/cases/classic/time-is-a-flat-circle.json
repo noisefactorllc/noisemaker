@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "time is a flat circle"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: -75, loopAOffset: 10, loopAScale: 62, speedB: 84, loopBOffset: 10, loopBScale: 46, palette: justRed, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRotation: 3, kaleido: 15, metric: 0, palette: papaya, wrap: true, type: 3, colorMode: 4, xScale: 96, yScale: 96, octaves: 1).coalesce(tex: read(o0), blendMode: 2, mix: -27, refractAAmt: 10, refractBAmt: 0).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:9ClItw",
+    "dslFile": "programs/9ClItw/program.dsl"
+  },
+  "effects": [
+    "synth/gabor",
+    "filter/tetraCosine",
+    "filter/warp",
+    "render/pointsEmit",
+    "points/flow",
+    "render/pointsBillboardRender",
+    "filter/feedback",
+    "filter/lighting",
+    "mixer/focusBlur",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/adjust"
+  ],
+  "dsl": "search synth, filter, mixer, render, points\n\ngabor(\n  scale: 93.35,\n  orientation: -72.4,\n  bandwidth: 47.67,\n  isotropy: 58.66,\n  density: 1,\n  octaves: 3,\n  speed: 3,\n  seed: 31\n)\n  .tetraCosine(\n    colorMode: hsv,\n    offsetR: 0.018,\n    offsetG: 0.028,\n    offsetB: 0.699,\n    ampR: 0.601,\n    ampG: 0.167,\n    ampB: 0.616,\n    freqR: 4,\n    freqB: 0,\n    phaseR: 0.227,\n    phaseG: 0.412,\n    phaseB: 0.427,\n    rotation: back,\n    repeat: 2,\n    offset: 0.69,\n    alpha: 0.652\n  )\n  .warp(\n    strength: 8.76,\n    scale: 2.05,\n    speed: 3\n  )\n  .subchain(name: \"flow field particles\", id: \"40mu\") {\n    .pointsEmit(stateSize: x64, attrition: 0.1)\n    .flow(\n      behavior: chaotic,\n      stride: 114,\n      strideDeviation: 0.5,\n      kink: 4.1\n    )\n    .pointsBillboardRender(\n      blendMode: alpha,\n      depositOpacity: 100,\n      pointSize: 33.23,\n      sizeVariation: 100,\n      rotationVar: 100,\n      seed: 0,\n      density: 1,\n      intensity: 73.2,\n      inputIntensity: 100\n    )\n  }\n  .feedback(\n    blendMode: lighten,\n    mix: 40.75,\n    intensity: -38.13\n  )\n  .write(o0)\n\nread(o0)\n  .lighting(\n    normalStrength: 3.46,\n    smoothing: 3.4,\n    specularIntensity: 1.18,\n    shininess: 133,\n    lightDirection: vec3(0.439, -0.428, 0.79),\n    reflection: 34.5,\n    refraction: 57.9,\n    aberration: 53.1\n  )\n  .focusBlur(\n    tex: read(o0),\n    focalDistance: 34.82,\n    aperture: 1.34,\n    sampleBias: 64\n  )\n  .subchain(name: \"lens effects\", id: \"1kos\") {\n    .temporalAberration()\n    .bloom(taps: 15)\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.23, alpha: 0.66)\n  }\n  .adjust(brightness: 1.33, contrast: 0.86)\n  .write(o2)\n\nrender(o2)",
+  "surface": "o2",
+  "resolution": [
+    64,
+    64
+  ]
+}

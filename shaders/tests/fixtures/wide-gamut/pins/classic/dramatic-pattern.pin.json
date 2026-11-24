@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/dramatic-pattern.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4070,
+        "uniqueColors": 1767,
+        "sha256": "719803e3e5fb1fe9200306a510f8cb2a70a34548fe81ec17edce7c3712c23a04"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4070,
+        "uniqueColors": 1767,
+        "sha256": "4dc9f0855a3c1564b605b354466805ef86bf33bf2f31085a0aca316f084d453f"
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:IID9pA",
+    "dslFile": "programs/IID9pA/program.dsl"
+  },
+  "effects": [
+    "synth/noise",
+    "filter/adjust",
+    "synth/reactionDiffusion",
+    "filter/tetraCosine",
+    "filter/lighting"
+  ],
+  "dsl": "search synth, filter, classicNoisedeck\n\nlet osc1 = osc(type: oscKind.sine, speed: bassReact)\nlet osc2 = osc(type: oscKind.noise, seed: 9368)\nlet osc3 = osc(type: oscKind.noise, seed: 1311)\nlet osc4 = osc(type: oscKind.noise, seed: 3626)\nlet bassReact = audio(band: 0, min: 0.9, max: 6.6)\n\nnoise(\n  scaleX: 100,\n  scaleY: 100,\n  seed: 43,\n  ridges: true,\n  loopScale: 83.52,\n  speed: 100\n)\n  .adjust(\n    mode: hsv,\n    rotation: osc1,\n    hueRange: 28.98,\n    saturation: 1.17,\n    contrast: 0.53\n  )\n  .write(o0)\n\nreactionDiffusion(\n  tex: read(o0),\n  zoom: x32,\n  smoothing: bSpline4x4,\n  sourceF: sliderInput,\n  feed: 85.23,\n  kill: 59.38,\n  rate1: 79.53,\n  rate2: 24.48,\n  weight: 68.92,\n  inputIntensity: osc4\n)\n  .write(o1)\n\nreactionDiffusion(\n  tex: read(o1),\n  zoom: x16,\n  smoothing: bSpline4x4,\n  sourceF: brightness,\n  feed: 88.69,\n  kill: 56.45,\n  rate1: 98.83,\n  rate2: 23.39,\n  weight: 72.1,\n  inputIntensity: osc3\n)\n  .write(o2)\n\nreactionDiffusion(\n  tex: read(o2),\n  zoom: x2,\n  smoothing: bSpline4x4,\n  sourceF: sliderInput,\n  feed: 31.52,\n  kill: 55.71,\n  rate1: 94.75,\n  rate2: 43.79,\n  weight: 100,\n  inputIntensity: osc2\n)\n  .write(o3)\n\nread(o3)\n  .tetraCosine(\n    colorMode: oklch,\n    offsetR: 0.583,\n    offsetG: 0.657,\n    offsetB: 0.58,\n    ampR: 0.84,\n    ampG: 0.921,\n    ampB: 0.126,\n    freqR: 0,\n    phaseR: 0.559,\n    phaseG: 0.94,\n    phaseB: 0.758,\n    rotation: fwd,\n    repeat: 3.26,\n    offset: 0.992,\n    alpha: 0.628\n  )\n  .lighting(\n    normalStrength: 5,\n    smoothing: 1.3,\n    specularIntensity: 1.24,\n    shininess: 86,\n    lightDirection: vec3(0.322, 0.694, 0.643),\n    reflection: 15.9,\n    refraction: 23.2,\n    aberration: 28\n  )\n  .adjust(\n    saturation: 0.55,\n    brightness: 1.58,\n    contrast: 0.62\n  )\n  .write(o4)\n\nrender(o4)",
+  "surface": "o4",
+  "resolution": [
+    64,
+    64
+  ]
+}

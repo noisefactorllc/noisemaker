@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/chromatic-liquid.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4064,
+        "uniqueColors": 2928,
+        "sha256": "c2fec4ea7b1a031db1f87f42f4de9f564fbea79d59555dbd36b7f588ef0b7c32"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4064,
+        "uniqueColors": 2928,
+        "sha256": "275df80583a2c6a3b704464c58391ebef0a09446e4cf4deef707031223cb3c82"
+      }
+    }
+  }
+}

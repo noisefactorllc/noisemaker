@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "1980s shmoos"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/colorLab",
+    "filter/tetraCosine"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: -32, loopAOffset: 200, loopAScale: 69, speedB: -19, loopBOffset: 330, loopBScale: 47, palette: netOfGems, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\nshapes(speedA: 32, loopAOffset: 200, loopAScale: 86, speedB: -24, loopBOffset: 210, loopBScale: 18, palette: seventiesShirt, wrap: true, cyclePalette: 0, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 6, mix: 2, refractAAmt: 0, refractBAmt: 0).colorLab(colorMode: 2, dither: 0, hueRange: 100, hueRotation: 0, levels: 2, palette: seventiesShirt).tetraCosine(ampB: 0.43, ampG: 0.35, ampR: 0.91, freqR: 4, freqG: 4, freqB: 4, offsetB: 0.17, offsetG: 0.66, offsetR: 0.90, phaseB: 0.100, phaseG: 0.33, phaseR: 0.58).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

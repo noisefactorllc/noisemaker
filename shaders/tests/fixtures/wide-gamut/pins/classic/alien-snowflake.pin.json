@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/alien-snowflake.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 2523,
+        "sha256": "67c381f9b465e6c3bce779bfbaf2ec61d83d2d3fc3233e91156fe35c0f9c68a2"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 2523,
+        "sha256": "636422e7a0fb6711b1b64dde55b9c62ee0123f8b92e0c5697d2b1660390b472b"
+      }
+    }
+  }
+}

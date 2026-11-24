@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "see you in prism"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 18, hueRotation: 20, speed: -30, loopOffset: 20, loopScale: 81, refractAmt: 94, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 100, yScale: 100, octaves: 1).write(o0)\ncellNoise(colorMode: 2, speed: 0, palette: royal, scale: 18, cellScale: 75, smooth: 0, variation: 0, cyclePalette: 1, rotatePalette: 0).composite(tex: read(o0), blendMode: 1, inputColor: #8f8f8f, mix: 0, range: 54).lensDistortion(aberration: 100, distortion: -67, speed: 83, loopScale: 39, alpha: 33, shape: 6, tint: #412036, vignetteAmt: -46).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

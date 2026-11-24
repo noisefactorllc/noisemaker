@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/see-you-in-prism.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4039,
+        "uniqueColors": 3767,
+        "sha256": "80ebd9f14fe900188f925791334b0dc4a13c04023e9ea423046d440ff3c00836"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4039,
+        "uniqueColors": 3767,
+        "sha256": "a669e9d7560d68cc39cc8cf71fc6acea2a419c47e93081c3c9db73e044e75a0d"
+      }
+    }
+  }
+}

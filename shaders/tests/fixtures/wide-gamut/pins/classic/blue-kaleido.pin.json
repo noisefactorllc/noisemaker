@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/blue-kaleido.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4094,
+        "uniqueColors": 653,
+        "sha256": "2fa3088e9517a06ada51fe652adefac811619d77539935f0d9e47a65ae6c8b3f"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4094,
+        "uniqueColors": 653,
+        "sha256": "e2f67243fb18e9a3a639fa5503d05655e8fd7663d799d082933a6611eb6d18f9"
+      }
+    }
+  }
+}

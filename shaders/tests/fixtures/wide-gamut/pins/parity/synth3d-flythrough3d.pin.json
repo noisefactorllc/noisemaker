@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/synth3d/flythrough3d/parity-case.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1355,
+        "uniqueColors": 1218,
+        "sha256": "48c3f2d689f04c3b211700f6b6e085d51da10708aef686132181ea18b28f8d38"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1355,
+        "uniqueColors": 1218,
+        "sha256": "0fcd73a7b894aa66778fa8899bf4adc615d17ce39275b045022bb5a2b9f61e9f"
+      }
+    }
+  }
+}

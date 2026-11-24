@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/warp-signature.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2999,
+        "uniqueColors": 2108,
+        "sha256": "4a9d6021382fc0dd8a169989025194de5c1e667bf8b96437ab9b694193f71f87"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2999,
+        "uniqueColors": 2108,
+        "sha256": "563fb2132fb29f1f7189072339b16328963aa02863314aab49e7981a73cc3994"
+      }
+    }
+  }
+}

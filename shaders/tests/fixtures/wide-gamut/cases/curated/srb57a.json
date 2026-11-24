@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:SrB57A",
+    "dslFile": "programs/SrB57A/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "synth3d/heightmap3d",
+    "render/renderLandscape3d",
+    "synth/solid",
+    "render/pointsEmit",
+    "points/heightGrid",
+    "render/pointsBillboardRender",
+    "mixer/blendMode"
+  ],
+  "dsl": "search synth, filter, render, points, mixer, synth3d\n\nlet osc1 = osc(type: oscKind.sine, min: 0.68, max: 0.76)\nlet osc2 = osc(type: oscKind.saw)\n\nperlin(\n  scale: 9.51,\n  octaves: 3,\n  colorMode: mono,\n  seed: 70,\n  speed: 5\n)\n  .write(o0)\n\nperlin(scale: 13.05, speed: 5)\n  .write(o2)\n\nheightmap3d(\n  heightTex: read(o0),\n  tex: read(o2),\n  volumeSize: x128,\n  heightScale: 0.17,\n  baseHeight: 0.42\n)\n  .renderLandscape3d(\n    viewMode: perspective,\n    rotateX: 0.25,\n    rotateY: osc2,\n    rotateZ: osc2,\n    posZ: osc1,\n    fieldOfView: 96\n  )\n  .write(o3)\n\nsolid(color: #000000)\n  .subchain(name: \"strange attractor particles\", id: \"9xcv\") {\n    .pointsEmit()\n    .heightGrid(\n      heightTex: read(o0),\n      diffuseTex: read(o2),\n      heightOffset: -11.1\n    )\n    .pointsBillboardRender(\n      shapeMode: star,\n      blendMode: alpha,\n      depositOpacity: 100,\n      pointSize: 5.69,\n      sizeVariation: 100,\n      rotationVar: 100,\n      density: 100,\n      intensity: 84.43,\n      inputIntensity: 100,\n      viewMode: perspective,\n      rotateX: 0.25,\n      rotateY: osc2,\n      rotateZ: osc2,\n      viewScale: 0.75,\n      posZ: osc1,\n      fieldOfView: 96,\n      sizeDistance: 116,\n      brightnessDistance: 45,\n      aperture: 1.1,\n      focalDistance: 22\n    )\n  }\n  .blendMode(\n    tex: read(o3),\n    mode: lighten,\n    mix: 3.41\n  )\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

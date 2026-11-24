@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:bcNzTw",
+    "dslFile": "programs/bcNzTw/program.dsl"
+  },
+  "effects": [
+    "synth/mnca",
+    "filter/tetraCosine",
+    "filter/lighting",
+    "filter/prismaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "synth/gabor"
+  ],
+  "dsl": "search filter, synth, render, points, mixer\nlet midsReact = audio(band: 1, min: 46.385, max: 157.709)\n\nmnca(\n  tex: read(o1),\n  zoom: x4,\n  smoothing: bSpline4x4,\n  speed: midsReact,\n  weight: 41.45,\n  n1v1: 37.397,\n  n1r1: 36.19,\n  n1v2: 85.071,\n  n1r2: 59.39,\n  n1v3: 78.473,\n  n1r3: 59.21,\n  n1v4: 40.291,\n  n1r4: 9.6,\n  n2v1: 57.169,\n  n2r1: 74.141,\n  n2v2: 75.756,\n  n2r2: 18.421\n)\n  .tetraCosine(\n    colorMode: oklch,\n    offsetR: 0.224,\n    offsetG: 0.804,\n    offsetB: 0.027,\n    ampR: 0.324,\n    ampG: 0.602,\n    ampB: 0.567,\n    freqR: 3,\n    freqB: 4,\n    phaseR: 0.915,\n    phaseG: 0.428,\n    phaseB: 0.337,\n    rotation: fwd,\n    repeat: 0.46,\n    offset: 0.83,\n    alpha: 0.988\n  )\n  .lighting(\n    normalStrength: 0.99,\n    smoothing: 4.2,\n    reflection: 17.4,\n    refraction: 14.2,\n    aberration: 17\n  )\n  .subchain(name: \"lens effects\", id: \"9amq\") {\n    .prismaticAberration(\n      aberration: 100,\n      modulate: true,\n      hueRange: 100,\n      saturation: -100\n    )\n    .bloom(\n      threshold: 0.45,\n      intensity: 0.7,\n      taps: 33\n    )\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.18, alpha: 0.77)\n  }\n  .write(o0)\n\ngabor(\n  scale: 66.82,\n  orientation: -79.79,\n  bandwidth: 68.83,\n  isotropy: 8.76,\n  density: 5,\n  octaves: 2,\n  speed: 5,\n  seed: 47\n)\n  .write(o1)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

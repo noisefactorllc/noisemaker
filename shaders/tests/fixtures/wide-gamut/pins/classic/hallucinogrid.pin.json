@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/hallucinogrid.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3980,
+        "uniqueColors": 3804,
+        "sha256": "33919bec58593990d0510a9c537c2436e57a312e0c5cf744b12a5934fbfa688e"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3980,
+        "uniqueColors": 3804,
+        "sha256": "2155074f1488ce42e8e1dce78401397a0a968247833a9850da961b6084818d0a"
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "skewed symmetries"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 40, hueRotation: 88, speed: 70, octaves: 2, refractAmt: 100, ridges: false, type: 10, colorMode: 6, kaleido: 1, xScale: 95, yScale: 95).write(o0)\nshapes(speedA: -60, loopAOffset: 10, loopAScale: 46, speedB: 61, loopBOffset: 210, loopBScale: 69, palette: tungsten, wrap: true, cyclePalette: 0, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 15, mix: 9, refractAAmt: 96, refractBAmt: 100).lensDistortion(aberration: 100, blendMode: 0, hueRange: 54, hueRotation: 0, blendMode: 1, modulate: false, passthru: 38, alpha: 0, speed: 0, distortion: 0).effects(effect: 0, effectAmt: 2, flip: 15, offsetX: -13, offsetY: 7, rotation: 101, scaleAmt: 108).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

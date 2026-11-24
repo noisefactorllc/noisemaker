@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/classicNoisedeck/kaleido/parity-case.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 387,
+        "sha256": "93c87afeeff0d4b6068ebf128ab6fc6a14a7491a85be9ef71997ec8cfb6a4044"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 387,
+        "sha256": "fabb868d047eaa2733748d4eb3c41c6eeaeddabcf22e3595c813b5905360a869"
+      }
+    }
+  }
+}

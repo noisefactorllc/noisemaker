@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/sky-eye.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 1434,
+        "sha256": "d4c217300102d7dbed6c040c0e7088bf9c5b6b275494ef18f21fe8758d839d8b"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 1432,
+        "sha256": "8730e2f3cf19c51725f68b67eb61aa95ad2f0e6435842294373cc4d12e9a99b0"
+      }
+    }
+  }
+}

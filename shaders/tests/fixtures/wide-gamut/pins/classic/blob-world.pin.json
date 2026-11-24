@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/blob-world.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4037,
+        "uniqueColors": 3790,
+        "sha256": "eab5a4e0cca664f4e15b0d7d29a75ece91c03201378c65c1e06384a452a9b457"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4037,
+        "uniqueColors": 3790,
+        "sha256": "117a799f8e6a8fa6785c2aaa0540a8abd5f8edbdadb526774b0d332d3d71ed5b"
+      }
+    }
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:n2FcpA",
+    "dslFile": "programs/n2FcpA/program.dsl"
+  },
+  "effects": [
+    "filter/adjust",
+    "filter/celShading",
+    "filter/palette",
+    "filter/outline",
+    "filter/smooth"
+  ],
+  "dsl": "search synth, filter, classicNoisedeck, user\n\nlet osc1 = osc(type: oscKind.saw)\n\nchromeicosahedroninterior(\n  reflections: 4,\n  glowIntensity: 3,\n  chromeShift: 0,\n  cameraOffset: 0.3\n)\n  .adjust(\n    rotation: osc1,\n    hueRange: 25,\n    saturation: 1.93\n  )\n  .celShading(\n    levels: 7,\n    edgeWidth: 0,\n    edgeThreshold: 1\n  )\n  .palette(\n    index: dealerHat,\n    rotation: fwd,\n    repeat: 7\n  )\n  .outline(thickness: 2.2)\n  .smooth()\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ],
+  "userEffects": [
+    {
+      "name": "chromeicosahedroninterior",
+      "namespace": "user",
+      "func": "chromeicosahedroninterior",
+      "description": "A surreal view from inside a perfectly reflective chrome icosahedron. The camera slowly orbits inside the 20-faced polyhedron, watching multiple internal reflections create an infinite kaleidoscopic mirror effect. Chrome surfaces exhibit Fresnel-based reflectivity with bright glowing edges at grazing angles. A procedural environment creates surreal color bands visible in the reflections - cool metallics shifting through cyan, silver, and hints of gold. Edge glow pulses softly. Chromatic aberration adds prismatic rainbow fringing to reflections. The overall aesthetic is ethereal, metallic, and hypnotically geometric.",
+      "tags": [
+        "custom",
+        "user"
+      ],
+      "globals": {
+        "reflections": {
+          "type": "int",
+          "default": 5,
+          "uniform": "reflections",
+          "min": 2,
+          "max": 10,
+          "ui": {
+            "label": "reflections",
+            "control": "slider"
+          }
+        },
+        "glowIntensity": {
+          "type": "float",
+          "default": 1.2,
+          "uniform": "glowIntensity",
+          "min": 0,
+          "max": 3,
+          "ui": {
+            "label": "glowIntensity",
+            "control": "slider"
+          }
+        },
+        "chromeShift": {
+          "type": "float",
+          "default": 0.02,
+          "uniform": "chromeShift",
+          "min": 0,
+          "max": 0.1,
+          "ui": {
+            "label": "chromeShift",
+            "control": "slider"
+          }
+        },
+        "cameraOffset": {
+          "type": "float",
+          "default": 0.15,
+          "uniform": "cameraOffset",
+          "min": 0,
+          "max": 0.4,
+          "ui": {
+            "label": "cameraOffset",
+            "control": "slider"
+          }
+        }
+      },
+      "passes": [
+        {
+          "name": "render",
+          "program": "chromeicosahedroninterior",
+          "inputs": {},
+          "outputs": {
+            "fragColor": "outputTex"
+          }
+        }
+      ],
+      "shaders": {
+        "chromeicosahedroninterior": {
+          "glsl": "#version 300 es\nprecision highp float;\n\nuniform float time;\nuniform vec2 resolution;\n\nout vec4 fragColor;\n\n#define TAU 6.283185307179586\n#define PI 3.141592653589793\n\nuniform int reflections;      // 2-10, number of internal mirror bounces\nuniform float glowIntensity;  // 0.0-3.0, brightness of edge glow effect\nuniform float chromeShift;    // 0.0-0.1, chromatic aberration strength\nuniform float cameraOffset;   // 0.0-0.4, camera distance from center\n\n// Hash functions for procedural generation\nfloat hash(float p) {\n    return fract(sin(p * 127.1) * 43758.5453);\n}\n\nfloat hash(vec2 p) {\n    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);\n}\n\nvec3 hash3(vec2 p) {\n    vec3 q = vec3(dot(p, vec2(127.1, 311.7)),\n                  dot(p, vec2(269.5, 183.3)),\n                  dot(p, vec2(419.2, 371.9)));\n    return fract(sin(q) * 43758.5453);\n}\n\n// Value noise - pure math, noiseOffset enables animation when passed from main\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    f = f * f * (3.0 - 2.0 * f);\n    \n    float a = hash(i);\n    float b = hash(i + vec2(1.0, 0.0));\n    float c = hash(i + vec2(0.0, 1.0));\n    float d = hash(i + vec2(1.0, 1.0));\n    \n    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);\n}\n\n// Golden ratio for icosahedron geometry\nconst float PHI = 1.618033988749895;\n\n// Icosahedron SDF - signed distance (negative inside)\nfloat sdIcosahedron(vec3 p, float r) {\n    vec3 n = normalize(vec3(PHI, 1.0, 0.0));\n    vec3 ap = abs(p);\n    float a = dot(ap, n);\n    float b = dot(ap, n.yzx);\n    float c = dot(ap, n.zxy);\n    return max(max(a, b), c) - r;\n}\n\n// Get icosahedron face normal at point\nvec3 icosahedronNormal(vec3 p) {\n    vec3 n = normalize(vec3(PHI, 1.0, 0.0));\n    vec3 ap = abs(p);\n    vec3 sp = sign(p + 1e-6);\n    \n    float a = dot(ap, n);\n    float b = dot(ap, n.yzx);\n    float c = dot(ap, n.zxy);\n    \n    if (a >= b && a >= c) return sp * n;\n    if (b >= a && b >= c) return sp.yzx * n.yzx;\n    return sp.zxy * n.zxy;\n}\n\n// Fresnel reflectance (Schlick approximation)\nfloat fresnel(vec3 viewDir, vec3 normal, float f0) {\n    float cosTheta = max(dot(-viewDir, normal), 0.0);\n    return f0 + (1.0 - f0) * pow(1.0 - cosTheta, 5.0);\n}\n\n// Chrome metallic palette - t is 0-1 position, NOT time\nvec3 chromePalette(float t) {\n    vec3 silver = vec3(0.9, 0.92, 0.95);\n    vec3 cyan = vec3(0.7, 0.9, 1.0);\n    vec3 gold = vec3(1.0, 0.95, 0.85);\n    vec3 blue = vec3(0.7, 0.75, 0.85);\n    \n    t = clamp(t, 0.0, 0.9999);\n    float segment = t * 4.0;\n    int idx = int(segment);\n    float blend = segment - float(idx);\n    \n    if (idx == 0) return mix(silver, cyan, blend);\n    if (idx == 1) return mix(cyan, blue, blend);\n    if (idx == 2) return mix(blue, gold, blend);\n    return mix(gold, silver, blend);\n}\n\n// Procedural environment for reflections\n// noiseOffset passed from main for animation\nvec3 proceduralEnvironment(vec3 dir, vec2 noiseOffset) {\n    float theta = atan(dir.z, dir.x);\n    float phi = asin(clamp(dir.y, -1.0, 1.0));\n    \n    float band = sin(theta * 3.0) * cos(phi * 2.0);\n    band += noise(vec2(theta, phi) * 5.0 + noiseOffset) * 0.3;\n    \n    float palettePos = band * 0.5 + 0.5;\n    vec3 col = chromePalette(palettePos);\n    col *= 0.8 + 0.2 * noise(dir.xz * 8.0 + noiseOffset);\n    \n    return col;\n}\n\n// Rotation helpers\nvec3 rotateY(vec3 p, float angle) {\n    float c = cos(angle);\n    float s = sin(angle);\n    return vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z);\n}\n\nvec3 rotateX(vec3 p, float angle) {\n    float c = cos(angle);\n    float s = sin(angle);\n    return vec3(p.x, c * p.y - s * p.z, s * p.y + c * p.z);\n}\n\n// Edge glow at grazing angles\nfloat edgeGlow(vec3 viewDir, vec3 normal) {\n    float edge = 1.0 - abs(dot(viewDir, normal));\n    return pow(max(edge, 0.0), 3.0);\n}\n\n// Reflect ray inside icosahedron and accumulate color\nvec3 reflectRay(vec3 dir, vec3 normal) {\n    return reflect(dir, normal);\n}\n\nvoid main() {\n    vec2 uv = gl_FragCoord.xy / resolution;\n    vec2 centered = uv - 0.5;\n    centered.x *= resolution.x / resolution.y;\n    \n    // ═══════════════════════════════════════════════════════════════════════════\n    // LOOPING PRIMITIVES - ALL ANIMATION MUST USE THESE\n    // time goes 0→1, so t goes 0→TAU, completing exactly one cycle\n    // ═══════════════════════════════════════════════════════════════════════════\n    float t = time * TAU;           // Converts time 0→1 to radians 0→TAU\n    vec2 timeCircle = vec2(cos(t), sin(t));  // For noise sampling - traces a circle\n    float pulse = 0.5 + 0.5 * sin(t);        // 0→1→0 smooth oscillation\n    float wave = sin(t);                      // -1→1→-1 smooth oscillation\n\n// ═══════════════════════════════════════════════════════════════════════════\n    // MAIN EFFECT LOGIC - Chrome Icosahedron Interior\n    // ═══════════════════════════════════════════════════════════════════════════\n    \n    float icoRadius = 1.0;\n    \n    // Camera orbiting inside the icosahedron - uses wave for smooth back-and-forth\n    vec3 camPos = vec3(\n        timeCircle.x * cameraOffset,\n        wave * cameraOffset * 0.3,\n        timeCircle.y * cameraOffset\n    );\n    \n    // Camera look direction with gentle oscillation\n    vec3 camTarget = vec3(wave * 0.1, sin(t * 2.0) * 0.05, 0.0);\n    vec3 camForward = normalize(camTarget - camPos);\n    vec3 camRight = normalize(cross(vec3(0.0, 1.0, 0.0), camForward));\n    vec3 camUp = cross(camForward, camRight);\n    \n    // Ray direction through pixel\n    vec3 rayDir = normalize(camForward + centered.x * camRight + centered.y * camUp);\n    \n    // Final accumulated color with chromatic aberration\n    vec3 finalColor = vec3(0.0);\n    \n    // Trace 3 rays for chromatic aberration (R, G, B channels)\n    for (int channel = 0; channel < 3; channel++) {\n        float aberrationOffset = (float(channel) - 1.0) * chromeShift;\n        vec3 traceDir = normalize(rayDir + camRight * aberrationOffset);\n        vec3 traceOrigin = camPos;\n        \n        vec3 channelColor = vec3(0.0);\n        float channelAtten = 1.0;\n        \n        // Reflection bounces inside icosahedron\n        for (int bounce = 0; bounce < 10; bounce++) {\n            if (bounce >= reflections) break;\n            \n            // Ray march to find icosahedron surface from inside\n            float marchDist = 0.0;\n            vec3 hitPos = traceOrigin;\n            \n            for (int step = 0; step < 48; step++) {\n                hitPos = traceOrigin + traceDir * marchDist;\n                float d = -sdIcosahedron(hitPos, icoRadius);\n                if (d < 0.001) break;\n                marchDist += max(d * 0.6, 0.002);\n                if (marchDist > 4.0) break;\n            }\n            \n            // Surface normal pointing inward\n            vec3 normal = -icosahedronNormal(hitPos);\n            \n            // Fresnel - chrome is highly reflective\n            float fresnelVal = fresnel(traceDir, normal, 0.85);\n            \n            // Edge glow - bright at grazing angles, pulsing\n            float glow = edgeGlow(traceDir, normal);\n            float pulsingGlow = glow * glowIntensity * (0.7 + 0.5 * pulse);\n            \n            // Sample procedural environment in reflection direction\n            vec3 reflectDir = reflect(traceDir, normal);\n            vec3 envColor = proceduralEnvironment(reflectDir, timeCircle * 0.5);\n            \n            // Accumulate environment color through attenuation\n            channelColor += channelAtten * envColor * (1.0 - fresnelVal) * 0.4;\n            \n            // Add edge glow with animated palette position\n            float palettePos = 0.5 + 0.3 * sin(t + float(bounce) * 0.8);\n            vec3 glowCol = chromePalette(palettePos);\n            channelColor += channelAtten * glowCol * pulsingGlow;\n            \n            // Attenuate for next bounce\n            channelAtten *= fresnelVal * 0.88;\n            \n            // Set up next bounce\n            traceDir = reflectDir;\n            traceOrigin = hitPos + traceDir * 0.01;\n        }\n        \n        // Final environment contribution after all bounces\n        vec3 finalEnv = proceduralEnvironment(traceDir, timeCircle * 0.5);\n        channelColor += channelAtten * finalEnv;\n        \n        // Assign to appropriate color channel\n        if (channel == 0) finalColor.r = channelColor.r;\n        else if (channel == 1) finalColor.g = channelColor.g;\n        else finalColor.b = channelColor.b;\n    }\n    \n    // Add central bright spot with animated intensity\n    float centerDist = length(centered);\n    float centerGlow = exp(-centerDist * 4.0) * 0.3 * (0.8 + 0.4 * pulse);\n    finalColor += chromePalette(pulse) * centerGlow;\n    \n    // Subtle vignette\n    float vignette = 1.0 - centerDist * 0.4;\n    finalColor *= vignette;\n    \n    // Filmic tone mapping\n    finalColor = finalColor / (1.0 + finalColor * 0.5);\n    \n    // Output color\n    vec3 color = pow(max(finalColor, vec3(0.0)), vec3(0.92));\n\nfragColor = vec4(color, 1.0);\n}"
+        }
+      },
+      "textures": {}
+    }
+  ],
+  "backends": [
+    "webgl2"
+  ]
+}

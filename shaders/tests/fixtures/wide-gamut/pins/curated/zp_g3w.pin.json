@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/zp_g3w.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3452,
+        "sha256": "a693c25f6b8fc36ffc11cf5dc91416ffa225eed24a93790fb7c2ca513c4731af"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3452,
+        "sha256": "1029204f66c87bd04ee58e79c7e8df9fe8432f1f913c3a8121e00bb9b546deb1"
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:oF-Zsw",
+    "dslFile": "programs/oF-Zsw/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "synth/reactionDiffusion",
+    "filter/tetraColorArray",
+    "filter/celShading"
+  ],
+  "dsl": "search synth, filter\n\nlet osc1 = osc(type: oscKind.sine)\n\nperlin(\n  scale: 18.51,\n  dimensions: 3,\n  ridges: true,\n  seed: 15,\n  speed: 5\n)\n  .write(o0)\n\nreactionDiffusion(\n  tex: read(o0),\n  zoom: x32,\n  smoothing: bSpline4x4,\n  speed: 21.42,\n  sourceF: sliderInput,\n  feed: 81.56,\n  kill: 58.94,\n  rate1: 60.24,\n  rate2: 24.09,\n  weight: 100,\n  inputIntensity: 11.78\n)\n  .write(o1)\n\nreactionDiffusion(\n  tex: read(o1),\n  smoothing: catmullRom4x4,\n  speed: 21.27,\n  sourceF: brightness,\n  feed: 89.8,\n  kill: 49.29,\n  rate1: 97.32,\n  rate2: 22.07,\n  weight: 100,\n  inputIntensity: 70.19\n)\n  .write(o2)\n\nreactionDiffusion(\n  tex: read(o2),\n  zoom: x2,\n  smoothing: bSpline4x4,\n  speed: 24.79,\n  sourceF: brightness,\n  feed: 56.43,\n  kill: 57.61,\n  rate1: 81.44,\n  rate2: 23.67,\n  weight: 100,\n  inputIntensity: 88.4\n)\n  .tetraColorArray(\n    colorMode: oklch,\n    colorCount: 8,\n    color0: #59a726,\n    color1: #e164b4,\n    color2: #aa1eb7,\n    color3: #2ef755,\n    color4: #dc8740,\n    color5: #b992ec,\n    color6: #40a2a4,\n    color7: #f9c025,\n    pos0: 0.097,\n    pos1: 0.099,\n    pos2: 0.296,\n    pos3: 0.323,\n    pos4: 0.559,\n    pos5: 0.776,\n    pos6: 0.915,\n    pos7: 0.964,\n    rotation: back,\n    repeat: 3.07,\n    offset: 0.483,\n    alpha: 0.931,\n    smoothness: 0.475\n  )\n  .write(o3)\n\nread(o3)\n  .celShading(\n    levels: 5,\n    edgeThreshold: 0.56,\n    edgeColor: #ff00c5\n  )\n  .write(o4)\n\nrender(o4)",
+  "surface": "o4",
+  "resolution": [
+    64,
+    64
+  ]
+}

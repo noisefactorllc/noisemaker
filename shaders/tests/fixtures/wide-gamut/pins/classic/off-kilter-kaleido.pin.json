@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/off-kilter-kaleido.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 357,
+        "sha256": "3ef5611c91e49b8a1ff9fb722b8e6a1a77c5657f4b4e1d86f634eb9296a76ea2"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 357,
+        "sha256": "5cff1b8ed642eb18868b9ce2d9cd9d428846abd3d8a53ad36a5a29a4ad8ead7b"
+      }
+    }
+  }
+}

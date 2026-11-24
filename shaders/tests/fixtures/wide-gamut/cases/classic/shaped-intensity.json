@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "shaped intensity"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 87, hueRotation: 74, speed: 61, refractAmt: 72, ridges: true, wrap: true, xScale: 97, yScale: 93, type: 3, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 96, hueRotation: 28, speed: 72, refractAmt: 3, ridges: true, wrap: false, xScale: 91, yScale: 93, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 0, mix: 10, refractAAmt: 59, refractBAmt: 63).lensDistortion(aberration: 28, distortion: -63, speed: -100, loopScale: 66, alpha: 32, shape: 2, tint: #547ab5, vignetteAmt: -100).lensDistortion(aberration: 100, blendMode: 1, hueRange: 5, hueRotation: 0, blendMode: 1, modulate: true, passthru: 67, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/the-mist.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3861,
+        "uniqueColors": 2560,
+        "sha256": "26f739a55441bd1b38d55c36cee25b6e45616456c820415237ca578258de9774"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3861,
+        "uniqueColors": 2560,
+        "sha256": "ba7dabd655d19db90a50872b77bcdcd1471d9dde5c347844ef9f95ed750f3cca"
+      }
+    }
+  }
+}

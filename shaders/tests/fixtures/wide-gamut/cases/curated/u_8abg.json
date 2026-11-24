@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:u_8aBg",
+    "dslFile": "programs/u_8aBg/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "render/pointsEmit",
+    "points/flow",
+    "render/pointsRender",
+    "render/pointsBillboardRender",
+    "filter/blur",
+    "synth/navierStokes",
+    "filter/palette",
+    "filter/lighting",
+    "filter/adjust",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/grain"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nperlin(\n  scale: 100,\n  octaves: 2,\n  dimensions: 3,\n  seed: 48\n)\n  .subchain(name: \"flow field particles\", id: \"lkjw\") {\n    .pointsEmit(stateSize: x1024)\n    .flow(\n      behavior: chaotic,\n      stride: 51,\n      strideDeviation: 0.5,\n      kink: 5.4\n    )\n    .pointsRender(\n      density: 100,\n      intensity: 74.59,\n      inputIntensity: 21.46\n    )\n    .pointsBillboardRender(\n      shapeMode: soft,\n      depositOpacity: 100,\n      pointSize: 33.19,\n      sizeVariation: 100,\n      seed: 0,\n      density: 0.78,\n      intensity: 44.72,\n      inputIntensity: 18.23\n    )\n  }\n  .blur()\n  .write(o0)\n\nnavierStokes(\n  tex: read(o0),\n  zoom: x4,\n  iterations: 40,\n  smoothing: bSpline4x4,\n  speed: 145,\n  dyeDecay: 97.52,\n  velocityDecay: 100,\n  inputForce: 1,\n  inputDye: 1,\n  inputIntensity: 6.01\n)\n  .palette(\n    index: solaris,\n    offset: 7,\n    alpha: 0.67\n  )\n  .lighting(\n    normalStrength: 5,\n    smoothing: 1.8,\n    specularIntensity: 0.7,\n    shininess: 130,\n    reflection: 21.8,\n    refraction: 23,\n    aberration: 18.4\n  )\n  .adjust(brightness: 1.9, contrast: 0.8)\n  .subchain(name: \"lens effects\", id: \"dpxp\") {\n    .temporalAberration(\n      redDelay: 4.7,\n      greenDelay: 1.8,\n      blueDelay: 0,\n      _skip: true\n    )\n    .bloom(taps: 15)\n    .lens(displacement: -0.28)\n    .vignette(brightness: 0.36, alpha: 0.45)\n  }\n  .grain(alpha: 0.18, _skip: true)\n  .write(o1)\n\nrender(o1)\n",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/liquid-enlightenment.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3981,
+        "sha256": "aea6b119de9c4c4c6cd86c40b052d595bd3e4b0abd798444029c4fe617fc36da"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3981,
+        "sha256": "a0561f9204f4b2c8d65d75bf831571a8dd60afb413017e02bef4908d8a7e34ae"
+      }
+    }
+  }
+}

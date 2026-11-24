@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:JVFiAg",
+    "dslFile": "programs/JVFiAg/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "filter/adjust",
+    "filter/palette",
+    "filter/lighting"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nperlin(\n  scale: 19.08,\n  ridges: true,\n  seed: 47\n)\n  .adjust(hueRange: 200, saturation: 0.62)\n  .palette(\n    index: summoning,\n    offset: 100,\n    alpha: 0.7\n  )\n  .lighting(\n    normalStrength: 5,\n    smoothing: 2,\n    specularIntensity: 0.99,\n    reflection: 20.4,\n    refraction: 16.8,\n    aberration: 19.4\n  )\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

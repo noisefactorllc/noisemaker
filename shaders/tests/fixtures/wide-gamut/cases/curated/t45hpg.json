@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:t45Hpg",
+    "dslFile": "programs/t45Hpg/program.dsl"
+  },
+  "effects": [
+    "synth/modPattern",
+    "filter/tile",
+    "filter/tetraCosine",
+    "filter/tunnel",
+    "filter/lighting",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/adjust"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\nlet bassReact = audio(band: 0, min: 12.801, max: 93.874)\n\nmodPattern(\n  scale1: 16.72,\n  repeat1: 15.411,\n  shape2: diamond,\n  scale2: 8.48,\n  repeat2: 4.461,\n  shape3: plus,\n  scale3: 1.595,\n  repeat3: 2.172,\n  animMode: phase\n)\n  .tile(\n    symmetry: rotate6,\n    scale: 1.95,\n    offsetX: -0.07,\n    offsetY: -0.09,\n    angle: 151,\n    repeat: 1\n  )\n  .tetraCosine(\n    colorMode: hsv,\n    offsetR: 0.921,\n    offsetG: 0.897,\n    offsetB: 0.782,\n    ampR: 0.552,\n    ampG: 0.601,\n    ampB: 0.866,\n    freqR: 4,\n    freqG: 2,\n    freqB: 3,\n    phaseR: 0.724,\n    phaseG: 0.849,\n    phaseB: 0.355,\n    rotation: fwd,\n    repeat: 0.72,\n    offset: 0.576,\n    alpha: 0.76\n  )\n  .tunnel(\n    shape: square,\n    scale: -1,\n    center: -100\n  )\n  .lighting(\n    normalStrength: 2.13,\n    smoothing: 4.9,\n    reflection: 16,\n    aberration: 19.8\n  )\n  .subchain(name: \"lens effects\", id: \"jx9z\") {\n    .chromaticAberration(aberration: 25)\n    .bloom(taps: 15)\n    .lens(displacement: -1)\n    .vignette(brightness: 0.14, alpha: 0.83)\n  }\n  .adjust(\n    rotation: bassReact,\n    hueRange: 200,\n    saturation: 1.88,\n    brightness: 1.04,\n    contrast: 0.52\n  )\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/kaleido-hologram.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3805,
+        "uniqueColors": 2791,
+        "sha256": "9c98c975a2f1f2b493ca81a1b27d1f940f5a998a2e2036834670230e9059212c"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3805,
+        "uniqueColors": 2791,
+        "sha256": "f2680c8b50a56e14d96c4255e3c38079f18e1d18b148e4a240ddac44bf5a8e68"
+      }
+    }
+  }
+}

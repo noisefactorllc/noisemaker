@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "and it burns, burns, burns"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 35, hueRotation: 80, speed: 33, octaves: 6, refractAmt: 63, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 97, yScale: 97).write(o0)\ncellNoise(colorMode: 0, speed: 5, palette: royal, scale: 4, cellScale: 75, smooth: 0, variation: 0, cyclePalette: 1, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 7, mix: -15, refractAAmt: 0, refractBAmt: 39).lensDistortion(aberration: 0, distortion: -48, speed: 54, loopScale: 94, alpha: 12, shape: 0, tint: #b42f2d, vignetteAmt: -46).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

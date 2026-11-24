@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/bouncy-oscillo.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 395,
+        "sha256": "6e345b6bbaa4302781115b1e3a00b1e97afc3a0e53e287f00fe62fa7587ac120"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 395,
+        "sha256": "26b71629ef7179f25c12e72615875c800474f615e5c92ccaf03f39a9b6a5ec27"
+      }
+    }
+  }
+}

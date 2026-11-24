@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:xhwiSQ",
+    "dslFile": "programs/xhwiSQ/program.dsl"
+  },
+  "effects": [
+    "synth/gradient",
+    "filter/seamless",
+    "filter/warp",
+    "filter/historicPalette",
+    "filter/wormhole",
+    "filter/translate",
+    "filter/rotate",
+    "filter/blur",
+    "filter/adjust",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nlet osc1 = osc(type: oscKind.noise, max: 0.15, seed: 7292)\nlet osc2 = osc(type: oscKind.noise, max: 0.05)\nlet osc3 = osc(type: oscKind.noise, max: 0.23, seed: 7553)\nlet midsReact = audio(band: 1, min: 0.5, max: 1.7)\n\ngradient(\n  type: fourCorners,\n  rotation: 30.029,\n  repeat: 2,\n  speed: midsReact,\n  seed: 97,\n  color1: #fefaefff,\n  color2: #92a06bff,\n  color3: #222e76ff,\n  color4: #e19e47ff\n)\n  .seamless(blend: 0.22, repeat: 1)\n  .warp(\n    strength: 35.19,\n    scale: 0.66,\n    speed: 2\n  )\n  .historicPalette(\n    index: kenteCloth,\n    rotation: fwd,\n    repeat: 2,\n    alpha: 0.86,\n    smoothness: 1\n  )\n  .wormhole(\n    stride: 2,\n    rotation: 31,\n    alpha: 0.979\n  )\n  .translate(x: osc1, y: osc3)\n  .rotate(rotation: osc2)\n  .blur(radiusX: 3, radiusY: 3)\n  .adjust(\n    rotation: -116.77,\n    hueRange: 200,\n    brightness: 0.79,\n    contrast: 0.95\n  )\n  .subchain(name: \"lens effects\", id: \"1epb\") {\n    .chromaticAberration(aberration: 25)\n    .bloom(taps: 15)\n    .lens(displacement: -0.5)\n    .vignette()\n  }\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

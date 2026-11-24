@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/noise-blaster.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4031,
+        "sha256": "b0c5b603b19c07a9ae47e9babd7ed4167f44c0a800de0b507a07489a87843164"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4032,
+        "sha256": "8ec90b5ac7dcd4acc9798f3d3a5aaacfc6f6350117d5759ffe409b7bbd8f44d2"
+      }
+    }
+  }
+}

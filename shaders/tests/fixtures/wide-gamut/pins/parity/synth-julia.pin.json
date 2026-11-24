@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/synth/julia/parity-case.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1528,
+        "uniqueColors": 202,
+        "sha256": "d00a7270f1d4ce93a4c4b23004be25d2c0af45df9ad836ab1eb196219655d2bd"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1528,
+        "uniqueColors": 202,
+        "sha256": "f73f09f6364a4c46c7dcff971b00c2d77e9360e8f984b309311ed5b38a455d6a"
+      }
+    }
+  }
+}

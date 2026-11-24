@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/reflective-blobs.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4094,
+        "uniqueColors": 2081,
+        "sha256": "f07f72abf84949109161c3d222cd6b09467fb098d77bae627d661d3e16e8d30a"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4094,
+        "uniqueColors": 2081,
+        "sha256": "c13076b4740aaa2b74d2df5ec443c5e8ab47fe631fcaf7662523783ff1378779"
+      }
+    }
+  }
+}

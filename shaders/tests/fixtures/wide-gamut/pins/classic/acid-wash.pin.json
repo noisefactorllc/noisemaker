@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/acid-wash.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3959,
+        "uniqueColors": 3681,
+        "sha256": "8aced95b611ddad4e15a2586461d96d11b1a307955b40854789e196a4b9b3db8"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3959,
+        "uniqueColors": 3681,
+        "sha256": "529cc7fca93491aae6b1794177351efef386089b4f41502ba50820b4831bd070"
+      }
+    }
+  }
+}

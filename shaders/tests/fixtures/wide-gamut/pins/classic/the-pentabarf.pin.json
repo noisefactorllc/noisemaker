@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/the-pentabarf.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4089,
+        "uniqueColors": 652,
+        "sha256": "ca4851712bd3cf90d70fbc11a37cb7acc1de8023e9b59ee3e12422ed755a8411"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4089,
+        "uniqueColors": 652,
+        "sha256": "4d89a6a21a1b212767ff59592f1684dd09e4e61a772ae396edd081a40c9af6a6"
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "fractalia"
+  },
+  "effects": [
+    "classicNoisedeck/fractal",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/kaleido"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nfractal(centerX: 0, centerY: 21, type: 0, offsetX: 14, offsetY: 77, palette: solaris, rotation: 0, speed: 28, zoomAmt: 42, cyclePalette: 1, rotatePalette: 0).write(o0)\nfractal(centerX: 0, centerY: 0, type: 1, offsetX: 71, offsetY: 0, palette: solaris, rotation: 0, speed: 64, symmetry: 4, zoomAmt: 0, cyclePalette: 1, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 15, mix: -26, refractAAmt: 47, refractBAmt: 61).lensDistortion(aberration: 0, distortion: 13, speed: -12, loopScale: 93, alpha: 57, shape: 0, tint: #770243, vignetteAmt: 72).kaleido(direction: 0, effectWidth: 6, sides: 5, kernel: 0, speed: 2, loopOffset: 10, loopScale: 100, metric: 0, wrap: true).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:9TnQbw",
+    "dslFile": "programs/9TnQbw/program.dsl"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "filter/adjust",
+    "filter/celShading",
+    "filter/palette",
+    "filter/outline"
+  ],
+  "dsl": "search synth, filter, classicNoisedeck\n\nlet osc1 = osc(type: oscKind.noise, seed: 4238)\n\nfrom(classicNoisedeck, noise(\n  type: sine,\n  octaves: 1,\n  xScale: 72.24,\n  yScale: 26.02,\n  seed: 50,\n  speed: 100,\n  colorMode: srgb\n))\n  .adjust(\n    rotation: osc1,\n    hueRange: 200,\n    saturation: 2.62,\n    brightness: 0.66\n  )\n  .celShading(\n    levels: 3,\n    gamma: 0.9,\n    antialias: true,\n    edgeWidth: 0,\n    edgeThreshold: 1\n  )\n  .palette(index: dealerHat, offset: 29)\n  .outline()\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

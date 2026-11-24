@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/just-needs-a-fresh-coat-of-paint.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3961,
+        "sha256": "0a7a4752f03eb47d864a374bfac81c793ead3b59476e1e03265a8994dac3d5d9"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3961,
+        "sha256": "87032453f3b8b2f71c6405607eb7c41d9839b487eb8c8b6d060ed695ba8888c2"
+      }
+    }
+  }
+}

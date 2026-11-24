@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/otyjiq.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o2_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3934,
+        "sha256": "15796acb985bc73c0c3557468a0a5091334eeb2e704788ffb4cf80aa834eefa4"
+      },
+      "webgpu": {
+        "surface": "global_o2_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3934,
+        "sha256": "3c69ef39608495b5a4ba20fdc55edf0105a2468acfeb2fb935bb8b11bad94060"
+      }
+    }
+  }
+}

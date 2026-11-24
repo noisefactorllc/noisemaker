@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:d2CDew",
+    "dslFile": "programs/d2CDew/program.dsl"
+  },
+  "effects": [
+    "synth/cell",
+    "render/pointsEmit",
+    "points/flow",
+    "render/pointsBillboardRender",
+    "synth/polygon",
+    "mixer/blendMode",
+    "filter/warp",
+    "synth/navierStokes",
+    "filter/palette",
+    "filter/sharpen",
+    "filter/lighting",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/adjust"
+  ],
+  "dsl": "search synth, filter, mixer, render, points\n\ncell(\n  scale: 53.09,\n  cellScale: 100,\n  cellSmooth: 56.83,\n  variation: 0,\n  speed: 5,\n  seed: 20\n)\n  .subchain(name: \"flow field particles\", id: \"yz6a\") {\n    .pointsEmit(attrition: 0.25)\n    .flow(\n      behavior: chaotic,\n      stride: 20,\n      strideDeviation: 0.5,\n      kink: 10\n    )\n    .pointsBillboardRender(\n      shapeMode: soft,\n      depositOpacity: 6,\n      pointSize: 17.43,\n      density: 29.24,\n      intensity: 84.65,\n      inputIntensity: 100\n    )\n  }\n  .write(o1)\n\npolygon(\n  sides: 6,\n  radius: 0.74,\n  smooth: 0.3,\n  rotation: 34.66\n)\n  .write(o0)\n\nread(o0)\n  .blendMode(\n    tex: read(o1),\n    mode: multiply,\n    mix: -26.57\n  )\n  .subchain(name: \"particle life\", id: \"s2ma\") {\n    .pointsEmit(attrition: 6.5)\n    .flow(\n      behavior: chaotic,\n      stride: 25,\n      strideDeviation: 0.5,\n      kink: 0.1\n    )\n    .pointsBillboardRender(\n      depositOpacity: 72.22,\n      pointSize: 7.07,\n      sizeVariation: 100,\n      density: 3.96,\n      intensity: 89.42,\n      inputIntensity: 100\n    )\n  }\n  .blendMode(\n    tex: read(o1),\n    mode: darken,\n    mix: 1.25\n  )\n  .warp(\n    strength: 15.79,\n    scale: 1.14,\n    speed: 5\n  )\n  .write(o2)\n\nnavierStokes(\n  tex: read(o2),\n  iterations: 37,\n  speed: 91.53,\n  dyeDecay: 99.05,\n  inputForce: 0.57,\n  inputDye: 0.95,\n  inputIntensity: 9.57\n)\n  .write(o4)\n\nread(o4)\n  .palette(index: darkSatin, offset: 86)\n  .sharpen(amount: 5)\n  .lighting(\n    normalStrength: 2.82,\n    smoothing: 3.1,\n    refraction: 25.5,\n    heightMap: read(o4)\n  )\n  .subchain(name: \"lens effects\", id: \"198n\") {\n    .temporalAberration()\n    .bloom(taps: 15)\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.59)\n  }\n  .adjust(brightness: 1.22, contrast: 0.48)\n  .write(o3)\n\nrender(o3)",
+  "surface": "o3",
+  "resolution": [
+    64,
+    64
+  ]
+}

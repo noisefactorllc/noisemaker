@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "this is what we're doing now"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(palette: santaCruz, refractAmt: 100, ridges: true, type: 10, colorMode: 5, kaleido: 1, xScale: 4, yScale: 4, octaves: 1).write(o0)\nnoise(hueRange: 87, hueRotation: 35, speed: 5, refractAmt: 100, ridges: true, wrap: false, xScale: 96, yScale: 95, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 15, mix: 11, refractAAmt: 12, refractBAmt: 0).refract().lensDistortion(aberration: 61, distortion: -10, speed: -25, loopScale: 87, alpha: 17, saturation: -43, shape: 0, tint: #bdffee, vignetteAmt: -100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

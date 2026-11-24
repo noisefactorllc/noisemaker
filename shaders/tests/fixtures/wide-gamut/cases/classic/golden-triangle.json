@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "golden triangle"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: -51, loopAOffset: 20, loopAScale: 86, speedB: 72, loopBOffset: 20, loopBScale: 22, palette: solaris, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRange: 32, hueRotation: 79, speed: -32, loopOffset: 20, loopScale: 81, refractAmt: 38, wrap: true, type: 2, colorMode: 6, kaleido: 1, xScale: 90, yScale: 90, octaves: 1).coalesce(tex: read(o0), blendMode: 17, mix: 55, refractAAmt: 21, refractBAmt: 27).lensDistortion(aberration: 69, distortion: -23, speed: 13, loopScale: 8, alpha: 30, shape: 0, tint: #cfaab9, vignetteAmt: -68).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

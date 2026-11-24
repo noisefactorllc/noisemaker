@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "realm of the shiny glorp"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 48, hueRotation: 79, speed: 38, refractAmt: 7, ridges: true, wrap: true, xScale: 95, yScale: 95, type: 3, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 66, hueRotation: 100, speed: 10, refractAmt: 100, ridges: true, wrap: true, xScale: 99, yScale: 96, type: 3, colorMode: 6, kaleido: 1, octaves: 1).composite(tex: read(o0), blendMode: 2, inputColor: #e9e96f, mix: 19, range: 88).refract().refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

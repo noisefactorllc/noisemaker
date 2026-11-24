@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/mossy.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3758,
+        "uniqueColors": 2570,
+        "sha256": "e839c8fac0ec5869a43994dafcdd56460f2f58bf26991bdc9297d183fe49828e"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3758,
+        "uniqueColors": 2570,
+        "sha256": "afd7daeaac691f34ee734878c78508fd62e2907f8c46cef65d5c30e37827afd3"
+      }
+    }
+  }
+}

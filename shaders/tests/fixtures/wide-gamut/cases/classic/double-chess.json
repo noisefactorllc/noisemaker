@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "double chess"
+  },
+  "effects": [
+    "synth/pattern",
+    "classicNoisedeck/coalesce"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\npattern(fgColor: #6272e7, bgColor: #f98a35, rotation: 45, scale: 19, type: 0, speed: 1, animation: 2).write(o0)\npattern(fgColor: #da8b56, bgColor: #520e28, rotation: 180, scale: 17, type: 0, speed: 1, animation: 2).coalesce(tex: read(o0), blendMode: 8, mix: -52).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

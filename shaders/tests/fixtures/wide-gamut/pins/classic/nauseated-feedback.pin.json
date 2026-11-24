@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/nauseated-feedback.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2438,
+        "uniqueColors": 1106,
+        "sha256": "5f8aaf8e50dc907b7b03448333c3ee4c1472ea7cf25b9e59bc3d91077f43a3f7"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2438,
+        "uniqueColors": 1106,
+        "sha256": "81ab5c08c1eb47b63bca072cf82375005f93ab83bc4685abfee06571507bf6f2"
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:ziii2Q",
+    "dslFile": "programs/ziii2Q/program.dsl"
+  },
+  "effects": [
+    "classicNoisedeck/bitEffects",
+    "synth/cellularAutomata",
+    "filter/translate",
+    "filter/palette",
+    "filter/parallax",
+    "filter/lighting",
+    "mixer/focusBlur",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/vaseline",
+    "filter/adjust"
+  ],
+  "dsl": "search synth, filter, render, points, mixer, classicNoisedeck\n\nlet osc1 = osc(type: oscKind.noise, seed: 6797)\nlet osc2 = osc(type: oscKind.noise, offset: -1, seed: 7676)\nlet osc3 = osc(type: oscKind.sawInv)\nlet osc4 = osc(type: oscKind.noise, min: 0.47, max: 0.57, seed: 3520)\n\nbitEffects(\n  speed: 100,\n  maskFormula: wideInvaders,\n  tiles: 1,\n  complexity: 100,\n  maskColorScheme: blackWhite,\n  baseHueRange: 58.21\n)\n  .write(o0)\n\ncellularAutomata(\n  tex: read(o0),\n  ruleIndex: pondLife,\n  speed: 36.86,\n  weight: 56.37\n)\n  .translate(x: 0.46, y: osc3)\n  .palette(\n    index: darkSatin,\n    offset: 91,\n    repeat: 3,\n    alpha: 0.48\n  )\n  .parallax(direction: vec3(-0.53, -0.848, 0))\n  .write(o1)\n\nread(o1)\n  .palette(\n    index: sherbetDouble,\n    rotation: fwd,\n    offset: 32,\n    alpha: 0.63\n  )\n  .lighting(\n    normalStrength: 5,\n    diffuseColor: #e78934,\n    specularColor: #4e44ec,\n    specularIntensity: 2,\n    shininess: 34,\n    ambientColor: #3645a0,\n    lightDirection: vec3(-0.456, 0.467, 0.758),\n    reflection: 20.555,\n    refraction: 14.2,\n    aberration: 11.678,\n    heightMap: read(o1)\n  )\n  .focusBlur(\n    tex: read(o1),\n    focalDistance: 79.3,\n    aperture: 1,\n    sampleBias: 31.83\n  )\n  .subchain(name: \"lens effects\", id: \"4ahh\") {\n    .temporalAberration(redDelay: 8, blueDelay: 0)\n    .bloom(taps: 15)\n    .lens(displacement: -0.34)\n    .vignette(brightness: 0.18, alpha: 0.69)\n    .vaseline(alpha: 0.79)\n  }\n  .adjust(contrast: 0.66)\n  .write(o2)\n\nrender(o2)",
+  "surface": "o2",
+  "resolution": [
+    64,
+    64
+  ]
+}

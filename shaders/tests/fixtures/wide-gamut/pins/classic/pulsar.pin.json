@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/pulsar.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 689,
+        "sha256": "91fcd2731f63c6712203d02f741d81206d3ad2cb5e06eef0368d1f9dffb93f99"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 688,
+        "sha256": "e879f2aa1fe42a02e4729dcadc8b0a48cf2614e2b6bc87bee3f23dc218fd2ce6"
+      }
+    }
+  }
+}

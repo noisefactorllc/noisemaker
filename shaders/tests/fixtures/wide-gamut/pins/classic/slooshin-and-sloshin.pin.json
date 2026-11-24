@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/slooshin-and-sloshin.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3995,
+        "uniqueColors": 3895,
+        "sha256": "d4b97d972342ef8f15f1bed20f27a01160f94d5fac1c39b2a2017ddb411836ef"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3995,
+        "uniqueColors": 3895,
+        "sha256": "769ad38b08385aa65fb1e66e1ae7879379cf74016c459eb648e495fa71e55e31"
+      }
+    }
+  }
+}

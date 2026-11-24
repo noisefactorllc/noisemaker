@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "cosmic fabric"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 97, hueRotation: 84, speed: -28, loopOffset: 300, loopScale: 87, refractAmt: 46, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 31, yScale: 31, octaves: 1).composite(tex: read(o0), blendMode: 2, inputColor: #383838, mix: 13, range: 73).colorLab(colorMode: 2, dither: 0, hueRange: 100, hueRotation: 0, levels: 0, palette: sulphur).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:8jayhg",
+    "dslFile": "programs/8jayhg/program.dsl"
+  },
+  "effects": [
+    "synth/cell",
+    "render/pointsEmit",
+    "points/hydraulic",
+    "render/pointsRender",
+    "filter/blur",
+    "synth/navierStokes",
+    "filter/adjust",
+    "filter/invert",
+    "filter/palette",
+    "filter/lighting",
+    "filter/temporalAberration"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\ncell(\n  scale: 86.73,\n  cellScale: 81.69,\n  cellSmooth: 100,\n  variation: 100,\n  speed: 5\n)\n  .subchain(name: \"flow field particles\", id: \"lkjw\") {\n    .pointsEmit(attrition: 0.1)\n    .hydraulic()\n    .pointsRender(\n      density: 100,\n      intensity: 96.07,\n      inputIntensity: 0\n    )\n  }\n  .blur()\n  .write(o0)\n\nnavierStokes(\n  tex: read(o0),\n  zoom: x2,\n  iterations: 40,\n  smoothing: bSpline4x4,\n  speed: 126.71,\n  dyeDecay: 98.95,\n  velocityDecay: 100,\n  inputForce: 1,\n  inputDye: 0.94,\n  inputIntensity: 0\n)\n  .adjust(\n    rotation: 145.56,\n    saturation: 3.16,\n    brightness: 1.58,\n    contrast: 0.79\n  )\n  .invert()\n  .palette(index: grayscale, alpha: 0.77)\n  .lighting(\n    normalStrength: 0.8,\n    specularIntensity: 0.32,\n    shininess: 89,\n    reflection: 32.1,\n    refraction: 20.5,\n    aberration: 12.7\n  )\n  .temporalAberration(redDelay: 8, blueDelay: 0)\n  .adjust(brightness: 0.95, contrast: 0.73)\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

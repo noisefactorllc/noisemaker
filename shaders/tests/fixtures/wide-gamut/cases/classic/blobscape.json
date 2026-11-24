@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "blobscape"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: -65, loopAOffset: 330, loopAScale: 69, speedB: 36, loopBOffset: 330, loopBScale: 31, palette: afterimage, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRange: 23, hueRotation: 72, speed: 22, refractAmt: 37, ridges: false, wrap: true, xScale: 96, yScale: 89, type: 3, colorMode: 6, kaleido: 1, octaves: 1).composite(tex: read(o0), blendMode: 1, inputColor: #ec7739, mix: 0, range: 90).lensDistortion(aberration: 100, blendMode: 0, hueRange: 33, hueRotation: 0, blendMode: 1, modulate: true, passthru: 63, alpha: 0, speed: 0, distortion: 0).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "stringy grid"
+  },
+  "effects": [
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\ncellNoise(colorMode: 2, speed: 1, palette: skykissed, scale: 4, cellScale: 75, smooth: 0, variation: 0, cyclePalette: 1, rotatePalette: 0).write(o0)\nnoise(hueRange: 95, hueRotation: 72, speed: 44, octaves: 6, refractAmt: 0, ridges: false, type: 10, colorMode: 6, kaleido: 1, xScale: 88, yScale: 88).coalesce(tex: read(o0), blendMode: 4, mix: -29, refractAAmt: 47, refractBAmt: 61).effects(effect: 7, effectAmt: 1, flip: 0, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

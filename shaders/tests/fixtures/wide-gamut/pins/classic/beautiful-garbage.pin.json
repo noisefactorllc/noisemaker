@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/beautiful-garbage.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4074,
+        "uniqueColors": 3579,
+        "sha256": "c7734b876caedbd46b71c6a1835ec5f0cc14d846500bb4b530817e685c89ba8b"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4074,
+        "uniqueColors": 3579,
+        "sha256": "571dbd675747b70c0d7f77cc135b578f622615c24cea8ae502be902199da3959"
+      }
+    }
+  }
+}

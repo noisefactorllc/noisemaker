@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "ugly sweater"
+  },
+  "effects": [
+    "synth/pattern",
+    "classicNoisedeck/shapeMixer",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\npattern(fgColor: #18d654, bgColor: #a1e8e6, thickness: 0.3, rotation: 0, scale: 5, speed: 2, animation: 0, type: 10).write(o0)\npattern(fgColor: #dc202d, bgColor: #14b958, thickness: 0.1, rotation: 0, scale: 11, speed: 2, animation: 0, type: 10).shapeMixer(wrap: true, palette: 0, blendMode: 7, animate: 1, levels: 0).effects(effectAmt: 1, effect: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

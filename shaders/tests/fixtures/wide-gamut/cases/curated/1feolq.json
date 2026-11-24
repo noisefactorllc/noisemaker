@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:1FeoLQ",
+    "dslFile": "programs/1FeoLQ/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "filter/palette",
+    "synth3d/heightmap3d",
+    "render/renderLandscape3d",
+    "filter/edge"
+  ],
+  "dsl": "search synth, filter, synth3d, render\n\nperlin(\n  scale: 100,\n  octaves: 4,\n  colorMode: mono,\n  dimensions: 3,\n  ridges: true\n)\n  .write(o0)\n\nperlin(\n  scale: 17.07,\n  colorMode: mono,\n  dimensions: 3,\n  seed: 3,\n  speed: 5\n)\n  .palette(\n    index: springtime,\n    offset: 11,\n    repeat: 2,\n    alpha: 0.62\n  )\n  .write(o1)\n\nheightmap3d(heightTex: read(o0), tex: read(o1))\n  .renderLandscape3d(\n    zoom: 2.08,\n    panY: -0.23,\n    diffuseIntensity: 0.82,\n    specularIntensity: 0.1,\n    viewMode: perspective,\n    rotateX: 0.24,\n    posY: 18.3,\n    posZ: 44.2\n  )\n  .edge(\n    channel: luminance,\n    amount: 54.64,\n    blend: darken\n  )\n  .write(o2)\n\nrender(o2)",
+  "surface": "o2",
+  "resolution": [
+    64,
+    64
+  ]
+}

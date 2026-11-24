@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/shuffling-squares.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4058,
+        "uniqueColors": 1852,
+        "sha256": "e70a1bd312205f139742ab6b4ef7a9a3752f83f4915833511e985001e6b76291"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4058,
+        "uniqueColors": 1852,
+        "sha256": "c5ecab3982f1a0ef5f79c40a338af2305e073707ff9fb4328e53f3f01f98903b"
+      }
+    }
+  }
+}

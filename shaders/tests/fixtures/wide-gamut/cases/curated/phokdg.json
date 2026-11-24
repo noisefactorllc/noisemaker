@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:phOkdg",
+    "dslFile": "programs/phOkdg/program.dsl"
+  },
+  "effects": [
+    "synth/cell",
+    "mixer/blendMode",
+    "filter/palette",
+    "render/pointsEmit",
+    "points/flow",
+    "points/hydraulic",
+    "render/pointsRender",
+    "filter/blur",
+    "render/loopBegin",
+    "filter/warp",
+    "render/loopEnd",
+    "filter/adjust",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "synth/perlin"
+  ],
+  "dsl": "search synth, filter, classicNoisedeck, render, points, mixer\nlet highsReact = audio(band: 2, min: 1.4, max: 2.8)\n\ncell(\n  scale: 74.26,\n  cellScale: 82.04,\n  cellSmooth: 100,\n  variation: 100,\n  speed: highsReact\n)\n  .blendMode(\n    tex: read(o1),\n    mode: multiply,\n    mix: 7.6\n  )\n  .palette(\n    index: solaris,\n    offset: 25,\n    alpha: 0.53\n  )\n  .subchain(name: \"flow field particles\", id: \"x3b2\") {\n    .pointsEmit(attrition: 10)\n    .flow(behavior: chaotic, kink: 0.7)\n    .hydraulic(stride: 25)\n    .pointsRender(\n      density: 100,\n      intensity: 97.5,\n      inputIntensity: 68.05\n    )\n    .blur()\n  }\n  .subchain(name: \"feedback loop with warp\", id: \"e5l6\") {\n    .loopBegin(alpha: 97.5, intensity: 97.5)\n    .warp(\n      strength: 1,\n      scale: 2.77,\n      seed: 28,\n      speed: 3\n    )\n    .loopEnd()\n  }\n  .warp(\n    strength: 0.52,\n    scale: 5,\n    speed: 5\n  )\n  .adjust(\n    saturation: 1.54,\n    brightness: 0.86,\n    contrast: 0.53\n  )\n  .subchain(name: \"lens effects\", id: \"ow0o\") {\n    .chromaticAberration(aberration: 25)\n    .bloom(taps: 15)\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.75, alpha: 0.51)\n  }\n  .adjust(\n    rotation: -15.59,\n    saturation: 0.68,\n    contrast: 0.45\n  )\n  .write(o0)\n\nperlin()\n  .write(o1)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

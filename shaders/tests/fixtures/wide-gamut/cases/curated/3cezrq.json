@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:3CezRQ",
+    "dslFile": "programs/3CezRQ/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "synth/reactionDiffusion",
+    "filter/seamless",
+    "filter/translate",
+    "filter/rotate",
+    "filter/palette",
+    "filter/parallax",
+    "filter/lighting",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nlet osc1 = osc(type: oscKind.noise, seed: 8404)\nlet osc2 = osc(type: oscKind.noise, offset: -1, seed: 3971)\nlet osc3 = osc(type: oscKind.sawInv)\nlet osc4 = osc(type: oscKind.noise, min: 0.47, max: 0.57, seed: 7539)\n\nperlin(\n  scale: 56.06,\n  octaves: 2,\n  dimensions: 3,\n  ridges: true,\n  warpScale: 54.963,\n  warpIntensity: 48.736,\n  seed: 38\n)\n  .write(o0)\n\nreactionDiffusion(\n  tex: read(o0),\n  zoom: x16,\n  smoothing: bSpline4x4,\n  speed: 89.98,\n  sourceF: brightness,\n  feed: 65.38,\n  kill: 63.45,\n  rate1: osc2,\n  rate2: osc1,\n  iterations: 13,\n  weight: 72.01,\n  inputIntensity: 45.64\n)\n  .seamless(blend: 0.2, repeat: 1)\n  .translate(x: osc3)\n  .rotate(rotation: osc4)\n  .palette(\n    index: darkSatin,\n    offset: 91,\n    repeat: 3,\n    alpha: 0.48\n  )\n  .parallax(direction: vec3(-0.717, 0.697, 0), pivot: 0.34)\n  .write(o1)\n\nread(o1)\n  .palette(\n    index: silvermane,\n    offset: 14,\n    alpha: 0.82\n  )\n  .lighting(\n    normalStrength: 4.905,\n    smoothing: 1.096,\n    diffuseColor: #e78934ff,\n    specularColor: #4e44ecff,\n    specularIntensity: 1.641,\n    shininess: 71.662,\n    ambientColor: #3645a0ff,\n    lightDirection: vec3(0.408, 0.353, 0.703),\n    reflection: 20.555,\n    refraction: 14.345,\n    aberration: 11.678,\n    heightMap: read(o1)\n  )\n  .subchain(name: \"lens effects\", id: \"4ahh\") {\n    .temporalAberration(redDelay: 8, blueDelay: 0)\n    .bloom(taps: 15)\n    .lens(displacement: -0.5)\n    .vignette()\n  }\n  .write(o2)\n\nrender(o2)",
+  "surface": "o2",
+  "resolution": [
+    64,
+    64
+  ]
+}

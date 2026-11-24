@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "liquid vibes"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 9, hueRotation: 44, speed: 31, refractAmt: 5, ridges: true, wrap: true, xScale: 90, yScale: 90, type: 3, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 9, hueRotation: 78, speed: 25, refractAmt: 3, ridges: true, wrap: true, xScale: 60, yScale: 60, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 9, mix: 71, refractAAmt: 0, refractBAmt: 0).refract().lensDistortion(aberration: 100, blendMode: 0, hueRange: 0, hueRotation: 34, blendMode: 1, modulate: false, passthru: 54, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

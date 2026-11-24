@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/open-heart.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 781,
+        "sha256": "b888346a0c8be20c20d58c60af0e6b67f9657ed51acc07fc1b4abbd84ca24577"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 781,
+        "sha256": "5192a179dfb036d8d26cd3755ac40a6d8c0f3fa6e1e5af69582f3c0f194dc88f"
+      }
+    }
+  }
+}

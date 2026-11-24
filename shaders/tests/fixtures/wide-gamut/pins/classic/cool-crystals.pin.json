@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/cool-crystals.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4055,
+        "uniqueColors": 3198,
+        "sha256": "0b21b66febace96d4abc9e0a752b43219a4d007c6e7b50eb38b10cb1fd12776d"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4055,
+        "uniqueColors": 3198,
+        "sha256": "88514393a948260539d9237b58bb0a2662855577f98340a87199e7206f5a0d5a"
+      }
+    }
+  }
+}

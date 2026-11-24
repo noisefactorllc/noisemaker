@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "samadhi"
+  },
+  "effects": [
+    "classicNoisedeck/fractal",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nfractal(centerX: 0, centerY: 0, type: 1, offsetX: 100, offsetY: 0, palette: dealerHat, rotation: 167, speed: 64, symmetry: 4, zoomAmt: 0, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRotation: 49, kaleido: 27, metric: 1, palette: neptune, wrap: true, type: 3, colorMode: 4, xScale: 58, yScale: 58, octaves: 1).effects(effect: 0, effectAmt: 2, flip: 11, offsetX: 0, offsetY: -1, rotation: 0, scaleAmt: 96).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

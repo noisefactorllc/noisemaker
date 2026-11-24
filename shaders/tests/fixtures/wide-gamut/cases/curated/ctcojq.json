@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:cTCojQ",
+    "dslFile": "programs/cTCojQ/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "classicNoisedeck/kaleido",
+    "filter/palette",
+    "synth3d/heightmap3d",
+    "render/renderLandscape3d",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search synth, filter, synth3d, render, points, mixer, classicNoisedeck\n\nlet osc1 = osc(type: oscKind.saw)\nlet osc2 = osc(type: oscKind.noise, seed: 3310)\nlet osc3 = osc(type: oscKind.noise)\nlet osc4 = osc(type: oscKind.noise, seed: 2104)\nlet osc5 = osc(type: oscKind.noise, seed: 7169)\nlet osc6 = osc(type: oscKind.noise, seed: 8125)\n\nperlin(scale: 49.82, speed: 5)\n  .kaleido(\n    sides: 17,\n    metric: hexagon,\n    loopScale: 16.91,\n    speed: 37.52,\n    seed: 99,\n    kernel: outline,\n    effectWidth: 3.347\n  )\n  .write(o0)\n\nread(o0)\n  .palette(index: sherbet, repeat: 2)\n  .write(o2)\n\nheightmap3d(\n  heightTex: read(o0),\n  tex: read(o2),\n  volumeSize: x128,\n  heightScale: 1\n)\n  .renderLandscape3d(\n    zoom: 1.1,\n    bgColor: #ed793b,\n    viewMode: perspective,\n    rotateX: 1.56,\n    filtering: isosurface\n  )\n  .subchain(name: \"lens effects\", id: \"7efo\") {\n    .temporalAberration()\n    .bloom(taps: 15)\n    .lens(displacement: -1, aspectLens: false)\n    .vignette(brightness: 0.28, alpha: 0.42)\n  }\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/bongo.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3064,
+        "uniqueColors": 4,
+        "sha256": "a7dc817c323c26f80a54e883d016b5dcd8dce3d73330269a98a71dc246062ecc"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3064,
+        "uniqueColors": 4,
+        "sha256": "a7dc817c323c26f80a54e883d016b5dcd8dce3d73330269a98a71dc246062ecc"
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "all of my wub"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: 53, loopAOffset: 60, loopAScale: 21, speedB: 42, loopBOffset: 120, loopBScale: 54, palette: netOfGems, wrap: false, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRange: 14, hueRotation: 45, speed: 51, refractAmt: 58, ridges: true, wrap: true, xScale: 97, yScale: 96, type: 10, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 7, mix: 41, refractAAmt: 0, refractBAmt: 74).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

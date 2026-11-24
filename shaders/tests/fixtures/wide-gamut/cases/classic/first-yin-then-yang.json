@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "first yin, then yang"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: 14, loopAOffset: 10, loopAScale: 81, speedB: -14, loopBOffset: 10, loopBScale: 100, palette: summoning, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRotation: 100, kaleido: 8, metric: 0, palette: summoning, wrap: true, type: 3, colorMode: 4, xScale: 90, yScale: 90, octaves: 1).coalesce(tex: read(o0), blendMode: 15, mix: 43, refractAAmt: 0, refractBAmt: 92).lensDistortion(aberration: 32, distortion: -74, speed: 8, loopScale: 32, alpha: 22, shape: 0, tint: #d883a3, vignetteAmt: -56).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

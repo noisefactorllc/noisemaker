@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:qOZV9Q",
+    "dslFile": "programs/qOZV9Q/program.dsl"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "filter/palette",
+    "synth/solid",
+    "render/pointsEmit",
+    "points/heightGrid",
+    "render/pointsBillboardRender",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vaseline"
+  ],
+  "dsl": "search synth, points, render, filter, mixer, classicNoisedeck\n\nlet osc1 = osc(type: oscKind.tri, max: 0.13, seed: 9140)\nlet osc2 = osc(type: oscKind.noise, min: 0.08, max: 0.59, seed: 5435)\nlet osc4 = osc(type: oscKind.noise, min: 0.26, max: 0.65, seed: 6030)\nlet osc3 = osc(type: oscKind.noise, max: 0.3, speed: 2, offset: 0.49, seed: 7647)\n\nfrom(classicNoisedeck, noise(\n  type: constant,\n  octaves: 3,\n  xScale: 79.99,\n  yScale: 100,\n  refractAmt: osc3,\n  hueRotation: 129.97,\n  hueRange: 68.35\n))\n  .write(o1)\n\nread(o1)\n  .palette(\n    index: solaris,\n    rotation: back,\n    repeat: 2,\n    alpha: 0.58\n  )\n  .write(o2)\n\nsolid(color: #000000ff)\n  .pointsEmit()\n  .heightGrid(\n    heightTex: read(o1),\n    diffuseTex: read(o2),\n    gridScale: osc2,\n    heightScale: 100,\n    heightOffset: -100\n  )\n  .pointsBillboardRender(\n    shapeMode: soft,\n    blendMode: alpha,\n    depositOpacity: 100,\n    pointSize: 8.06,\n    sizeVariation: 100,\n    rotationVar: 100,\n    density: 100,\n    intensity: 80.82,\n    inputIntensity: 100,\n    viewMode: perspective,\n    rotateX: osc4,\n    rotateZ: osc1,\n    viewScale: 1.03,\n    posX: 16.3,\n    posY: -50,\n    posZ: -42.5,\n    fieldOfView: 21\n  )\n  .subchain(name: \"lens effects\", id: \"k6ns\") {\n    .temporalAberration(greenDelay: 1, blueDelay: 2)\n    .bloom(\n      threshold: 0.55,\n      intensity: 1.55,\n      taps: 15\n    )\n    .lens(displacement: -1, aspectLens: false)\n    .vaseline(alpha: 1)\n  }\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

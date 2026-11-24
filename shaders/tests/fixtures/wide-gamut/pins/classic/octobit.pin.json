@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/octobit.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1133,
+        "uniqueColors": 263,
+        "sha256": "25502351015f47694f3d4dac1872c2775cdd3b89b9b56b1d8cad2bcd1ac46dfd"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1133,
+        "uniqueColors": 263,
+        "sha256": "1eaf1c436c079d8116065298f3545375dd7b6f795e16515223a68204f2a0c19d"
+      }
+    }
+  }
+}

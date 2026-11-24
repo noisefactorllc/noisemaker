@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:U9m8sw",
+    "dslFile": "programs/U9m8sw/program.dsl"
+  },
+  "effects": [
+    "synth/gabor",
+    "classicNoisedeck/refract",
+    "render/pointsEmit",
+    "points/flock",
+    "render/pointsBillboardRender",
+    "filter/blur",
+    "filter/lighting",
+    "filter/adjust",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search synth, filter, synth3d, render, points, mixer, classicNoisedeck\nlet bassReact = audio(band: 0, min: 1.5, max: 11)\n\ngabor(\n  scale: 100,\n  orientation: -98.42,\n  bandwidth: 24.97,\n  isotropy: 100,\n  density: 4,\n  octaves: 2,\n  speed: bassReact\n)\n  .refract(blendMode: difference, amount: 24.8)\n  .subchain(name: \"flow field particles\", id: \"df58\") {\n    .pointsEmit(stateSize: x64, attrition: 3.63)\n    .flock(\n      separation: 1.7,\n      alignment: 1.9,\n      perceptionRadius: 69,\n      separationRadius: 37,\n      maxSpeed: 9.2,\n      maxForce: 0.72\n    )\n    .pointsBillboardRender(\n      depositOpacity: 2.97,\n      pointSize: 24.19,\n      sizeVariation: 100,\n      seed: 0,\n      density: 100,\n      intensity: 91.36,\n      inputIntensity: 100\n    )\n  }\n  .blur(radiusX: 10, radiusY: 10)\n  .lighting(\n    normalStrength: 5,\n    diffuseColor: #b8b8b8,\n    specularIntensity: 0.44,\n    shininess: 199,\n    ambientColor: #1d2233,\n    lightDirection: vec3(-0.411, 0.333, 0.848),\n    reflection: 32.6,\n    refraction: 17.3,\n    aberration: 9.2\n  )\n  .adjust(\n    rotation: 147.04,\n    hueRange: 200,\n    brightness: 0.63,\n    contrast: 0.47\n  )\n  .subchain(name: \"lens effects\", id: \"hk9g\") {\n    .chromaticAberration(aberration: 34.84, passthru: 67.14)\n    .bloom(\n      threshold: 0.35,\n      intensity: 1.25,\n      taps: 15\n    )\n    .lens(displacement: -0.5)\n    .vignette()\n  }\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

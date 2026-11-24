@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "cutout hearts"
+  },
+  "effects": [
+    "synth/pattern",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "filter/tetraCosine",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\npattern(fgColor: #000000, bgColor: #ff00f7, rotation: 25, scale: 19, type: 3, speed: 1, animation: 0).write(o0)\nnoise(hueRange: 24, hueRotation: 60, speed: 18, refractAmt: 77, ridges: false, wrap: true, xScale: 93, yScale: 67, type: 3, colorMode: 6, kaleido: 1, octaves: 1).composite(tex: read(o0), blendMode: 1, inputColor: #000000, mix: 0, range: 80).tetraCosine(ampB: 0.47, ampG: 0.02, ampR: 0.79, freqR: 2, freqG: 2, freqB: 2, offsetB: 0.89, offsetG: 0.44, offsetR: 0.72, phaseB: 0.43, phaseG: 0.59, phaseR: 0.29).lensDistortion(aberration: 73, blendMode: 0, hueRange: 0, hueRotation: 77, blendMode: 1, modulate: false, passthru: 50, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

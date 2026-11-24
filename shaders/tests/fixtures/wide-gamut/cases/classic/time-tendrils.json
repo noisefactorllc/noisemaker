@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "time tendrils"
+  },
+  "effects": [
+    "classicNoisedeck/noise"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 22, hueRotation: 54, speed: 50, refractAmt: 100, ridges: true, wrap: true, xScale: 100, yScale: 95, type: 10, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

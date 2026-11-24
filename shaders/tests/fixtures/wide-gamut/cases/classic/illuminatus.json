@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "illuminatus"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: -22, loopAOffset: 410, loopAScale: 100, speedB: 63, loopBOffset: 20, loopBScale: 61, palette: solaris, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\nshapes(speedA: 50, loopAOffset: 410, loopAScale: 20, speedB: 98, loopBOffset: 20, loopBScale: 1, palette: solaris, wrap: true, cyclePalette: 0, rotatePalette: 0).composite(tex: read(o0), blendMode: 3).colorLab(brightness: 4, colorMode: 2, dither: 0, hueRange: 200, hueRotation: 0, levels: 0, palette: sulphur, saturation: -6).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

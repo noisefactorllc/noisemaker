@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "beautiful garbage"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 17, hueRotation: 52, speed: 30, refractAmt: 43, ridges: false, wrap: true, xScale: 92, yScale: 90, type: 3, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 27, hueRotation: 55, speed: 34, refractAmt: 36, ridges: false, wrap: false, xScale: 94, yScale: 88, type: 10, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 15, mix: -60, refractAAmt: 67, refractBAmt: 21).lensDistortion(aberration: 28, distortion: -45, speed: -100, loopScale: 73, alpha: 33, shape: 2, tint: #b39c4d, vignetteAmt: -100).lensDistortion(aberration: 80, blendMode: 0, hueRange: 77, hueRotation: 36, blendMode: 1, modulate: true, passthru: 91, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/vivid-kaleido.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 700,
+        "sha256": "0cdd15bdc14c969cddb0e9e829a4f6e8a96afaf0a630135b0d29864856fa9498"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 700,
+        "sha256": "5456605001bfa0114a1604d7f1596643ef8887c82ebfae6c3d83800a6d567550"
+      }
+    }
+  }
+}

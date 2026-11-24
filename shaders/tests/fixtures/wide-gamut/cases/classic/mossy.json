@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "mossy"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 11, hueRotation: 41, speed: 14, octaves: 7, refractAmt: 58, ridges: false, type: 10, colorMode: 6, kaleido: 1, xScale: 42, yScale: 42).write(o0)\nnoise(hueRange: 25, hueRotation: 20, speed: 17, octaves: 3, refractAmt: 32, ridges: false, type: 10, colorMode: 6, kaleido: 1, xScale: 61, yScale: 61).coalesce(tex: read(o0), blendMode: 10, mix: 89, refractAAmt: 100, refractBAmt: 5).effects(effect: 6, effectAmt: 2, flip: 0, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).lensDistortion(aberration: 11, distortion: -42, speed: -10, loopScale: 76, alpha: 34, shape: 0, tint: #29c287, vignetteAmt: -73).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

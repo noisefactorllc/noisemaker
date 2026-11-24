@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "basics",
+    "key": "noise 3d"
+  },
+  "effects": [
+    "classicNoisedeck/noise3d"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise3d(type: 12, ridges: false, colorMode: 6).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

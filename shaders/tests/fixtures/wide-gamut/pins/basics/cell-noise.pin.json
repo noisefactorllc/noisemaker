@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/basics/cell-noise.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4062,
+        "uniqueColors": 255,
+        "sha256": "2ce35fbeda37ee2a2ef26666740ab6130f19a3483aa7a7dd3e70305cf1c565df"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4062,
+        "uniqueColors": 255,
+        "sha256": "443e177911388b8d7ef2e60389eb2e24202bf97aada304ac59f11869cb6b1372"
+      }
+    }
+  }
+}

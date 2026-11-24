@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "pulsar"
+  },
+  "effects": [
+    "classicNoisedeck/shapes"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: 83, loopAOffset: 210, loopAScale: 21, speedB: -97, loopBOffset: 400, loopBScale: 53, palette: netOfGems, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "twinkle, twinkle"
+  },
+  "effects": [
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\ncellNoise(colorMode: 1, speed: 2, palette: jester, scale: 1, cellScale: 75, smooth: 0, variation: 0, cyclePalette: 1, rotatePalette: 0).write(o0)\nshapes(speedA: -2, loopAOffset: 330, loopAScale: 10, speedB: -5, loopBOffset: 330, loopBScale: 39, palette: justBlue, wrap: true, cyclePalette: 0, rotatePalette: 0).composite(tex: read(o0), blendMode: 1, inputColor: #636363, mix: 0, range: 100).lensDistortion(aberration: 2, distortion: -17, speed: 0, loopScale: 100, alpha: 48, saturation: 60, shape: 0, tint: #422d53, vignetteAmt: -8).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

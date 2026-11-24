@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:7iHiBA",
+    "dslFile": "programs/7iHiBA/program.dsl"
+  },
+  "effects": [
+    "synth/cell",
+    "classicNoisedeck/refract",
+    "render/pointsEmit",
+    "points/flow",
+    "points/hydraulic",
+    "render/pointsBillboardRender",
+    "filter/blur",
+    "filter/invert",
+    "filter/lighting",
+    "filter/grain",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search synth, filter, synth3d, render, points, mixer, classicNoisedeck\nlet bassReact = audio(band: 0, min: 0.6, max: 4.4)\n\ncell(\n  scale: 82.16,\n  cellScale: 65.95,\n  variation: 35.15,\n  speed: bassReact\n)\n  .refract(\n    blendMode: negation,\n    mix: 47.33,\n    mode: reflect,\n    amount: 100\n  )\n  .subchain(name: \"flow field particles\", id: \"df58\") {\n    .pointsEmit(attrition: 4.21)\n    .flow(\n      behavior: chaotic,\n      stride: 38,\n      strideDeviation: 0.5,\n      kink: 1.4\n    )\n    .hydraulic(stride: 21)\n    .pointsBillboardRender(\n      depositOpacity: 5.29,\n      pointSize: 39.26,\n      sizeVariation: 100,\n      seed: 474,\n      density: 1.07,\n      intensity: 86.64,\n      inputIntensity: 100\n    )\n  }\n  .blur(radiusX: 6, radiusY: 6)\n  .invert()\n  .lighting(\n    normalStrength: 3.65,\n    specularIntensity: 0.87,\n    shininess: 166,\n    lightDirection: vec3(0.522, 0.467, 0.714),\n    reflection: 21.6,\n    refraction: 13.5,\n    aberration: 21.6\n  )\n  .grain(alpha: 0.13)\n  .subchain(name: \"lens effects\", id: \"ddno\") {\n    .chromaticAberration(aberration: 25)\n    .bloom(taps: 15)\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.23)\n  }\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

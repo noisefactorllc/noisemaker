@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "stripey edges"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "synth/pattern",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(palette: santaCruz, refractAmt: 100, ridges: false, type: 10, colorMode: 4, kaleido: 1, xScale: 4, yScale: 4, octaves: 1).write(o0)\npattern(fgColor: #12036e, bgColor: #a977a0, rotation: 0, scale: 4, type: 7, speed: 1, animation: 2).composite(tex: read(o0), blendMode: 43).effects(effect: 110, effectAmt: 1, flip: 0, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

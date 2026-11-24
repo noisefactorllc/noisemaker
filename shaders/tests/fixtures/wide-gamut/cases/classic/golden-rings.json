@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "golden rings"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 15, hueRotation: 47, speed: 61, refractAmt: 8, ridges: true, wrap: true, xScale: 100, yScale: 89, type: 0, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nshapes(speedA: 100, loopAOffset: 10, loopAScale: 81, speedB: -38, loopBOffset: 400, loopBScale: 75, palette: tungsten, wrap: true, cyclePalette: 0, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 15, mix: 19, refractAAmt: 45, refractBAmt: 0).lensDistortion(aberration: 60, distortion: -57, speed: -8, loopScale: 55, alpha: 0, shape: 0, tint: #5ad2f2, vignetteAmt: 100).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

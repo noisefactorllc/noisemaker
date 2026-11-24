@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/equinox.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3960,
+        "uniqueColors": 3461,
+        "sha256": "5bd6e98bc1ce40f854dadcfbfc97d14dd85558d82bbb44327fb89b6cfdffa306"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3960,
+        "uniqueColors": 3461,
+        "sha256": "0b6284c1b18651cf1b61d989fbf5bbc9b90d9d5da1f82fa22b8ef2ace4e223e7"
+      }
+    }
+  }
+}

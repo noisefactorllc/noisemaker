@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:E2wekg",
+    "dslFile": "programs/E2wekg/program.dsl"
+  },
+  "effects": [
+    "synth/noise",
+    "filter/adjust",
+    "filter/tetraColorArray",
+    "render/loopBegin",
+    "filter/warp",
+    "filter/feedback",
+    "render/loopEnd",
+    "filter/lighting",
+    "filter/prismaticAberration",
+    "filter/smooth"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nlet osc1 = osc(type: oscKind.sawInv)\nlet bassReact = audio(band: 0, min: -15.9, max: -116.6)\n\nnoise(\n  type: catmullRom3x3,\n  octaves: 8,\n  scaleX: 100,\n  scaleY: 100,\n  seed: 64,\n  ridges: true,\n  loopOffset: verticalScan,\n  loopScale: 100,\n  speed: bassReact\n)\n  .adjust(\n    mode: hsv,\n    rotation: 58.32,\n    hueRange: 200\n  )\n  .tetraColorArray(\n    colorCount: 4,\n    color0: #9d90f2,\n    color1: #efe293,\n    color2: #3b30d1,\n    color3: #b40853,\n    color4: #9ce487,\n    color5: #7558a4,\n    color6: #a68b46,\n    color7: #2ec613,\n    repeat: 10,\n    offset: 0.796,\n    alpha: 0.3\n  )\n  .subchain(name: \"feedback loop with warp\", id: \"mzaf\") {\n    .loopBegin(alpha: 100, intensity: 98)\n    .warp(\n      strength: 4.09,\n      scale: 3.19,\n      seed: 28,\n      speed: 1\n    )\n    .feedback(\n      mix: 90.74,\n      refractAAmt: 4.23,\n      refractBAmt: 2.74,\n      refractADir: 144.32,\n      refractBDir: 32.17\n    )\n    .loopEnd()\n  }\n  .lighting(\n    normalStrength: 5,\n    smoothing: 4,\n    reflection: 39.2,\n    refraction: 45.7,\n    aberration: 25.1\n  )\n  .prismaticAberration(\n    aberration: 100,\n    modulate: true,\n    hueRange: 100,\n    saturation: -77.93,\n    passthru: 47.64\n  )\n  .adjust(\n    rotation: osc1,\n    hueRange: 200,\n    saturation: 1.29,\n    brightness: 0.89,\n    contrast: 0.85\n  )\n  .smooth(threshold: 0)\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/heartwave.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3831,
+        "uniqueColors": 3363,
+        "sha256": "f365010c4de06679737918a6d9e1118628581ec8fe6b364d782702265ec17254"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3831,
+        "uniqueColors": 3363,
+        "sha256": "631fb4036f28ab1f8120838187fb045766bebf30531e2286cef1aba7d416e727"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/points/flock/parity-case.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3611,
+        "sha256": "e98b5ec4a6025d00a3a5eac15419ed9e995015b63807f3aec749efbb3cb57517"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3611,
+        "sha256": "e3eda19eb9e1298c5d45cba871e77dba25512503b120060605c31057471402c6"
+      }
+    }
+  }
+}

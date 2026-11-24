@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/liquid-metal-funtime.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4054,
+        "sha256": "cd6cca70c7619bcb305425186424c9be23a20f2eee789029efff380d5092434b"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4054,
+        "sha256": "75238c87fb98320c8a17d551be78b46be385aa2fde6ae639d0b9db8e241dd5e1"
+      }
+    }
+  }
+}

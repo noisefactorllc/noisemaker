@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "basics",
+    "key": "shapes"
+  },
+  "effects": [
+    "classicNoisedeck/shapes"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(loopAOffset: 40, loopBOffset: 30, loopAScale: 1, loopBScale: 1, speedA: 50, speedB: 50, wrap: true, palette: sulphur, cyclePalette: 1, rotatePalette: 0, repeatPalette: 1).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

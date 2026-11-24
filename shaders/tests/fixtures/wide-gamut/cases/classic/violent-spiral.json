@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "violent spiral"
+  },
+  "effects": [
+    "classicNoisedeck/bitEffects",
+    "classicNoisedeck/coalesce"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nbitEffects(baseHueRange: 36, colorScheme: 3, complexity: 27, formula: 20, hueRange: 5, hueRotation: 83, speed: 96, tiles: 7, maskFormula: 20, maskColorScheme: 3).write(o0)\nbitEffects(baseHueRange: 94, colorScheme: 0, complexity: 42, formula: 20, hueRange: 9, hueRotation: 83, speed: 33, tiles: 36, maskFormula: 20, maskColorScheme: 0).coalesce(tex: read(o0), blendMode: 4, mix: -27, refractAAmt: 47, refractBAmt: 61).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

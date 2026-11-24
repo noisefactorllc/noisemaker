@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/sheen.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4055,
+        "sha256": "64d98bb23901d51edae25c547eb6148bdb00bc9d21997ff802e6b2722629f622"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4055,
+        "sha256": "ce4c9fe0b63be49a54b2ed403019bb6f01d45e24b8554cc75ec01b823c3afc54"
+      }
+    }
+  }
+}

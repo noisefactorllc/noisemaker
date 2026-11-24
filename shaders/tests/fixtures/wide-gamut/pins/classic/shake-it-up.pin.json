@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/shake-it-up.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4066,
+        "uniqueColors": 1337,
+        "sha256": "8e45e2a1b18af0a88e0e77b92752f00c7e935e3bbd22bb7dc5af26dc57adbd22"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4066,
+        "uniqueColors": 1337,
+        "sha256": "ed164568944deac4b4eb5e6fe8a261782b981116c45c55a5b8be2fa7f4360ebb"
+      }
+    }
+  }
+}

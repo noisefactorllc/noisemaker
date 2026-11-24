@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/cyan-kaleido.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4095,
+        "uniqueColors": 3647,
+        "sha256": "bae86d45601af45854165c79c3dac1cfe3104bcaae3823053cb01080c6e79885"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4095,
+        "uniqueColors": 3647,
+        "sha256": "d7660311541cda742b98b50d2945b449405ccdb69cc992e46176d32e5b90dd10"
+      }
+    }
+  }
+}

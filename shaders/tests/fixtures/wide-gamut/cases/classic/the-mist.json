@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "the mist"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 51, hueRotation: 2, speed: 33, octaves: 6, refractAmt: 0, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 95, yScale: 95).write(o0)\nnoise(hueRange: 97, hueRotation: 91, speed: 46, octaves: 6, refractAmt: 0, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 95, yScale: 95).coalesce(tex: read(o0), blendMode: 15, mix: 16, refractAAmt: 18, refractBAmt: 10).lensDistortion(aberration: 5, distortion: -32, speed: -5, loopScale: 45, alpha: 26, shape: 0, tint: #ae5c47, vignetteAmt: -80).lensDistortion(aberration: 47, blendMode: 0, hueRange: 16, hueRotation: 53, blendMode: 1, modulate: true, passthru: 70, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/chlorine.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4084,
+        "uniqueColors": 3832,
+        "sha256": "757815753197790941bbb8a17cc79faeab3a03eb5a0fc52b405456b7b7d2c91f"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4084,
+        "uniqueColors": 3832,
+        "sha256": "d53d2a55a2066fd67617ade40cc687e2b0530b00c8bb2784cab74730fb21b5cb"
+      }
+    }
+  }
+}

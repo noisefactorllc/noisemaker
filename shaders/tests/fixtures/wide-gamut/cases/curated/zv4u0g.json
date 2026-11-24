@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:zv4U0g",
+    "dslFile": "programs/zv4U0g/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "filter/palette",
+    "synth3d/heightmap3d",
+    "render/renderLandscape3d",
+    "synth/solid",
+    "render/pointsEmit",
+    "points/heightGrid",
+    "render/pointsRender",
+    "render/pointsBillboardRender",
+    "mixer/split",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/vaseline"
+  ],
+  "dsl": "search synth, filter, mixer, classicNoisedeck, synth3d, render, points\n\nlet osc1 = osc(type: oscKind.saw)\nperlin(\n  colorMode: mono,\n  dimensions: 3,\n  seed: 1\n)\n  .write(o0)\n\nread(o0)\n  .palette(index: california, repeat: 10)\n  .write(o1)\n\nheightmap3d(\n  heightTex: read(o0),\n  tex: read(o1),\n  volumeSize: x128,\n  heightScale: 0.25,\n  baseHeight: 0.47\n)\n  .renderLandscape3d(\n    bgColor: #3c00d0,\n    viewMode: perspective,\n    rotateX: 0.25,\n    viewScale: 1,\n    posY: -10,\n    posZ: 35,\n    fieldOfView: 75\n  )\n  .write(o2)\n\nsolid(color: #800047)\n  .subchain(name: \"flow field particles\", id: \"t5qa\") {\n    .pointsEmit()\n    .heightGrid(\n      heightTex: read(o0),\n      diffuseTex: read(o1),\n      gridScale: 100,\n      heightScale: 25,\n      heightOffset: -6.7\n    )\n    .pointsRender(\n      density: 100,\n      intensity: 96.45,\n      inputIntensity: 100,\n      viewMode: perspective,\n      rotateX: 0.25,\n      viewScale: 1,\n      posY: -10,\n      posZ: 35,\n      fieldOfView: 75\n    )\n    .pointsBillboardRender(\n      depositOpacity: 20.18,\n      pointSize: 22.35,\n      sizeVariation: 100,\n      density: 0.71,\n      intensity: 71.04,\n      inputIntensity: 100,\n      viewMode: perspective,\n      rotateX: 0.25,\n      viewScale: 1,\n      posY: -10,\n      posZ: 35,\n      fieldOfView: 75,\n      aperture: 7,\n      focalDistance: 106\n    )\n  }\n  .split(\n    tex: read(o2),\n    rotation: osc1,\n    softness: 1\n  )\n  .subchain(name: \"lens effects\", id: \"c4ow\") {\n    .temporalAberration()\n    .bloom(\n      threshold: 0.9,\n      radius: 22,\n      taps: 49\n    )\n    .lens(displacement: -0.5, aspectLens: false)\n    .vignette(alpha: 0.49)\n    .vaseline()\n  }\n  .write(o3)\n\nrender(o3)",
+  "surface": "o3",
+  "resolution": [
+    64,
+    64
+  ]
+}

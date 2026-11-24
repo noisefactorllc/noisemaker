@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "just needs a fresh coat of paint"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 100, hueRotation: 66, speed: 100, loopOffset: 300, loopScale: 1, refractAmt: 44, wrap: true, type: 0, colorMode: 6, kaleido: 1, xScale: 1, yScale: 1, octaves: 1).write(o0)\nnoise(hueRange: 100, hueRotation: 25, speed: 14, octaves: 7, refractAmt: 100, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 100, yScale: 100).composite(tex: read(o0), blendMode: 2, inputColor: #508dad, mix: 1, range: 43).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

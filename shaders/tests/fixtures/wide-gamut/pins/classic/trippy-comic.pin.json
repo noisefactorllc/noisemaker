@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/trippy-comic.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2490,
+        "uniqueColors": 1497,
+        "sha256": "939fd1cf9bf604e4eec851ae3010521a65a4c11394381692140b9a90559d0caf"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2490,
+        "uniqueColors": 1497,
+        "sha256": "8971670e3f9bdf14ab1bbab240fd84fd6dc9818d7792044169f6b8ef4c61ad09"
+      }
+    }
+  }
+}

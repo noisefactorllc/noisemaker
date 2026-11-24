@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "feedback fun"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: 58, loopAOffset: 330, loopAScale: 1, speedB: 34, loopBOffset: 10, loopBScale: 100, palette: modesto, wrap: true, cyclePalette: 0, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 10, mix: 6, refractAAmt: 18, refractBAmt: 0).effects(effect: 1, effectAmt: 3, flip: 0, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).effects(effect: 7, effectAmt: 2, flip: 15, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/up-and-to-the-right.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 1109,
+        "sha256": "383967dbecb5b2d961bfe63cd543f0f219a9454de87f23307c891d94da833118"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 1109,
+        "sha256": "8a3e1f20ef62ea2e79275ad7b14bca02de09e70b8f21f06061013f7acc2f3960"
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:pafAcQ",
+    "dslFile": "programs/pafAcQ/program.dsl"
+  },
+  "effects": [
+    "synth/cellularAutomata",
+    "filter/adjust",
+    "synth/reactionDiffusion",
+    "render/loopBegin",
+    "filter/warp",
+    "filter/feedback",
+    "render/loopEnd",
+    "filter/tetraCosine",
+    "filter/lighting"
+  ],
+  "dsl": "search synth, filter, classicNoisedeck, render, points, mixer\n\nlet osc1 = osc(type: oscKind.sine, speed: bassReact)\nlet osc2 = osc(type: oscKind.noise, seed: 9368)\nlet osc3 = osc(type: oscKind.noise, seed: 1311)\nlet osc4 = osc(type: oscKind.noise, seed: 3626)\nlet osc5 = osc(type: oscKind.sawInv)\nlet bassReact = audio(band: 0, min: 0.9, max: 6.6)\n\ncellularAutomata(\n  tex: read(o4),\n  zoom: x64,\n  ruleIndex: pondLife,\n  smoothing: catmullRom4x4,\n  speed: 100,\n  weight: 100\n)\n  .adjust(\n    mode: hsv,\n    rotation: osc1,\n    hueRange: 58.5,\n    saturation: 1.5\n  )\n  .write(o0)\n\nreactionDiffusion(\n  tex: read(o0),\n  zoom: x32,\n  smoothing: catmullRom4x4,\n  sourceF: sliderInput,\n  feed: 85.23,\n  kill: 59.38,\n  rate1: 79.53,\n  rate2: 24.48,\n  weight: 88.51,\n  inputIntensity: osc4\n)\n  .write(o1)\n\nreactionDiffusion(\n  tex: read(o1),\n  zoom: x16,\n  smoothing: catmullRom4x4,\n  sourceF: brightness,\n  feed: 88.69,\n  kill: 56.45,\n  rate1: 98.83,\n  rate2: 23.39,\n  weight: 79.37,\n  inputIntensity: osc3\n)\n  .write(o2)\n\nreactionDiffusion(\n  tex: read(o2),\n  zoom: x4,\n  smoothing: catmullRom4x4,\n  sourceF: sliderInput,\n  feed: 31.52,\n  kill: 55.71,\n  rate1: 94.75,\n  rate2: 43.79,\n  weight: 45.9,\n  inputIntensity: osc2\n)\n  .write(o3)\n\nread(o3)\n  .subchain(name: \"feedback loop\", id: \"zzk1\") {\n    .loopBegin(alpha: 85.95)\n    .warp(strength: 6.99, scale: 0.2)\n    .feedback(mix: 40.61, refractBAmt: 8.39)\n    .loopEnd()\n  }\n  .tetraCosine(\n    colorMode: oklch,\n    offsetR: 0.121,\n    offsetG: 0.432,\n    offsetB: 0.67,\n    ampR: 0.369,\n    ampG: 0.332,\n    ampB: 0.676,\n    freqR: 4,\n    freqG: 4,\n    phaseR: 0.895,\n    phaseG: 0.417,\n    phaseB: 0.782,\n    repeat: 0.72,\n    offset: 0.96,\n    alpha: 0.65\n  )\n  .lighting(\n    normalStrength: 5,\n    smoothing: 6.6,\n    reflection: 22.3,\n    refraction: 27.4,\n    aberration: 26.5\n  )\n  .adjust(\n    rotation: osc5,\n    saturation: 0.79,\n    brightness: 1.61,\n    contrast: 0.72\n  )\n  .write(o4)\n\nrender(o4)",
+  "surface": "o4",
+  "resolution": [
+    64,
+    64
+  ]
+}

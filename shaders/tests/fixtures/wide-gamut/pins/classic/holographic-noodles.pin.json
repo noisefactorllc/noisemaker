@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/holographic-noodles.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4056,
+        "sha256": "9138f8eec7496562549d98db3467ac0c729ce0f9077388426d861bfb781b29fe"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4056,
+        "sha256": "316582f37b2d3f0dda598460f2b11b9846b03f8b1d788f6f568f7f1ff2308c51"
+      }
+    }
+  }
+}

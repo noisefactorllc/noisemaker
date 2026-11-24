@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "the murk 2: even murkier"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 30, hueRotation: 14, speed: 100, octaves: 3, refractAmt: 0, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 64, yScale: 64).write(o0)\nnoise(hueRange: 19, hueRotation: 40, speed: 60, refractAmt: 0, ridges: false, wrap: false, xScale: 100, yScale: 100, type: 10, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 11, mix: 49, refractAAmt: 47, refractBAmt: 61).lensDistortion(aberration: 27, distortion: -60, speed: 0, loopScale: 60, alpha: 87, shape: 0, tint: #38552a, vignetteAmt: -30).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/blood-star.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3650,
+        "uniqueColors": 21,
+        "sha256": "80881bee97696d4445a377074ea0fb55259a27ff75dd6fa8ddb4c846837a67ac"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3650,
+        "uniqueColors": 21,
+        "sha256": "4f2b98008423d384d202d9d875f716fe86d1cf93fe8d43fa8e837741eefced92"
+      }
+    }
+  }
+}

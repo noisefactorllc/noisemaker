@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "double mask"
+  },
+  "effects": [
+    "classicNoisedeck/bitEffects",
+    "classicNoisedeck/coalesce"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nbitEffects(baseHueRange: 76, colorScheme: 0, complexity: 100, formula: 10, hueRange: 55, hueRotation: 94, speed: 45, tiles: 10, maskFormula: 10, maskColorScheme: 0).write(o0)\nbitEffects(baseHueRange: 99, colorScheme: 2, complexity: 1, formula: 10, hueRange: 100, hueRotation: 7, speed: 100, tiles: 1, maskFormula: 10, maskColorScheme: 2).coalesce(tex: read(o0), blendMode: 11, mix: 1, refractAAmt: 0, refractBAmt: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

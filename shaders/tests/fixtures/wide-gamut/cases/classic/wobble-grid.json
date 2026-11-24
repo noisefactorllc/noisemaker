@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "wobble grid"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 63, hueRotation: 49, speed: 28, refractAmt: 0, ridges: false, wrap: true, xScale: 55, yScale: 57, type: 10, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nshapes(speedA: 12, loopAOffset: 200, loopAScale: 45, speedB: -40, loopBOffset: 300, loopBScale: 5, palette: solaris, wrap: true, cyclePalette: 0, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 2, mix: 26, refractAAmt: 27, refractBAmt: 14).refract().lensDistortion(aberration: 34, distortion: -41, speed: -17, loopScale: 14, alpha: 35, shape: 0, tint: #7242f8, vignetteAmt: -46).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

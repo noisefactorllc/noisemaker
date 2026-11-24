@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "wily refraction"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRotation: 50, kaleido: 5, metric: 3, palette: afterimage, wrap: true, type: 2, colorMode: 4, xScale: 85, yScale: 85, octaves: 1).coalesce(tex: read(o0), blendMode: 2, mix: 35, refractAAmt: 32, refractBAmt: 0).colorLab(colorMode: 3, dither: 0, hueRange: 100, hueRotation: 67, levels: 0, palette: netOfGems).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

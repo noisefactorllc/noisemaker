@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/inward-focus.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3842,
+        "uniqueColors": 160,
+        "sha256": "7dcd281c4e5135f8a145268c1c71f5e45544805708cf600e14caac30f66b1f68"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3842,
+        "uniqueColors": 160,
+        "sha256": "9d13f05d415ea4a8f72ae12130ec64552f5197859676fdc45c84d8dac6e6f716"
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "illusion of movement"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 75, hueRotation: 30, speed: 100, refractAmt: 90, ridges: true, wrap: true, xScale: 97, yScale: 96, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 7, mix: -100, refractAAmt: 24, refractBAmt: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

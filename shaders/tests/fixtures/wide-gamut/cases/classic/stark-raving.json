@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "stark raving"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 19, hueRotation: 55, speed: -14, loopOffset: 300, loopScale: 70, refractAmt: 48, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 87, yScale: 87, octaves: 1).colorLab(colorMode: 4, dither: 0, hueRange: 100, hueRotation: 44, levels: 0, palette: justBlue, cyclePalette: 1).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

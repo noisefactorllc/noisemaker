@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:PRFMyw",
+    "dslFile": "programs/PRFMyw/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "filter/palette",
+    "filter/chroma",
+    "render/pointsEmit",
+    "points/flow",
+    "render/pointsRender",
+    "filter/fibers",
+    "filter/hatch",
+    "filter/warp",
+    "filter/texture"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nperlin(scale: 34.78, dimensions: 3)\n  .palette(\n    index: sulphur,\n    offset: 32,\n    alpha: 0.63\n  )\n  .chroma(\n    targetHue: 0,\n    range: 0.5,\n    feather: 0.06\n  )\n  .subchain(name: \"flow field particles\", id: \"7kwl\") {\n    .pointsEmit(attrition: 4.15)\n    .flow(\n      behavior: crosshatch,\n      stride: 20,\n      kink: 0.2\n    )\n    .pointsRender(\n      density: 31.68,\n      intensity: 84.63,\n      inputIntensity: 89.98\n    )\n  }\n  .fibers(density: 0.13, alpha: 0.15)\n  .hatch(\n    mode: crosshatch,\n    strokeLength: 6.08,\n    balance: 64.33,\n    pressure: 49.34\n  )\n  .warp(\n    strength: 1.55,\n    scale: 4.07,\n    seed: 33,\n    speed: 3\n  )\n  .texture(\n    mode: regular,\n    alpha: 0.13,\n    scale: 2.1,\n    intensity: 64.47,\n    contrast: 77.156\n  )\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

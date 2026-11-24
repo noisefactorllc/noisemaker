@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "holo-grid"
+  },
+  "effects": [
+    "classicNoisedeck/noise"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 100, hueRotation: 58, speed: 29, refractAmt: 42, ridges: true, wrap: true, xScale: 76, yScale: 100, type: 0, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

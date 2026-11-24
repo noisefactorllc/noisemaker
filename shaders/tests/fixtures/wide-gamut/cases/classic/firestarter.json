@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "firestarter"
+  },
+  "effects": [
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\ncellNoise(colorMode: 2, speed: 1, palette: solaris, scale: 11, cellScale: 75, smooth: 0, variation: 0, cyclePalette: 1, rotatePalette: 0).write(o0)\nnoise(hueRange: 0, hueRotation: 5, speed: 97, octaves: 4, refractAmt: 20, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 100, yScale: 100).coalesce(tex: read(o0), blendMode: 16, mix: 40, refractAAmt: 30, refractBAmt: 13).effects(effect: 0, effectAmt: 1, flip: 0, offsetX: 0, offsetY: -1, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

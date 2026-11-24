@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:oMmGzA",
+    "dslFile": "programs/oMmGzA/program.dsl"
+  },
+  "effects": [
+    "synth/modPattern",
+    "filter/palette",
+    "filter/pondRipples",
+    "filter/lighting"
+  ],
+  "dsl": "search filter, synth\n\nmodPattern(\n  scale1: 19.33,\n  repeat1: 3.19,\n  shape2: diamond,\n  scale2: 9.096,\n  repeat2: 1.97,\n  shape3: square,\n  scale3: 1.518,\n  repeat3: 0.885,\n  blend: rgb,\n  animMode: pan,\n  speed: 0\n)\n  .palette(\n    index: dreamy,\n    rotation: back,\n    offset: 96.164,\n    repeat: 6,\n    alpha: 0.956\n  )\n  .pondRipples(\n    amount: 100,\n    ridges: 3,\n    speed: 5,\n    style: aroundCenter\n  )\n  .lighting(\n    normalStrength: 0.41,\n    smoothing: 10,\n    diffuseColor: #80a410,\n    specularColor: #079237,\n    specularIntensity: 0.186,\n    shininess: 17.708,\n    ambientColor: #959fe3,\n    lightDirection: vec3(0.305, 0.713, 0.195),\n    reflection: 19.395,\n    refraction: 27.4,\n    aberration: 1.95\n  )\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

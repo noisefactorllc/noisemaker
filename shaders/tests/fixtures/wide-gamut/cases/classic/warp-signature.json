@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "warp signature"
+  },
+  "effects": [
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\ncellNoise(colorMode: 1, speed: 1, palette: barstow, scale: 5, cellScale: 75, smooth: 0, variation: 0, cyclePalette: 1, rotatePalette: 0).write(o0)\nnoise(hueRange: 34, hueRotation: 46, speed: 97, refractAmt: 42, ridges: false, wrap: true, xScale: 100, yScale: 93, type: 1, colorMode: 6, kaleido: 1, octaves: 1).composite(tex: read(o0), blendMode: 1, inputColor: #616a58, mix: 18, range: 98).lensDistortion(aberration: 44, distortion: -47, speed: -48, loopScale: 66, alpha: 44, shape: 0, tint: #4c6c70, vignetteAmt: -100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:QuT9WA",
+    "dslFile": "programs/QuT9WA/program.dsl"
+  },
+  "effects": [
+    "synth/mnca",
+    "filter/seamless",
+    "filter/translate",
+    "filter/rotate",
+    "filter/warp",
+    "filter/adjust",
+    "filter/palette",
+    "filter/lighting",
+    "mixer/focusBlur",
+    "filter/parallax",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "synth/perlin"
+  ],
+  "dsl": "search synth, filter, mixer, classicNoisedeck, render, points\n\nlet osc1 = osc(type: oscKind.noise, max: 0.14)\nlet osc2 = osc(type: oscKind.noise, max: 0.14, seed: 343)\nlet osc3 = osc(type: oscKind.noise, max: 0.1, seed: 3)\n\nmnca(\n  tex: read(o2),\n  zoom: x16,\n  speed: 76.31,\n  weight: 69,\n  n1v1: 42.398,\n  n1r1: 99.708,\n  n1v2: 47.918,\n  n1r2: 71.202,\n  n1v3: 58.1,\n  n1r3: 63.91,\n  n1v4: 29.104,\n  n1r4: 6.22,\n  n2v1: 61.204,\n  n2r1: 86.629,\n  n2v2: 88.555,\n  n2r2: 74.603\n)\n  .seamless(blend: 0.13, repeat: 1)\n  .translate(x: osc1, y: osc2)\n  .rotate(rotation: osc3)\n  .warp(\n    strength: 3.33,\n    scale: 0.72,\n    seed: 48,\n    speed: 3,\n    wrap: repeat,\n    _skip: true\n  )\n  .adjust(\n    rotation: 26.62,\n    hueRange: 86.73,\n    contrast: 1\n  )\n  .write(o0)\n\nread(o0)\n  .palette(\n    index: sherbet,\n    rotation: fwd,\n    alpha: 0.85\n  )\n  .lighting(\n    normalStrength: 2.98,\n    smoothing: 2.7,\n    specularIntensity: 1.75,\n    shininess: 83,\n    lightDirection: vec3(-0.383, 0.333, 0.861),\n    reflection: 16.8,\n    refraction: 13.7,\n    aberration: 36.6,\n    heightMap: read(o0)\n  )\n  .focusBlur(\n    tex: read(o0),\n    focalDistance: 44.36,\n    aperture: 2.35,\n    sampleBias: 22.81\n  )\n  .parallax(heightMap: read(o0), direction: vec3(0.506, -0.422, 0.752))\n  .subchain(name: \"lens effects\", id: \"xrrm\") {\n    .temporalAberration(\n      redDelay: 2,\n      greenDelay: 1,\n      blueDelay: 0\n    )\n    .bloom(\n      threshold: 1.05,\n      softKnee: 0.15,\n      intensity: 0.85,\n      radius: 26,\n      taps: 25\n    )\n    .lens(displacement: -0.44)\n    .vignette(brightness: 0.24, alpha: 0.69)\n  }\n  .write(o1)\n\nperlin(\n  scale: 44.59,\n  octaves: 3,\n  dimensions: 3,\n  ridges: true,\n  speed: 5\n)\n  .write(o2)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

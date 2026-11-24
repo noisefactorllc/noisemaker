@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "mister bloopy"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 100, hueRotation: 4, speed: 34, refractAmt: 40, ridges: true, wrap: true, xScale: 92, yScale: 84, type: 2, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 64, hueRotation: 58, speed: 42, octaves: 2, refractAmt: 0, ridges: false, type: 10, colorMode: 6, kaleido: 1, xScale: 79, yScale: 79).composite(tex: read(o0), blendMode: 1, inputColor: #1b611c, mix: 5, range: 55).lensDistortion(aberration: 52, distortion: -15, speed: -4, loopScale: 64, alpha: 2, shape: 0, tint: #735eb0, vignetteAmt: 16).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

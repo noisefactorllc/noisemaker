@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:zniavg",
+    "dslFile": "programs/zniavg/program.dsl"
+  },
+  "effects": [
+    "synth/gradient",
+    "filter/tetraCosine"
+  ],
+  "dsl": "search filter, synth\nlet bassReact = audio(band: 0, min: -0.6, max: -4.4)\n\ngradient(\n  type: spiral,\n  rotation: -63.524,\n  speed: bassReact,\n  seed: 36,\n  color1: #ea76e8,\n  color2: #717da8,\n  color3: #cf5aa4,\n  color4: #de4aa0\n)\n  .tetraCosine(\n    offsetR: 0.916,\n    offsetG: 0.801,\n    offsetB: 0.94,\n    ampR: 0.879,\n    ampG: 0.933,\n    ampB: 0.344,\n    freqR: 3,\n    freqG: 4,\n    freqB: 2,\n    phaseR: 0.078,\n    phaseG: 0.808,\n    phaseB: 0.667,\n    repeat: 4,\n    offset: 0.498,\n    alpha: 0.542\n  )\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

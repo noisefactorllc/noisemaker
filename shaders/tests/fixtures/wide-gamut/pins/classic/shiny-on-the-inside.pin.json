@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/shiny-on-the-inside.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3896,
+        "uniqueColors": 3823,
+        "sha256": "d00ec3725a9c6ec35cc28bd26471722140b52a49f8a39a67d64dcd84c2dafd91"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3896,
+        "uniqueColors": 3823,
+        "sha256": "ee1780b52c6996cf7ebdb8b3de27f59e67e70b0bf35ba7628b300557c1c27af6"
+      }
+    }
+  }
+}

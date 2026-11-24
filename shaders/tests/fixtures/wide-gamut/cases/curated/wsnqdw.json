@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:wsnQdw",
+    "dslFile": "programs/wsnQdw/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "classicNoisedeck/kaleido",
+    "filter/palette",
+    "synth/solid",
+    "render/pointsEmit",
+    "points/heightGrid",
+    "render/pointsBillboardRender",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/crt"
+  ],
+  "dsl": "search synth, filter, render, points, mixer, classicNoisedeck\n\nlet osc1 = osc(type: oscKind.noise, min: 0.21, max: 0.48)\nlet osc2 = osc(type: oscKind.sine)\nlet osc3 = osc(type: oscKind.noise, min: 0.3, max: 0.58, seed: 6654)\nlet osc4 = osc(type: oscKind.sine, max: 0.28, speed: 3)\nlet osc5 = osc(type: oscKind.sawInv)\n\nperlin(colorMode: mono, speed: 5)\n  .kaleido(\n    sides: 32,\n    loopScale: 13.77,\n    speed: 100\n  )\n  .write(o0)\n\nread(o0)\n  .palette(\n    index: santaCruz,\n    rotation: fwd,\n    offset: 100,\n    alpha: 0.46\n  )\n  .write(o1)\n\nsolid(color: #000000ff)\n  .subchain(name: \"flow field particles\", id: \"ad6y\") {\n    .pointsEmit()\n    .heightGrid(\n      heightTex: read(o0),\n      diffuseTex: read(o1),\n      gridScale: 400,\n      heightScale: osc2\n    )\n    .pointsBillboardRender(\n      shapeMode: square,\n      blendMode: alpha,\n      depositOpacity: 100,\n      pointSize: 44.95,\n      sizeVariation: 100,\n      rotationVar: 100,\n      seed: 0,\n      density: 65.1,\n      intensity: 0,\n      inputIntensity: 100,\n      viewMode: perspective,\n      rotateX: osc1,\n      rotateZ: osc5,\n      viewScale: 0.77,\n      posX: osc3,\n      posY: -7.8,\n      posZ: -14.4,\n      fieldOfView: 120,\n      focalDistance: 1\n    )\n  }\n  .subchain(name: \"lens effects\", id: \"g4l0\") {\n    .temporalAberration(\n      redDelay: 2,\n      greenDelay: 1,\n      blueDelay: 0\n    )\n    .bloom(\n      threshold: 0.7,\n      intensity: 1.8,\n      taps: 15\n    )\n    .lens(displacement: -1)\n    .vignette(brightness: 0.19, alpha: 0.72)\n  }\n  .crt(alpha: 0.28)\n  .write(o2)\n\nrender(o2)",
+  "surface": "o2",
+  "resolution": [
+    64,
+    64
+  ]
+}

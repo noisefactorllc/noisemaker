@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/filter/reverb/parity-case.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4095,
+        "sha256": "7dfddcf4f9ea2614c3a55e55c6e7e72c40516ba4c040dcd68c6a02ee2a056d9e"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4095,
+        "sha256": "54860c0e8492f124af36db860541d53bba1a861eec6846e20aa5ba0d38e18107"
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "simplex cycles"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(palette: afterimage, refractAmt: 0, ridges: true, type: 10, colorMode: 5, kaleido: 1, xScale: 4, yScale: 4, octaves: 1).write(o0)\nnoise(hueRange: 76, hueRotation: 58, speed: 47, refractAmt: 55, ridges: false, wrap: false, xScale: 88, yScale: 83, type: 10, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 12, mix: -69, refractAAmt: 3, refractBAmt: 13).refract().lensDistortion(aberration: 44, distortion: -30, speed: 1, loopScale: 62, alpha: 27, shape: 0, tint: #0858d9, vignetteAmt: -68).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

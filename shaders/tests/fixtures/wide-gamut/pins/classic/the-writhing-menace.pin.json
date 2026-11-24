@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/the-writhing-menace.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2936,
+        "uniqueColors": 1919,
+        "sha256": "4606c290f323e4ac2aaca5b229eaddc1e7b7f381daf40329710d3bcaabb69d93"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2936,
+        "uniqueColors": 1919,
+        "sha256": "567874a0a4ef4c7365bd5b964a78d7c2c12d710e44e5f12af37b579f4536c41a"
+      }
+    }
+  }
+}

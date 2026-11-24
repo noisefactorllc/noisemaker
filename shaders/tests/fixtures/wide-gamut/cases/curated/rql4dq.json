@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:rQL4dQ",
+    "dslFile": "programs/rQL4dQ/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "render/pointsEmit",
+    "points/flow",
+    "render/pointsBillboardRender",
+    "filter/palette",
+    "synth/solid",
+    "points/heightGrid",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nlet osc1 = osc(type: oscKind.noise, min: 0.15, max: 0.36, seed: 3591)\nlet osc2 = osc(type: oscKind.sawInv, seed: 4518)\nlet osc3 = osc(type: oscKind.noise, min: 0.63, max: 0.65, seed: 7333)\nlet osc4 = osc(type: oscKind.sine, min: 0.9, speed: 2)\n\nperlin(\n  scale: 83.18,\n  colorMode: mono,\n  dimensions: 3,\n  ridges: true,\n  seed: 50,\n  speed: 4\n)\n  .subchain(name: \"flow field particles\", id: \"2n58\") {\n    .pointsEmit(stateSize: x128, attrition: 1)\n    .flow(\n      behavior: chaotic,\n      stride: 36,\n      strideDeviation: 0.5\n    )\n    .pointsBillboardRender(\n      blendMode: alpha,\n      depositOpacity: 100,\n      pointSize: 5.34,\n      sizeVariation: 100,\n      density: 9.67,\n      intensity: osc4\n    )\n  }\n  .write(o0)\n\nread(o0)\n  .palette(\n    index: hazySunset,\n    rotation: back,\n    offset: 100,\n    repeat: 2\n  )\n  .write(o2)\n\nsolid(color: #000000ff)\n  .subchain(name: \"flow field particles\", id: \"n1fi\") {\n    .pointsEmit(stateSize: x512)\n    .heightGrid(\n      heightTex: read(o0),\n      diffuseTex: read(o2),\n      gridScale: 44\n    )\n    .pointsBillboardRender(\n      blendMode: alpha,\n      depositOpacity: 100,\n      pointSize: 1,\n      density: 100,\n      intensity: 31.88,\n      inputIntensity: 100,\n      viewMode: perspective,\n      rotateX: osc1,\n      rotateZ: osc2,\n      viewScale: 1.51,\n      posZ: osc3,\n      fieldOfView: 120,\n      sizeDistance: 57,\n      brightnessDistance: 28,\n      aperture: 11,\n      focalDistance: 5\n    )\n  }\n  .subchain(name: \"lens effects\", id: \"wsjm\") {\n    .temporalAberration(greenDelay: 1, blueDelay: 2)\n    .bloom(\n      threshold: 0.45,\n      intensity: 1.05,\n      radius: 64,\n      taps: 45,\n      tint: #81c3ffff\n    )\n    .lens(displacement: -0.54)\n    .vignette(brightness: 0.43, alpha: 0.46)\n  }\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/iridescent-atmosphere.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4092,
+        "uniqueColors": 3656,
+        "sha256": "b54d416620623c569661cd25ff30570651aff019e829fbf57b30d52f6b7e98f4"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4092,
+        "uniqueColors": 3656,
+        "sha256": "e942b7401c1977655eb9634e3318ae3ef4e82ba99691e8127ee0f051e3468d78"
+      }
+    }
+  }
+}

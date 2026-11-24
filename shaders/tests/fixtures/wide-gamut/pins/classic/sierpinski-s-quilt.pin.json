@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/sierpinski-s-quilt.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1144,
+        "uniqueColors": 264,
+        "sha256": "b4d51df3cce7f75fc6b65da988af6d534210d4bf24f284890b6d9e6ae7c24c46"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1144,
+        "uniqueColors": 264,
+        "sha256": "77b2ac28b3a4c0df45e390c24e0b48fd0cfc7f9e2dd0a16d48cac37ab7287318"
+      }
+    }
+  }
+}

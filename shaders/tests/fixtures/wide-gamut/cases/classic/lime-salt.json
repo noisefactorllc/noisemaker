@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "lime salt"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "synth/pattern",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: 59, loopAOffset: 410, loopAScale: 10, speedB: -88, loopBOffset: 60, loopBScale: 23, palette: justGreen, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\npattern(fgColor: #e1ff00, bgColor: #44ff00, rotation: 89, scale: 19, type: 5, speed: 1, animation: 0).coalesce(tex: read(o0), blendMode: 13, mix: 45, refractAAmt: 0, refractBAmt: 21).lensDistortion(aberration: 21, distortion: -85, speed: -19, loopScale: 89, alpha: 55, shape: 0, tint: #8ae25a, vignetteAmt: -100).lensDistortion(aberration: 100, blendMode: 0, hueRange: 100, hueRotation: 26, blendMode: 1, modulate: true, passthru: 77, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

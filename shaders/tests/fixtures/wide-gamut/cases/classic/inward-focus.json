@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "inward focus"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: -4, loopAOffset: 10, loopAScale: 79, speedB: -31, loopBOffset: 60, loopBScale: 86, palette: grayscale, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRange: 42, hueRotation: 81, speed: 49, refractAmt: 55, ridges: true, wrap: true, xScale: 100, yScale: 96, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 9, mix: 100, refractAAmt: 53, refractBAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

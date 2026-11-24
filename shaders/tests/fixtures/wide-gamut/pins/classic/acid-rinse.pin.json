@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/acid-rinse.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3768,
+        "uniqueColors": 3004,
+        "sha256": "b6111209160284073c2ea2accf1cce5f9cbecf8a7be409f8bf2926fd9357de3a"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3768,
+        "uniqueColors": 3004,
+        "sha256": "dc2c796bac3ed130b13b6ed1e8621cb9d3e043fa6d7196cc9daa5b92f54b7dde"
+      }
+    }
+  }
+}

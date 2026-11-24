@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "it went by so fast"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(speed: -98, loopOffset: 340, loopScale: 90, refractAmt: 93, ridges: false, palette: tungsten, type: 11, colorMode: 4, kaleido: 1, xScale: 100, yScale: 100, octaves: 1).write(o0)\nnoise(speed: -98, loopOffset: 340, loopScale: 90, refractAmt: 93, ridges: false, palette: brushedMetal, type: 11, colorMode: 4, kaleido: 1, xScale: 100, yScale: 100, octaves: 1).composite(tex: read(o0), blendMode: 2, inputColor: #242f80, mix: 45, range: 21).lensDistortion(aberration: 52, distortion: -40, speed: 13, loopScale: 63, alpha: 4, shape: 0, tint: #7a9b2b, vignetteAmt: 51).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "kaleido whiplash"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRotation: 0, kaleido: 5, metric: 0, palette: modesto, wrap: true, type: 3, colorMode: 4, xScale: 85, yScale: 85, octaves: 1).write(o0)\nnoise(hueRotation: 0, kaleido: 10, metric: 0, palette: santaCruz, wrap: true, type: 2, colorMode: 4, xScale: 21, yScale: 21, octaves: 1).coalesce(tex: read(o0), blendMode: 8, mix: 17, refractAAmt: 17, refractBAmt: 46).lensDistortion(aberration: 0, distortion: -43, speed: 16, loopScale: 17, alpha: 18, shape: 0, tint: #da8f25, vignetteAmt: -92).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

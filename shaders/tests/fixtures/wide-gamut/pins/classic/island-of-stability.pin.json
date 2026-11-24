@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/island-of-stability.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3780,
+        "uniqueColors": 194,
+        "sha256": "3ca904ed471d00a22c1460cdc65bcc34aaacae5bba47895fae75b4de8df9aeb6"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3780,
+        "uniqueColors": 194,
+        "sha256": "6877b6aab174071e7bddade6dffaafc003e097b8e8a4949d20ca28a5ba298289"
+      }
+    }
+  }
+}

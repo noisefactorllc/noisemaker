@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "fivefold"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/shapeMixer",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: 73, loopAOffset: 50, loopAScale: 37, speedB: -20, loopBOffset: 50, loopBScale: 54, wrap: true, palette: sulphur, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRotation: 21, kaleido: 5, metric: 0, wrap: true, palette: summoning, type: 3, colorMode: 4, xScale: 91, yScale: 91, octaves: 1).shapeMixer(wrap: true, palette: 0, blendMode: 7, animate: 1, levels: 0).refract().lensDistortion(aberration: 40, blendMode: 1, hueRange: 0, hueRotation: 0, blendMode: 0, modulate: false, passthru: 66, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

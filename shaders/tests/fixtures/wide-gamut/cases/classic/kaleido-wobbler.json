@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "kaleido wobbler"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/kaleido",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: -77, loopAOffset: 10, loopAScale: 30, speedB: 100, loopBOffset: 320, loopBScale: 1, palette: brushedMetal, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\nshapes(speedA: -64, loopAOffset: 320, loopAScale: 20, speedB: -13, loopBOffset: 10, loopBScale: 31, palette: blueSkies, wrap: true, cyclePalette: 0, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 14, mix: -7, refractAAmt: 7, refractBAmt: 97).kaleido(direction: 1, effectWidth: 6, sides: 16, kernel: 0, speed: -26, loopOffset: 210, loopScale: 50, metric: 4, wrap: true).colorLab(brightness: 25, colorMode: 2, dither: 0, hueRange: 105, hueRotation: 0, levels: 16, palette: justBlue).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

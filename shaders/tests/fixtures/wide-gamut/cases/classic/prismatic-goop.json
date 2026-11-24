@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "prismatic goop"
+  },
+  "effects": [
+    "synth/pattern",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\npattern(fgColor: #ffffff, bgColor: #000000, rotation: 0, scale: 19, type: 0, speed: 1, animation: 2).write(o0)\nnoise(hueRange: 25, hueRotation: 52, speed: 53, refractAmt: 76, ridges: true, wrap: true, xScale: 95, yScale: 82, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 10, mix: 43, refractAAmt: 10, refractBAmt: 0).lensDistortion(aberration: 100, blendMode: 0, hueRange: 71, hueRotation: 0, blendMode: 1, modulate: true, passthru: 47, alpha: 0, speed: 0, distortion: 0).effects(effect: 4, effectAmt: 0, flip: 2, offsetX: 0, offsetY: 0, rotation: 59, scaleAmt: 146).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

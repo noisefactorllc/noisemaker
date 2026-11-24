@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/it-went-by-so-fast.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 132,
+        "sha256": "ac9084d2e61a3c3fcce5d19e33ce3ba8c0127dda64c6660e39530675dddc855f"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 132,
+        "sha256": "9438587aa3c6dfe6f82e20e080d350200ff87e603109146bdea9c45082416c65"
+      }
+    }
+  }
+}

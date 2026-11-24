@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:ifEfxg",
+    "dslFile": "programs/ifEfxg/program.dsl"
+  },
+  "effects": [
+    "synth/shape",
+    "filter/tile",
+    "filter/palette",
+    "synth/solid",
+    "render/pointsEmit",
+    "points/heightGrid",
+    "render/pointsBillboardRender",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vaseline"
+  ],
+  "dsl": "search synth, points, render, filter, mixer, classicNoisedeck\n\nlet osc1 = osc(type: oscKind.noise, max: 0.43, seed: 9140)\nlet osc2 = osc(type: oscKind.tri, min: 0.53)\nlet osc3 = osc(type: oscKind.noise, max: 0.1, seed: 7632)\nlet osc4 = osc(type: oscKind.noise, min: 0.2, max: 0.25)\n\nshape(\n  loopAOffset: hexagon,\n  loopAScale: 82.228,\n  loopBScale: 23.96,\n  speedA: 57,\n  speedB: -59,\n  seed: 67,\n  wrap: false\n)\n  .tile(\n    symmetry: rotate6,\n    scale: 1.45,\n    offsetY: -0.26,\n    angle: osc3,\n    repeat: 7\n  )\n  .write(o1)\n\nread(o1)\n  .palette(\n    index: organic,\n    rotation: back,\n    repeat: 2,\n    alpha: 0.58\n  )\n  .write(o2)\n\nsolid(color: #000000ff)\n  .pointsEmit(stateSize: x512)\n  .heightGrid(\n    heightTex: read(o1),\n    diffuseTex: read(o2),\n    gridScale: osc2,\n    heightScale: 100,\n    heightOffset: 30.4\n  )\n  .pointsBillboardRender(\n    shapeMode: star,\n    blendMode: alpha,\n    depositOpacity: 100,\n    pointSize: 6.48,\n    sizeVariation: 100,\n    rotationVar: 100,\n    density: 100,\n    intensity: 80.82,\n    inputIntensity: 100,\n    viewMode: perspective,\n    rotateX: osc4,\n    rotateZ: osc1,\n    viewScale: 0.32,\n    posY: -2,\n    posZ: -94.9,\n    fieldOfView: 21\n  )\n  .subchain(name: \"lens effects\", id: \"k6ns\") {\n    .temporalAberration(greenDelay: 1, blueDelay: 2)\n    .bloom(\n      threshold: 0.3,\n      intensity: 1.5,\n      taps: 15\n    )\n    .lens(displacement: -0.71, aspectLens: false)\n    .vaseline(alpha: 1)\n  }\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

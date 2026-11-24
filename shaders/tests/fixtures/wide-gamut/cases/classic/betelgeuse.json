@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "betelgeuse"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: 100, loopAOffset: 330, loopAScale: 13, speedB: -85, loopBOffset: 330, loopBScale: 39, palette: solaris, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRange: 21, hueRotation: 94, speed: 100, octaves: 6, refractAmt: 52, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 86, yScale: 86).coalesce(tex: read(o0), blendMode: 9, mix: 62, refractAAmt: 40, refractBAmt: 5).colorLab(colorMode: 2, dither: 0, hueRange: 100, hueRotation: 0, levels: 0, palette: sulphur).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:NnbZ2A",
+    "dslFile": "programs/NnbZ2A/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "filter/adjust",
+    "filter/palette",
+    "render/pointsEmit",
+    "points/physarum",
+    "render/pointsRender",
+    "render/pointsBillboardRender",
+    "filter/blur",
+    "synth/navierStokes",
+    "mixer/blendMode",
+    "filter/lighting"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nperlin(\n  scale: 67.93,\n  octaves: 5,\n  dimensions: 3,\n  seed: 47\n)\n  .adjust(\n    hueRange: 200,\n    saturation: 0.62,\n    brightness: 1.06\n  )\n  .palette(\n    index: tungsten,\n    offset: 100,\n    repeat: 8,\n    alpha: 0.67\n  )\n  .subchain(name: \"physarum particles\", id: \"9msz\") {\n    .pointsEmit()\n    .physarum(\n      moveSpeed: 0.87,\n      turnSpeed: 0.64,\n      sensorAngle: 0.49,\n      sensorDistance: 0.017,\n      inputWeight: 50,\n      deposit: 0.39,\n      decay: 0.22\n    )\n    .pointsRender(intensity: 88.47, inputIntensity: 10.7)\n    .pointsBillboardRender(\n      depositOpacity: 80.36,\n      pointSize: 25.23,\n      density: 0,\n      inputIntensity: 100\n    )\n  }\n  .blur()\n  .write(o1)\n\nnavierStokes(\n  tex: read(o1),\n  iterations: 40,\n  speed: 138.1,\n  dyeDecay: 99.53,\n  inputForce: 0.76,\n  inputIntensity: 8.08\n)\n  .blendMode(\n    tex: read(o1),\n    mode: diff,\n    mix: -7.73\n  )\n  .lighting(\n    normalStrength: 5,\n    smoothing: 3.6,\n    reflection: 18,\n    refraction: 20.6,\n    aberration: 12.1\n  )\n  .adjust(brightness: 1.39, contrast: 0.49)\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

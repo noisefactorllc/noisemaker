@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "digital camo"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 3, hueRotation: 59, speed: 22, loopOffset: 210, loopScale: 52, refractAmt: 35, wrap: true, type: 0, colorMode: 6, kaleido: 1, xScale: 22, yScale: 22, octaves: 1).effects(effect: 100, effectAmt: 2, flip: 0, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/c_twog.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 729,
+        "sha256": "1df6a66805f758755e24b7ca14f2198338cccfe5e7b2386f10742f293966dc00"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 729,
+        "sha256": "76c394a3c9cf941af2ad7acbf9659c1653bb45e289ee662410d4ba7f9d87bf2b"
+      }
+    }
+  }
+}

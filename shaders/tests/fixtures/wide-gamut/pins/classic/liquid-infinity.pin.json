@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/liquid-infinity.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3784,
+        "uniqueColors": 3463,
+        "sha256": "c1eb50120ffe8581bacd4e455fb66f3f0d47b69d7380b68bce89b13c76f00e50"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3784,
+        "uniqueColors": 3463,
+        "sha256": "0e90b638d1f11825e23fb5f801fba24e0d8057bbb174d3c2a9057c33ba3d32fd"
+      }
+    }
+  }
+}

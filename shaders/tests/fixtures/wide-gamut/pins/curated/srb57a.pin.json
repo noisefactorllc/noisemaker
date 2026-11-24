@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/srb57a.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 67,
+        "sha256": "a2360cac449037aff6983a83e93c2e83c5fe3838ddb0b78368fd95d88c270ea1"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 67,
+        "sha256": "66d778144ab7da2511d74806667f880848a9778b4a6dfa4c36f9e637f2f1e9a9"
+      }
+    }
+  }
+}

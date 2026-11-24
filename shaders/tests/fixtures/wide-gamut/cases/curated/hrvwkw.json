@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:HrVWKw",
+    "dslFile": "programs/HrVWKw/program.dsl"
+  },
+  "effects": [
+    "synth/subdivide",
+    "filter/tile",
+    "filter/palette",
+    "synth/solid",
+    "render/pointsEmit",
+    "points/heightGrid",
+    "render/pointsRender",
+    "synth3d/heightmap3d",
+    "render/renderLandscape3d",
+    "filter/rotate",
+    "filter/sobel",
+    "mixer/split",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search synth, filter, synth3d, render, points, mixer\n\nlet osc1 = osc(type: oscKind.noise, max: 0.15, speed: 2, seed: 8659)\nlet osc2 = osc(type: oscKind.noise, min: 0.29, max: 0.75, seed: 1342)\nlet osc3 = osc(type: oscKind.noise, min: 0.27, max: 0.72, seed: 7366)\nlet osc4 = osc(type: oscKind.noise, min: 0.26, max: 0.79, seed: 3287)\nlet osc5 = osc(type: oscKind.noise, min: 0.29, max: 0.8, seed: 3188)\nlet osc6 = osc(type: oscKind.noise, min: 0.21, max: 0.86, seed: 6278)\nlet osc7 = osc(type: oscKind.sine)\nlet osc8 = osc(type: oscKind.sine, min: 0.84)\n\nsubdivide(\n  tex: read(o2),\n  fill: arc,\n  speed: 19\n)\n  .tile(\n    symmetry: rotate6,\n    scale: 4,\n    offsetX: osc6,\n    offsetY: osc5,\n    angle: osc1,\n    repeat: 1\n  )\n  .write(o0)\n\nread(o0)\n  .palette(index: santaCruz)\n  .write(o2)\n\nsolid(color: #000000)\n  .subchain(name: \"flow field particles\", id: \"uvdh\") {\n    .pointsEmit(stateSize: x64)\n    .heightGrid(\n      heightTex: read(o0),\n      diffuseTex: read(o2),\n      gridScale: 100,\n      heightScale: -35\n    )\n    .pointsRender(\n      density: 100,\n      intensity: 84.12,\n      viewMode: perspective,\n      rotateX: 1.56,\n      rotateY: osc8,\n      rotateZ: osc7,\n      viewScale: 1\n    )\n  }\n  .write(o3)\n\nheightmap3d(\n  heightTex: read(o0),\n  tex: read(o2),\n  volumeSize: x128,\n  heightScale: 1\n)\n  .renderLandscape3d(\n    zoom: 0.95,\n    bgColor: #35001a,\n    viewMode: perspective,\n    rotateX: 1.56,\n    rotateY: osc8,\n    rotateZ: osc7\n  )\n  .rotate(speed: 2)\n  .sobel(alpha: 0.44)\n  .split(\n    tex: read(o3),\n    rotation: osc8,\n    softness: 1\n  )\n  .subchain(name: \"lens effects\", id: \"7efo\") {\n    .temporalAberration(\n      redDelay: 4,\n      greenDelay: 2,\n      blueDelay: 0\n    )\n    .bloom(\n      threshold: 0.3,\n      intensity: 2.65,\n      taps: 15\n    )\n    .lens(displacement: -1, aspectLens: false)\n    .vignette(brightness: 0.58, alpha: 0.44)\n  }\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

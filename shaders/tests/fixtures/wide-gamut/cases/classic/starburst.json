@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "starburst"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 37, hueRotation: 88, speed: 95, octaves: 3, refractAmt: 0, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 100, yScale: 100).write(o0)\nshapes(speedA: -51, loopAOffset: 10, loopAScale: 49, speedB: 71, loopBOffset: 70, loopBScale: 69, palette: solaris, wrap: true, cyclePalette: 0, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 15, mix: -37, refractAAmt: 6, refractBAmt: 0).lensDistortion(aberration: 100, blendMode: 0, hueRange: 54, hueRotation: 0, blendMode: 1, modulate: true, passthru: 100, alpha: 0, speed: 0, distortion: 0).effects(effect: 0, effectAmt: 2, flip: 16, offsetX: -13, offsetY: 1, rotation: 125, scaleAmt: 142).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

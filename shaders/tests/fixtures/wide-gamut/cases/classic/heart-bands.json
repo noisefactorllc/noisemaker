@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "heart bands"
+  },
+  "effects": [
+    "synth/pattern",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\npattern(fgColor: #ffffff, bgColor: #000000, rotation: 0, scale: 19, type: 3, speed: 1, animation: 0).write(o0)\nnoise(hueRange: 100, hueRotation: 62, speed: 19, refractAmt: 0, ridges: false, wrap: true, xScale: 100, yScale: 84, type: 0, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 16, mix: 52, refractAAmt: 10, refractBAmt: 0).lensDistortion(aberration: 100, blendMode: 0, hueRange: 100, hueRotation: 0, blendMode: 1, modulate: true, passthru: 57, alpha: 0, speed: 0, distortion: 0).effects(effect: 4, effectAmt: 0, flip: 2, offsetX: 0, offsetY: 0, rotation: -18, scaleAmt: 146).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

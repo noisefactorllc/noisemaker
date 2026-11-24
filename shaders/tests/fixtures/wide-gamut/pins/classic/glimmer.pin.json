@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/glimmer.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1804,
+        "uniqueColors": 46,
+        "sha256": "2aea05ef7bd8bb4a7010f79651e3cc3b6f547df48ce72faad8e3a94e09be37e4"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1804,
+        "uniqueColors": 46,
+        "sha256": "2aea05ef7bd8bb4a7010f79651e3cc3b6f547df48ce72faad8e3a94e09be37e4"
+      }
+    }
+  }
+}

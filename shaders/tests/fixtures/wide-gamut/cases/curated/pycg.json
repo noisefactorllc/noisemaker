@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:--PYCg",
+    "dslFile": "programs/--PYCg/program.dsl"
+  },
+  "effects": [
+    "synth/solid",
+    "render/pointsEmit",
+    "points/life",
+    "points/lenia",
+    "render/pointsRender"
+  ],
+  "dsl": "search filter, mixer, points, render, synth\n\nsolid()\n  .subchain(name: \"life\", id: \"zxnr\") {\n    .pointsEmit(\n      stateSize: x64,\n      layout: center,\n      seed: 11,\n      attrition: 2.26\n    )\n    .life(\n      typeCount: 8,\n      attractionScale: 1.9,\n      repulsionScale: 3.2,\n      minRadius: 0.021,\n      friction: 0.25,\n      matrixSeed: 78.425\n    )\n    .lenia(\n      muK: 9,\n      sigmaK: 3.4,\n      repulsion: 0.6,\n      dt: 0.08,\n      searchRadius: 19,\n      depositAmount: 1.4\n    )\n    .pointsRender(\n      density: 100,\n      intensity: 94.45,\n      inputIntensity: 0,\n      rotateX: 4.221,\n      rotateY: 0.646,\n      rotateZ: 1.316,\n      viewScale: 1.546,\n      posX: -25.066,\n      posY: -19.438,\n      matteOpacity: 0.839\n    )\n  }\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

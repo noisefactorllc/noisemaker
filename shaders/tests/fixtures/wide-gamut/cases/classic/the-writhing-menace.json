@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "the writhing menace"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 24, hueRotation: 71, speed: 54, octaves: 5, refractAmt: 63, ridges: false, type: 10, colorMode: 6, kaleido: 1, xScale: 97, yScale: 97).write(o0)\ncellNoise(colorMode: 0, speed: 1, palette: jester, scale: 16, cellScale: 75, smooth: 0, variation: 0, cyclePalette: 1, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 2, mix: -8, refractAAmt: 0, refractBAmt: 47).lensDistortion(aberration: 36, distortion: -31, speed: 59, loopScale: 96, alpha: 0, saturation: -11, shape: 0, tint: #5e9e96, vignetteAmt: -75).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

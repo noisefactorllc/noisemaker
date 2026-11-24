@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "that one time on ayahuasca"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRotation: 24, kaleido: 2, metric: 5, palette: vibrant, wrap: true, type: 0, colorMode: 4, xScale: 35, yScale: 35, octaves: 1).write(o0)\nnoise(hueRotation: 40, kaleido: 8, metric: 0, palette: modesto, wrap: true, type: 2, colorMode: 4, xScale: 1, yScale: 1, octaves: 1).composite(tex: read(o0), blendMode: 3).lensDistortion(aberration: 0, distortion: -36, speed: 0, loopScale: 100, alpha: 10, shape: 0, tint: #000000, vignetteAmt: -38).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

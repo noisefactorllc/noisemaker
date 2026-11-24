@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/simplex-boogie.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 980,
+        "sha256": "4d3d0d2a2f35fd21b0d8595be9822bf0181bb3a95733b0dde9b05ae403d27bb0"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 980,
+        "sha256": "076fdd59513d77b952e9fde6c5e5047a27585091cf37ac02047d96de7e0de51f"
+      }
+    }
+  }
+}

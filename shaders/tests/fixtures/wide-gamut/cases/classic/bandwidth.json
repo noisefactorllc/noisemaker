@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "bandwidth"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 100, hueRotation: 100, speed: 100, refractAmt: 100, ridges: true, wrap: true, xScale: 100, yScale: 91, type: 0, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 0, hueRotation: 0, speed: 100, refractAmt: 0, ridges: false, wrap: true, xScale: 34, yScale: 100, type: 2, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 7, mix: -100, refractAAmt: 62, refractBAmt: 0).effects(effect: 3, effectAmt: 1, flip: 0, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

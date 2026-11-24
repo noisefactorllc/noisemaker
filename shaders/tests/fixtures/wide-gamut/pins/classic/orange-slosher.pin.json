@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/orange-slosher.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4074,
+        "uniqueColors": 3800,
+        "sha256": "2d12a022490fb4725b3b4d21a2ad5a624d9a48bf946b5c8e184e191ebf5c9dc8"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4074,
+        "uniqueColors": 3800,
+        "sha256": "aa905dbcf6ff4635dd72b6384a6d5dde2869f1b979ec75356b9ad719d4824b09"
+      }
+    }
+  }
+}

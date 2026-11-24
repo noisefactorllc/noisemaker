@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/maelstrom.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3903,
+        "uniqueColors": 1637,
+        "sha256": "f81fa606c56f9cac3d49f2a374165ee64c74217691497c32ed1c7bc22fcc6491"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3903,
+        "uniqueColors": 1637,
+        "sha256": "82bcfaaa64a9e62c5aa92e437f9c9e62b9789e6f402cb78aeabd51ef7f6d429a"
+      }
+    }
+  }
+}

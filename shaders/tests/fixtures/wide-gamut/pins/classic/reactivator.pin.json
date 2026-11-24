@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/reactivator.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3918,
+        "uniqueColors": 3117,
+        "sha256": "6e0200f8523cfbf6894594d915e76b48baeea7a124d49d2ad13c84a37d4c067f"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3918,
+        "uniqueColors": 3117,
+        "sha256": "cddba6d8b669aef67f75c6b05fbd0965faae1331dbb34abdf4e8b6ee70448568"
+      }
+    }
+  }
+}

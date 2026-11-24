@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:uKIV-w",
+    "dslFile": "programs/uKIV-w/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "filter/lighting",
+    "render/pointsEmit",
+    "points/flow",
+    "render/pointsBillboardRender",
+    "render/pointsRender",
+    "filter/adjust",
+    "classicNoisedeck/coalesce",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search synth, filter, render, points, mixer, classicNoisedeck\n\nperlin(\n  scale: 18.75,\n  octaves: 2,\n  dimensions: 3,\n  ridges: true,\n  seed: 58\n)\n  .lighting(\n    normalStrength: 5,\n    smoothing: 10,\n    reflection: 44,\n    refraction: 31.4,\n    aberration: 28.4\n  )\n  .subchain(name: \"particles\", id: \"se9k\") {\n    .pointsEmit(\n      stateSize: x64,\n      seed: 35,\n      attrition: 1.52\n    )\n    .flow(\n      behavior: chaotic,\n      stride: 25,\n      strideDeviation: 0.5,\n      kink: 2.2\n    )\n    .pointsBillboardRender(\n      shapeMode: soft,\n      depositOpacity: 41.01,\n      pointSize: 15,\n      sizeVariation: 100,\n      density: 20.93,\n      intensity: 74.91,\n      inputIntensity: 100\n    )\n    .pointsRender(\n      density: 100,\n      intensity: 98.84,\n      inputIntensity: 59.39\n    )\n  }\n  .write(o0)\n\nperlin(scale: 22.15, dimensions: 3)\n  .adjust(\n    mode: hsv,\n    rotation: -89.87,\n    hueRange: 40.8,\n    saturation: 0.77,\n    brightness: 2.06\n  )\n  .coalesce(\n    tex: read(o0),\n    blendMode: multiply,\n    mix: -19.93\n  )\n  .lighting(normalStrength: 0, refraction: 22.2)\n  .subchain(name: \"lens effects\", id: \"a9tw\") {\n    .chromaticAberration(aberration: 25)\n    .bloom(\n      threshold: 0.7,\n      intensity: 0.75,\n      taps: 30\n    )\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.08)\n  }\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

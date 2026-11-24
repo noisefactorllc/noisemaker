@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "cool crystals"
+  },
+  "effects": [
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\ncellNoise(colorMode: 1, speed: 2, palette: santaCruz, scale: 18, cellScale: 75, smooth: 0, variation: 0, cyclePalette: 1, rotatePalette: 0).write(o0)\ncellNoise(colorMode: 2, speed: 2, palette: tungsten, scale: 19, cellScale: 75, smooth: 0, variation: 0, cyclePalette: 1, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 7, mix: -61, refractAAmt: 46, refractBAmt: 25).lensDistortion(aberration: 30, distortion: -40, speed: 10, loopScale: 71, alpha: 61, shape: 0, tint: #4052ba, vignetteAmt: -100).lensDistortion(aberration: 100, blendMode: 0, hueRange: 39, hueRotation: 16, blendMode: 1, modulate: true, passthru: 60, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

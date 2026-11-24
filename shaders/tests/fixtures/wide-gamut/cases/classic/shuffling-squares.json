@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "shuffling squares"
+  },
+  "effects": [
+    "classicNoisedeck/noise"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 48, hueRotation: 51, speed: -15, loopOffset: 300, loopScale: 12, refractAmt: 99, wrap: true, type: 0, colorMode: 6, kaleido: 1, xScale: 23, yScale: 23, octaves: 1).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

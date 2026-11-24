@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:VzWBfA",
+    "dslFile": "programs/VzWBfA/program.dsl"
+  },
+  "effects": [
+    "synth/mnca",
+    "filter/tetraCosine",
+    "filter/lighting",
+    "synth/gabor"
+  ],
+  "dsl": "search filter, synth\nlet midsReact = audio(band: 1, min: 44.679, max: 151.91)\n\nmnca(\n  tex: read(o1),\n  zoom: x16,\n  smoothing: bSpline4x4,\n  speed: midsReact,\n  weight: 30.71,\n  n1v1: 38.46,\n  n1r1: 29.363,\n  n1v2: 65.617,\n  n1r2: 56.029,\n  n1v3: 45.66,\n  n1r3: 78.463,\n  n1v4: 24.863,\n  n1r4: 64.73,\n  n2v1: 93.195,\n  n2r1: 66.04,\n  n2v2: 37.783,\n  n2r2: 50.28\n)\n  .tetraCosine(\n    colorMode: oklab,\n    offsetR: 0.156,\n    offsetG: 0.462,\n    offsetB: 0.484,\n    ampR: 0.342,\n    ampG: 0.95,\n    ampB: 0.322,\n    freqR: 2,\n    freqG: 4,\n    freqB: 0,\n    phaseR: 0.465,\n    phaseG: 0.972,\n    phaseB: 0.592,\n    repeat: 4.8,\n    alpha: 0.43\n  )\n  .lighting(normalStrength: 1.21, smoothing: 4.7)\n  .write(o0)\n\ngabor(\n  orientation: -47.7,\n  isotropy: 31.02,\n  density: 5,\n  speed: 5\n)\n  .write(o1)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

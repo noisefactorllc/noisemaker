@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:eOjBYA",
+    "dslFile": "programs/eOjBYA/program.dsl"
+  },
+  "effects": [
+    "synth/cellularAutomata",
+    "filter/sine",
+    "filter/ridge",
+    "filter/relief",
+    "filter/temporalAberration",
+    "filter/texture"
+  ],
+  "dsl": "search filter, synth\n\ncellularAutomata(\n  zoom: x64,\n  ruleIndex: size34Life,\n  smoothing: bSpline3x3,\n  speed: 13.016\n)\n  .sine(amount: 9.7, colorMode: mono)\n  .ridge(level: 0.46)\n  .relief(smoothness: 11.56, detail: 100)\n  .temporalAberration()\n  .texture(alpha: 0.37, scale: 0.1)\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

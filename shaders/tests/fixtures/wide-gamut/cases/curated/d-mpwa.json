@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:d-MpwA",
+    "dslFile": "programs/d-MpwA/program.dsl"
+  },
+  "effects": [
+    "mixer/focusBlur",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search user, synth, filter, render, points, mixer\n\naerialsunsetflyover(\n  speed: 1,\n  terrainScale: 0.5,\n  colorSaturation: 0,\n  horizonHaze: 1.36,\n  lensIntensity: 1.62,\n  complexity: 7\n)\n  .focusBlur(\n    focalDistance: 1,\n    aperture: 5.4,\n    sampleBias: 64\n  )\n  .subchain(name: \"lens effects\", id: \"75x6\") {\n    .temporalAberration()\n    .bloom(\n      threshold: 0.7,\n      intensity: 0.3,\n      taps: 15,\n      tint: #ff8440\n    )\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.31)\n  }\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ],
+  "userEffects": [
+    {
+      "name": "aerialsunsetflyover",
+      "namespace": "user",
+      "func": "aerialsunsetflyover",
+      "description": "First-person aerial view flying forward over a surreal alien landscape at ~40m altitude. The ground occupies ~65% of the frame, displaying sweeping bands of vibrant color — electric purples rolling into deep teals, volcanic oranges and lime greens — like psychedelic geological formations seen from above. Near terrain is crisp with visible FBM ridge detail and strong perspective convergence lines. By 150 virtual units distant, terrain colors wash toward warm cream-orange fog; by 300 units only silhouette shapes remain dissolved in haze. The horizon is completely washed out into a blindingly bright warm cream-orange atmospheric glow. Sky transitions from deep violet-indigo at the top through a magenta band narrowing into the horizon glow. A soft overexposed sun disc sits just above center-horizon, surrounded by a wide corona bloom and horizontal lens-streak artifacts. The camera breathes gently with a vertical Y-axis bob and lazy lateral banking. ALL animation uses sin(time*TAU) and cos(time*TAU) exclusively. Terrain forward motion is achieved by offsetting the FBM spatial coordinates using timeCircle = vec2(cos(time*TAU), sin(time*TAU)) scaled by speed — this traces a circle in the noise field giving seamless looping terrain scroll. Camera Y bob: sin(time*TAU)*2.5 (1 cycle). Banking: sin(time*TAU)*0.06 (1 cycle). Hue drift adds sin(time*TAU)*0.4 to cosine palette t-parameter. Sun Y oscillates with sin(time*TAU)*0.04. Lens flare pulse uses sin(time*TAU*2.0) (2 integer cycles). Post-processing: subtle chromatic aberration at screen edges, circular vignette, soft film grain from hash noise, sun corona/streak lens effects.",
+      "tags": [
+        "custom",
+        "user"
+      ],
+      "globals": {
+        "speed": {
+          "type": "float",
+          "default": 1.2,
+          "uniform": "speed",
+          "min": 0.1,
+          "max": 5,
+          "ui": {
+            "label": "speed",
+            "control": "slider"
+          }
+        },
+        "terrainScale": {
+          "type": "float",
+          "default": 2.5,
+          "uniform": "terrainScale",
+          "min": 0.5,
+          "max": 10,
+          "ui": {
+            "label": "terrainScale",
+            "control": "slider"
+          }
+        },
+        "colorSaturation": {
+          "type": "float",
+          "default": 1.3,
+          "uniform": "colorSaturation",
+          "min": 0,
+          "max": 2,
+          "ui": {
+            "label": "colorSaturation",
+            "control": "slider"
+          }
+        },
+        "horizonHaze": {
+          "type": "float",
+          "default": 1,
+          "uniform": "horizonHaze",
+          "min": 0,
+          "max": 3,
+          "ui": {
+            "label": "horizonHaze",
+            "control": "slider"
+          }
+        },
+        "lensIntensity": {
+          "type": "float",
+          "default": 1,
+          "uniform": "lensIntensity",
+          "min": 0,
+          "max": 2,
+          "ui": {
+            "label": "lensIntensity",
+            "control": "slider"
+          }
+        },
+        "complexity": {
+          "type": "float",
+          "default": 5,
+          "uniform": "complexity",
+          "min": 2,
+          "max": 7,
+          "ui": {
+            "label": "complexity",
+            "control": "slider"
+          }
+        }
+      },
+      "passes": [
+        {
+          "name": "render",
+          "program": "aerialsunsetflyover",
+          "inputs": {},
+          "outputs": {
+            "fragColor": "outputTex"
+          }
+        }
+      ],
+      "shaders": {
+        "aerialsunsetflyover": {
+          "glsl": "#version 300 es\nprecision highp float;\n\nuniform float time;\nuniform vec2 resolution;\nuniform vec2 fullResolution;\n\nout vec4 fragColor;\n\n#define TAU 6.283185307179586\n#define PI 3.141592653589793\n\nuniform float speed;          // 0.1-5.0, forward flight speed through terrain\nuniform float terrainScale;   // 0.5-10.0, scale of terrain features\nuniform float colorSaturation;// 0.0-2.0, vibrancy of terrain color bands\nuniform float horizonHaze;    // 0.0-3.0, atmospheric fog density at horizon\nuniform float lensIntensity;  // 0.0-2.0, strength of sun corona and lens flare\nuniform float complexity;     // 2.0-7.0, FBM octave count for terrain detail\n\nfloat hash11(float p) {\n    p = fract(p * 0.1031);\n    p *= p + 33.33;\n    p *= p + p;\n    return fract(p);\n}\n\nfloat hash21(vec2 p) {\n    vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));\n    p3 += dot(p3, p3.yzx + 33.33);\n    return fract((p3.x + p3.y) * p3.z);\n}\n\nvec2 hash22(vec2 p) {\n    vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));\n    p3 += dot(p3, p3.yzx + 33.33);\n    return fract((p3.xx + p3.yz) * p3.zy);\n}\n\nfloat valueNoise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    vec2 u = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i + vec2(0.0, 0.0));\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);\n}\n\nfloat gradNoise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    vec2 u = f * f * (3.0 - 2.0 * f);\n    vec2 ga = hash22(i + vec2(0.0, 0.0)) * 2.0 - 1.0;\n    vec2 gb = hash22(i + vec2(1.0, 0.0)) * 2.0 - 1.0;\n    vec2 gc = hash22(i + vec2(0.0, 1.0)) * 2.0 - 1.0;\n    vec2 gd = hash22(i + vec2(1.0, 1.0)) * 2.0 - 1.0;\n    float va = dot(ga, f - vec2(0.0, 0.0));\n    float vb = dot(gb, f - vec2(1.0, 0.0));\n    float vc = dot(gc, f - vec2(0.0, 1.0));\n    float vd = dot(gd, f - vec2(1.0, 1.0));\n    return 0.5 + 0.5 * mix(mix(va, vb, u.x), mix(vc, vd, u.x), u.y);\n}\n\n// FBM terrain with ridge detail\nfloat fbmTerrain(vec2 p, float octaves) {\n    float val = 0.0;\n    float amp = 0.5;\n    float freq = 1.0;\n    float total = 0.0;\n    int iOctaves = int(clamp(octaves, 2.0, 7.0));\n    for (int i = 0; i < 7; i++) {\n        if (i >= iOctaves) break;\n        float n = gradNoise(p * freq);\n        // Ridge: invert abs\n        float ridge = 1.0 - abs(n * 2.0 - 1.0);\n        ridge = ridge * ridge;\n        val += ridge * amp;\n        total += amp;\n        freq *= 2.1;\n        amp *= 0.48;\n    }\n    return val / total;\n}\n\n// Standard FBM for smooth features\nfloat fbmSmooth(vec2 p, float octaves) {\n    float val = 0.0;\n    float amp = 0.5;\n    float freq = 1.0;\n    float total = 0.0;\n    int iOctaves = int(clamp(octaves, 2.0, 7.0));\n    for (int i = 0; i < 7; i++) {\n        if (i >= iOctaves) break;\n        val += gradNoise(p * freq) * amp;\n        total += amp;\n        freq *= 2.0;\n        amp *= 0.5;\n    }\n    return val / total;\n}\n\n// Cosine color palette (Inigo Quilez style)\n// a, b, c, d are palette coefficients; t is 0-1 gradient position\nvec3 cosPalette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(TAU * (c * t + d));\n}\n\n// Terrain color palette: electric purples, teals, volcanic oranges, lime greens\nvec3 terrainPalette(float t, float saturation) {\n    vec3 a = vec3(0.5, 0.5, 0.5);\n    vec3 b = vec3(0.5, 0.5, 0.5);\n    vec3 c = vec3(1.0, 0.8, 0.6);\n    vec3 d = vec3(0.0, 0.15, 0.4);\n    vec3 col = cosPalette(t, a, b, c, d);\n    // Boost saturation\n    float lum = dot(col, vec3(0.299, 0.587, 0.114));\n    return mix(vec3(lum), col, saturation);\n}\n\n// Sky gradient: deep violet-indigo top -> magenta band -> warm cream-orange horizon\nvec3 skyColor(float horizonT) {\n    // horizonT = 0 at top, 1 at horizon\n    vec3 topColor    = vec3(0.08, 0.04, 0.22);   // deep violet-indigo\n    vec3 midColor    = vec3(0.55, 0.10, 0.42);   // magenta band\n    vec3 horizonColor = vec3(1.0, 0.85, 0.55);  // warm cream-orange\n    vec3 col;\n    if (horizonT < 0.6) {\n        col = mix(topColor, midColor, horizonT / 0.6);\n    } else {\n        col = mix(midColor, horizonColor, (horizonT - 0.6) / 0.4);\n    }\n    return col;\n}\n\n// Atmospheric fog blend: terrain color washes to warm cream-orange with distance\nvec3 fogColor(float dist, float hazeDensity) {\n    float fogFar  = 300.0;\n    float fogNear = 80.0;\n    float fogT = clamp((dist - fogNear) / (fogFar - fogNear), 0.0, 1.0);\n    fogT = pow(fogT, 0.7) * hazeDensity;\n    fogT = clamp(fogT, 0.0, 1.0);\n    vec3 haze = vec3(1.0, 0.88, 0.62);\n    return haze;\n    // caller mixes using fogT\n}\n\nfloat fogFactor(float dist, float hazeDensity) {\n    float fogFar  = 300.0;\n    float fogNear = 80.0;\n    float fogT = clamp((dist - fogNear) / (fogFar - fogNear), 0.0, 1.0);\n    fogT = pow(fogT, 0.7);\n    return clamp(fogT * hazeDensity, 0.0, 1.0);\n}\n\n// Soft sun disc + corona\nvec3 sunEffect(vec2 uv, vec2 sunPos, float intensity) {\n    float d = length(uv - sunPos);\n    float disc = smoothstep(0.04, 0.01, d);\n    float corona = exp(-d * 8.0) * 0.6;\n    float glow   = exp(-d * 2.5) * 0.4;\n    vec3 sunCol  = vec3(1.0, 0.95, 0.75);\n    vec3 coronaCol = vec3(1.0, 0.75, 0.35);\n    return (disc * sunCol + corona * coronaCol + glow * vec3(1.0, 0.70, 0.30)) * intensity;\n}\n\n// Horizontal lens streak\nvec3 lensStreak(vec2 uv, vec2 sunPos, float pulse, float intensity) {\n    float dy = abs(uv.y - sunPos.y);\n    float streak = exp(-dy * dy * 180.0) * 0.35 * (0.6 + 0.4 * pulse);\n    float xFade = 1.0 - smoothstep(0.3, 0.8, abs(uv.x - sunPos.x));\n    return vec3(1.0, 0.75, 0.3) * streak * xFade * intensity;\n}\n\n// Film grain\nfloat filmGrain(vec2 uv, float seed) {\n    return hash21(uv * 1000.0 + seed) * 2.0 - 1.0;\n}\n\n// Chromatic aberration offset (returns offset amount based on screen edge distance)\nfloat chromaticStrength(vec2 uv) {\n    vec2 centered = uv * 2.0 - 1.0;\n    float r2 = dot(centered, centered);\n    return r2 * r2 * 0.008;\n}\n\n// Vignette\nfloat vignette(vec2 uv) {\n    vec2 c = uv * 2.0 - 1.0;\n    float v = 1.0 - dot(c, c) * 0.35;\n    return clamp(v, 0.0, 1.0);\n}\n\nvoid main() {\n    vec2 uv = gl_FragCoord.xy / resolution;\n    vec2 centered = uv - 0.5;\n    centered.x *= resolution.x / resolution.y;\n    \n    // ═══════════════════════════════════════════════════════════════════════════\n    // LOOPING PRIMITIVES - ALL ANIMATION MUST USE THESE\n    // time goes 0→1, so t goes 0→TAU, completing exactly one cycle\n    // ═══════════════════════════════════════════════════════════════════════════\n    float t = time * TAU;           // Converts time 0→1 to radians 0→TAU\n    vec2 timeCircle = vec2(cos(t), sin(t));  // For noise sampling - traces a circle\n    float pulse = 0.5 + 0.5 * sin(t);        // 0→1→0 smooth oscillation\n    float wave = sin(t);                      // -1→1→-1 smooth oscillation\n\n// ═══════════════════════════════════════════════════════════════════════════\n    // CAMERA SETUP\n    // ═══════════════════════════════════════════════════════════════════════════\n    \n    // Camera position: flying at ~40m altitude with Y-bob\n    float camY = 40.0 + wave * 2.5;\n    \n    // Lazy lateral banking (roll angle)\n    float bankAngle = wave * 0.06;\n    float cosBank = cos(bankAngle);\n    float sinBank = sin(bankAngle);\n    \n    // Ray direction from camera through screen pixel\n    // centered.x is already aspect-corrected\n    vec2 screenPos = centered; // aspect-corrected centered UV\n    \n    // Apply bank rotation to screen space\n    vec2 bankedPos;\n    bankedPos.x = screenPos.x * cosBank - screenPos.y * sinBank;\n    bankedPos.y = screenPos.x * sinBank + screenPos.y * cosBank;\n    \n    // FOV ~70 degrees\n    float fov = 1.3;\n    vec3 rayDir = normalize(vec3(bankedPos.x * fov, bankedPos.y * fov, 1.0));\n    \n    // ═══════════════════════════════════════════════════════════════════════════\n    // TERRAIN RAYMARCHING\n    // ═══════════════════════════════════════════════════════════════════════════\n    \n    // Terrain motion: offset XZ using timeCircle for seamless looping\n    // timeCircle traces a circle, giving forward+slight-lateral motion\n    vec2 terrainOffset = timeCircle * speed * 25.0;\n    \n    // Sky vs terrain determination\n    // Ground plane intersection: ray from camY downward\n    // If rayDir.y >= 0, we're looking at sky\n    \n    bool hitTerrain = false;\n    float hitDist = 0.0;\n    float hitHeight = 0.0;\n    vec2 hitXZ = vec2(0.0);\n    \n    if (rayDir.y < -0.01) {\n        // March along the ray to find where it hits terrain\n        // Terrain height is fbmTerrain mapped to ~0-20 units\n        float tStep = 0.0;\n        float stepSize = 1.0;\n        \n        for (int i = 0; i < 80; i++) {\n            vec3 pos = vec3(0.0, camY, 0.0) + rayDir * tStep;\n            \n            // World XZ position\n            vec2 xz = vec2(pos.x, pos.z);\n            \n            // Terrain height at this XZ\n            vec2 noiseCoord = (xz + terrainOffset) * (terrainScale * 0.08);\n            float terrH = fbmTerrain(noiseCoord, complexity) * 18.0;\n            \n            float gap = pos.y - terrH;\n            \n            if (gap < 0.3) {\n                hitTerrain = true;\n                hitDist = tStep;\n                hitHeight = terrH;\n                hitXZ = xz;\n                break;\n            }\n            \n            // Adaptive step: step by gap / 2, min 0.5, max 8\n            stepSize = clamp(gap * 0.5, 0.5, 8.0);\n            tStep += stepSize;\n            \n            if (tStep > 600.0) break;\n        }\n    }\n    \n    // ═══════════════════════════════════════════════════════════════════════════\n    // TERRAIN COLOR\n    // ═══════════════════════════════════════════════════════════════════════════\n    \n    vec3 terrainCol = vec3(0.0);\n    \n    if (hitTerrain) {\n        // Sample terrain noise at hit point for color variation\n        vec2 colorCoord = (hitXZ + terrainOffset) * (terrainScale * 0.08);\n        \n        // Multiple noise layers for color bands\n        float bandNoise1 = fbmSmooth(colorCoord * 0.7, 4.0);\n        float bandNoise2 = fbmSmooth(colorCoord * 1.4 + vec2(3.7, 1.9), 3.0);\n        float ridgeVal   = fbmTerrain(colorCoord, complexity);\n        \n        // Combine for color palette position\n        // Hue drift: add sin(t)*0.4 to palette t-parameter\n        float hueDrift = wave * 0.4;\n        float palT = bandNoise1 * 0.5 + bandNoise2 * 0.3 + ridgeVal * 0.2 + hueDrift;\n        palT = fract(palT); // wrap palette\n        \n        terrainCol = terrainPalette(palT, colorSaturation);\n        \n        // Ridgeline brightening\n        terrainCol += vec3(0.15, 0.12, 0.08) * ridgeVal * ridgeVal;\n        \n        // Distance fog\n        float fog = fogFactor(hitDist, horizonHaze);\n        vec3 haze = vec3(1.0, 0.88, 0.62);\n        terrainCol = mix(terrainCol, haze, fog);\n        \n        // Perspective depth darkening for near terrain\n        float nearDark = 1.0 - smoothstep(0.0, 30.0, hitDist) * 0.0;\n        terrainCol *= nearDark;\n    }\n    \n    // ═══════════════════════════════════════════════════════════════════════════\n    // SKY\n    // ═══════════════════════════════════════════════════════════════════════════\n    \n    // Horizon position on screen (accounting for bank)\n    // In ray space: horizon is where rayDir.y == 0\n    // Screen Y at horizon: bankedPos.y = 0 → screenPos.y = 0 when no bank\n    \n    // Compute sky gradient based on ray direction elevation\n    float rayElev = rayDir.y; // -1 to +1, 0 = horizon\n    \n    // Map ray elevation to sky gradient: 0 at horizon, 1 at top\n    float skyT = clamp(rayElev * 2.5 + 0.0, 0.0, 1.0);\n    // horizonT = 1 - skyT (1 at horizon, 0 at top)\n    float horizonT = 1.0 - skyT;\n    \n    vec3 skyCol = skyColor(horizonT);\n    \n    // Extra horizon glow brightening\n    float horizonGlow = exp(-abs(rayElev) * 6.0) * horizonHaze * 0.5;\n    skyCol += vec3(1.0, 0.85, 0.55) * horizonGlow;\n    \n    // ═══════════════════════════════════════════════════════════════════════════\n    // SUN DISC + CORONA + LENS FLARE\n    // ═══════════════════════════════════════════════════════════════════════════\n    \n    // Sun position: just above center-horizon in screen space\n    // Sun Y oscillates with sin(t)*0.04\n    vec2 sunUV = vec2(0.0, 0.03 + wave * 0.04);\n    // Convert sunUV to our centered (aspect-corrected) space\n    // sunUV is in normalized centered space\n    vec2 sunCentered = sunUV * vec2(resolution.x / resolution.y, 1.0);\n    \n    // Distance from ray to sun direction (use bankedPos)\n    // For sun we use the screen bankedPos directly\n    vec2 sunScreenPos = sunUV; // in non-aspect-corrected centered space\n    \n    // Lens pulse: sin(t*2.0) for 2 cycles\n    float lensPulse = 0.5 + 0.5 * sin(t * 2.0);\n    \n    // Sun effect in centered (aspect-corrected) screen space\n    vec2 centeredRaw = uv - 0.5; // not aspect-corrected for sun\n    vec3 sunContrib = sunEffect(centeredRaw, sunScreenPos, lensIntensity * 1.4);\n    \n    // Lens streak\n    vec3 streakContrib = lensStreak(centeredRaw, sunScreenPos, lensPulse, lensIntensity * 1.2);\n    \n    // ═══════════════════════════════════════════════════════════════════════════\n    // COMPOSE SCENE\n    // ═══════════════════════════════════════════════════════════════════════════\n    \n    vec3 finalColor;\n    \n    if (hitTerrain) {\n        finalColor = terrainCol;\n    } else {\n        finalColor = skyCol;\n        // Add sun and lens effects to sky\n        finalColor += sunContrib;\n        finalColor += streakContrib;\n    }\n    \n    // ═══════════════════════════════════════════════════════════════════════════\n    // POST-PROCESSING\n    // ═══════════════════════════════════════════════════════════════════════════\n    \n    // Chromatic aberration at screen edges\n    float chromaStr = chromaticStrength(uv);\n    vec2 chromaOffset = (uv - 0.5) * chromaStr;\n    \n    // Sample color channels with slight offset\n    // Red channel shifted outward, blue shifted inward\n    vec2 uvR = uv + chromaOffset * 2.0;\n    vec2 uvB = uv - chromaOffset * 2.0;\n    \n    // Recompute simple chroma for edge pixels using sky/terrain blend\n    // For efficiency, modulate R and B channels of finalColor\n    // by estimated shift (approximation)\n    float chromaEdge = chromaStr * 8.0;\n    finalColor.r = mix(finalColor.r, finalColor.r * 1.08, chromaEdge);\n    finalColor.b = mix(finalColor.b, finalColor.b * 0.92, chromaEdge);\n    \n    // Vignette\n    float vig = vignette(uv);\n    finalColor *= vig;\n    \n    // Film grain\n    float grain = filmGrain(uv, pulse);\n    finalColor += grain * 0.025;\n    \n    // Soft tone mapping / exposure\n    finalColor = finalColor / (finalColor + 0.8) * 1.5;\n    finalColor = clamp(finalColor, 0.0, 1.0);\n    \n    // Slight gamma correction\n    finalColor = pow(finalColor, vec3(0.9));\n\nfragColor = vec4(finalColor, 1.0);\n}"
+        }
+      },
+      "textures": {}
+    }
+  ],
+  "backends": [
+    "webgl2"
+  ]
+}

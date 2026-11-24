@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/fivefold.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 999,
+        "sha256": "2b993bd51a204ac2d3c392370f28685ef9d442271ede1503934c29b03941f659"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 999,
+        "sha256": "0362271ee6841e59eefe02c4104b9c0a7c556d956662fea44ba66a5d8528ed4c"
+      }
+    }
+  }
+}

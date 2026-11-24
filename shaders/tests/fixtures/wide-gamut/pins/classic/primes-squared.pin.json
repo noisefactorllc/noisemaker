@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/primes-squared.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4043,
+        "uniqueColors": 3365,
+        "sha256": "1967cfbddc83aa985101e177d1323160edfe5cb4e200249370d88a44325c1290"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4043,
+        "uniqueColors": 3365,
+        "sha256": "c64e861b34695e967315724cea506e687bfe8fbfa9ede8a326b5109f59ade839"
+      }
+    }
+  }
+}

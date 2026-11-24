@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:yIUi8Q",
+    "dslFile": "programs/yIUi8Q/program.dsl"
+  },
+  "effects": [
+    "synth/gradient",
+    "filter/tetraCosine"
+  ],
+  "dsl": "search filter, synth\nlet highsReact = audio(band: 2, min: 1.4, max: 2.8)\n\ngradient(\n  type: linear,\n  rotation: -63.524,\n  speed: highsReact,\n  seed: 36,\n  color1: #ea76e8,\n  color2: #717da8,\n  color3: #cf5aa4,\n  color4: #de4aa0\n)\n  .tetraCosine(\n    colorMode: oklab,\n    offsetR: 0.691,\n    offsetG: 0.074,\n    offsetB: 0.258,\n    ampR: 0.699,\n    ampG: 0.822,\n    ampB: 0.948,\n    freqR: 2,\n    freqG: 2,\n    freqB: 2,\n    phaseR: 0.334,\n    phaseG: 0.035,\n    phaseB: 0.35,\n    rotation: fwd,\n    repeat: 10,\n    offset: 0.426,\n    alpha: 0.57\n  )\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

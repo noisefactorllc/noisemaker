@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "dude where's my tardis"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 78, hueRotation: 49, speed: 53, octaves: 6, refractAmt: 86, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 88, yScale: 88).write(o0)\nnoise(hueRange: 39, hueRotation: 54, speed: 97, loopOffset: 20, loopScale: 15, refractAmt: 100, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 4, yScale: 4, octaves: 1).coalesce(tex: read(o0), blendMode: 16, mix: 26, refractAAmt: 16, refractBAmt: 19).lensDistortion(aberration: 100, blendMode: 0, hueRange: 100, hueRotation: 15, blendMode: 1, modulate: false, passthru: 95, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

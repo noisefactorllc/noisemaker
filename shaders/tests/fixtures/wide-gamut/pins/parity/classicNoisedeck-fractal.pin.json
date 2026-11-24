@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/classicNoisedeck/fractal/parity-case.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2134,
+        "uniqueColors": 17,
+        "sha256": "759d76aa493cdcff205a972ca70b3ceb66a2b78f8f0418e83453971351c982c1"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2134,
+        "uniqueColors": 17,
+        "sha256": "969cdc0ba25aeebc6603752f76b9baceab349d0771df92f45e389bc07fcdcc62"
+      }
+    }
+  }
+}

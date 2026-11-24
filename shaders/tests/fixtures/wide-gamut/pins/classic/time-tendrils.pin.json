@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/time-tendrils.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3930,
+        "uniqueColors": 3341,
+        "sha256": "9dd76ba0920ab53ff41a8b8a653a6c8cf02c53a919df56469d6a33462caa8622"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3930,
+        "uniqueColors": 3341,
+        "sha256": "1264f60a99b5ed56a0a5673d459496a1c05ad2bf54ed142b5cecde6b711773cc"
+      }
+    }
+  }
+}

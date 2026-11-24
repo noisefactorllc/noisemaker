@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/synth/newton/parity-case.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3722,
+        "uniqueColors": 243,
+        "sha256": "485351a8ef11b58e186566bf2993dbea83153c285d2dbc612a41390c75f8f299"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3718,
+        "uniqueColors": 243,
+        "sha256": "ddbb89e114d01c64cc40dd59046ca90fef0d067462653a2fee760bf12718c9e9"
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "cga cybergrid"
+  },
+  "effects": [
+    "synth/pattern",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\npattern(fgColor: #8145ab, bgColor: #cc1c2d, rotation: 0, scale: 5, type: 2, speed: 1, animation: 4).write(o0)\nnoise(palette: seventiesShirt, refractAmt: 83, ridges: false, type: 10, colorMode: 5, kaleido: 1, xScale: 4, yScale: 4, octaves: 1).coalesce(tex: read(o0), blendMode: 12, mix: -10).effects(effectAmt: 3, effect: 200).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

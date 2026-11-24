@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "four-way kaleido"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 54, hueRotation: 78, speed: 61, octaves: 6, refractAmt: 47, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 100, yScale: 100).write(o0)\nnoise(hueRange: 41, hueRotation: 75, speed: 100, refractAmt: 100, ridges: true, wrap: true, xScale: 100, yScale: 100, type: 10, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 15, mix: -31, refractAAmt: 0, refractBAmt: 100).effects(effect: 0, effectAmt: 0, flip: 15, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

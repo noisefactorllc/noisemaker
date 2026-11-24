@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/mirrorscape.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3560,
+        "uniqueColors": 2917,
+        "sha256": "8629b58a2e887e192224b23ba66c94e35006b4ccd5a53ac425ea63f91b92289b"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3560,
+        "uniqueColors": 2917,
+        "sha256": "5febc58b2d56bffb0a57189f1e6d3b5272a6337fe30b5e8d76b5c0a40ae8dc80"
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "wacky canvas"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 100, hueRotation: 0, speed: 100, octaves: 4, refractAmt: 0, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 100, yScale: 100).colorLab(colorMode: 2, dither: 0, hueRange: 100, hueRotation: 5, levels: 1, palette: royal).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:UCGI9g",
+    "dslFile": "programs/UCGI9g/program.dsl"
+  },
+  "effects": [
+    "synth/shape",
+    "filter/tile",
+    "filter/historicPalette",
+    "filter/adjust",
+    "filter/tunnel",
+    "filter/wormhole",
+    "filter/motionBlur",
+    "filter/blur",
+    "filter/snow",
+    "filter/crt",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nlet osc1 = osc(type: oscKind.sine)\nlet midsReact = audio(band: 1, min: 2.5, max: 8.5)\n\nshape(\n  loopBOffset: noiseBSpline4x4,\n  loopAScale: 38.67,\n  loopBScale: 26.95,\n  speedA: -7,\n  speedB: 0\n)\n  .tile(scale: 4, repeat: 3)\n  .historicPalette(\n    index: maoriCarving,\n    rotation: fwd,\n    repeat: 10,\n    alpha: 0.27,\n    smoothness: 1\n  )\n  .adjust(\n    rotation: -26.24,\n    hueRange: 200,\n    saturation: 3.03,\n    brightness: 0.5,\n    contrast: 0.89\n  )\n  .tunnel(\n    scale: -0.1,\n    speed: midsReact,\n    rotation: 2,\n    center: 0\n  )\n  .wormhole(\n    kink: 0.3,\n    stride: 0.85,\n    rotation: 98\n  )\n  .motionBlur(amount: 72.92)\n  .blur(radiusX: 3, radiusY: 3)\n  .adjust(\n    rotation: 113.03,\n    hueRange: 200,\n    brightness: 0.79,\n    contrast: 0.95\n  )\n  .snow(density: 24.24)\n  .crt(speed: 2.2)\n  .subchain(name: \"lens effects\", id: \"25k0\") {\n    .chromaticAberration(aberration: 25)\n    .bloom(threshold: 0.45, taps: 15)\n    .lens(displacement: -0.86)\n    .vignette(brightness: 0.13)\n  }\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

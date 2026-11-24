@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/chaos-flower.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 817,
+        "sha256": "cccdb47df104f32b67743d847eae40721d9bcb19db0116cc715511e36973717c"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 817,
+        "sha256": "1c47011a9ccfd021ef1a4bb99c8406188b31281a9fd62f53b758244b655802c8"
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:J37M1g",
+    "dslFile": "programs/J37M1g/program.dsl"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "filter/translate",
+    "filter/rotate",
+    "filter/smooth",
+    "filter/parallax",
+    "filter/palette",
+    "filter/celShading",
+    "filter/lighting",
+    "mixer/focusBlur",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search synth, filter, user, classicNoisedeck, render, points, mixer\n\nlet osc1 = osc(type: oscKind.noise, max: 0.42)\nlet osc2 = osc(type: oscKind.noise, max: 0.42, seed: 3711)\nlet osc3 = osc(type: oscKind.noise, max: 0.39, seed: 4943)\n\nfrom(classicNoisedeck, noise(\n  type: constant,\n  octaves: 3,\n  xScale: 100,\n  yScale: 100,\n  ridges: true,\n  refractAmt: 20.62,\n  loopScale: 36.15,\n  speed: 100,\n  hueRotation: 161.11,\n  hueRange: 30.19,\n  colorMode: mono\n))\n  .translate(x: osc1, y: osc2)\n  .rotate(rotation: osc3, speed: -1)\n  .smooth(\n    type: blur,\n    strength: 0.87,\n    threshold: 0.26,\n    radius: 1.4\n  )\n  .parallax(direction: vec3(-0.734, -0.679, 0), pivot: 0.78)\n  .write(o0)\n\nread(o0)\n  .palette(\n    index: darkSatin,\n    offset: 40,\n    alpha: 0.68\n  )\n  .celShading(\n    levels: 8,\n    antialias: true,\n    edgeThreshold: 0.01,\n    edgeColor: #000333ff,\n    _skip: true\n  )\n  .lighting(\n    normalStrength: 5,\n    specularIntensity: 1.46,\n    shininess: 40,\n    reflection: 15,\n    refraction: 15,\n    aberration: 18.1,\n    heightMap: read(o0)\n  )\n  .focusBlur(\n    tex: read(o0),\n    focalDistance: 83.29,\n    aperture: 1.55,\n    sampleBias: 18.43\n  )\n  .subchain(name: \"lens effects\", id: \"vlqd\") {\n    .temporalAberration()\n    .bloom(taps: 15)\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.2)\n  }\n  .write(o2)\n\nrender(o2)",
+  "surface": "o2",
+  "resolution": [
+    64,
+    64
+  ]
+}

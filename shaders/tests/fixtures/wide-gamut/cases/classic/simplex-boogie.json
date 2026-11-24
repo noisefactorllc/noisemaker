@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "simplex boogie"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(palette: dealerHat, type: 10, colorMode: 5, kaleido: 1, xScale: 4, yScale: 4, octaves: 1).write(o0)\nnoise(palette: sulphur, type: 10, colorMode: 4, kaleido: 1, xScale: 3, yScale: 3, octaves: 1).composite(tex: read(o0), blendMode: 3).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:Clf2Jw",
+    "dslFile": "programs/Clf2Jw/program.dsl"
+  },
+  "effects": [
+    "synth/julia",
+    "filter/tetraCosine",
+    "filter/lighting",
+    "filter/grain",
+    "filter/adjust"
+  ],
+  "dsl": "search synth, filter\n\njulia(\n  poi: galaxy,\n  outputMode: stripeAverage,\n  iterations: 1000,\n  cReal: -1.36,\n  cImag: -1.448,\n  centerX: -0.53,\n  centerY: -0.241,\n  rotation: 161.27,\n  cSpeed: 0.29,\n  cRadius: 0.178,\n  zoomDepth: 2.824,\n  stripeFreq: 4.539,\n  trapShape: circle,\n  lightAngle: 229.347\n)\n  .tetraCosine(\n    colorMode: oklab,\n    offsetR: 0.85,\n    offsetG: 0.697,\n    offsetB: 0.876,\n    ampR: 0.99,\n    ampG: 0.21,\n    ampB: 0.356,\n    freqR: 3,\n    freqG: 4,\n    phaseR: 0.519,\n    phaseG: 0.71,\n    phaseB: 0.942,\n    rotation: fwd,\n    repeat: 3,\n    offset: 0.62,\n    alpha: 0.86\n  )\n  .lighting(normalStrength: 1.95, smoothing: 1.3)\n  .grain(alpha: 0.2, pause: true)\n  .adjust(\n    rotation: -34.98,\n    hueRange: 102.78,\n    saturation: 0.81,\n    brightness: 0.89,\n    contrast: 0.74\n  )\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

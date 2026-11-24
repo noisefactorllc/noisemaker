@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "posterized clouds"
+  },
+  "effects": [
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\ncellNoise(colorMode: 2, speed: 0, palette: blueSkies, scale: 15, cellScale: 75, smooth: 50, variation: 0, cyclePalette: 1, rotatePalette: 0).write(o0)\nnoise(hueRange: 94, hueRotation: 68, speed: 40, octaves: 5, refractAmt: 0, ridges: false, type: 10, colorMode: 6, kaleido: 1, xScale: 91, yScale: 91).coalesce(tex: read(o0), blendMode: 7, mix: -34, refractAAmt: 47, refractBAmt: 61).effects(effect: 110, effectAmt: 1, flip: 3, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

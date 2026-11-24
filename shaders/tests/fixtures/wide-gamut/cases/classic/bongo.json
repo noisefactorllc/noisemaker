@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "bongo"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: -37, loopAOffset: 20, loopAScale: 28, speedB: 83, loopBOffset: 60, loopBScale: 47, palette: justCyan, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\nshapes(speedA: 19, loopAOffset: 110, loopAScale: 65, speedB: -95, loopBOffset: 110, loopBScale: 67, palette: justRed, wrap: true, cyclePalette: 0, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 9, mix: 26, refractAAmt: 0, refractBAmt: 0).effects(effect: 110, effectAmt: 1, flip: 18, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

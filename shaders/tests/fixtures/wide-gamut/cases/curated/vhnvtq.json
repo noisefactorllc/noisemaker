@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:VhNVtQ",
+    "dslFile": "programs/VhNVtQ/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "classicNoisedeck/kaleido",
+    "filter/tile",
+    "filter/adjust",
+    "filter/warp",
+    "filter/blur",
+    "synth/reactionDiffusion",
+    "filter/lighting",
+    "filter/grain"
+  ],
+  "dsl": "search synth, filter, classicNoisedeck\n\nlet osc1 = osc(type: oscKind.sine)\nlet highsReact = audio(band: 2, min: 3.5, max: 7)\n\nperlin(scale: 18.02, octaves: 2)\n  .kaleido(sides: 6)\n  .tile(\n    symmetry: rotate6,\n    offsetY: -0.48,\n    angle: 45,\n    repeat: 3\n  )\n  .adjust(\n    mode: oklch,\n    rotation: 138.52,\n    hueRange: 200,\n    brightness: 2.61,\n    contrast: 0.56\n  )\n  .warp(\n    strength: 21.19,\n    scale: 1.39,\n    seed: 14,\n    speed: highsReact\n  )\n  .blur()\n  .write(o0)\n\nreactionDiffusion(\n  tex: read(o0),\n  smoothing: bSpline4x4,\n  sourceF: sliderInput,\n  feed: 66.28,\n  kill: 59.33,\n  rate1: 97.99,\n  rate2: 21.64,\n  iterations: 14,\n  weight: 45.54,\n  inputIntensity: 16.62\n)\n  .lighting(\n    normalStrength: 2.34,\n    smoothing: 2,\n    specularIntensity: 0.71,\n    shininess: 72,\n    reflection: 22.1,\n    refraction: 15.2,\n    aberration: 13\n  )\n  .grain(alpha: 0.1)\n  .adjust(\n    rotation: 35.64,\n    saturation: 1.25,\n    brightness: 1.04,\n    contrast: 0.71\n  )\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

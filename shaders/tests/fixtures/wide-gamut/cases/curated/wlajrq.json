@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:wlaJRQ",
+    "dslFile": "programs/wlaJRQ/program.dsl"
+  },
+  "effects": [
+    "synth/gabor",
+    "filter/tetraCosine",
+    "filter/lighting",
+    "filter/texture"
+  ],
+  "dsl": "search filter, synth\n\ngabor(\n  scale: 100,\n  orientation: 180,\n  bandwidth: 12.06,\n  isotropy: 100,\n  density: 8,\n  octaves: 2,\n  seed: 17\n)\n  .tetraCosine(\n    colorMode: hsv,\n    offsetR: 0.422,\n    offsetG: 0.905,\n    offsetB: 0.946,\n    ampR: 0.37,\n    ampG: 0.798,\n    ampB: 0.17,\n    freqR: 2,\n    freqG: 0,\n    freqB: 4,\n    phaseR: 0.322,\n    phaseG: 0.023,\n    phaseB: 0.711,\n    repeat: 0.23,\n    offset: 0.1,\n    alpha: 0.82\n  )\n  .lighting(\n    normalStrength: 1.96,\n    smoothing: 3.735,\n    diffuseColor: #35816d,\n    specularColor: #8b7a7e,\n    specularIntensity: 0.648,\n    shininess: 12.284,\n    ambientColor: #f39923,\n    lightDirection: vec3(0.01, 0.845, 0.868),\n    reflection: 10.316,\n    refraction: 4.108,\n    aberration: 26.346\n  )\n  .texture(\n    mode: soft,\n    alpha: 0.22,\n    scale: 0.1,\n    intensity: 18.44\n  )\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

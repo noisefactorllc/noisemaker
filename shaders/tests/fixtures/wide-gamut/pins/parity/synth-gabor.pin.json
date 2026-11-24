@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/synth/gabor/parity-case.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4081,
+        "uniqueColors": 255,
+        "sha256": "dadcb6f08fa76f24c55295c584e19b518cc7866bd1c5766762d1a05360dbd5bd"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4081,
+        "uniqueColors": 255,
+        "sha256": "65468611dcc3b993d512397e0a8bd966320857e4f6a82c01b9f6197f228bd2d5"
+      }
+    }
+  }
+}

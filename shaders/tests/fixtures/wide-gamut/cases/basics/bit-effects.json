@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "basics",
+    "key": "bit effects"
+  },
+  "effects": [
+    "classicNoisedeck/bitEffects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nbitEffects(speed: 50, formula: 0, n: 1, colorScheme: 20, interp: 0, scale: 75, rotation: 0, maskFormula: 10, tiles: 5, complexity: 57, maskColorScheme: 1, baseHueRange: 50, hueRotation: 180, hueRange: 25).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

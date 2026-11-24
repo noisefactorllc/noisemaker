@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "seething aura"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 50, hueRotation: 40, speed: 22, refractAmt: 99, ridges: false, wrap: true, xScale: 96, yScale: 90, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 0, mix: -2, refractAAmt: 100, refractBAmt: 95).lensDistortion(aberration: 44, blendMode: 0, hueRange: 0, hueRotation: 0, blendMode: 1, modulate: false, passthru: 27, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

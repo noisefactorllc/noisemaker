@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/rm65zw.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2502,
+        "uniqueColors": 142,
+        "sha256": "071d035c686ba92b1f9a22596765e2fa8c276272fbfa623215d8b42ec688cef6"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2502,
+        "uniqueColors": 142,
+        "sha256": "5484aa3db89ba61af4c5ab6148f4b5869b54c26a09711be0c995efac83fefbdf"
+      }
+    }
+  }
+}

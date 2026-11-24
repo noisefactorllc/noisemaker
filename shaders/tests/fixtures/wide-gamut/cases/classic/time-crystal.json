@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "time crystal"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: -31, loopAOffset: 20, loopAScale: 100, speedB: 23, loopBOffset: 30, loopBScale: 100, palette: grayscale, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRange: 34, hueRotation: 78, speed: 100, refractAmt: 47, ridges: true, wrap: true, xScale: 99, yScale: 96, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 100, mix: 71, refractAAmt: 73, refractBAmt: 83).lensDistortion(aberration: 47, distortion: 14, speed: -78, loopScale: 67, alpha: 16, saturation: -15, shape: 6, tint: #c45f95, vignetteAmt: -100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "lenses"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 84, hueRotation: 70, speed: 61, octaves: 7, refractAmt: 0, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 87, yScale: 87).write(o0)\nnoise(hueRotation: 13, kaleido: 5, metric: 0, palette: summoning, wrap: true, type: 0, colorMode: 4, xScale: 67, yScale: 67, octaves: 1).coalesce(tex: read(o0), blendMode: 12, mix: -15, refractAAmt: 47, refractBAmt: 0).effects(effect: 120, effectAmt: 3, flip: 0, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).lensDistortion(aberration: 15, distortion: -34, speed: -12, loopScale: 72, alpha: 0, shape: 0, tint: #622803, vignetteAmt: -70).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

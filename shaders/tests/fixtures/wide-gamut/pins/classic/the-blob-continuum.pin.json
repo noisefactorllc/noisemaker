@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/the-blob-continuum.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 1051,
+        "sha256": "7e5316d0f2bdb9142b39168f91e161d84ae495846d08dd0649aeefae17c82e80"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 1051,
+        "sha256": "e8adf72cafb5c324aea1aa29b3a7e705fc5030713b7f5f68b2ba5911fbe353be"
+      }
+    }
+  }
+}

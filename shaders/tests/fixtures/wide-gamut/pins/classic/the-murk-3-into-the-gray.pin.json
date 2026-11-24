@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/the-murk-3-into-the-gray.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3783,
+        "sha256": "049197bb73b21465b936c511fcf111fab48368796d957ea414b842cb6ec5ccaf"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3783,
+        "sha256": "5555d7a21fa94b19e56eaaa650b33511eeaf65d8dc32ba6729ebb102ec1088e1"
+      }
+    }
+  }
+}

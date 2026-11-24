@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/tlfgkw.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3720,
+        "sha256": "38bacfba942b10d8d8b1e8b0902ff0287c9e59ea88f91ef05e2fc74ca8219b1a"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3720,
+        "sha256": "e5256bc8f21aa4b2f9eee690419cbdb80f5929514f9da249e7c6e80fdc81f0f0"
+      }
+    }
+  }
+}

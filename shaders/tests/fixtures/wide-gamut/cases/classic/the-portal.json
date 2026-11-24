@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "the portal"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 43, hueRotation: 45, speed: 60, octaves: 6, refractAmt: 26, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 64, yScale: 64).write(o0)\nnoise(hueRange: 27, hueRotation: 54, speed: 100, loopOffset: 10, loopScale: 90, refractAmt: 81, wrap: true, type: 2, colorMode: 6, kaleido: 1, xScale: 87, yScale: 87, octaves: 1).coalesce(tex: read(o0), blendMode: 2, mix: 38, refractAAmt: 31, refractBAmt: 21).lensDistortion(aberration: 0, distortion: -19, speed: 0, loopScale: 100, alpha: 15, shape: 0, tint: #8a9155, vignetteAmt: -100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

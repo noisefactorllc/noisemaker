@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/golden-triangle.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4081,
+        "uniqueColors": 3461,
+        "sha256": "309a1a134ddeafa7b5e92d1b9ef4862c41bbcb79b35a2fb7377a3101832fe054"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4081,
+        "uniqueColors": 3461,
+        "sha256": "33101894db429dfc1b91a88b43d123a0d8e1e925dfbb17cee35c908f06236b2c"
+      }
+    }
+  }
+}

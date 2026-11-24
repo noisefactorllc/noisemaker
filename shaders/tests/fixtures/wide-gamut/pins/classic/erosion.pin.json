@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/erosion.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3640,
+        "uniqueColors": 636,
+        "sha256": "0fa02e07a63e36c9d3acd466c868dcbd9473ccdc6f4a31fbda8855e1badb10e4"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3640,
+        "uniqueColors": 636,
+        "sha256": "44ef77745a163e05ce49479a70974114a77d0649a67bd0680321565b07304175"
+      }
+    }
+  }
+}

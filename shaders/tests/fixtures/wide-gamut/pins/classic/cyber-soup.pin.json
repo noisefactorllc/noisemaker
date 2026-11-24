@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/cyber-soup.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3566,
+        "sha256": "d08b69a73c962462a32faa6aa6772498d0bde00c85065fd7fa6d110c532ba3e7"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3566,
+        "sha256": "6f9dbb30b4940a25b2515cc9ba2734f58385c82fd853a6a2227de1462986e045"
+      }
+    }
+  }
+}

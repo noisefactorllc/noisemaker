@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/cellular-web.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2277,
+        "uniqueColors": 2124,
+        "sha256": "5b524e159504e2d614ef4623cc59ff42531b07af62feca0237c2c30feecf5d01"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2277,
+        "uniqueColors": 2124,
+        "sha256": "3551192a205630cebf21dfd5c16acbe689c29c50319b68564a6465a3e5526fd0"
+      }
+    }
+  }
+}

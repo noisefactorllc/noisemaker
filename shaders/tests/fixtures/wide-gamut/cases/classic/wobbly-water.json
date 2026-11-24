@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "wobbly water"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(speed: -18, loopOffset: 340, loopScale: 1, palette: jester, type: 11, colorMode: 4, kaleido: 1, xScale: 61, yScale: 61, octaves: 1).write(o0)\nnoise(speed: 100, loopOffset: 340, loopScale: 49, palette: barstow, type: 11, colorMode: 4, kaleido: 1, xScale: 50, yScale: 50, octaves: 1).coalesce(tex: read(o0), blendMode: 14, mix: -57, refractAAmt: 3, refractBAmt: 12).refract().lensDistortion(aberration: 51, distortion: -28, speed: -50, loopScale: 76, alpha: 37, shape: 0, tint: #a78ed7, vignetteAmt: -100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

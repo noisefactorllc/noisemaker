@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "new age fix"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 67, hueRotation: 45, speed: 60, octaves: 6, refractAmt: 26, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 64, yScale: 64).write(o0)\nnoise(hueRange: 46, hueRotation: 66, speed: 100, loopOffset: 20, loopScale: 69, refractAmt: 60, wrap: true, type: 2, colorMode: 6, kaleido: 1, xScale: 89, yScale: 89, octaves: 1).coalesce(tex: read(o0), blendMode: 2, mix: 38, refractAAmt: 31, refractBAmt: 4).lensDistortion(aberration: 0, distortion: -10, speed: 0, loopScale: 100, alpha: 15, shape: 0, tint: #917255, vignetteAmt: -53).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

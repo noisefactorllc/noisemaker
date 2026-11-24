@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/kaleido-fractal.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 100,
+        "sha256": "bf1b52d4a85104a15a9d28aa2bef8c5e60497e2a5b464ffd49cfff57f444c402"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 100,
+        "sha256": "d10453cda34cb1dff51950e3585defc56fa2cdb72c2acdac2be3c256e7eefdfe"
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "infinite fractal"
+  },
+  "effects": [
+    "classicNoisedeck/fractal",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/colorLab",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nfractal(centerX: 0, centerY: 0, type: 1, offsetX: 99, offsetY: 0, palette: vaporwave, rotation: 167, speed: 26, symmetry: 4, zoomAmt: 0, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRotation: 0, kaleido: 16, metric: 1, palette: vaporwave, wrap: true, type: 1, colorMode: 4, xScale: 74, yScale: 74, octaves: 1).colorLab(colorMode: 2, dither: 0, hueRange: 100, hueRotation: 9, levels: 0, palette: blueSkies).lensDistortion(aberration: 14, distortion: 0, speed: 0, loopScale: 100, alpha: 0, shape: 0, tint: #94518c, vignetteAmt: -12).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

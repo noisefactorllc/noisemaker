@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/cga-fever.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2629,
+        "uniqueColors": 4,
+        "sha256": "b4788ee2999e8f85d31b1275a8013312fa26625c7c9bf1769982dc2099d94efe"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2629,
+        "uniqueColors": 4,
+        "sha256": "defb07253c811c1155a50ed5ade7b15051edcacb192c107bde038829483042fc"
+      }
+    }
+  }
+}

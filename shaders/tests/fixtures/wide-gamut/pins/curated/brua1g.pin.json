@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/brua1g.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4055,
+        "sha256": "95ddc28ab8d6beff5c272774ab47a2440adc9e96101201bcd6d3463184b277c9"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4055,
+        "sha256": "57f737c7b4efa26355dcdc17fbd65a6609743e7f511403bf79e512a32901276b"
+      }
+    }
+  }
+}

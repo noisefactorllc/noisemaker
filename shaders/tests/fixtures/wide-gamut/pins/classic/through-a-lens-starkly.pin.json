@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/through-a-lens-starkly.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2980,
+        "uniqueColors": 2209,
+        "sha256": "19eae63c13cbb5106346ee67cca0f95b4e8aea5ebc69550c68275e14821b487a"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2980,
+        "uniqueColors": 2209,
+        "sha256": "353ac3efbb8fd7acdf1f98dba7218312cd1a89ca13aad9f07acf12204b5798ae"
+      }
+    }
+  }
+}

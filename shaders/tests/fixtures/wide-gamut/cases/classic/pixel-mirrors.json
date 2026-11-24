@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "pixel mirrors"
+  },
+  "effects": [
+    "classicNoisedeck/bitEffects",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nbitEffects(baseHueRange: 100, colorScheme: 2, complexity: 100, formula: 10, hueRange: 48, hueRotation: 65, speed: 100, tiles: 1, maskFormula: 10, maskColorScheme: 2).write(o0)\nnoise(hueRange: 46, hueRotation: 65, speed: 21, refractAmt: 100, ridges: true, wrap: false, xScale: 99, yScale: 95, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 100, mix: 63, refractAAmt: 100, refractBAmt: 100).lensDistortion(aberration: 0, distortion: -100, speed: 52, loopScale: 100, alpha: 0, shape: 0, tint: #000000, vignetteAmt: -100).lensDistortion(aberration: 16, distortion: -20, speed: 0, loopScale: 60, alpha: 17, shape: 0, tint: #4986bc, vignetteAmt: -100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

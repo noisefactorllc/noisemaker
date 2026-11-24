@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:Lcu5gQ",
+    "dslFile": "programs/Lcu5gQ/program.dsl"
+  },
+  "effects": [
+    "synth/pattern",
+    "render/loopBegin",
+    "filter/warp",
+    "render/loopEnd",
+    "filter/lighting",
+    "filter/normalMap",
+    "mixer/blendMode",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search synth, filter, mixer, render, points\nlet bassReact = audio(band: 0, min: 0.3, max: 2.2)\n\npattern(\n  type: dots,\n  scale: 16.68,\n  thickness: 0.52,\n  smoothness: 1,\n  rotation: 45\n)\n  .subchain(name: \"feedback loop with waves\", id: \"n5un\") {\n    .loopBegin(alpha: 98.44)\n    .warp(\n      strength: 4.5,\n      scale: 0.35,\n      speed: bassReact\n    )\n    .loopEnd()\n  }\n  .write(o0)\n\nread(o0)\n  .lighting(\n    normalStrength: 2.58,\n    smoothing: 3.4,\n    reflection: 28.7,\n    refraction: 25.8,\n    aberration: 19.5\n  )\n  .write(o1)\n\nread(o0)\n  .normalMap()\n  .blendMode(tex: read(o1), mode: hardLight)\n  .subchain(name: \"lens effects\", id: \"oa4k\") {\n    .chromaticAberration(aberration: 25)\n    .bloom(taps: 15)\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.25, alpha: 0.9)\n  }\n  .write(o2)\n\nrender(o2)",
+  "surface": "o2",
+  "resolution": [
+    64,
+    64
+  ]
+}

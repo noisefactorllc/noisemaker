@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "maelstrom"
+  },
+  "effects": [
+    "classicNoisedeck/fractal",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nfractal(centerX: 0, centerY: 0, type: 0, offsetX: 40, offsetY: 58, palette: grayscale, rotation: -177, speed: 33, zoomAmt: 0, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRange: 26, hueRotation: 81, speed: 100, refractAmt: 73, ridges: true, wrap: true, xScale: 95, yScale: 96, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 10, mix: 100, refractAAmt: 0, refractBAmt: 51).lensDistortion(aberration: 41, distortion: 23, speed: 48, loopScale: 24, alpha: 14, shape: 0, tint: #935343, vignetteAmt: -47).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/headspace.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3986,
+        "uniqueColors": 3715,
+        "sha256": "f5ae77bc9d665558af01cc42842692b519d4b9c550c1c5877b8e207f075a902e"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3986,
+        "uniqueColors": 3715,
+        "sha256": "3dbc9756858450bdc112a140a3a73560a78e9d3000fa8e506981a561f3da69a0"
+      }
+    }
+  }
+}

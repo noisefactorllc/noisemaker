@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/jump-in-the-water-s-fine.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 197,
+        "sha256": "45b978fb4b55fd88b4655955ac3804dafc45766aa6c3a1c6892557574074bbef"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 197,
+        "sha256": "f5c708f9dfc7e333c37b0aec1ffeee386123c404de63abffc6ef9ef98ca9021b"
+      }
+    }
+  }
+}

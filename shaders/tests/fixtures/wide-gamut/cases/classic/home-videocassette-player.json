@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "home videocassette player"
+  },
+  "effects": [
+    "synth/pattern"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\npattern(fgColor: #720868, bgColor: #964edb, rotation: 48, scale: 15, type: 7, speed: 1, animation: 2).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

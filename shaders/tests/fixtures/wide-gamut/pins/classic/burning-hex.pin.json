@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/burning-hex.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3449,
+        "sha256": "2b7d48662b54e94a571cb574a6016c4137ed8d44a742f419057d923c54efba5f"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3449,
+        "sha256": "8aaa84ef2c86fdc0d8122ee7d132a9541a4f727e78eac11e2d9d4b8bd2ad9ff3"
+      }
+    }
+  }
+}

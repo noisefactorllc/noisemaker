@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/glitched-grid.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3799,
+        "uniqueColors": 3204,
+        "sha256": "f7b6f2d4b681d5cc65d4b31f404c568539fd4e5cb5b6107338a25d621ddad995"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3799,
+        "uniqueColors": 3204,
+        "sha256": "226ff025d1c847e5f1863c77e291a51173e5ca748aab0add97a086d142b16ec0"
+      }
+    }
+  }
+}

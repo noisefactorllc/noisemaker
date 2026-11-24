@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/where-the-colors-hide.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4086,
+        "uniqueColors": 3453,
+        "sha256": "d9840d8e4528131a51c82c32c55eb22f0b86391f2a36a5e0911ee25f58546201"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4086,
+        "uniqueColors": 3453,
+        "sha256": "ecb541f4893eeded06332318a5b05c9d97a1e0a2a2a2890349eabbcc7a36fb5b"
+      }
+    }
+  }
+}

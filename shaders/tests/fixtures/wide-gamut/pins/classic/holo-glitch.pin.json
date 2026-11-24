@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/holo-glitch.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 432,
+        "sha256": "791ae454871bca773ded1ce6efd913833c5b89c35b0546fd804bb710c2b1a5b7"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 432,
+        "sha256": "a28faad69f296f8632168fa3a7c501c05bc517a35ea66e09b3214843432a8177"
+      }
+    }
+  }
+}

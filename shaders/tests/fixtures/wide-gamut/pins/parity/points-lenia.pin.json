@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/points/lenia/parity-case.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4095,
+        "uniqueColors": 3325,
+        "sha256": "1be59c16e6452a6ac7e3777579f60b36c3278f7bde70bdd93d578ec71a49bc97"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4095,
+        "uniqueColors": 3325,
+        "sha256": "d9d8dfaa71f9b7ce224d3d1a3b4f4c297f0053857d88cd447a8b4fb55cc58ef7"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/lozenge.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3923,
+        "sha256": "fe4cb50315672601f72735c589fcfdc8e530b19335a26f0933c3ce24f5132866"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3923,
+        "sha256": "233cbc80a04d9dc55828c2cd957a9a90fa843aedb9ae818a4a44828a30cc1f57"
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "fun factory"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(palette: santaCruz, refractAmt: 90, ridges: true, type: 10, colorMode: 5, kaleido: 1, xScale: 4, yScale: 4, octaves: 1).write(o0)\nnoise(hueRange: 100, hueRotation: 23, speed: 30, refractAmt: 100, ridges: true, wrap: false, xScale: 96, yScale: 95, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 15, mix: 44, refractAAmt: 12, refractBAmt: 48).refract().lensDistortion(aberration: 48, distortion: -3, speed: 0, loopScale: 100, alpha: 0, shape: 0, tint: #000000, vignetteAmt: -86).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

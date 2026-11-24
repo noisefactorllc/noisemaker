@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/basics/bit-effects.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1133,
+        "uniqueColors": 265,
+        "sha256": "97982cf5e33334829f2973d49e27ee5d8f516fa11c81d98dfef8b016fed0b49f"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1133,
+        "uniqueColors": 265,
+        "sha256": "7cf5d678e228abf9f1587fde53376d3034f3a73b7595e2f8bf231df8308d2843"
+      }
+    }
+  }
+}

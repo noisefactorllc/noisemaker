@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/candy-glass.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4088,
+        "sha256": "db8ef0d62d7e6fce036009a17d80ae9d004e52117e254248ecf41b044f84be87"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4088,
+        "sha256": "c822300e08eecb701c5643bf240f913c527753c15a5bb59bbbee133f1ca8b7fb"
+      }
+    }
+  }
+}

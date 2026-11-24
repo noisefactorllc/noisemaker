@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "kaleido oddity"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/kaleido"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRotation: 47, kaleido: 24, metric: 4, palette: vaporwave, wrap: true, type: 2, colorMode: 4, xScale: 62, yScale: 62, octaves: 1).write(o0)\nshapes(speedA: -6, loopAOffset: 200, loopAScale: 1, speedB: 97, loopBOffset: 70, loopBScale: 56, palette: blueSkies, wrap: true, cyclePalette: 0, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 2, mix: 20, refractAAmt: 29, refractBAmt: 1).kaleido(direction: 2, effectWidth: 1, sides: 3, kernel: 0, speed: 6, loopOffset: 30, loopScale: 12, metric: 4, wrap: true).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/transwarp.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4046,
+        "sha256": "880ceb3688250a058a2e5857c0ae237bdb6864c875c98c7eb122ee6a47b7b3d1"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4046,
+        "sha256": "4d73a14b224d2e390a719602476173eb30f7238e8c86d3bce110fee557b3097a"
+      }
+    }
+  }
+}

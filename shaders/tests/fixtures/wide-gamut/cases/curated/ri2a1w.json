@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:Ri2a1w",
+    "dslFile": "programs/Ri2a1w/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "classicNoisedeck/kaleido",
+    "filter/adjust",
+    "filter/tetraColorArray",
+    "classicNoisedeck/coalesce",
+    "filter/lighting",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "synth/polygon"
+  ],
+  "dsl": "search synth, filter, classicNoisedeck, render, points, mixer\n\nlet osc1 = osc(type: oscKind.sawInv, speed: bassReact, offset: -0.72)\nlet osc2 = osc(type: oscKind.sine)\nlet bassReact = audio(band: 0, min: 0.6, max: 4.4)\n\nperlin(\n  scale: 23.03,\n  ridges: true,\n  seed: 37\n)\n  .kaleido(\n    sides: 7,\n    loopScale: 52.32,\n    speed: 50.17,\n    kernel: shadow,\n    effectWidth: 10\n  )\n  .adjust(\n    mode: hsv,\n    rotation: osc1,\n    hueRange: 200,\n    saturation: 0.75,\n    contrast: 0.59\n  )\n  .tetraColorArray(\n    colorMode: oklch,\n    colorCount: 3,\n    color0: #6bb7ba,\n    color1: #130926,\n    color2: #5f97a9,\n    color3: #b37ac4,\n    color4: #c19d59,\n    color5: #898e48,\n    color6: #e230fd,\n    color7: #6185f9,\n    rotation: fwd,\n    repeat: 0,\n    offset: 0.49,\n    alpha: 0.42,\n    smoothness: 0.839\n  )\n  .coalesce(\n    tex: read(o1),\n    blendMode: multiply,\n    refractAAmt: 4.29,\n    refractADir: osc2\n  )\n  .lighting(\n    normalStrength: 5,\n    smoothing: 2.2,\n    specularIntensity: 0.55,\n    shininess: 116,\n    lightDirection: vec3(0.689, 0.378, 0.619),\n    reflection: 49.7,\n    refraction: 18.3,\n    aberration: 15.9\n  )\n  .subchain(name: \"lens effects\", id: \"e76d\") {\n    .chromaticAberration(aberration: 16.67, passthru: 55.49)\n    .bloom(\n      threshold: 0.35,\n      softKnee: 0.26,\n      intensity: 1.25,\n      radius: 49,\n      taps: 30\n    )\n    .lens(displacement: -0.47)\n    .vignette()\n  }\n  .write(o0)\n\npolygon(\n  sides: 7,\n  radius: 0.79,\n  smooth: 0.18,\n  rotation: -88.99\n)\n  .write(o1)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:a86kuw",
+    "dslFile": "programs/a86kuw/program.dsl"
+  },
+  "effects": [
+    "synth/noise",
+    "filter/seamless",
+    "filter/tunnel",
+    "classicNoisedeck/cellRefract",
+    "filter/adjust",
+    "filter/motionBlur",
+    "filter/lighting",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search filter, synth, classicNoisedeck, render, points, mixer\n\nlet osc1 = osc(type: oscKind.sawInv, speed: bassReact)\nlet bassReact = audio(band: 0, min: 0.9, max: 6.6)\n\nnoise(\n  octaves: 1,\n  scaleX: 100,\n  scaleY: 100,\n  seed: 53,\n  ridges: true,\n  loopScale: 100,\n  speed: 100\n)\n  .seamless(blend: 0.18, repeat: 1)\n  .tunnel(\n    scale: -1,\n    speed: -5,\n    rotation: 2,\n    center: -95.58\n  )\n  .cellRefract(\n    amount: 100,\n    speed: 5,\n    shape: circle,\n    scale: 93.77,\n    cellScale: 95.62,\n    smooth: 100,\n    variation: 100,\n    seed: 73,\n    effectWidth: 6\n  )\n  .adjust(\n    rotation: 146.16,\n    hueRange: 76.05,\n    saturation: 0.71,\n    contrast: 0.67\n  )\n  .motionBlur(amount: 100)\n  .lighting(\n    normalStrength: 5,\n    smoothing: 7.1,\n    specularIntensity: 1.19,\n    lightDirection: vec3(0.356, -0.278, 0.892),\n    reflection: 29.8,\n    refraction: 19,\n    aberration: 27.6\n  )\n  .subchain(name: \"lens effects\", id: \"0nhw\") {\n    .bloom(\n      threshold: 0.7,\n      intensity: 0.6,\n      taps: 15\n    )\n    .lens(displacement: -0.43)\n    .vignette(brightness: 0.14)\n  }\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

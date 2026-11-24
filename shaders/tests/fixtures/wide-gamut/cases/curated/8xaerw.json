@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:8xAerw",
+    "dslFile": "programs/8xAerw/program.dsl"
+  },
+  "effects": [
+    "synth/noise",
+    "render/pointsEmit",
+    "points/flow",
+    "points/life",
+    "render/pointsRender",
+    "render/pointsBillboardRender",
+    "filter/blur",
+    "synth/navierStokes",
+    "filter/lighting",
+    "filter/adjust"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nnoise(\n  type: hermite,\n  scaleX: 100,\n  scaleY: 100,\n  ridges: true,\n  speed: 30,\n  colorMode: mono\n)\n  .subchain(name: \"flow field particles\", id: \"lkjw\") {\n    .pointsEmit()\n    .flow(\n      behavior: unruly,\n      stride: 30,\n      strideDeviation: 0.5,\n      kink: 10\n    )\n    .life(friction: 0.08)\n    .pointsRender(\n      density: 22.39,\n      intensity: 64.67,\n      inputIntensity: 59.72\n    )\n    .pointsBillboardRender(\n      shapeMode: soft,\n      depositOpacity: 23.4,\n      pointSize: 64,\n      sizeVariation: 100,\n      density: 2.03,\n      intensity: 0,\n      inputIntensity: 100\n    )\n  }\n  .blur()\n  .write(o0)\n\nnavierStokes(\n  tex: read(o0),\n  zoom: x4,\n  iterations: 40,\n  smoothing: bSpline4x4,\n  speed: 145,\n  dyeDecay: 97.52,\n  velocityDecay: 100,\n  inputForce: 1,\n  inputDye: 1,\n  inputIntensity: 6.01\n)\n  .lighting(\n    normalStrength: 5,\n    smoothing: 2.1,\n    specularIntensity: 0.7,\n    shininess: 130,\n    reflection: 21.8,\n    refraction: 23,\n    aberration: 18.4\n  )\n  .adjust(brightness: 2.02, contrast: 0.78)\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

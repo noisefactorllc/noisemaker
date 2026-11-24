@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "liquid infinity"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 67, hueRotation: 9, speed: 89, refractAmt: 100, ridges: true, wrap: true, xScale: 94, yScale: 97, type: 3, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 66, hueRotation: 20, speed: 82, refractAmt: 100, ridges: true, wrap: true, xScale: 94, yScale: 97, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 11, mix: 55, refractAAmt: 100, refractBAmt: 100).lensDistortion(aberration: 20, distortion: -41, speed: -10, loopScale: 60, alpha: 18, shape: 0, tint: #4950bc, vignetteAmt: -61).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "nauseated feedback"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(palette: santaCruz, type: 10, colorMode: 5, kaleido: 1, xScale: 10, yScale: 10, octaves: 1).effects(effect: 7, effectAmt: 4, flip: 0, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

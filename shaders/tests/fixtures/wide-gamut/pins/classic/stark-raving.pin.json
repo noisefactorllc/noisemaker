@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/stark-raving.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4094,
+        "uniqueColors": 397,
+        "sha256": "71f8e135d62251a23c94058f6948c0ee58c8ffb9dec40309f1e8c2755f47460a"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4094,
+        "uniqueColors": 397,
+        "sha256": "0d6e858e381eb769924f430d80bb55e84d6e9dee8dfa3c4a616d14d66e47f6e4"
+      }
+    }
+  }
+}

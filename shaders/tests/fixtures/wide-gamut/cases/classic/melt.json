@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "melt"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 17, hueRotation: 21, speed: -27, loopOffset: 210, loopScale: 84, refractAmt: 88, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 85, yScale: 85, octaves: 1).write(o0)\ncellNoise(colorMode: 1, speed: 1, palette: blueSkies, scale: 12, cellScale: 75, smooth: 0, variation: 0, cyclePalette: 0, rotatePalette: 0).composite(tex: read(o0), blendMode: 1, inputColor: #000000, mix: 46, range: 44).lensDistortion(aberration: 65, blendMode: 0, hueRange: 38, hueRotation: 0, blendMode: 0, modulate: false, passthru: 61, alpha: 0, speed: 0, distortion: 0).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

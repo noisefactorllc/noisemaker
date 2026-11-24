@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/prismatic-cloud.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4044,
+        "uniqueColors": 3829,
+        "sha256": "645742366d788747100c880d02189911a22282121d3eb7a11cad7d1e7f331b7d"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4044,
+        "uniqueColors": 3829,
+        "sha256": "7ecaf31aa943fd39791b3abdaba24d1f58652044c30f0215c1202ff333c40258"
+      }
+    }
+  }
+}

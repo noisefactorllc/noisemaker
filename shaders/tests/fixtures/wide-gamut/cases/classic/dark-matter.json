@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "dark matter"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 36, hueRotation: 57, speed: 24, refractAmt: 43, ridges: false, wrap: true, xScale: 87, yScale: 90, type: 10, colorMode: 6, kaleido: 1, octaves: 1).composite(tex: read(o0), blendMode: 2, inputColor: #bfa4d0, mix: 42, range: 76).refract().lensDistortion(aberration: 100, blendMode: 0, hueRange: 0, hueRotation: 51, blendMode: 1, modulate: true, passthru: 100, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

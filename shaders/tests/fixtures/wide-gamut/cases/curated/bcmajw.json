@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:bcmaJw",
+    "dslFile": "programs/bcmaJw/program.dsl"
+  },
+  "effects": [
+    "synth/noise",
+    "render/pointsEmit",
+    "points/attractor",
+    "points/life",
+    "render/pointsRender",
+    "render/pointsBillboardRender",
+    "filter/blur",
+    "synth/navierStokes",
+    "filter/palette",
+    "filter/lighting",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/smoothstep",
+    "filter/adjust"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nnoise(\n  type: bSpline4x4,\n  octaves: 1,\n  scaleX: 100,\n  scaleY: 1,\n  seed: 84,\n  ridges: true,\n  loopScale: 100,\n  speed: 40,\n  colorMode: mono\n)\n  .subchain(name: \"flow field particles\", id: \"lkjw\") {\n    .pointsEmit(stateSize: x128)\n    .attractor(speed: 0.01)\n    .life(friction: 0.08, _skip: true)\n    .pointsRender(\n      density: 100,\n      intensity: 53.78,\n      inputIntensity: 42.74,\n      viewMode: ortho,\n      rotateY: 0.7,\n      viewScale: 8,\n      posX: -15,\n      posY: 9\n    )\n    .pointsBillboardRender(\n      shapeMode: soft,\n      depositOpacity: 100,\n      pointSize: 18.39,\n      sizeVariation: 100,\n      density: 2.18,\n      intensity: 0,\n      inputIntensity: 100,\n      viewMode: ortho,\n      rotateY: 0.7,\n      viewScale: 8,\n      posX: -15,\n      posY: 9\n    )\n  }\n  .blur()\n  .write(o0)\n\nnavierStokes(\n  tex: read(o0),\n  iterations: 40,\n  smoothing: bSpline4x4,\n  speed: 145,\n  dyeDecay: 98.16,\n  velocityDecay: 100,\n  inputForce: 1,\n  inputDye: 1,\n  inputIntensity: 3.95\n)\n  .palette(\n    index: grayscale,\n    offset: 71,\n    alpha: 0.17\n  )\n  .lighting(\n    normalStrength: 3.99,\n    specularIntensity: 1.1,\n    shininess: 97,\n    reflection: 29.3,\n    refraction: 23.5,\n    aberration: 18.4\n  )\n  .subchain(name: \"lens effects\", id: \"esfj\") {\n    .chromaticAberration(aberration: 29.18, passthru: 39.51)\n    .bloom(\n      threshold: 0.2,\n      intensity: 0.55,\n      radius: 33,\n      taps: 45,\n      tint: #00b2ff\n    )\n    .lens(displacement: -0.6)\n    .vignette(brightness: 0.12, alpha: 0.45)\n  }\n  .smoothstep(edge0: 0.08, edge1: 0.36)\n  .adjust(\n    saturation: 0.72,\n    brightness: 1.64,\n    contrast: 0.49\n  )\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

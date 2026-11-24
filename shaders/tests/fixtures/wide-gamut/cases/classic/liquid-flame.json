@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "liquid flame"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 23, hueRotation: 76, speed: 11, loopOffset: 210, loopScale: 50, refractAmt: 34, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 92, yScale: 92, octaves: 1).write(o0)\nnoise(hueRange: 11, hueRotation: 76, speed: 58, loopOffset: 210, loopScale: 100, refractAmt: 51, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 78, yScale: 78, octaves: 1).coalesce(tex: read(o0), blendMode: 17, mix: -4, refractAAmt: 57, refractBAmt: 40).lensDistortion(aberration: 0, distortion: 21, speed: -3, loopScale: 99, alpha: 39, shape: 0, tint: #ca7907, vignetteAmt: -21).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

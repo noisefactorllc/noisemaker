@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "falling into a dream"
+  },
+  "effects": [
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\ncellNoise(colorMode: 1, speed: 1, palette: jester, scale: 11, cellScale: 75, smooth: 0, variation: 0, cyclePalette: 1, rotatePalette: 0).write(o0)\nnoise(hueRange: 35, hueRotation: 47, speed: 77, refractAmt: 100, ridges: false, wrap: true, xScale: 95, yScale: 96, type: 1, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 2, mix: 57, refractAAmt: 0, refractBAmt: 0).lensDistortion(aberration: 56, distortion: -41, speed: 61, loopScale: 64, alpha: 54, shape: 2, tint: #7242f8, vignetteAmt: -100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

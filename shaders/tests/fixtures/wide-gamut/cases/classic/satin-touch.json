@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "satin touch"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 7, hueRotation: 73, speed: 52, refractAmt: 80, ridges: false, wrap: true, xScale: 89, yScale: 93, type: 10, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 38, hueRotation: 63, speed: 46, octaves: 5, refractAmt: 83, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 100, yScale: 100).coalesce(tex: read(o0), blendMode: 10, mix: 100, refractAAmt: 24, refractBAmt: 10).colorLab(colorMode: 3, dither: 0, hueRange: 105, hueRotation: 55, levels: 0, palette: sulphur).colorLab(colorMode: 2, dither: 0, hueRange: 100, hueRotation: 88, levels: 0, palette: toxic).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

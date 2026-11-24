@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "mr. cool ice"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 3, hueRotation: 52, speed: 4, octaves: 7, refractAmt: 0, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 96, yScale: 96).write(o0)\nnoise(hueRange: 3, hueRotation: 52, speed: 2, octaves: 7, refractAmt: 0, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 96, yScale: 96).composite(tex: read(o0), blendMode: 2, inputColor: #2e2e2e, mix: 0, range: 22).refract().refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

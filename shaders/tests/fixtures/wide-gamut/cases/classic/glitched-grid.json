@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "glitched grid"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "synth/pattern",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 0, hueRotation: 45, speed: 79, refractAmt: 100, ridges: false, wrap: true, xScale: 100, yScale: 99, type: 3, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\npattern(fgColor: #8480ff, bgColor: #000000, rotation: 104, scale: 14, type: 2, speed: 1, animation: 4).coalesce(tex: read(o0), blendMode: 17, mix: 100, refractAAmt: 0, refractBAmt: 100).lensDistortion(aberration: 22, distortion: 56, speed: -20, loopScale: 60, alpha: 4, shape: 6, tint: #494abc, vignetteAmt: -69).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

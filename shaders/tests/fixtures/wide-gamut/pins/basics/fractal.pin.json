@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/basics/fractal.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 75,
+        "sha256": "ddea437c8f021726df7565db20f9e6a853c15296e32e9d69b6a608a4f837bbaf"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 75,
+        "sha256": "40b8f6061c6264d27ce67396766bd0664d1c688c5477103c3a67c6398a160696"
+      }
+    }
+  }
+}

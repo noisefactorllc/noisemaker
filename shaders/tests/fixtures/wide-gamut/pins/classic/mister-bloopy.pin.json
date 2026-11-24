@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/mister-bloopy.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4064,
+        "sha256": "e9bb3291d685d4e807e9595149bee204b4259153687be6c76db12df85ab092ad"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4064,
+        "sha256": "892fbc92843e1130a8f7510ea113e8fc4461e50a0aef9466b90cc2abf818d040"
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "up and to the right"
+  },
+  "effects": [
+    "synth/pattern",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\npattern(fgColor: #f642a7, bgColor: #d09e89, rotation: 0, scale: 18, type: 2, speed: 1, animation: 4).write(o0)\nnoise(hueRange: 27, hueRotation: 52, speed: 100, refractAmt: 75, ridges: false, wrap: true, xScale: 93, yScale: 98, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 100, mix: 10, refractAAmt: 10, refractBAmt: 0).lensDistortion(aberration: 100, blendMode: 0, hueRange: 71, hueRotation: 0, blendMode: 1, modulate: true, passthru: 67, alpha: 0, speed: 0, distortion: 0).effects(effect: 4, effectAmt: 0, flip: 2, offsetX: -18, offsetY: -12, rotation: 30, scaleAmt: 146).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

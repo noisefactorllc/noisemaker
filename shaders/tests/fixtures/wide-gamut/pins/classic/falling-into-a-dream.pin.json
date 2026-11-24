@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/falling-into-a-dream.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4077,
+        "uniqueColors": 2281,
+        "sha256": "03acaae0ec9561bdfe92e77e01515867ccabde650638b1af86c72734671cf332"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4077,
+        "uniqueColors": 2281,
+        "sha256": "fe5f1c71db436f002e751ecda938326bc09a93cbb93e4e86aee01e26d2824540"
+      }
+    }
+  }
+}

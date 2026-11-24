@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "off-kilter kaleido"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/kaleido",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 43, hueRotation: 53, speed: 39, refractAmt: 64, ridges: false, wrap: true, xScale: 85, yScale: 100, type: 10, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nshapes(speedA: 100, loopAOffset: 320, loopAScale: 73, speedB: -89, loopBOffset: 320, loopBScale: 39, palette: santaCruz, wrap: true, cyclePalette: 0, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 100, mix: -26, refractAAmt: 100, refractBAmt: 100).kaleido(direction: 0, effectWidth: 10, sides: 7, kernel: 0, speed: -3, loopOffset: 330, loopScale: 51, metric: 0, wrap: true).effects(effect: 0, effectAmt: 0, flip: 15, offsetX: 19, offsetY: -5, rotation: 159, scaleAmt: 122).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

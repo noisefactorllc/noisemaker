@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "splish"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 73, hueRotation: 58, speed: 61, octaves: 2, refractAmt: 0, ridges: false, type: 10, colorMode: 6, kaleido: 1, xScale: 42, yScale: 42).write(o0)\nnoise(hueRange: 23, hueRotation: 34, speed: 17, refractAmt: 56, ridges: false, wrap: false, xScale: 92, yScale: 88, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 5, mix: 73, refractAAmt: 0, refractBAmt: 38).refract().lensDistortion(aberration: 24, distortion: -34, speed: 1, loopScale: 62, alpha: 16, shape: 0, tint: #d90851, vignetteAmt: -25).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

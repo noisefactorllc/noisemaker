@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/home-videocassette-player.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 111,
+        "sha256": "30e75769542b5a13af4df7f2678520cbb41f4f57fab371c9c91de07c89d8f2b4"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 111,
+        "sha256": "ee61d7a4d115519eb34b654c47c302d11aec4a613e456e8219d89202add7cf19"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/quicksilver.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2862,
+        "uniqueColors": 2387,
+        "sha256": "8489b52c0b2fa0621f24f50292525829741e4564fd531e91458e9d72597602c6"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2862,
+        "uniqueColors": 2387,
+        "sha256": "8207a86307438c711e41bfac88565b467593b7ca06f6ff400f97aa0f9d2a4dcc"
+      }
+    }
+  }
+}

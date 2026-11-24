@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/fesziw.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 2848,
+        "sha256": "196fa284b1e6f113184df7c020fc5218ee8d463de20eb3318db825ca6b1168a5"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 2848,
+        "sha256": "626d2dc37a4ab4663767167a9fc6f2673a77b563120c3f928f40b1d40839dff8"
+      }
+    }
+  }
+}

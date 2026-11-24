@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:i7RwCw",
+    "dslFile": "programs/i7RwCw/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "classicNoisedeck/kaleido",
+    "filter/tile",
+    "filter/adjust",
+    "filter/warp",
+    "filter/blur",
+    "synth/reactionDiffusion",
+    "filter/lighting",
+    "filter/grain"
+  ],
+  "dsl": "search synth, filter, classicNoisedeck\n\nlet osc1 = osc(type: oscKind.sine)\nlet bassReact = audio(band: 0, min: 1.5, max: 11)\n\nperlin(scale: 18.02, octaves: 2)\n  .kaleido(sides: 6)\n  .tile(\n    symmetry: rotate6,\n    offsetY: -0.48,\n    angle: 45,\n    repeat: 3\n  )\n  .adjust(\n    mode: oklch,\n    rotation: 138.52,\n    hueRange: 97.99,\n    brightness: 2.61,\n    contrast: 0.56\n  )\n  .warp(\n    strength: 2.16,\n    scale: 5,\n    speed: bassReact\n  )\n  .blur()\n  .write(o0)\n\nreactionDiffusion(\n  tex: read(o0),\n  zoom: x16,\n  sourceF: sliderInput,\n  feed: 78.17,\n  kill: 56.47,\n  rate1: 86.94,\n  rate2: 24.02,\n  iterations: 13,\n  weight: 45.54,\n  inputIntensity: 19.86\n)\n  .lighting(\n    normalStrength: 5,\n    smoothing: 2.2,\n    reflection: 9.9,\n    refraction: 21.3,\n    aberration: 17.5\n  )\n  .grain(alpha: 0.1)\n  .adjust(\n    rotation: -87.3,\n    brightness: 1.15,\n    contrast: 0.69\n  )\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

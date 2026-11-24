@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/holo-transmission.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1122,
+        "uniqueColors": 268,
+        "sha256": "c803a2897e7d59ad3abe7d9d1b7eb11bfcdb042257e04463d56cdc7a6dbcd48b"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1122,
+        "uniqueColors": 268,
+        "sha256": "ee213a0e0986a72d853d765087dc31d8200cd9a1819f52238a56836040105dca"
+      }
+    }
+  }
+}

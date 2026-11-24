@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/fractal-mirror.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 62,
+        "sha256": "26b16c18c348adc62a777251bb5dfec89a84eefef3cebf687f149962e28e354d"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 62,
+        "sha256": "7f7827bba17f0552689f2082f29dbf83b8eaf39dd306fe167d277452ceba51d8"
+      }
+    }
+  }
+}

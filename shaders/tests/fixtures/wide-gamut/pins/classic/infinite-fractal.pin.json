@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/infinite-fractal.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4072,
+        "uniqueColors": 435,
+        "sha256": "dad55cf87f5240fd819942db9439e564b606c552a4425ddab9d2a183c0b5fbeb"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4072,
+        "uniqueColors": 435,
+        "sha256": "dad55cf87f5240fd819942db9439e564b606c552a4425ddab9d2a183c0b5fbeb"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/disco.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 848,
+        "sha256": "413da7abebbc03ae0b7a4a8c4670b687cca2e2fffe758c0cf0972f3c90404052"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 848,
+        "sha256": "adfdd86d0e88d14daf08e53ed78514714000dca915f277f917f5647161a0b5d7"
+      }
+    }
+  }
+}

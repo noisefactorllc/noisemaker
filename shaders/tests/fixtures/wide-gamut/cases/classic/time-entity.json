@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "time entity"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRotation: 55, kaleido: 6, metric: 2, palette: summoning, wrap: true, type: 2, colorMode: 4, xScale: 64, yScale: 64, octaves: 1).write(o0)\nnoise(hueRotation: 20, kaleido: 6, metric: 2, palette: summoning, wrap: true, type: 1, colorMode: 4, xScale: 56, yScale: 56, octaves: 1).coalesce(tex: read(o0), blendMode: 100, mix: -2, refractAAmt: 0, refractBAmt: 0).colorLab(colorMode: 2, dither: 4, hueRange: 200, hueRotation: 82, levels: 0, palette: papaya).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

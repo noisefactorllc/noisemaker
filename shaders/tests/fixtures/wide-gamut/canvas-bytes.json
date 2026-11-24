@@ -1,0 +1,2864 @@
+{
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "shaders/effects/filter/text/parity-case.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3487,
+          "sha256": "27b99c8ca8eb767443a808fa0e606a42967110feed6a6699fc57c7b27c8c7584"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3487,
+          "sha256": "3b4e3c8f00e332aa723bdc67ce0891cd931fa77abf4ae4ae44306ce1a849748c"
+        }
+      },
+      "shaders/effects/synth/media/parity-case.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3968,
+          "uniqueColors": 603,
+          "sha256": "f85bc352e22239f6691b988677014695c69f4cd6f92dc0e28e0ccfb782fcba9b"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3968,
+          "uniqueColors": 603,
+          "sha256": "92f83ae0b39657f3c72979b31e81173d77a48245e49857cf4e69fd6013a6591e"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/_krk7a.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 235,
+          "sha256": "c435ac3242a4027d8c0a13eaedfadeb37f3aece67446ced87a6a258ee3d9286b"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 235,
+          "sha256": "e76ffdf8bb028fcbd6134d9f8a43e6647c2c0d0ea56a4d069c6808e0ba087323"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/_pkonw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3265,
+          "sha256": "e98e659d06a867d39a6598433cd5e823f6e7e08e148090a0c7060c5b4dfa7055"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3265,
+          "sha256": "18012a874ee1edf8f92bff747d2970c13052dfc2e325d7535bea8a16f4493bec"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/0bgvzw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1948,
+          "sha256": "d2d8050848213335f3f7423b76b07433b047cd8172d4673868779a4bfaaa1dba"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1948,
+          "sha256": "02e2fefa76a00aa284b7951028a92d32ac81b92195bcd7ae67fe26683a39f568"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/0c4dkw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 1905,
+          "uniqueColors": 334,
+          "sha256": "065f4cc17d4ef776d6a70226424cd473668a0cafd7a4c4167cd1c5aaa1b43f71"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 1905,
+          "uniqueColors": 334,
+          "sha256": "ec4d6fcc973a6dcdaa665b6c296158d6d0dd2c9f489b1b7a890c54031da5fcd6"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/0ilhtg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3561,
+          "sha256": "ad718efdad325bde9388da5f47347d9fce2498715b0f8e75db5ff2ca1cdefc98"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3561,
+          "sha256": "c3d672498a397cf97ecbb519beef3c9f073ceb9090b791c60533d3eaf99bce4e"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/0txrwq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 200,
+          "sha256": "53c35ad2ac4533b926e2180f816f52acd823c53a333455a93d58f99602d25d18"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 200,
+          "sha256": "c8f3cd8c5585660831988fc6cba7537848b97c5cc9e6ab8b389305146815f813"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/1d6lhg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1858,
+          "sha256": "47e7cf3cdfc2f8981d2ec1072c03c0a2d6b52db0278be427eb4ee2ab53b02509"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1857,
+          "sha256": "dad32588663b18471272aad667dacee8dcf81dbbe219418b69c85753c22edf9a"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/1feolq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 2036,
+          "uniqueColors": 546,
+          "sha256": "3973866e9ae256764698b40ded9785c7517985f4becc80a80ab94e781467f1c8"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 2036,
+          "uniqueColors": 546,
+          "sha256": "3f95051c5fc6c81a0e39a6bc9fd88abdf69ddf563b2de98d1b1f8a6a59121008"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/1hjbig.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 243,
+          "sha256": "668c878c3ee89174207e05747d50973fdd205fb681111e71ceeea0603eaf5069"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 243,
+          "sha256": "50acb5ec0cae33ff857e20dd285976a39b33ae6ab0bd0e8156bf2c2c85ebbcfe"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/2ifcpa.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2221,
+          "sha256": "598850c0cf3cf553ea76e1c1705426d6402d6dd7bc6d56c2d76e1948ccf298bd"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2221,
+          "sha256": "02d29fa846751326b67858969dbf60fd8346d00780d09a6e1c182a4116036b35"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/3cezrq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1846,
+          "sha256": "6882669c4709235574048dc7489d35de205e473065816816ea4bb7d2dea6133d"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1846,
+          "sha256": "651716b43c230d90cd3cac9aacba55071f5fdb28351d0f20c311329d8fc5a6e7"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/4efq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3952,
+          "uniqueColors": 2244,
+          "sha256": "79a87b8f52a442062dfa480c3682e24a7847df45d0ed8d76a578a44441c39728"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3952,
+          "uniqueColors": 2244,
+          "sha256": "86b2bee8e51c6e2546dace98dbc3d08e6ade810a685848188092642fe3b7a9d2"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/4mbx9w.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3404,
+          "sha256": "d648f48b1f90ad1dbbb4e1b4642ae595e07491200593ff84baf4ac6e8b631967"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3404,
+          "sha256": "e7286a38a096b03748db11878ef5fa024374804068d62fc32583de219523429d"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/4mex7g.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 472,
+          "sha256": "c420e74e44462544ac0440012b17921557ce4d097faba82c3f284cd18200a949"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 472,
+          "sha256": "f9c65d64628d1a46d8c3528dfc6cc7603a157d6d347cf1e369c151ab8f44cada"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/4rskiq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 2699,
+          "uniqueColors": 2077,
+          "sha256": "ddf2f62cb13a7fc3a1fcafd7a97bd60b9a8a1251737d076346f0396c8f4ab150"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 2699,
+          "uniqueColors": 2077,
+          "sha256": "0d950634ff63f904b0a765d35bb3d577a417e4f3b591e88fb12973846c77f0ee"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/6l1kka.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 312,
+          "sha256": "0b915c3a91683e91c3c778cf3bea0315fe17f124b6b7bc12b239194238a6a21e"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 312,
+          "sha256": "f6c1fd46c6c657ec77a167cd6184de9e3fbc368f78cbbea90784109710020cdf"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/7c4jda.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2388,
+          "sha256": "9e4b65739bdeae64fa1aa62b2af37792fdeea3fc3fe3a3d768f5345e738b76d4"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2388,
+          "sha256": "942b474f308f517d16d18fee54618dd82fbf7385b8ff0eb9cd645583b6334469"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/7ihiba.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 449,
+          "sha256": "5c28c05e1d07599ed4a9b2b2945017d6a7cd0082887e26049ba6814bb1dd6735"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 449,
+          "sha256": "c7b8a78c8b69fa8e80c90622efadd343a1ea5be141da36c8e0eefe2b653eb6a0"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/7invow.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2291,
+          "sha256": "0c7742c03ffd2e88530addc107c4e6624ba99d1c066867e0eb7650a8628e1561"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/7zjzxa.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4000,
+          "uniqueColors": 2014,
+          "sha256": "9c27fd7dfc0cb3bd6c2fec3a3a4c56b48c3d97e865527b3003230e6bcaa0f7da"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4000,
+          "uniqueColors": 2014,
+          "sha256": "6d3ff115c88ddf45ef8736b7198e3d192f509fcda8ca1d822221d93cd5c27f53"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/8jayhg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 2768,
+          "uniqueColors": 2330,
+          "sha256": "ba660f9159286479f82438232af4c43fd5070ea1612e76c1f7650260616f7497"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 2768,
+          "uniqueColors": 2330,
+          "sha256": "2c27070e55a746ddcf01a3a7b874a612d83b6703daa6308e9a1c83abba897735"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/8mrfwa.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3991,
+          "sha256": "8e465a3465e892d529b83ff0b58791f40273184d61752e3d0aa687f8b8bdd755"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3991,
+          "sha256": "3e245499805414b9e8dad7cc4a36b1e21221fa2080cd1f13a7640ac10a388682"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/8waong.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3879,
+          "sha256": "e5938dc596b1a3cd8cf75e59142c1dc437a3c8f3be835d3d67e81da9a0ad7302"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3879,
+          "sha256": "05b8a3fa8fe6981d53ced921e9f114b74639930c2e4ab746a7eb49e6fbe8f08c"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/8xaerw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1509,
+          "sha256": "fa1cb3856bcaa828caf7b23205acb60b361b90e8bec5f53ac39d597497ba22dc"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1509,
+          "sha256": "0e29edf5468759ee8d22ed7c5043a0d1e8b1fec4b5621076f8120fd0dfddfb6e"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/9clitw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 974,
+          "sha256": "34491568f08681b70f97bc1d2413bb136b51948836fbc00201333eeaab5b719f"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 974,
+          "sha256": "bfbbb208537010806cbaddcc75c954490cfdb52112b18826435fc26273459a37"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/9jj7pa.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 431,
+          "sha256": "20a8166a4c89cb5a264d22dc1be1576893f4c4fe1106a241887d28617e9efe19"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 431,
+          "sha256": "b6df2ce12b28e29370b80ef28ebb245f8c90689eec8d7e8faa999016dc2220d9"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/9lvztw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 747,
+          "sha256": "e690326ee5bed896a53ff4f44b263957da251888155ebce6a822b229c07badb6"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 747,
+          "sha256": "1ecc1755d7b9194744f799b312e0ba55988ba892b44e2edaa297a11b701db71b"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/9tnqbw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 1944,
+          "uniqueColors": 1465,
+          "sha256": "388757b5784fc44398e70e08428d3aba129f016863f1dc1f00abccd97fd58391"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 1944,
+          "uniqueColors": 1465,
+          "sha256": "2b1cefc021f1ae36629dccaa1de8b19201b5371363358b68962751cf56e451d8"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/a86kuw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3602,
+          "sha256": "791a5d8efcd85a6f8dff165213c28244b338e536a8df62709609f5cfdb7379d9"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3602,
+          "sha256": "490c6f6c33e2d7c52b28704650c48b20c3d1c4110406e2733710ef2795a7fc59"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/ame9q.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4016,
+          "sha256": "0b03974286a04af394ce07297d6d6d5979f7e580bb9190bd0d773f0c2f9ed817"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4016,
+          "sha256": "e5003fcd4d824ae69bcf5fa4a747d3276404d270ceaac863dcfd65cbd1d2bd9b"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/ang8ua.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 140,
+          "sha256": "8de365a41a7aca43f80cdc6814d3e435bc5c25bb2e56f2e6fa59603c1bf41ed1"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 140,
+          "sha256": "6b8b6b11868aba36901ebd249b50374cf546013608dc24ce2ba633cc2a4e71d3"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/awb68w.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 389,
+          "sha256": "a395e775234eb0a6d59fe57cc9bc5d85826fb8b385351c41dc2f69f9766f76e1"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 389,
+          "sha256": "12459519a070cc10f6962b4ab6ca954733f4cff22b18e66c0b6200979d6f98a4"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/ayzavq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3865,
+          "sha256": "c2d8d40fbd19ebf52ab892f6cdde369dd1bb5415ee38137a32957fbd051bd302"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3865,
+          "sha256": "34c333d3ae93824906ba9cb54b505d3fba60efdce5988bcf3277a5f37c709058"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/b1qtxg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 1283,
+          "uniqueColors": 1142,
+          "sha256": "9730d1d190251fa0826e0337ba8344cc102d3088d147912470a62f1202fb263b"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 1283,
+          "uniqueColors": 1142,
+          "sha256": "b0b901b638fb5f22d18856e88c2d3b054a190f37560f91205e6e9a6598423b45"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/b5obsa.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3738,
+          "sha256": "b820b82966732a75362b1283446361d8d5d4f5ad79f222c56314dbd1e18fd122"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/bbpvig.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3823,
+          "uniqueColors": 3608,
+          "sha256": "d2df74cf98aa42084395ce646df105cfc8523780d7d8a659bcefd0f80b09ba34"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3823,
+          "uniqueColors": 3608,
+          "sha256": "b031ef756d094dfef97665bf16b2622202a940028cff26c4e9871e5d1b9cc7c3"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/bcmajw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 127,
+          "sha256": "09a6046fc56637026475e4588579e2e40dbfb9824df646539890e2f8686a7f17"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 127,
+          "sha256": "05aaf04e25228147e99df780addb197729077d50a2543b063a3076bdfe38789c"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/bcnztw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2881,
+          "sha256": "e1c9971be56d5bb7bac8f306b3f6050e0a911b4d69419b52197e731d9db26ecf"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2881,
+          "sha256": "977f9d54b4ba0fd05ab129211a9e172982fcb332ffcce5b9251e31d67adb2ef3"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/bixl-q.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3400,
+          "sha256": "3d12a7e73f4e1a20fd127bb3a6a0d22ca17a9ec9e20d921206856c853dda0049"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3400,
+          "sha256": "58cb6afcd778b6f06c11e023c9e4331ead30f3e1b49db6efe1828774e015fc84"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/blbb4w.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3978,
+          "uniqueColors": 3795,
+          "sha256": "31f4d3cb5fd88f53a9223e54dcb40471f26dc9dc2cc163c624a2e456e60fc711"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3978,
+          "uniqueColors": 3795,
+          "sha256": "1ce8fca929310d3f1d12a18b0f586b599a94b3f677d7ffda2ecca6a1b69ff1ef"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/brua1g.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4055,
+          "sha256": "57f737c7b4efa26355dcdc17fbd65a6609743e7f511403bf79e512a32901276b"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4055,
+          "sha256": "95ddc28ab8d6beff5c272774ab47a2440adc9e96101201bcd6d3463184b277c9"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/c_twog.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 739,
+          "sha256": "76c394a3c9cf941af2ad7acbf9659c1653bb45e289ee662410d4ba7f9d87bf2b"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 729,
+          "sha256": "9aecc059bbb29aae477334cb2447bb356517cea596411aece9d0fd0dc16e4dbd"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/cdyj7g.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4037,
+          "sha256": "500b309ce87b59592b111677c7fcb94683049039ac940a312915d1d95b421f2e"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4037,
+          "sha256": "cd132f687c5979fe5135f45187d11cb68aa008c9cddb2674ab9c5f78f886f92d"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/cixssg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 27,
+          "sha256": "d8e97c5d83d3779c6df677dd8f02bacb1c3357f4613473cf043a2befb4256c2b"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 27,
+          "sha256": "98624ca91f32430e575f5c4e17255a79841d48a1698f891fc1030cea625d6cce"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/clf2jw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3628,
+          "uniqueColors": 3073,
+          "sha256": "68567660a9278334926473a56e5d00c2fce77942a0b7050a2cdd51a069a36881"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3627,
+          "uniqueColors": 3072,
+          "sha256": "dd6b94c24979504a1b603e72a1d6d47b256a55d5bf8dd1f2ade3ca6a3e24f02e"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/cpjqpw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2324,
+          "sha256": "19dfb868c50f6d8cabf235d772ab2c5b9137f0a7aa07427ed5d35809d8468927"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2324,
+          "sha256": "92c7d9a9434d5438d2f7cd0d2ef88487dc474e8afb0de6dea6885c9ff4ef8505"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/ctcojq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1448,
+          "sha256": "91e1f1c75bbedf2f337ac04e141813b87038c5e68d179f6cb958c8fe0c4a3d6d"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1448,
+          "sha256": "5454ce8185efdbf8b44e7d2a6eda8efe81108e91bf8013703f62d5318c9b5ed8"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/cutnoa.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3214,
+          "uniqueColors": 2184,
+          "sha256": "807c08f4e56f9ffb2029eaf9a2e6b58f94e078d6dbca80a856c8c1a33680e5e6"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3214,
+          "uniqueColors": 2184,
+          "sha256": "cad1a7d042a2025bfb4b82c0238d6801db618178dd2d9b3908d28a2d13a7224e"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/cx5wba.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1574,
+          "sha256": "a4c66895216f5fc7273359462e2faa0faba3ffab20a2073a2d9903ed2f7255f5"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1574,
+          "sha256": "68630bee0b79097ae5745186358eda525faa37156a96890051f51f8d4fa5700b"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/d-mpwa.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2686,
+          "sha256": "facc822ffbf1e320feaa4f9b99ff957486b639d2be54d99aae8dada9b92ac2a8"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/d0pt9q.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1653,
+          "sha256": "9d082653557c7ea8fdfa98c48725a83e3435c82db8d2f16225da73b590a76852"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1653,
+          "sha256": "6bd0d1aeaf96ca74eafe2cf954d726edd189e0bea00e3ca5dac752940541fdc9"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/d2cdew.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 247,
+          "sha256": "0f252169463ecfcf8bb2ab2adef533905a15475f3789fbeda80190504b7ef2f6"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 247,
+          "sha256": "340ae887dee8de80c1e33c4f97c3cb4bb641c87980e5a990315ace9c8b55cdff"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/dety9a.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2601,
+          "sha256": "31ae5e8dae93ed7d2e330d419a074681b71d8526f70604e48e374be8189c0823"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2601,
+          "sha256": "5a2ee28bb2cd5b7a06edbcb5249a1697a22d3112aeebf46f09d4f8f34ca33c41"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/e0ukeq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 233,
+          "sha256": "b62fecfb74d1c4f522815f98feb28f52fbbc5650a544347a9bb67f92b65a0419"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 233,
+          "sha256": "e8e469e5759193e06df2140796d29786cdc3d1267ce0b8dd0fbd01d490a4889e"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/e2wekg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 1,
+          "uniqueColors": 2,
+          "sha256": "4c68961586547b1532c396e06de028ede00ee12f37d20d83198501f6b898852a"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 1,
+          "uniqueColors": 2,
+          "sha256": "39a73d6fba180f5a685d166a4c9e1d60fc18e43d8601109493de786b5962232c"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/ec-8xw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3367,
+          "sha256": "f1942c4e8e75af8ccbad0ea31b436c2f3dac74d76bbe90fe416b23e811f97857"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3241,
+          "sha256": "66c90b36f7e1fa6afb42d9329401e9bc4b1f64194078f75da5dd1349014cbc82"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/edrbgq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4084,
+          "sha256": "e4ebac1791c306ca1db230d15e3da950072ed7be81108b7fdc0d9dab02d6468c"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4084,
+          "sha256": "0b0f5e779e92c593fd5baec324ee552f8f19a16a875827d36086313c6d12258e"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/enmglw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2391,
+          "sha256": "95540da9d75761e0383ef2889a8d3534a7186c82b1083eb2bc6d45f31b72e9ae"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2391,
+          "sha256": "610e9677d50e2e797f65741e75ac5e197495824ecbc2666875a3d706eb860878"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/eojbya.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 76,
+          "sha256": "72de24bebf8e936566323fb39e1629651aa1f9de6f829a59a83383d6c0e3bb1f"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 76,
+          "sha256": "b5a95ce483b01d4d12c61cf87e955c11a08739ae16e4eb18fff81677efe9958b"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/fesziw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2848,
+          "sha256": "626d2dc37a4ab4663767167a9fc6f2673a77b563120c3f928f40b1d40839dff8"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2848,
+          "sha256": "196fa284b1e6f113184df7c020fc5218ee8d463de20eb3318db825ca6b1168a5"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/fui1ya.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4092,
+          "uniqueColors": 846,
+          "sha256": "184d3d20323822e199d982af6818b361a5387680be19681f983c74eb6cf55689"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/gphyaq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4077,
+          "uniqueColors": 3986,
+          "sha256": "6d075d73b8d6c3f72455eca73383c8cab13a500faf1286856e6f7aeaf3dc6c92"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4077,
+          "uniqueColors": 3986,
+          "sha256": "b007f5dc9b62fa567fc4590931f8a4185b7d45f7f1d34991f6c8b5c69da09d3b"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/gqgiea.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3349,
+          "sha256": "0e03e51428a1a1b3c8870449eecca401b3b4d65ae92f9c9141f85f9fabb91b1c"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3349,
+          "sha256": "465a7065b37faade30a2e25cc6ef7f899c828697e26fdab6bb93217d4940567d"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/gyzqxg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 833,
+          "sha256": "8e40dd97849d130ec315bb90021b42f7f067725e8cadfae857dcff962ac9fcce"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 833,
+          "sha256": "525d11068b2cfc29c30fc46a9904962031285c0376a33e488b6ad7af17764789"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/hmx6za.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3109,
+          "sha256": "95279dad1f0991cf9a9e069b48e10beee6653e967608de969031a00d3c460f4e"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3109,
+          "sha256": "fde6c1cf579d6d3d873817d971456eb230ae05bf0f567c0de1bb76afbc3f07ee"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/hrvwkw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2608,
+          "sha256": "15873adbe90135e4ebc1499fa635c10665ae526f25c76d2e46f443b724092eb9"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2608,
+          "sha256": "45502d97ec7a6912846d608a546eb3a68a192fbb322aad993996d1480337251a"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/hufdlq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2449,
+          "sha256": "50cd1be612ffb6b32dac5ceb538e126a77da46545ec5624ee8b8daa1e3a079ae"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2449,
+          "sha256": "4248ca3b6bb13a7f3f21a3a8fb1a430084fd35ad2f3110024f3d517e75933a2a"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/i7rwcw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4051,
+          "sha256": "2fb2e398cc009f1a1086609cfc4808a4d7a548475b08cd76c93c8dc78246c971"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4051,
+          "sha256": "a3852f4079d7ec0cbc4785037d19394216e8be131c7e5a3377263afb20ccca2c"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/iaf_pq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3997,
+          "uniqueColors": 3156,
+          "sha256": "3dea2c7d9fc15fa3ddbff9619ac6a57c30c9b32ea4dbaef1ae2a4dc8c4c8c34b"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3997,
+          "uniqueColors": 3156,
+          "sha256": "8ac074cb5d09e5694bbd7db27349cd485ec7465d2938eb8cc9374711b4953d05"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/ifefxg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 37,
+          "sha256": "74ec3d4b90eaacd3d7f97b42c5f9f2e22345d986ecb1a7edf7a4634365f0fa1a"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 37,
+          "sha256": "b841548b8832599d427c4743c33bc12b436acf0b5e9db8e0e8aa7dd9f50eaafc"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/iid9pa.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3811,
+          "uniqueColors": 3246,
+          "sha256": "c780adbfba12de3c3b60d1bef3d491e4178bfc1f226bcdb8083b28ba1b936e3e"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3811,
+          "uniqueColors": 3246,
+          "sha256": "f4c83a0317377a17f204aaebe737ce19988c153b978afaea4597df9a3b2278b3"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/j37m1g.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 640,
+          "sha256": "e4a3e5e861d1d42f379bc6076a55f0aa9f2c9ca3e8b895635b8231f010d4b839"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 640,
+          "sha256": "4e0366814baf492d98efc1f9b789aa03e5bc37f74d7d80183be2a82f4009c5c8"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/jh0azq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4087,
+          "sha256": "9986d3e83c3c4dda751299cdd12ba8ee82a261e74f996dd887d0e4504214a9e4"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4087,
+          "sha256": "8066e5ca4fb3059976245d317e9e4dc766ce425761cae41ee33b084d22efc31d"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/js-muw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2053,
+          "sha256": "1fb7f570f22c551e3c24654ad262e6dd5aced093bf638d1db62289876b925b1f"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2053,
+          "sha256": "90b3b3e515b9bf7fea00bc12b2a6a35ca6a95b86b16c86a3606daa638db25fad"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/jsbacg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2039,
+          "sha256": "2cdfeb3502e6418b8fa8c3135319a1cca203e10d5548d1a54299aba3efabb39f"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2039,
+          "sha256": "5dac66290b87fc9d7d07af5c53defc4134598b9162b4f6150fce6d201bfdd5be"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/jvfiag.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3949,
+          "sha256": "65b395a236f0a76d255d3f95a5c940114ae60ed41b797751678989b90bb81297"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3949,
+          "sha256": "e83b4b966607d8c447bfbe3b6d90f04ee8cf48fa3fb327cdf662845713e5f877"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/k3mmgw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4062,
+          "sha256": "e52bf4fd3135ae18f451aff83b8235e504926b1222af4782ead8d0c7116acf80"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4062,
+          "sha256": "518e1d355b7ef54276846d61706478684dc141844f74c6184d2b385e9e762fc9"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/kgbx4w.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3780,
+          "sha256": "6c6000b93ed861c68c8c3daf1297ab2740ed34af41c032b9382ca0b2be4719f6"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3780,
+          "sha256": "92fd1d2e34768c3cfa64622b48acdba65a7b4a2199a46dc663a027d9b97403a2"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/kllh1a.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1,
+          "sha256": "dde6bc7b9ee85fef4bd15c4e7c3e65565faad0829d32c2b7ceffe953840ec9f1"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1,
+          "sha256": "dde6bc7b9ee85fef4bd15c4e7c3e65565faad0829d32c2b7ceffe953840ec9f1"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/kq_2mw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 130,
+          "sha256": "e764dad547ce2803d2ac41f8ccd4a00b08abaa91c02006459f60c19ee8d2cddc"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 130,
+          "sha256": "05f9cb1828cd18b0282b3697a8d229fd73189555b9df42bb960b64cb8e259e60"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/kwi7eq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3751,
+          "sha256": "c50c950980d52250af8f3c7d9180d1082d0e03627f8927f8eea354a173917292"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3751,
+          "sha256": "ad7688c0fa24d02449fb09a7fb549678bd613832ae6e0178ca215dc1a5d6d45a"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/l12ltw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 346,
+          "sha256": "f68d501527e274dbc424cf995699e5c2df0d18aa67b1b56d2951e7c18d117705"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 339,
+          "sha256": "0bc9dd59ebba98e8a2a902eca0012384c429a9eb1466bc20d852222af2b9cf06"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/l2eraa.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 411,
+          "sha256": "a28e75e368e1ea3d4d5385a5b13cc8d406998929a0f9f6268470aa89f7b9e4aa"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 411,
+          "sha256": "493382c00391d05f8fb57ce88344e541d8a32f49ccb3ea3ad8611a576c676d56"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/lcu5gq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4055,
+          "sha256": "a43b21b7a6957e0796e3ad0ca543dd6af7660c60495d45c3bb78379b3ff6f8a1"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4055,
+          "sha256": "b5b441e9164405ffc42256725e34dcf0a5f16822392599239b18aa52fc7356e7"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/lhljpw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 14,
+          "sha256": "901e46701d817cc90ec748a57f82a85dd6eeef19e544b0be140df74f877a0afa"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 14,
+          "sha256": "d2f284857434b159647caa2a2da194cdbe6c68f0466b03cf45b57f749f3137f5"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/lltbbg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2672,
+          "sha256": "ef8fdc95dcde898b4e6c38085d5b14722bcf7031b6f389837a5728dd3b8ffdc1"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2667,
+          "sha256": "69b42689b8a305c44afd8dd2ca338f546e41cb1af6fc8678fa281b0d87ce4b90"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/m9joow.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3939,
+          "sha256": "788128d9c3b9b254fac60db7d41e74dea737b7ac4285dd44c36b4710b7371aae"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3939,
+          "sha256": "83bf66c5185ac7b0d99222e0ae0179bf56c59423f328301dfea8939113c2f5f3"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/mq2ojg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3890,
+          "sha256": "b4fbe70c64dc69c3050bbf869d9813f0d9fe62cb2d10f4199a2f7521378e413b"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3890,
+          "sha256": "5c9cdb835346a264471b6b53b33a96090f978b81c48f90c8dc38a87b12d7dd0b"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/n2fcpa.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 2591,
+          "uniqueColors": 1799,
+          "sha256": "299959393d867c6f82d77ee0d088966e1bd3c6bc7b3acdac0599fca7189eb64f"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/nnbz2a.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1127,
+          "sha256": "96e4411036fe7912956fd057ee0bf6258fa067962fdb04902e820e1dc365eeb6"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1127,
+          "sha256": "9e700d5ff5da770e52533bc5c1c4efa5e44f523e6239e48b7067a5513102ceff"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/o-ew7q.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3838,
+          "sha256": "2f79d391d68539beb2b4bca07f9e39c5879e2ca2c64bd06c36f351e00757b223"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3838,
+          "sha256": "60102e011e8a45734081ee152fcc2a2f8e89c04ae3efe155fec3c09b994e60eb"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/of-zsw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 646,
+          "sha256": "3054644c63b31a6f3f5b7f7c32ef219453a703baf33d3f2a6b4a6502beaab38e"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 646,
+          "sha256": "ba75db7aab20d16f0e64abdfbf4876375f4e297b15d637b0bc89f82aabb97abb"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/ommgza.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3799,
+          "sha256": "d3057cf97a147060748933cb2d28202ab04e7be47a18154ceb6a8ee6c7d04800"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3799,
+          "sha256": "9a268df8ecc0824f30ac25080c3e498bde4b4d5bef2bd67df74133fc9374c5f1"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/otyjiq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3934,
+          "sha256": "3c69ef39608495b5a4ba20fdc55edf0105a2468acfeb2fb935bb8b11bad94060"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3934,
+          "sha256": "15796acb985bc73c0c3557468a0a5091334eeb2e704788ffb4cf80aa834eefa4"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/p_ulpa.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2914,
+          "sha256": "6428f1e4e67f7aaad29afa2c955e68f2ed1802b81c6f6cf86862b643ee8bd4d6"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2914,
+          "sha256": "f9c28515e4dcc265a3496af1604fe272e8d29e8852a3b189fc4ef8b22677bc6c"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/p_vwpq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3619,
+          "sha256": "213b1ee17cb06993bdd2bf5886aa4bd8b78a5026289d9e32052c874b22b77d33"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3619,
+          "sha256": "04664fd30e6394f60163ce00e3374d2498c016cf5b3ae8263f59c284a7c4b77b"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/pafacq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4085,
+          "uniqueColors": 2999,
+          "sha256": "04ecccafa73de52a4a6a24ce9d7d17634a3b67d774b50fdc6296835398f353f2"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4085,
+          "uniqueColors": 2999,
+          "sha256": "829e32ba82ee9905442dd204ba05b40eae1b7facdb3938c2986e120c0333fff6"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/phokdg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 288,
+          "sha256": "322373bb96ba6a0be340b49c7cb8a17631ca06998945e9ee5057eaf1ae742ee6"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 288,
+          "sha256": "6d286af5c26a967e108e262b7e097ae47d5699c52ffa428e23f69e20440bc19d"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/plcmza.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3932,
+          "sha256": "99ca8f27aa07b6cd10ebf87269420af5cd601081e7ac7ff50af95daf200a6b6b"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3932,
+          "sha256": "25352ce45e4466c8727aba609cc91d1da01a512a84f7e862e5d6d8c3139d00c3"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/plytxa.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 162,
+          "sha256": "76e5bb3b99222ecb7220b1a9579295c759cbb1a0ec57bb8643b45d2146b4060a"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 162,
+          "sha256": "0b5f7eca313dc972c37128d3d00a218fd6624addb1a3ae9f2662b5bcf71b1751"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/pmu1gg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 2708,
+          "uniqueColors": 393,
+          "sha256": "c28679012239433e317ac9b18e3fddd3b6f08eebcc3529ed6172cff41b9c319a"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 2708,
+          "uniqueColors": 393,
+          "sha256": "57689be945739230e3490a94c96594b5eb17692cc7fee5b513c965621d7e91b9"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/po0fqq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 446,
+          "sha256": "604af80243b60f72cee1147dab1336eaaf48324b92ace31e89117c3dcfd33577"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 445,
+          "sha256": "4ec52c9621eeea1b7383de9cfe5266ddeccc758f16244fa667fcda7156bb7eb0"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/prfmyw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 38,
+          "sha256": "76297f3c5cc6fbe9662bdb3d8e45ce92aa231e5735f376b52ab11eb63429cce4"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 38,
+          "sha256": "a437baf8f377ec5d1d0d07b0ef63c9cd24509f20c3269f85c07db6413814edd6"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/pycg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 43,
+          "uniqueColors": 5,
+          "sha256": "eeb3d732d5347bb7d182b2ce82d58473e73099451a3cce79b1a6cf3f0cd38baa"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 43,
+          "uniqueColors": 5,
+          "sha256": "2afc52d19da38dbb489a64340471795bb8dd4a06f49b2f4809ec86426f999c27"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/qozv9q.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2916,
+          "sha256": "6c6bb6d133f69f59fc3188c160283d197ef5c46fefed8ff309d1a7c0bfce75f2"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2916,
+          "sha256": "a1e63283a0cb3cdf61cfe03bff667ef008364a6008251df72709b359a98316a1"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/qtmhug.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3556,
+          "uniqueColors": 2909,
+          "sha256": "8eecde6fed9a4d0bf5066cfa30a9881ba5d8a96e2e815deb74c05949a8b07f4d"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3556,
+          "uniqueColors": 2908,
+          "sha256": "b86afd6fe5f60d2dd23db006d88c70227f3a85436839944a796c6c6ec6483121"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/qut9wa.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2342,
+          "sha256": "6cf935121cb335d400fd6c1f8c01c098161e604f09327dbdd4f3869911a1aae0"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2342,
+          "sha256": "b4095d47ce5a786f297c65e5b1efd1cbac72e6266eb6c5fe173a6799692eb27a"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/r6jnhq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 411,
+          "sha256": "1ebf3a6ea57ffb234ab563b05a2b03cd5873823c9bcd71b61f04666f5ec00710"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 411,
+          "sha256": "76f938f01e14219fba4f9fbe74cd0d302084a3639db5a6d6e483fd707f53f0b4"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/raf8lw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 1904,
+          "uniqueColors": 1168,
+          "sha256": "12852c784c617fc7e5243dc3380d985d6a77ddf33c5a9e1cc4a71d599b750a74"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 1904,
+          "uniqueColors": 1168,
+          "sha256": "596a35370dac01e19ea97ed6462d7d5666181955c641e7bf3f87fdb541f90114"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/ralpbw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 581,
+          "sha256": "103dd34265f064844778ee43f79fc980c2f1c0b1f343e6f1d01ef6ba299f1004"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 581,
+          "sha256": "178f58208cdc5b46d161e924ee292869d3860d9e62a9ea2b237520aea5dd0633"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/rdc8ig.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3943,
+          "uniqueColors": 3181,
+          "sha256": "5eca05b3dc0bd0794dbbd33ab366f83a67ef9c86484bc6cf5848e15726f689bb"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3943,
+          "uniqueColors": 3181,
+          "sha256": "285e8cc80bafcbf50dd42a510ae9445f987bace9ebbb817124f55f79233b6477"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/ri2a1w.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4014,
+          "uniqueColors": 2446,
+          "sha256": "62b6e370f9023c4b38b5991f4036b21921e653825cf793c95928293c939c81da"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4014,
+          "uniqueColors": 2446,
+          "sha256": "3964cd708c68ecbeb318186182553b79f2cf5d5e4c170cf9130cb7e082e549c3"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/rm65zw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 2502,
+          "uniqueColors": 142,
+          "sha256": "5484aa3db89ba61af4c5ab6148f4b5869b54c26a09711be0c995efac83fefbdf"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 2502,
+          "uniqueColors": 142,
+          "sha256": "071d035c686ba92b1f9a22596765e2fa8c276272fbfa623215d8b42ec688cef6"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/rql4dq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 935,
+          "sha256": "aba1af371244a2b6f9f9aad4bb11665d3a93b63e760147d56a8efd653addd35f"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 935,
+          "sha256": "2b54386b80e994a230318071cc7b7cdb34377a3819beb78e10b20339929a0ae6"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/rwn-mq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2938,
+          "sha256": "9577ebb2f8a26391f6c388986cee68a095cd2b20454de9e3b92a39254ec04a1e"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2938,
+          "sha256": "a3663e0fc6af03ba702dd9b9fcc48a84c4463c0715b4ef874c6226cf94184343"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/rz2c9g.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3475,
+          "sha256": "08982ebca383c6951b08cc91572d746859399eaf71afecd81a20d5543ad4d135"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3345,
+          "sha256": "3e81e62dfd9f85e2dd8ba2c670823945090afe3b9e42ec008cacc1b565b3f331"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/se_8mq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3578,
+          "sha256": "b6ab849ff3850b52ff4dcb023f272d54682c5ba842ae071e7df6c53cb72c1665"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1906,
+          "sha256": "08cb57a794c9872512add5a5d84b19b66a64f5b453b04709b07fb369636a7c1b"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/srb57a.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 67,
+          "sha256": "66d778144ab7da2511d74806667f880848a9778b4a6dfa4c36f9e637f2f1e9a9"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 67,
+          "sha256": "a2360cac449037aff6983a83e93c2e83c5fe3838ddb0b78368fd95d88c270ea1"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/t2tleg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3872,
+          "sha256": "9947030e61fecdb717f0b61f3aa04b7193b31e1ab8347dc6f7d7cfba131d95a2"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3872,
+          "sha256": "f2e3c39f4420c05806ebe8299d2bb9e30743cd68b58886186a88f3e7572dbd7e"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/t45hpg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4045,
+          "sha256": "5d3682f086b7be3d4f638606edc2dd4070718b1a048ee03c21913541c8710c9d"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4045,
+          "sha256": "b2f76e26282ab110470fbd95c47a08b6d708feda80963bf9146e1d4a9ddeadf8"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/ta0kcq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3708,
+          "sha256": "72dc821944672dfbc4cca66e01ac34c48b2be12f4d94071e47d34510f03324f9"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3708,
+          "sha256": "8e848a9b798110df9789b4758f1a63871c01b584dc4c74d62b76048cf34d6e63"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/tif_yq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1728,
+          "sha256": "029b1044111ef62323a85c03d47714abee70dafa00760d1f8837ff25b3380288"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1728,
+          "sha256": "918b7a77a6fc3ffcb71c0302c897cf425c5a47e8978575bb991ab25cf6005f65"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/tlfgkw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3720,
+          "sha256": "e5256bc8f21aa4b2f9eee690419cbdb80f5929514f9da249e7c6e80fdc81f0f0"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3720,
+          "sha256": "38bacfba942b10d8d8b1e8b0902ff0287c9e59ea88f91ef05e2fc74ca8219b1a"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/tlmc4w.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1042,
+          "sha256": "f3a6a38c88e06096d6c9e8af3b54bf6b8ff0df63ea9f047acfb933642a519040"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1042,
+          "sha256": "ffb08751115405b38cca69bd5218adf63df1940f16355dde8bc93cf7c7da22ac"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/txgb7g.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 7,
+          "sha256": "bb25f6c28d63eef0b11b4ba9068b7e6d6cd17222f6bcf595916cd9054f18464b"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 7,
+          "sha256": "6451a0dcc30badcba89d571193982ed9e50045e40dc4b6b94b9ecb3fd78ab644"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/u_8abg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1158,
+          "sha256": "581c5ed5dda35e35d1a488a952fc918219ed46d850fa4e17f33a60a7d0bc74f0"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1158,
+          "sha256": "3e7b579fe43dc7dcd54fd1a2426def0813a43458c2e8977787868670a365d3f9"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/u9m8sw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 925,
+          "sha256": "2ea233d893e3c4ff8f6762b1cf0e078f7e502276665c171b7f3b51225ac7190f"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 925,
+          "sha256": "1f98697669cfd0c1118dce3d515fc8b890c1f7e16b5b2769863af3633240fa89"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/ucgi9g.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4042,
+          "uniqueColors": 3884,
+          "sha256": "da981e1444ae44becd51ba2442ff89fcc30318bf70a9f3fb14c86d9818ed02aa"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4042,
+          "uniqueColors": 3882,
+          "sha256": "510ad00f7af59b72a16f13bd181495b0d66f96b0f8f000ae60efd0e1608b786b"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/uf49uq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 449,
+          "sha256": "5c28c05e1d07599ed4a9b2b2945017d6a7cd0082887e26049ba6814bb1dd6735"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 449,
+          "sha256": "c7b8a78c8b69fa8e80c90622efadd343a1ea5be141da36c8e0eefe2b653eb6a0"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/ukiv-w.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3618,
+          "sha256": "e4a4cd717a62faed20b619148a73f35550abda9d8f83f8add0770de983dccdeb"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3618,
+          "sha256": "2a074786f00c13c90fea679aa7bc3797504cda1d94056c3bd2ba1800ebc66c9d"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/unqouw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3936,
+          "uniqueColors": 2675,
+          "sha256": "8a03343cb3b53d64f8fa099f37cee88fec5220933e959dd4c57ea8b187285c03"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3936,
+          "uniqueColors": 2675,
+          "sha256": "996971cb4d82f4d6f1b09b2a7c03d285479b76cc147533344547c278ae24494b"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/uqmtla.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 4035,
+          "sha256": "040d58f56918d133761e0c9e5d21817786596f64922b4024419fc19db933019b"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3963,
+          "sha256": "2b13547635f43d9357e6ab7d82cbeeddfc22b1b2b236045571850c2b389a31bd"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/v8d3lq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 17,
+          "sha256": "888163202f3bdca304139f914216bd25056b5bc2ae202f2eb588ca71854156c1"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 17,
+          "sha256": "888163202f3bdca304139f914216bd25056b5bc2ae202f2eb588ca71854156c1"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/vfeqfa.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2643,
+          "sha256": "b44134eedb9dcf2f3c904de2cfbdebe11f18d5982d0c80a333f5e2b34992a9e3"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2643,
+          "sha256": "cf377ab7231cd11087f9a385b82e95d90e0a6d06242d806d663818097aab1a6c"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/vhnvtq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3894,
+          "uniqueColors": 3531,
+          "sha256": "9a6b7946610ecf1b6170323d784d6d68b75fdfd75faa4f3cb20140fe2b63d722"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3894,
+          "uniqueColors": 3531,
+          "sha256": "9419b72f516511c83c857deca8be2f774fdb2cbf3bd1ef75c9f43fffe08adb33"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/vjy9xq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2227,
+          "sha256": "f6bf30e267fe70ad4420e86c5c949463faa1520112dbd0c63fe1569a6607dd15"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2227,
+          "sha256": "d67f98239607645912485fa17fca0299009c52d3ab399ecc409f80d4ca759843"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/vly1dw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3589,
+          "sha256": "2f3bc9a0c77be91b3264b4e49252853efb853edeb3ba82661301cdb4330ca3f8"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3588,
+          "sha256": "65812a09e8cff346c479dcad911e603abb59efce53b085ff97ed426cdcad7020"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/vrbcdw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4090,
+          "uniqueColors": 4044,
+          "sha256": "c21c281bddb432201d88e52752d03e35ec2da30b79cf822aa4bb29356ca70014"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4090,
+          "uniqueColors": 4044,
+          "sha256": "eb1ae1c36d759979172cab0f782772d52888b1b9567b5ab6350182d1ae21f5fa"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/vrdcjg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3014,
+          "sha256": "5a20a02da70670043628197ab92dd45c50c0756e04f08799eb4ea6754dbc2a1a"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3014,
+          "sha256": "a8b36c81459496dbfd2d382613cd30adfc699dff110164972d7d741c3d32435e"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/vzwbfa.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3701,
+          "sha256": "08508e8826177f08108337eb516ca052efb9c3d4ef1ffc1c1f8c15fef9329fea"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3701,
+          "sha256": "6846149b1ae900365c8d5dede5898d19a157c2a9dc0a72163eaa3fd3d92683ea"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/wiqtja.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3811,
+          "uniqueColors": 3272,
+          "sha256": "0dfac790b0e8db81cecbe5283db60440a56195938cf6c6b411377909f4db445a"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3811,
+          "uniqueColors": 3272,
+          "sha256": "1654c39d18c6697048cfaa3d7ebfb78ab0650c2a80e2310a013c4f54c73affa2"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/wkijpq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 2524,
+          "uniqueColors": 788,
+          "sha256": "9478c3d37549c297c22ee8d60008d95355d01e257b4f315b7f5f4bda23cbed0d"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 2524,
+          "uniqueColors": 788,
+          "sha256": "d504867b849534ad611fb3c7dfbc98e563ede3c6d4d92eb463218b004af667c8"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/wlajrq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3952,
+          "sha256": "7ceded7d5811ef71864477f9eb997fd55754d5b75219f1a76d367be507f1db94"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3952,
+          "sha256": "ec6b37a9e77c8ac4e3b23106a0a61af58ec0f318c5f3ba3de2ad1523d5a7a8d6"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/ws37vw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2036,
+          "sha256": "c1d29b842f46041419f26555af15b933c9ce2f9c47d74bd92c3c4a346567fb4d"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2063,
+          "sha256": "84856a54cb8f7e6ab90a6e93081b9d8fc579a3e2604bb6f4560b15a1acfa3ece"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/wsnqdw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2116,
+          "sha256": "6b0a24f0dc3c1cde5b0d7901a4f68164ff37387a0847f42f8b9bdde04020d963"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2116,
+          "sha256": "ab176dd8af1a5dfc536ea438bc006dd692a86ce43cbc13d780a5b7b4fc405176"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/xcetla.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3950,
+          "uniqueColors": 2702,
+          "sha256": "b1a472daa62ffaef7dd888f2ef9ed6be36543b10d1800b3fea104e2e9d52de34"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 3950,
+          "uniqueColors": 2702,
+          "sha256": "7045ab30162a43f5d097155946f1c02cc8ca9e01d4791ee83e48f606c478f693"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/xhwisq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 2413,
+          "uniqueColors": 1771,
+          "sha256": "bd01a00c0c4671be6ca5414bc085b45d65048a3680fe54009eef83523d7a8ba8"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 2413,
+          "uniqueColors": 1771,
+          "sha256": "23688e5d9a9059aeebb4df9bd2eeb2f8146cffc789c49e30fd892545a5366402"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/xxmehg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3408,
+          "sha256": "1cfa1361d5d32d07e9911119692cc37e7109aab31d0875df5d3cf0aeb18378aa"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3408,
+          "sha256": "5d6a89cd18fb1168263ce8dda9f50c83fb84b26692412e343c424fe8a94e4d4b"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/yexlqw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3991,
+          "sha256": "5017d642afdfef4b1d6e3ade5547f1a6ba384f9a3f0f992d4bfa6f1ac1790e57"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3991,
+          "sha256": "86f5228256597b64fe7fab4b50b3c0a958ec2ec4268eb6e66502759da77aa224"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/yiui8q.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 620,
+          "sha256": "eccbfb9d3f5f4b72f1705aee9a48652d7b60f08a9da21fa1092f9a0ed808dfc3"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 620,
+          "sha256": "ee072c32466b565e4789e0e4211a0125eed562880cc3c2286650e45bece2e3d9"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/yk_2tw.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4092,
+          "uniqueColors": 1520,
+          "sha256": "e7c74468fa9f17da943ef526b7072bfa275749c1ad3d80b060571d0cd136f017"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4092,
+          "uniqueColors": 1520,
+          "sha256": "1b439fe8310d004b5ba73ff1a344e2dd2d39ef05673333a1573aabc5bf5ae356"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/ziii2q.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1782,
+          "sha256": "2456019fc99a75fa882bae984644b3d205b2d0db237665f79717e90cd57abf74"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1782,
+          "sha256": "0a17f6c81264155c8459714be8120d4e564b31db8fb224d9844bf52561dfc3a7"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/zniavg.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1271,
+          "sha256": "f2c568d4a014331582aa31d4184f1ffa6ce9331f117549777489bcec45bc0eda"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 1271,
+          "sha256": "52c7d74e2c20b4a1793c3833830d4c0ca64cc5c6179c31e95517d79d41cac694"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/zp_g3w.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3452,
+          "sha256": "1029204f66c87bd04ee58e79c7e8df9fe8432f1f913c3a8121e00bb9b546deb1"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3452,
+          "sha256": "a693c25f6b8fc36ffc11cf5dc91416ffa225eed24a93790fb7c2ca513c4731af"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/zqwbkq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3623,
+          "sha256": "a8851228067dbeaf775ce6da29709829f28ea814f9b088ac7bca337c40c42809"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 3623,
+          "sha256": "9cbfe0c769f4a0d29efc1a482a0f92940a8fd66d482db96221a954f60f087b3e"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/zv4u0g.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2360,
+          "sha256": "04da6ca837ef390ced43fd871a34e71640208e010e908af5815b48ef14033a27"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 2360,
+          "sha256": "4564dbb9dc2e3a34d750f6b7254389761c94c79034e564b20745b223596952d7"
+        }
+      },
+      "shaders/tests/fixtures/wide-gamut/cases/curated/zzw1jq.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 229,
+          "sha256": "39b26532559d4718e746a3a6a397c063f4372036fccb29036a17bd3b41001ec9"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 64,
+          "height": 64,
+          "nonzeroRgbPixels": 4096,
+          "uniqueColors": 229,
+          "sha256": "1ce39f4baf96758021de7bd02d4da11ed75f0d9e9ab85d38bc0f62dee46ca966"
+        }
+      },
+      "shaders/tests/pin-cases/scene-hello-engine.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 192,
+          "height": 192,
+          "nonzeroRgbPixels": 36864,
+          "uniqueColors": 1218,
+          "sha256": "c6ddc9168c80adc266777d9a86af9e759009b5b6b96f89e83c7f3e3bacd96a6d"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 192,
+          "height": 192,
+          "nonzeroRgbPixels": 36864,
+          "uniqueColors": 1218,
+          "sha256": "855a59aa0812845fd1f268e6209a634d3bc506aeee697d32b5958fa9ecae14fc"
+        }
+      },
+      "shaders/tests/pin-cases/scene-materials-lab.json": {
+        "webgl2": {
+          "method": "readPixels",
+          "width": 192,
+          "height": 192,
+          "nonzeroRgbPixels": 36864,
+          "uniqueColors": 8671,
+          "sha256": "4f98c3212a324ce1186596e28b100bd4dc1136e7c27e97f4fc0fc996516ae280"
+        },
+        "webgpu": {
+          "method": "toBlob",
+          "width": 192,
+          "height": 192,
+          "nonzeroRgbPixels": 36864,
+          "uniqueColors": 8671,
+          "sha256": "09f52c227c359e3c770574a33443ddb528b4f240314fbc94857f362c65b3b708"
+        }
+      }
+    }
+  }
+}

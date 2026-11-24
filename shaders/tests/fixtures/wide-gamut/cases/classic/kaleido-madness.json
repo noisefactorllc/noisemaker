@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "kaleido madness"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRotation: 47, kaleido: 5, metric: 0, palette: neptune, wrap: true, type: 3, colorMode: 4, xScale: 87, yScale: 87, octaves: 1).coalesce(tex: read(o0), blendMode: 16, mix: 39, refractAAmt: 32, refractBAmt: 0).colorLab(colorMode: 3, dither: 0, hueRange: 100, hueRotation: 67, levels: 0, palette: heatmap).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

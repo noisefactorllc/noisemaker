@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "kaleido-singularity"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/glitch"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRotation: 81, kaleido: 3, metric: 4, palette: eventHorizon, wrap: true, type: 3, colorMode: 4, xScale: 81, yScale: 81, octaves: 1).coalesce(tex: read(o0), blendMode: 9, mix: -100, refractAAmt: 100, refractBAmt: 0).glitch(aberration: 33, distortion: -62, glitchiness: 6, scanlinesAmt: 46, vignetteAmt: -57, xChonk: 100, yChonk: 75).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "bitmaskception"
+  },
+  "effects": [
+    "classicNoisedeck/bitEffects",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nbitEffects(baseHueRange: 30, colorScheme: 2, complexity: 34, formula: 20, hueRange: 0, hueRotation: 82, speed: 79, tiles: 4, maskFormula: 20, maskColorScheme: 2).write(o0)\nbitEffects(baseHueRange: 95, colorScheme: 2, complexity: 50, formula: 11, hueRange: 12, hueRotation: 92, speed: 31, tiles: 30, maskFormula: 11, maskColorScheme: 2).coalesce(tex: read(o0), blendMode: 11, mix: 19, refractAAmt: 7, refractBAmt: 0).effects(effect: 100, effectAmt: 2, flip: 0, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

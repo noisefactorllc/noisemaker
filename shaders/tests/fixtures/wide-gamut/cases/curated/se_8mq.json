@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:SE_8mQ",
+    "dslFile": "programs/SE_8mQ/program.dsl"
+  },
+  "effects": [
+    "synth/cell",
+    "filter/palette",
+    "filter/pixelSort",
+    "filter/deriv",
+    "filter/lighting",
+    "filter/motionBlur",
+    "filter/rotate",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/vaseline",
+    "filter/adjust"
+  ],
+  "dsl": "search synth, filter, render, points, mixer, classicNoisedeck\n\nlet osc1 = osc(type: oscKind.noise, min: 0.21, max: 0.76)\nlet osc2 = osc(type: oscKind.noise, max: 0.16)\n\ncell(\n  shape: hexagon,\n  scale: 94.27,\n  cellScale: 100,\n  variation: 100,\n  speed: 5\n)\n  .palette(\n    index: moss,\n    offset: 37,\n    alpha: 0.78\n  )\n  .pixelSort(angled: osc1)\n  .deriv(amount: 5)\n  .lighting(\n    normalStrength: 1.22,\n    smoothing: 2.2,\n    lightDirection: vec3(0.472, 0.489, 0.733),\n    reflection: 17.3,\n    refraction: 12.1,\n    aberration: 18.2\n  )\n  .motionBlur(amount: 84.91)\n  .rotate(\n    rotation: osc2,\n    wrap: mirror,\n    speed: -1\n  )\n  .subchain(name: \"lens effects\", id: \"v2uk\") {\n    .temporalAberration(redDelay: 8, blueDelay: 0)\n    .bloom(\n      threshold: 0.1,\n      softKnee: 0.03,\n      intensity: 2,\n      radius: 60,\n      taps: 45,\n      tint: #c5f7ffff\n    )\n    .lens(displacement: -0.82)\n    .vignette(brightness: 0.02, alpha: 0.65)\n    .vaseline(alpha: 0.72)\n  }\n  .adjust(\n    rotation: 42.45,\n    saturation: 1.01,\n    brightness: 3,\n    contrast: 0.56\n  )\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

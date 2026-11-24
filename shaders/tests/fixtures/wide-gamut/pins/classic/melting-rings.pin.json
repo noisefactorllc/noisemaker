@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/melting-rings.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4089,
+        "uniqueColors": 3524,
+        "sha256": "b8671a7513584edd6c34e704f3de7598962d96bd3b397e530085e3b5c72f54af"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4089,
+        "uniqueColors": 3524,
+        "sha256": "cc1f2cd361f8740337b6fff47868ccaa9368036ac44e7c4d77d84a61aeaa5a76"
+      }
+    }
+  }
+}

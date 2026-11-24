@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/dotstortion.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2196,
+        "uniqueColors": 27,
+        "sha256": "d4204250137da0c8d9dae90df544a9624f7d7f571c2aa5094a8cd9f854577b0a"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2196,
+        "uniqueColors": 27,
+        "sha256": "d4204250137da0c8d9dae90df544a9624f7d7f571c2aa5094a8cd9f854577b0a"
+      }
+    }
+  }
+}

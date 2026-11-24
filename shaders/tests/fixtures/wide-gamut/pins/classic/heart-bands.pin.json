@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/heart-bands.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4053,
+        "uniqueColors": 33,
+        "sha256": "7b35c4cf9951dee35f0393169d03d5965b117b9abcbd9140c04b43e95a50c3bf"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4053,
+        "uniqueColors": 33,
+        "sha256": "07b9cfbdbc486bb2263ad908c7aa8a475ad3e6eae1aac040af665e62a001e77b"
+      }
+    }
+  }
+}

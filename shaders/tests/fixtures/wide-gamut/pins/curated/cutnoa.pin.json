@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/cutnoa.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o4_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3214,
+        "uniqueColors": 2184,
+        "sha256": "cad1a7d042a2025bfb4b82c0238d6801db618178dd2d9b3908d28a2d13a7224e"
+      },
+      "webgpu": {
+        "surface": "global_o4_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3214,
+        "uniqueColors": 2184,
+        "sha256": "807c08f4e56f9ffb2029eaf9a2e6b58f94e078d6dbca80a856c8c1a33680e5e6"
+      }
+    }
+  }
+}

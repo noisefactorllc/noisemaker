@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:Rdc8ig",
+    "dslFile": "programs/Rdc8ig/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "filter/adjust",
+    "synth/reactionDiffusion",
+    "filter/lighting"
+  ],
+  "dsl": "search synth, filter\n\nlet osc1 = osc(type: oscKind.sine)\nlet highsReact = audio(band: 2, min: 12.957, max: 25.914)\n\nperlin(\n  scale: highsReact,\n  dimensions: 3,\n  ridges: true,\n  seed: 41\n)\n  .adjust(\n    mode: hsv,\n    rotation: osc1,\n    saturation: 4\n  )\n  .write(o0)\n\nreactionDiffusion(\n  tex: read(o0),\n  zoom: x32,\n  smoothing: bSpline4x4,\n  sourceF: sliderInput,\n  feed: 85.89,\n  kill: 64.82,\n  rate1: 60.24,\n  rate2: 24.09,\n  weight: 100,\n  inputIntensity: 30.28\n)\n  .write(o1)\n\nreactionDiffusion(\n  tex: read(o1),\n  smoothing: bSpline4x4,\n  sourceF: brightness,\n  feed: 110,\n  kill: 60.23,\n  rate1: 79.44,\n  rate2: 32.06,\n  weight: 100,\n  inputIntensity: 56.51\n)\n  .write(o2)\n\nreactionDiffusion(\n  tex: read(o2),\n  zoom: x2,\n  smoothing: bSpline4x4,\n  sourceF: brightness,\n  feed: 56.43,\n  kill: 57.61,\n  rate1: 81.44,\n  rate2: 23.67,\n  weight: 100,\n  inputIntensity: 91\n)\n  .write(o3)\n\nread(o3)\n  .lighting(\n    normalStrength: 5,\n    smoothing: 1.2,\n    specularIntensity: 1.62,\n    shininess: 71,\n    lightDirection: vec3(0.322, 0.694, 0.643),\n    reflection: 21.1,\n    refraction: 19.5,\n    aberration: 28\n  )\n  .adjust(\n    saturation: 0.55,\n    brightness: 1.58,\n    contrast: 0.62\n  )\n  .write(o4)\n\nrender(o4)",
+  "surface": "o4",
+  "resolution": [
+    64,
+    64
+  ]
+}

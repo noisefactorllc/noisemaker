@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "vivid kaleido"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/kaleido",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRotation: 44, kaleido: 25, metric: 0, palette: royal, wrap: true, type: 3, colorMode: 4, xScale: 98, yScale: 98, octaves: 1).write(o0)\nnoise(hueRotation: 83, kaleido: 5, metric: 0, palette: skykissed, wrap: true, type: 1, colorMode: 4, xScale: 81, yScale: 81, octaves: 1).coalesce(tex: read(o0), blendMode: 5, mix: -21, refractAAmt: 40, refractBAmt: 0).kaleido(direction: 1, effectWidth: 4, sides: 5, kernel: 0, speed: 6, loopOffset: 40, loopScale: 9, metric: 0, wrap: true).colorLab(colorMode: 2, dither: 0, hueRange: 100, hueRotation: 0, levels: 0, palette: sulphur).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

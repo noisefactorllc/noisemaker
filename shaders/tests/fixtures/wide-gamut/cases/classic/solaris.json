@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "solaris"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: 100, loopAOffset: 10, loopAScale: 92, speedB: -32, loopBOffset: 10, loopBScale: 62, palette: grayscale, wrap: true, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRotation: 93, kaleido: 8, metric: 0, palette: solaris, wrap: true, type: 3, colorMode: 4, xScale: 88, yScale: 88, octaves: 1).coalesce(tex: read(o0), blendMode: 15, mix: 100, refractAAmt: 0, refractBAmt: 15).lensDistortion(aberration: 26, distortion: -65, speed: -11, loopScale: 32, alpha: 18, shape: 0, tint: #d883a3, vignetteAmt: 44).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

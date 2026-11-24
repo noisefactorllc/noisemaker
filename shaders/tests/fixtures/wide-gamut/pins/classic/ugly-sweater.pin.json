@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/ugly-sweater.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4,
+        "sha256": "68b3e7ac844d4bd97a10a74604a620b2bf39cff47e10581a4d1f5a26ee4c588f"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4,
+        "sha256": "16af756a1b99b89d4006b3c69a23a49f8f2cbc2d50a5c2932b4a11d1dd522ccc"
+      }
+    }
+  }
+}

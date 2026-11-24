@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/whatami.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3260,
+        "sha256": "8d4c5c46012620debed023a1581802b51d7ed0d2fa59e3a1144dbb96326f7d25"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3260,
+        "sha256": "1b3a2f44d34984a3ea84c363e74981f09409e790b836eb8e44e7477ce9efb5d3"
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "blob world"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 11, hueRotation: 100, speed: 32, refractAmt: 7, ridges: true, wrap: true, xScale: 83, yScale: 84, type: 3, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 18, hueRotation: 91, speed: 29, refractAmt: 97, ridges: false, wrap: true, xScale: 95, yScale: 98, type: 2, colorMode: 6, kaleido: 1, octaves: 1).composite(tex: read(o0), blendMode: 1, inputColor: #f8aca5, mix: 68, range: 86).lensDistortion(aberration: 100, blendMode: 1, hueRange: 100, hueRotation: 0, blendMode: 0, modulate: false, passthru: 70, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

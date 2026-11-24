@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "sippin' jippers"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 90, hueRotation: 41, speed: 100, octaves: 5, refractAmt: 26, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 69, yScale: 69).write(o0)\nnoise(hueRange: 19, hueRotation: 40, speed: 63, refractAmt: 24, ridges: false, wrap: false, xScale: 89, yScale: 96, type: 10, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 11, mix: 31, refractAAmt: 31, refractBAmt: 34).lensDistortion(aberration: 27, distortion: -48, speed: 23, loopScale: 60, alpha: 54, shape: 0, tint: #4a7482, vignetteAmt: -30).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

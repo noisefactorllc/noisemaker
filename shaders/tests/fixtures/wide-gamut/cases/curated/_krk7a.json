@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:_kRK7A",
+    "dslFile": "programs/_kRK7A/program.dsl"
+  },
+  "effects": [
+    "synth/noise",
+    "render/pointsEmit",
+    "points/flow",
+    "render/pointsRender",
+    "synth/navierStokes"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nnoise(\n  type: hermite,\n  ridges: true,\n  speed: 30,\n  colorMode: mono\n)\n  .subchain(name: \"flow field particles\", id: \"lkjw\") {\n    .pointsEmit()\n    .flow(behavior: unruly, stride: 25)\n    .pointsRender(\n      density: 36.63,\n      intensity: 96.07,\n      inputIntensity: 0\n    )\n  }\n  .write(o0)\n\nnavierStokes(\n  tex: read(o0),\n  iterations: 40,\n  speed: 55.14,\n  dyeDecay: 99.1,\n  velocityDecay: 100,\n  inputForce: 0.39,\n  inputDye: 1,\n  inputIntensity: 9.55\n)\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

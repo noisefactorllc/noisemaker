@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "jitter"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(palette: afterimage, refractAmt: 80, ridges: true, type: 10, colorMode: 5, kaleido: 1, xScale: 5, yScale: 5, octaves: 1).write(o0)\nnoise(hueRange: 42, hueRotation: 33, speed: 75, refractAmt: 37, ridges: true, wrap: false, xScale: 91, yScale: 90, type: 10, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 12, mix: 94, refractAAmt: 3, refractBAmt: 9).refract().lensDistortion(aberration: 51, distortion: -33, speed: -43, loopScale: 80, alpha: 14, shape: 0, tint: #0858d9, vignetteAmt: -68).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

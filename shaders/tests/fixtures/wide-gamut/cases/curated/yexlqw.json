@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:YexlQw",
+    "dslFile": "programs/YexlQw/program.dsl"
+  },
+  "effects": [
+    "synth/cell",
+    "filter/palette",
+    "synth3d/heightmap3d",
+    "render/renderLandscape3d",
+    "filter/edge",
+    "filter/wobble",
+    "filter/rotate",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vaseline"
+  ],
+  "dsl": "search synth, filter, synth3d, render, points, mixer\n\nlet posX = osc(type: oscKind.noise, min: 0.49, max: 0.51, seed: 1997)\nlet posZ = osc(type: oscKind.noise, min: 0.49, max: 0.51)\nlet rotY = osc(type: oscKind.noise, min: 0.49, max: 0.51, seed: 7877)\nlet wobbleRot = osc(type: oscKind.noise, min: 0.49, max: 0.51, speed: 2, seed: 8236)\nlet height = osc(type: oscKind.tri, min: 0.05, seed: 5487)\n\ncell(\n  shape: square,\n  scale: 31.65,\n  cellScale: 65.23,\n  speed: 5,\n  seed: 26\n)\n  .write(o0)\n\ncell(\n  shape: square,\n  scale: 22.38,\n  speed: 4\n)\n  .palette(\n    index: skykissed,\n    rotation: back,\n    offset: 28.021,\n    repeat: 3\n  )\n  .write(o1)\n\nheightmap3d(\n  heightTex: read(o0),\n  tex: read(o1),\n  volumeSize: x128,\n  heightScale: height\n)\n  .renderLandscape3d(\n    zoom: 2.72,\n    panX: -0.04,\n    panY: 0.06,\n    ambient: 0.49,\n    diffuseIntensity: 0.8,\n    specularIntensity: 0.22,\n    viewMode: perspective,\n    rotateX: 4.43,\n    rotateY: rotY,\n    rotateZ: 2.56,\n    posX: posX,\n    posY: 11.8,\n    posZ: posZ\n  )\n  .edge(\n    kernel: fine,\n    channel: luminance,\n    amount: 97.24,\n    threshold: 67.23,\n    blend: multiply,\n    mix: 81.05\n  )\n  .wobble(wrap: clamp)\n  .rotate(rotation: wobbleRot, wrap: mirror)\n  .subchain(name: \"lens effects\", id: \"yq5n\") {\n    .bloom(\n      threshold: 1,\n      softKnee: 0.09,\n      intensity: 0.7,\n      radius: 55,\n      taps: 38\n    )\n    .lens(displacement: -1)\n    .vaseline(alpha: 0.58)\n  }\n  .write(o2)\n\nrender(o2)",
+  "surface": "o2",
+  "resolution": [
+    64,
+    64
+  ]
+}

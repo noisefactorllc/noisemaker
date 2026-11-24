@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/cga-cybergrid.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3681,
+        "uniqueColors": 4,
+        "sha256": "becc13ac28e676f84e8fd6995c8b2cc52b275c5c1e94fbd7aa9eaed0b15a80ca"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3681,
+        "uniqueColors": 4,
+        "sha256": "f3eea9724237ed38d1a4a0b9a2896e0a5596bb46b58e60fdca88c4934211b1b2"
+      }
+    }
+  }
+}

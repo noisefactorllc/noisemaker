@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/1980s-shmoos.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2860,
+        "uniqueColors": 13,
+        "sha256": "25e29ab820c5740643fdddee58fec87baa8b81145960aba5bd92e30942e05622"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2860,
+        "uniqueColors": 13,
+        "sha256": "ea2eae7f30fc1b7cdeee72ffe2c89f923b5b860475207c13cd916352779db980"
+      }
+    }
+  }
+}

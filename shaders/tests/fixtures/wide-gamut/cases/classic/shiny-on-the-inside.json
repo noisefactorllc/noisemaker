@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "shiny on the inside"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 15, hueRotation: 39, speed: 76, refractAmt: 100, ridges: true, wrap: false, xScale: 98, yScale: 98, type: 3, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 46, hueRotation: 72, speed: 68, refractAmt: 100, ridges: true, wrap: false, xScale: 98, yScale: 98, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 11, mix: -36, refractAAmt: 100, refractBAmt: 100).colorLab(colorMode: 2, dither: 0, hueRange: 105, hueRotation: 0, levels: 0, palette: sulphur).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

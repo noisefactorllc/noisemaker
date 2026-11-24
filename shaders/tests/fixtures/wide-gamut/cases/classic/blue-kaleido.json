@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "blue kaleido"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/kaleido"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 6, hueRotation: 62, speed: -60, loopOffset: 80, loopScale: 17, refractAmt: 23, wrap: true, type: 10, colorMode: 6, kaleido: 1, xScale: 30, yScale: 30, octaves: 1).kaleido(direction: 2, effectWidth: 5, sides: 5, kernel: 0, speed: 4, loopOffset: 30, loopScale: 11, metric: 0, wrap: true).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "erosion"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 83, hueRotation: 0, speed: 40, octaves: 8, refractAmt: 27, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 64, yScale: 64).write(o0)\nnoise(hueRange: 29, hueRotation: 36, speed: 35, refractAmt: 0, ridges: false, wrap: true, xScale: 99, yScale: 99, type: 2, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 10, mix: 100, refractAAmt: 56, refractBAmt: 100).effects(effect: 4, effectAmt: 1, flip: 0, offsetX: 0, offsetY: 0, rotation: 56, scaleAmt: 239).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/classicNoisedeck/coalesce/parity-case.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4049,
+        "sha256": "6a83c4f31e784e86df73d3dcc21860a919f61bf02d45d45b7cba2893d8ba689e"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4049,
+        "sha256": "b5f9192526761c4c00ecef56b49c64d668066022ce614f55c70070c7245cd610"
+      }
+    }
+  }
+}

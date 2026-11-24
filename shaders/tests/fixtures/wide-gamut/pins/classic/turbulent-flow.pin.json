@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/turbulent-flow.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4081,
+        "sha256": "2684f2172b5f4c958191bf77dbb75ef01c32b8ed49822e1ce714533448d0fc5b"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4081,
+        "sha256": "ee5aeaf249fd349b4f86253a62510f6b1020515eb46ce4ed02f4c5e0bfa12916"
+      }
+    }
+  }
+}

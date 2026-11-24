@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/stringy-grid.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3592,
+        "uniqueColors": 2805,
+        "sha256": "a70e235a30a7e9220be28e022290453e4fe21c966dbee77125a70abdde45b828"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3592,
+        "uniqueColors": 2805,
+        "sha256": "c6653828db118288de9af20e332c3e75563b33187e878ff0abf78cda5b39db22"
+      }
+    }
+  }
+}

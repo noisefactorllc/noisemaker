@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/soft-cells.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4065,
+        "uniqueColors": 2608,
+        "sha256": "2cef373412c545a6c3f70cd3f3826fbd60f4e2584006ee19695975db0a8cc4cc"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4065,
+        "uniqueColors": 2608,
+        "sha256": "f56e81e7308cbcd40f3d02e37b5db97eef2f40622c41140f44b8a263fa8aae92"
+      }
+    }
+  }
+}

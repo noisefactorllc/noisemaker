@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/and-it-burns-burns-burns.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3981,
+        "uniqueColors": 2688,
+        "sha256": "96c55fe04a175388ceb8169bcdf0cbae887bc5e983991be7e96919e5d1b808a7"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3981,
+        "uniqueColors": 2688,
+        "sha256": "79de8f6cf88926f314c09bad3c5025feee63707584ff29f2dcfdae3c6cbedee2"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/hmx6za.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o2_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3109,
+        "sha256": "fde6c1cf579d6d3d873817d971456eb230ae05bf0f567c0de1bb76afbc3f07ee"
+      },
+      "webgpu": {
+        "surface": "global_o2_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3109,
+        "sha256": "95279dad1f0991cf9a9e069b48e10beee6653e967608de969031a00d3c460f4e"
+      }
+    }
+  }
+}

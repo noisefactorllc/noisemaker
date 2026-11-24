@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "haha yeah, been there man"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 78, hueRotation: 0, speed: 8, refractAmt: 39, ridges: true, wrap: true, xScale: 89, yScale: 84, type: 3, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 43, hueRotation: 97, speed: 8, refractAmt: 24, ridges: false, wrap: true, xScale: 91, yScale: 97, type: 3, colorMode: 6, kaleido: 1, octaves: 1).composite(tex: read(o0), blendMode: 1, inputColor: #000000, mix: 42, range: 58).lensDistortion(aberration: 52, distortion: -9, speed: 1, loopScale: 66, alpha: 0, shape: 0, tint: #000000, vignetteAmt: 16).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

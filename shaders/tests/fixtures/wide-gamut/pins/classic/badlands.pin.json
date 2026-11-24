@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/badlands.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4048,
+        "uniqueColors": 2596,
+        "sha256": "21d7f00a5ed40ebb3d01a894d07ff9cd419ea7a3ec67b259965d1ee9d976c85f"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4048,
+        "uniqueColors": 2596,
+        "sha256": "91f8450265a70c56607bb4463f13a16dc78e30481d5f75a9b0a36c2018b91a46"
+      }
+    }
+  }
+}

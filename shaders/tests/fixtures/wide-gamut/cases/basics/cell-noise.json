@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "basics",
+    "key": "cell noise"
+  },
+  "effects": [
+    "classicNoisedeck/cellNoise"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\ncellNoise(scale: 75, cellScale: 87, smooth: 11, variation: 50, speed: 1, colorMode: 0, palette: 0, cyclePalette: 1, rotatePalette: 0, repeatPalette: 1, paletteMode: 4).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

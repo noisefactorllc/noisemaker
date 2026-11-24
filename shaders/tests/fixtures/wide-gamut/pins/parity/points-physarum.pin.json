@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/points/physarum/parity-case.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3328,
+        "sha256": "0c84e5f24a20a44fd101ab955baba0bbc84749c1c70f81be9aefd77381df7951"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3328,
+        "sha256": "7382e8e14d2518d9d5f7cfdc16bade0eaa281991cc782a5a840f01d844bb86e0"
+      }
+    }
+  }
+}

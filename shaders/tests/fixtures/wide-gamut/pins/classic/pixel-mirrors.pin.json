@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/pixel-mirrors.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1781,
+        "uniqueColors": 1168,
+        "sha256": "69e6c04d27b924f20cd07c03b6fba9b007386768e6d5066ab4e9a77eef0f6a80"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1781,
+        "uniqueColors": 1168,
+        "sha256": "efbf549cf6f778f9bfdd56db9e824a1f4dc2f806fb0f7b466741f878e4faa902"
+      }
+    }
+  }
+}

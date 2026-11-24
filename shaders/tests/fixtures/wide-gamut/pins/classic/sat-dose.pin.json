@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/sat-dose.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4080,
+        "sha256": "7caa42318bf39433024e143e2d74b2cb0c0e4da698a4e90b8217545b000e00a8"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4080,
+        "sha256": "c85f4a915f5066d9dd2bbab1077f59d73e25e12f99d9fe069701a3d70786004e"
+      }
+    }
+  }
+}

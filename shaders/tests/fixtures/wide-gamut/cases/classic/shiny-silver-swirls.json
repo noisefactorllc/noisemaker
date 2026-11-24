@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "shiny silver swirls"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(palette: vaporwave, refractAmt: 100, ridges: false, type: 10, colorMode: 4, kaleido: 1, xScale: 5, yScale: 5, octaves: 1).write(o0)\nnoise(hueRange: 13, hueRotation: 25, speed: 83, refractAmt: 28, ridges: false, wrap: false, xScale: 84, yScale: 89, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 4, mix: -21, refractAAmt: 0, refractBAmt: 100).effects(effect: 4, effectAmt: 2, flip: 0, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).lensDistortion(aberration: 100, blendMode: 0, hueRange: 100, hueRotation: 0, blendMode: 1, modulate: false, passthru: 57, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

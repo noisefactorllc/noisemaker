@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/the-murk.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4046,
+        "sha256": "9d18c5a5f25c3421343ad1c4c35fd82ed5bc8edb064ebd342f38a1e083af35f4"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4046,
+        "sha256": "2cc76d444b8e3adbe3e484bf25b22bc12b9cab0b1a4b43f4444eb79c52a89abd"
+      }
+    }
+  }
+}

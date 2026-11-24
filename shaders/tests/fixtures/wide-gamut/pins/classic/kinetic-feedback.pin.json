@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/kinetic-feedback.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3913,
+        "uniqueColors": 3442,
+        "sha256": "942c5934a4a734d9f5bda179d4f837fb327e3f593d5bae0bf24185c0473ac4f4"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3913,
+        "uniqueColors": 3442,
+        "sha256": "5ad4a4ec8bae5438122909792c275b522a601417d0a0e65b0ef09a454744615b"
+      }
+    }
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:fui1YA",
+    "dslFile": "programs/fui1YA/program.dsl"
+  },
+  "effects": [],
+  "dsl": "search user\n\npsychedelicplasmatunnel()\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ],
+  "userEffects": [
+    {
+      "name": "psychedelicplasmatunnel",
+      "namespace": "user",
+      "func": "psychedelicplasmatunnel",
+      "description": "A first-person infinite flight through a luminous psychedelic wormhole tunnel. Polar coordinates from aspect-corrected centered UVs: angle = atan(p.y, p.x), radius = length(p), depth = 0.3 / radius, with radius clamped to avoid center moire. Breathing flight motion: depth offset of speed * sin(time * TAU * 2.0). Whole tunnel barrel-rolls exactly 1 full integer turn per loop via rotation of centered coords by TAU * time. Vortex swirl: angle offset by swirl * depth, breathing as swirl * (0.8 + 0.2 * sin(time * TAU * 2.0)). Tunnel walls covered in flowing domain-warped FBM plasma in tunnel space (angle wrapped into 8 repeating slices plus depth term), animated via 4D noise on the timeCircle vec2(cos(time*TAU), sin(time*TAU)). Self-warp the FBM for organic liquid flow; per-octave rotate+scale domain to avoid artifacts. Depth fog exp(-depth * fog) recedes the far tunnel to black. Glow rings racing toward the viewer, brightness pulsing at 0.5 + 0.5*sin(time * TAU * 3.0). Color: IQ cosine palette, phase advancing exactly TAU * time per loop (one full seamless rainbow cycle) plus colorShift. Post-process in the same pass: gamma lift pow(color, 0.85), saturation boost via negative luma-mix, glow bloom approximation via exp/pow on bright filaments, subtle intensity pulse at 3 integer cycles. No hard edges, no tiling seams, no text. Production-quality rave music-visualizer wormhole VFX.",
+      "tags": [
+        "custom",
+        "user"
+      ],
+      "globals": {
+        "colorShift": {
+          "type": "float",
+          "default": 0,
+          "uniform": "colorShift",
+          "min": 0,
+          "max": 1,
+          "ui": {
+            "label": "colorShift",
+            "control": "slider"
+          }
+        },
+        "complexity": {
+          "type": "float",
+          "default": 5,
+          "uniform": "complexity",
+          "min": 1,
+          "max": 8,
+          "ui": {
+            "label": "complexity",
+            "control": "slider"
+          }
+        },
+        "intensity": {
+          "type": "float",
+          "default": 1,
+          "uniform": "intensity",
+          "min": 0,
+          "max": 2,
+          "ui": {
+            "label": "intensity",
+            "control": "slider"
+          }
+        },
+        "scale": {
+          "type": "float",
+          "default": 4,
+          "uniform": "scale",
+          "min": 0.5,
+          "max": 20,
+          "ui": {
+            "label": "scale",
+            "control": "slider"
+          }
+        },
+        "speed": {
+          "type": "float",
+          "default": 1,
+          "uniform": "speed",
+          "min": 0.1,
+          "max": 5,
+          "ui": {
+            "label": "speed",
+            "control": "slider"
+          }
+        },
+        "swirl": {
+          "type": "float",
+          "default": 1,
+          "uniform": "swirl",
+          "min": 0,
+          "max": 3,
+          "ui": {
+            "label": "swirl",
+            "control": "slider"
+          }
+        }
+      },
+      "passes": [
+        {
+          "name": "render",
+          "program": "psychedelicplasmatunnel",
+          "inputs": {},
+          "outputs": {
+            "fragColor": "outputTex"
+          }
+        }
+      ],
+      "shaders": {
+        "psychedelicplasmatunnel": {
+          "glsl": "#version 300 es\nprecision highp float;\n\nuniform float time;\nuniform vec2 resolution;\nuniform vec2 fullResolution;\n\nout vec4 fragColor;\n\n#define TAU 6.283185307179586\n#define PI 3.141592653589793\n\nuniform float colorShift;   // 0.0-1.0, palette phase offset (default 0)\nuniform float complexity;   // 1.0-8.0, FBM octaves (default 5)\nuniform float intensity;    // 0.0-2.0, overall brightness/glow (default 1)\nuniform float scale;        // 0.5-20.0, plasma pattern zoom (default 4)\nuniform float speed;        // 0.1-5.0, flight speed multiplier (default 1)\nuniform float swirl;        // 0.0-3.0, vortex twist amount (default 1)\n\n// ---------- Pure helper functions ----------\n\nfloat hash21(vec2 p) {\n    p = fract(p * vec2(123.34, 456.21));\n    p += dot(p, p + 45.32);\n    return fract(p.x * p.y);\n}\n\n// Smooth 2D value noise\nfloat noise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    vec2 u = f * f * (3.0 - 2.0 * f);\n    float a = hash21(i);\n    float b = hash21(i + vec2(1.0, 0.0));\n    float c = hash21(i + vec2(0.0, 1.0));\n    float d = hash21(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);\n}\n\n// Rotate a 2D point\nvec2 rot(vec2 p, float a) {\n    float c = cos(a);\n    float s = sin(a);\n    return vec2(c * p.x - s * p.y, s * p.x + c * p.y);\n}\n\n// 4D-ish noise: 2D value noise extended with a vec2 time-circle offset (timeCircle noise)\n// Pure: caller supplies the animated offset.\nfloat noise4(vec2 p, vec2 tc) {\n    // blend two noise samples driven by the time-circle components\n    float n1 = noise(p + tc * 2.7 + 13.1);\n    float n2 = noise(p - tc * 1.9 + 7.7);\n    return mix(n1, n2, 0.5 + 0.5 * dot(normalize(tc + 1e-6), vec2(0.7071, 0.7071)) * 0.5);\n}\n\n// Per-octave rotated + scaled FBM (avoids axial alignment artifacts)\nfloat fbm(vec2 p, float octaves, vec2 tc) {\n    float v = 0.0;\n    float amp = 0.5;\n    mat2 m = mat2(0.8, 0.6, -0.6, 0.8); // rotation\n    for (int i = 0; i < 8; i++) {\n        if (float(i) >= octaves) break;\n        v += amp * noise4(p, tc);\n        p = m * p * 2.03 + vec2(1.7, 9.2);\n        amp *= 0.5;\n    }\n    return v;\n}\n\n// IQ cosine palette\nvec3 palette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {\n    return a + b * cos(TAU * (c * t + d));\n}\n\n// Wrap angle into n repeating slices, seamless (no hard seam)\nfloat sliceWrap(float angle, float n) {\n    return angle * n / TAU;\n}\n\nvoid main() {\n    vec2 uv = gl_FragCoord.xy / resolution;\n    vec2 centered = uv - 0.5;\n    centered.x *= resolution.x / resolution.y;\n    \n    // ═══════════════════════════════════════════════════════════════════════════\n    // LOOPING PRIMITIVES - ALL ANIMATION MUST USE THESE\n    // time goes 0→1, so t goes 0→TAU, completing exactly one cycle\n    // ═══════════════════════════════════════════════════════════════════════════\n    float t = time * TAU;           // Converts time 0→1 to radians 0→TAU\n    vec2 timeCircle = vec2(cos(t), sin(t));  // For noise sampling - traces a circle\n    float pulse = 0.5 + 0.5 * sin(t);        // 0→1→0 smooth oscillation\n    float wave = sin(t);                      // -1→1→-1 smooth oscillation\n\n// Visible structures: perspective wormhole walls, flowing plasma,\n    // luminous racing rings, and a dark, fog-obscured vanishing point.\n    vec2 p = rot(centered, t);\n    float rawRadius = length(p);\n    float pixelRadius = 1.5 / max(resolution.y, 1.0);\n    float radius = sqrt(rawRadius * rawRadius + max(0.018, pixelRadius)\n                                               * max(0.018, pixelRadius));\n    float angle = atan(p.y, p.x);\n    float depth = 0.3 / radius;\n\n    // Breathing flight and depth-dependent vortex twist.\n    float flight = speed * sin(t * 2.0);\n    float tunnelDepth = depth + flight;\n    float twist = swirl * (0.8 + 0.2 * sin(t * 2.0));\n    float wallAngle = angle + twist * depth;\n\n    // Circular embedding makes all eight angular slices genuinely seamless.\n    float angularPhase = wallAngle * 8.0;\n    vec2 angularDomain = vec2(cos(angularPhase), sin(angularPhase));\n    float patternScale = max(scale, 0.5);\n    vec2 domain = angularDomain * (0.32 * patternScale)\n                + vec2(0.57, 0.83) * tunnelDepth * patternScale;\n\n    // Reduce unresolved detail near the vanishing point.\n    float footprint = max(length(fwidth(domain)), 0.0001);\n    float detail = clamp(complexity - max(0.0, log2(footprint * 2.0)),\n                         1.0, 8.0);\n\n    // Two-stage self-warping produces organic, liquid plasma on the walls.\n    vec2 warpA = vec2(\n        fbm(domain + vec2(4.7, 1.3), detail, timeCircle),\n        fbm(domain + vec2(-3.2, 8.1), detail, timeCircle)\n    );\n    vec2 warpedDomain = domain + 2.5 * (warpA - 0.5);\n    vec2 warpB = vec2(\n        fbm(warpedDomain + vec2(9.2, -2.8), detail, timeCircle),\n        fbm(warpedDomain + vec2(1.6, 6.4), detail, timeCircle)\n    );\n    float plasma = fbm(warpedDomain + 2.2 * (warpB - 0.5),\n                       detail, timeCircle);\n\n    // Smooth filament coverage, with derivative-aware edge widths.\n    float filamentDistance = abs(plasma - 0.49);\n    float filamentAA = max(fwidth(plasma), 0.002);\n    float filaments = 1.0 - smoothstep(0.012, 0.065 + filamentAA,\n                                      filamentDistance);\n    float liquidLight = smoothstep(0.22, 0.76, plasma);\n\n    // Perspective depth contours form luminous rings moving with the flight.\n    float ringPhase = tunnelDepth * TAU * 1.8\n                    + 0.38 * sin(angularPhase)\n                    + 0.55 * (plasma - 0.5);\n    float ringDistance = abs(sin(ringPhase));\n    float ringAA = max(fwidth(ringPhase), 0.001);\n    float ringVisibility = 1.0 - smoothstep(0.3, 1.8, ringAA);\n    float rings = (1.0 - smoothstep(0.025, 0.14 + ringAA,\n                                  ringDistance)) * ringVisibility;\n    float ringHalo = exp(-5.0 * ringDistance) * ringVisibility;\n    float ringPulse = 0.5 + 0.5 * sin(t * 3.0);\n\n    // IQ cosine palette: one exact rainbow phase revolution per loop.\n    float colorPhase = colorShift + plasma * 1.45\n                     + 0.075 * tunnelDepth\n                     + 0.12 * sin(angularPhase);\n    vec3 rainbow = 0.5 + 0.5 * cos(\n        vec3(t) + TAU * (vec3(colorPhase) + vec3(0.0, 0.33, 0.67))\n    );\n    vec3 plasmaColor = mix(vec3(0.08, 0.015, 0.15), rainbow,\n                           0.55 + 0.45 * liquidLight);\n    vec3 ringColor = mix(rainbow, vec3(0.75, 0.92, 1.0), 0.48);\n\n    float fog = 0.42;\n    float depthFog = exp(-depth * fog);\n    float coreMask = smoothstep(0.0, 0.035, rawRadius);\n    vec3 color = plasmaColor * (0.22 + 1.15 * liquidLight);\n    color += rainbow * filaments * 1.7;\n    color += ringColor * rings * (0.8 + 1.2 * ringPulse);\n\n    // Same-pass soft bloom around plasma filaments and ring contours.\n    float filamentBloom = exp(-18.0 * filamentDistance);\n    color += mix(rainbow, vec3(1.0), 0.22)\n           * (0.45 * filamentBloom + 0.35 * pow(filaments, 3.0));\n    color += ringColor * ringHalo * (0.18 + 0.32 * ringPulse);\n    color *= depthFog * coreMask;\n\n    // Gamma lift, saturation boost, and subtle three-cycle intensity pulse.\n    color = pow(max(color, vec3(0.0)), vec3(0.85));\n    float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));\n    color = max(mix(color, vec3(luma), -0.22), vec3(0.0));\n    color *= max(intensity, 0.0) * (0.94 + 0.06 * sin(t * 3.0));\n\nfragColor = vec4(color, 1.0);\n}"
+        }
+      },
+      "textures": {}
+    }
+  ],
+  "backends": [
+    "webgl2"
+  ]
+}

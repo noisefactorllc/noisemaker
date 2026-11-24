@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/the-murk-2-even-murkier.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3871,
+        "uniqueColors": 1681,
+        "sha256": "8fbc04dc7b694db4b0a7a788a9a6147ef7fe9da09d5d42a01e52d31c23bb9a93"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3871,
+        "uniqueColors": 1681,
+        "sha256": "8a78946001d95097e175933d7d5aecc17ab566f721456d2620bf9b75d531c620"
+      }
+    }
+  }
+}

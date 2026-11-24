@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/classicNoisedeck/glitch/parity-case.json",
+  "resolution": [
+    160,
+    144
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 160,
+        "height": 144,
+        "nonzeroRgbPixels": 23040,
+        "uniqueColors": 21253,
+        "sha256": "832ea2d0bc833ce286c1fd2273856c930eeb45a9e22da3e7764d522d4df9ef89"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 160,
+        "height": 144,
+        "nonzeroRgbPixels": 23040,
+        "uniqueColors": 21253,
+        "sha256": "d888a38389f17079d598b1f87f74ab1af31d7791b5f0bc8b4197026ac7a2ac15"
+      }
+    }
+  }
+}

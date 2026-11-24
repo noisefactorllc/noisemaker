@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:p_ULPA",
+    "dslFile": "programs/p_ULPA/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "filter/lighting",
+    "render/pointsEmit",
+    "points/flow",
+    "render/pointsBillboardRender",
+    "render/pointsRender",
+    "filter/adjust",
+    "classicNoisedeck/coalesce",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search synth, filter, render, points, mixer, classicNoisedeck\nlet midsReact = audio(band: 1, min: -38.62, max: -131.308)\n\nperlin(\n  scale: 21.83,\n  octaves: 2,\n  colorMode: mono,\n  dimensions: 3,\n  seed: 17\n)\n  .lighting(\n    normalStrength: 5,\n    smoothing: 10,\n    reflection: 44,\n    refraction: 31.4,\n    aberration: 28.4\n  )\n  .subchain(name: \"physarum particles\", id: \"se9k\") {\n    .pointsEmit(\n      stateSize: x64,\n      layout: center,\n      seed: 16,\n      attrition: 0.5\n    )\n    .flow(\n      behavior: chaotic,\n      stride: 17,\n      strideDeviation: 0.5,\n      kink: 10\n    )\n    .pointsBillboardRender(\n      shapeMode: soft,\n      depositOpacity: 28.39,\n      pointSize: 21.29,\n      sizeVariation: 100,\n      density: 21.8,\n      intensity: 74.91,\n      inputIntensity: 100\n    )\n    .pointsRender(\n      density: 100,\n      intensity: 98.84,\n      inputIntensity: 59.39\n    )\n  }\n  .write(o0)\n\nperlin(scale: 22.15, dimensions: 3)\n  .adjust(\n    mode: hsv,\n    rotation: midsReact,\n    hueRange: 44.24\n  )\n  .coalesce(\n    tex: read(o0),\n    blendMode: multiply,\n    mix: -1.16\n  )\n  .subchain(name: \"lens effects\", id: \"a9tw\") {\n    .chromaticAberration(aberration: 25)\n    .bloom(\n      threshold: 0.7,\n      intensity: 0.75,\n      taps: 30\n    )\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.08)\n  }\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

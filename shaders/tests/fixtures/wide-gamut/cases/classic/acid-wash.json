@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "acid wash"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 74, hueRotation: 41, speed: 60, octaves: 6, refractAmt: 61, ridges: false, type: 10, colorMode: 6, kaleido: 1, xScale: 100, yScale: 100).write(o0)\nnoise(hueRange: 52, hueRotation: 28, speed: 50, refractAmt: 33, ridges: false, wrap: false, xScale: 95, yScale: 92, type: 2, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 8, mix: -51, refractAAmt: 0, refractBAmt: 71).effects(effect: 4, effectAmt: 1, flip: 0, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).lensDistortion(aberration: 100, blendMode: 0, hueRange: 81, hueRotation: 0, blendMode: 1, modulate: true, passthru: 63, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

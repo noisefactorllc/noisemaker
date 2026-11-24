@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:bbPVig",
+    "dslFile": "programs/bbPVig/program.dsl"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nlet midsReact = audio(band: 1, min: 9.5, max: 32.3)\n\nnoise(\n  type: catmullRom3x3,\n  octaves: 1,\n  xScale: 98,\n  yScale: 98,\n  ridges: true,\n  wrap: false,\n  refractAmt: 100,\n  speed: midsReact,\n  kaleido: 11,\n  hueRotation: 70,\n  hueRange: 23\n)\n  .write(o0)\n\nnoise(\n  type: catmullRom3x3,\n  octaves: 1,\n  xScale: 98,\n  yScale: 98,\n  ridges: true,\n  wrap: false,\n  refractAmt: 100,\n  speed: 21,\n  kaleido: 3,\n  hueRotation: 65,\n  hueRange: 46\n)\n  .coalesce(\n    tex: read(o0),\n    blendMode: multiply,\n    mix: 55,\n    refractAAmt: 100,\n    refractBAmt: 8.98\n  )\n  .lensDistortion(\n    distortion: -49,\n    loopScale: 60,\n    aberration: 16,\n    tint: #4986bcff,\n    alpha: 11,\n    vignetteAmt: -100\n  )\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/l2eraa.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o2_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 411,
+        "sha256": "32af22491e85ad7b04f2164087076ae5b6d62a5c78abd4d3bcf650869633770a"
+      },
+      "webgpu": {
+        "surface": "global_o2_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 411,
+        "sha256": "a28e75e368e1ea3d4d5385a5b13cc8d406998929a0f9f6268470aa89f7b9e4aa"
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "through a lens, starkly"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 24, hueRotation: 39, speed: 82, octaves: 8, refractAmt: 48, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 89, yScale: 89).write(o0)\nnoise(hueRotation: 13, kaleido: 5, metric: 0, palette: summoning, wrap: true, type: 3, colorMode: 4, xScale: 92, yScale: 92, octaves: 1).coalesce(tex: read(o0), blendMode: 14, mix: 6, refractAAmt: 47, refractBAmt: 0).effects(effect: 120, effectAmt: 2, flip: 3, offsetX: 0, offsetY: 0, rotation: 0, saturation: -36, scaleAmt: 100).lensDistortion(aberration: 15, distortion: -34, speed: -12, loopScale: 72, alpha: 50, saturation: 33, shape: 0, tint: #034963, vignetteAmt: -70).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

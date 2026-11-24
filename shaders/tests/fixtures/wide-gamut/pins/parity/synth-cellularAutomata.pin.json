@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/synth/cellularAutomata/parity-case.json",
+  "resolution": [
+    128,
+    128
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 128,
+        "height": 128,
+        "nonzeroRgbPixels": 13367,
+        "uniqueColors": 256,
+        "sha256": "68f914f846ef943effe933d83e708b5c18ab29093dfc6c5b0cbfde90f37fddfd"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 128,
+        "height": 128,
+        "nonzeroRgbPixels": 13367,
+        "uniqueColors": 256,
+        "sha256": "86a569513992cc94810e681635c78dd290f5a0d6e44ddf312d4c260a7b32734e"
+      }
+    }
+  }
+}

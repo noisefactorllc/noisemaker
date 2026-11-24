@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "witchy waves"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(speed: 5, loopOffset: 60, loopScale: 79, palette: eventHorizon, refractAmt: 43, ridges: false, type: 11, colorMode: 5, kaleido: 1, xScale: 90, yScale: 90, octaves: 1).write(o0)\nnoise(speed: -59, loopOffset: 120, loopScale: 85, palette: eventHorizon, refractAmt: 37, ridges: false, type: 11, colorMode: 4, kaleido: 1, xScale: 80, yScale: 80, octaves: 1).coalesce(tex: read(o0), blendMode: 13, mix: -3, refractAAmt: 0, refractBAmt: 0).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

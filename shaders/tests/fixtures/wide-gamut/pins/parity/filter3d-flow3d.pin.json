@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/filter3d/flow3d/parity-case.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 119,
+        "sha256": "94bc892245d504857dfd79e0c2cb722c03e4c7687ce46bf920b05cafc2e051cc"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 119,
+        "sha256": "e69a4f892bba402d1d6a9826942272a8ca79a3b2d67baea15afc48ab00bbcd4a"
+      }
+    }
+  }
+}

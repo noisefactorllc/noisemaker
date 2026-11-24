@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:unqOuw",
+    "dslFile": "programs/unqOuw/program.dsl"
+  },
+  "effects": [
+    "synth/julia",
+    "filter/warp",
+    "render/pointsEmit",
+    "points/hydraulic",
+    "render/pointsRender",
+    "filter/blur",
+    "synth/navierStokes",
+    "filter/palette",
+    "filter/smoothstep",
+    "filter/invert",
+    "filter/lighting",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/adjust",
+    "filter/temporalAberration"
+  ],
+  "dsl": "search synth, filter, render, points, mixer, classicNoisedeck\n\njulia(\n  outputMode: smoothIteration,\n  centerX: 0.432,\n  centerY: 0.181,\n  zoomDepth: 1.688\n)\n  .warp(\n    strength: 11.12,\n    scale: 1.97,\n    speed: 5\n  )\n  .subchain(name: \"flow field particles\", id: \"lkjw\") {\n    .pointsEmit(attrition: 1.07)\n    .hydraulic()\n    .pointsRender(\n      density: 100,\n      intensity: 83.78,\n      inputIntensity: 14.95\n    )\n  }\n  .blur()\n  .write(o0)\n\nnavierStokes(\n  tex: read(o0),\n  iterations: 40,\n  smoothing: bSpline4x4,\n  speed: 145,\n  dyeDecay: 98.7,\n  velocityDecay: 100,\n  inputForce: 0,\n  inputDye: 1,\n  inputIntensity: 9.17\n)\n  .palette(\n    index: solaris,\n    offset: 35,\n    alpha: 0.92\n  )\n  .smoothstep(edge1: 0.94)\n  .invert(_skip: true)\n  .lighting(\n    normalStrength: 0.77,\n    smoothing: 1.5,\n    specularIntensity: 0.32,\n    shininess: 89,\n    reflection: 22.8,\n    refraction: 17,\n    aberration: 27.6\n  )\n  .subchain(name: \"lens effects\", id: \"ubkh\") {\n    .chromaticAberration(aberration: 16.43, passthru: 40.39)\n    .bloom(intensity: 1.7, taps: 15)\n    .lens(displacement: -0.3)\n    .vignette(brightness: 0.72, alpha: 0.2)\n  }\n  .adjust(\n    rotation: -15.84,\n    saturation: 0.63,\n    brightness: 0.84,\n    contrast: 0.75\n  )\n  .temporalAberration(redDelay: 8, blueDelay: 0)\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

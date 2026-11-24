@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:VrdCjg",
+    "dslFile": "programs/VrdCjg/program.dsl"
+  },
+  "effects": [
+    "synth/cell",
+    "synth/perlin",
+    "filter/palette",
+    "synth3d/heightmap3d",
+    "render/renderLandscape3d",
+    "filter/edge",
+    "filter/wobble",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vaseline"
+  ],
+  "dsl": "search synth, filter, synth3d, render, points, mixer\n\nlet zRotation = osc(type: oscKind.saw)\nlet noiseScale = osc(type: oscKind.sine, min: 0.45, max: 0.84, speed: 2)\nlet zPosition = osc(type: oscKind.noise, min: 0.57, max: 0.78, seed: 2995)\nlet offsetX = osc(type: oscKind.noise, min: 0.31, max: 0.62, seed: 7785)\nlet offsetY = osc(type: oscKind.noise, min: 0.5, max: 0.63, seed: 5611)\n\ncell(\n  shape: triangle,\n  scale: noiseScale,\n  cellScale: 100,\n  variation: 0,\n  speed: 5,\n  seed: 46\n)\n  .write(o0)\n\nperlin(\n  scale: 100,\n  colorMode: mono,\n  dimensions: 3,\n  ridges: true,\n  speed: 2\n)\n  .palette(\n    index: eventHorizon,\n    rotation: back,\n    offset: 83.098,\n    repeat: 3,\n    alpha: 0.66\n  )\n  .write(o2)\n\nheightmap3d(\n  heightTex: read(o0),\n  tex: read(o2),\n  volumeSize: x128,\n  heightScale: 0.5,\n  baseHeight: 0.08\n)\n  .renderLandscape3d(\n    zoom: zPosition,\n    ambient: 0.37,\n    diffuseIntensity: 1.2,\n    specularIntensity: 0.2,\n    bgColor: #000000,\n    viewMode: perspective,\n    rotateX: 1.47,\n    rotateZ: zRotation,\n    posX: offsetX,\n    posY: offsetY,\n    posZ: zPosition,\n    fieldOfView: 94\n  )\n  .edge(\n    kernel: fine,\n    size: kernel7x7,\n    channel: luminance,\n    amount: 17.89,\n    mix: 84.15\n  )\n  .wobble()\n  .subchain(name: \"lens effects\", id: \"m56y\") {\n    .temporalAberration()\n    .bloom(\n      threshold: 0.15,\n      softKnee: 0.18,\n      intensity: 1.55,\n      taps: 15\n    )\n    .lens(displacement: -1)\n    .vaseline()\n  }\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

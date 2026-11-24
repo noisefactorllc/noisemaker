@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:EDRBgQ",
+    "dslFile": "programs/EDRBgQ/program.dsl"
+  },
+  "effects": [
+    "synth/noise",
+    "filter/translate",
+    "synth/navierStokes",
+    "filter/palette",
+    "classicNoisedeck/coalesce",
+    "filter/sharpen",
+    "filter/lighting",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/vaseline"
+  ],
+  "dsl": "search synth, filter, mixer, classicNoisedeck, render, points\n\nlet osc1 = osc(type: oscKind.sawInv)\n\nnoise(\n  type: catmullRom3x3,\n  scaleX: 1,\n  scaleY: 54.65,\n  ridges: true,\n  loopScale: 100,\n  speed: 34\n)\n  .translate(y: osc1)\n  .write(o0)\n\nnavierStokes(\n  tex: read(o0),\n  iterations: 40,\n  speed: 145,\n  dyeDecay: 98.52,\n  inputForce: 0.49,\n  inputDye: 1,\n  inputIntensity: 0\n)\n  .write(o1)\n\nread(o1)\n  .palette(\n    index: sherbet,\n    rotation: fwd,\n    offset: 10,\n    repeat: 10,\n    alpha: 0.81\n  )\n  .coalesce(\n    tex: read(o0),\n    blendMode: softLight,\n    mix: 7.73,\n    refractBAmt: 26.61\n  )\n  .sharpen()\n  .lighting(\n    normalStrength: 5,\n    smoothing: 3.1,\n    specularIntensity: 0.87,\n    shininess: 72,\n    reflection: 15.1,\n    refraction: 14.1,\n    aberration: 26.6,\n    heightMap: read(o1)\n  )\n  .subchain(name: \"lens effects\", id: \"pn80\") {\n    .temporalAberration(\n      redDelay: 2,\n      greenDelay: 1,\n      blueDelay: 0\n    )\n    .bloom(\n      threshold: 0.85,\n      intensity: 0.6,\n      taps: 15\n    )\n    .lens(displacement: -0.2)\n    .vignette(brightness: 0.39, alpha: 0.25)\n  }\n  .vaseline(alpha: 0.68)\n  .write(o2)\n\nrender(o2)",
+  "surface": "o2",
+  "resolution": [
+    64,
+    64
+  ]
+}

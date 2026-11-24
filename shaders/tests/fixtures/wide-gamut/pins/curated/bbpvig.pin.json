@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/bbpvig.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3823,
+        "uniqueColors": 3608,
+        "sha256": "b031ef756d094dfef97665bf16b2622202a940028cff26c4e9871e5d1b9cc7c3"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3823,
+        "uniqueColors": 3608,
+        "sha256": "d2df74cf98aa42084395ce646df105cfc8523780d7d8a659bcefd0f80b09ba34"
+      }
+    }
+  }
+}

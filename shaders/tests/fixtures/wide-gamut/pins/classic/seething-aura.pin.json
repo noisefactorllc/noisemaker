@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/seething-aura.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3994,
+        "uniqueColors": 3643,
+        "sha256": "da0ae80aee217eb3e01c38a9033a185c48d0825bc29b65de98171e5c33a20aac"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3994,
+        "uniqueColors": 3643,
+        "sha256": "f7a3db32fb247cacf5906a505e6b5d452426362c09335597076d83ab37e46efa"
+      }
+    }
+  }
+}

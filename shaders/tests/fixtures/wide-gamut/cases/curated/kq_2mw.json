@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:kQ_2mw",
+    "dslFile": "programs/kQ_2mw/program.dsl"
+  },
+  "effects": [
+    "synth/mandala",
+    "mixer/blendMode",
+    "filter/tetraCosine",
+    "filter/celShading"
+  ],
+  "dsl": "search filter, synth, mixer, render, points\n\nlet osc2 = osc(type: oscKind.noise)\nlet osc1 = osc(type: oscKind.noise)\nlet osc3 = osc(type: oscKind.noise, min: 0.09, max: 0.46, speed: 3, seed: 5701)\nlet osc4 = osc(type: oscKind.noise, min: 0.39, max: 0.8, speed: 5)\n\nmandala(\n  scale: 20,\n  rotation: -157.326,\n  thickness: 0.762,\n  smoothness: 0.074,\n  symmetry: 15,\n  bindu: true,\n  layers: 4,\n  layerSpacing: 2.1,\n  twist: 13.65,\n  shapeGrowth: 0.435,\n  fgColor: #d4a70c,\n  bgColor: #f8642b,\n  animation: ripple,\n  pulseDepth: 0.603\n)\n  .write(o0)\n\nmandala(\n  scale: 20,\n  rotation: -140.991,\n  thickness: 0.133,\n  smoothness: 0.87,\n  symmetry: 22,\n  bindu: true,\n  layers: 10,\n  layerSpacing: 0.589,\n  twist: 10.19,\n  shapeGrowth: 0.556,\n  fgColor: #5ad28d,\n  bgColor: #c56d1c,\n  animation: spiralWave,\n  speed: -1,\n  pulseDepth: 0.356\n)\n  .blendMode(\n    tex: read(o0),\n    mode: hardLight,\n    mix: -0.069\n  )\n  .write(o1)\n\nmandala(\n  scale: 13.86,\n  rotation: 68.927,\n  thickness: 0.974,\n  smoothness: 0.423,\n  symmetry: 22,\n  shape: triangle,\n  layers: 12,\n  layerSpacing: 2.44,\n  twist: 2.37,\n  shapeGrowth: 0.574,\n  fgColor: #cb49c6,\n  bgColor: #f51832,\n  animation: ripple,\n  speed: -1,\n  pulseDepth: 0.857\n)\n  .blendMode(\n    tex: read(o1),\n    mode: hardLight,\n    mix: 6.769\n  )\n  .tetraCosine(\n    offsetR: 0.843,\n    offsetG: 0.262,\n    offsetB: 0.103,\n    ampR: 0.79,\n    ampG: 0.273,\n    ampB: 0.533,\n    freqR: 4,\n    freqG: 3,\n    freqB: 0,\n    phaseR: 0.873,\n    phaseG: 0.838,\n    phaseB: 0.182,\n    rotation: back,\n    repeat: 5.38,\n    alpha: 0.715\n  )\n  .celShading(\n    levels: 2,\n    gamma: 0.3,\n    edgeWidth: 0,\n    edgeThreshold: 0.51,\n    edgeColor: #340001\n  )\n  .write(o2)\n\nrender(o2)",
+  "surface": "o2",
+  "resolution": [
+    64,
+    64
+  ]
+}

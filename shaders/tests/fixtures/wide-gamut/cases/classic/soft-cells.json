@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "soft cells"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/cellRefract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 53, hueRotation: 62, speed: 53, refractAmt: 0, ridges: false, wrap: true, xScale: 99, yScale: 98, type: 3, colorMode: 6, kaleido: 1, octaves: 1).cellRefract(effectWidth: 1, kernel: 0, speed: 1, amount: 31, scale: 54, cellScale: 75, smooth: 0, variation: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

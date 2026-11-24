@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "pixelated satin"
+  },
+  "effects": [
+    "synth/pattern",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/shapeMixer",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\npattern(fgColor: #94136d, bgColor: #5889d3, thickness: 0.3, rotation: 0, scale: 4, speed: 2, animation: 0, type: 10).write(o0)\nnoise(palette: afterimage, refractAmt: 91, ridges: true, type: 10, colorMode: 5, kaleido: 1, xScale: 2, yScale: 2, octaves: 1).shapeMixer(wrap: true, palette: 0, blendMode: 7, animate: 1, levels: 0).effects(effectAmt: 1, effect: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

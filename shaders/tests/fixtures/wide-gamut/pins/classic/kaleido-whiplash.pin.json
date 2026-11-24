@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/kaleido-whiplash.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4035,
+        "uniqueColors": 3324,
+        "sha256": "a8af67b1e06e53a4a1fea10389c13e532f71f1ba91dd19864eca4e91954c1dd2"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4035,
+        "uniqueColors": 3324,
+        "sha256": "f0bd607ecfedeedaf3f75c04edb35b7c27b36e4ff14f8d111b497e5392996626"
+      }
+    }
+  }
+}

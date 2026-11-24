@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/kaleido-singularity.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3849,
+        "uniqueColors": 3399,
+        "sha256": "adf4175f239df81be6e99523995a7315a95fde1d722ad40099d8c37d624ee1e8"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3849,
+        "uniqueColors": 3399,
+        "sha256": "dbffe935e49218a9572d210b9a51e683c92c5bbae6a9ca61568f035668dafa38"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/time-crystal.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2100,
+        "uniqueColors": 839,
+        "sha256": "0d7dcab5fb31ced2bb8344a8715eea84580fe9db1a3b3ba0a9a3d3bc79c69216"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2100,
+        "uniqueColors": 839,
+        "sha256": "a8f511222d600f4f0c470f7ed3d0f8a201f81905fe8700c42f88db692ec7df12"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/repeat-after-me.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4081,
+        "uniqueColors": 3724,
+        "sha256": "72a52e29365f7c2fa8fe9e07a6de58b500ce960cc483bc52f6aaece37308228f"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4081,
+        "uniqueColors": 3724,
+        "sha256": "f00cb70cc25e18a6384b1ac9e41ebf93cccebca287364bae6c528d2403825bed"
+      }
+    }
+  }
+}

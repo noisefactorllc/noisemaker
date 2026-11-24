@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:0TxrwQ",
+    "dslFile": "programs/0TxrwQ/program.dsl"
+  },
+  "effects": [
+    "synth/cellularAutomata",
+    "filter/ridge",
+    "filter/tetraCosine",
+    "filter/lighting",
+    "filter/texture"
+  ],
+  "dsl": "search filter, synth\nlet highsReact = audio(band: 2, min: 13.111, max: 26.222)\n\ncellularAutomata(\n  zoom: x64,\n  ruleIndex: size34Life,\n  smoothing: bSpline4x4,\n  speed: highsReact\n)\n  .ridge()\n  .tetraCosine(\n    offsetR: 0.489,\n    offsetG: 0.397,\n    offsetB: 0.377,\n    ampR: 0.353,\n    ampG: 0.258,\n    ampB: 0.208,\n    phaseR: 0.448,\n    phaseG: 0.15,\n    phaseB: 0.971,\n    rotation: fwd\n  )\n  .lighting(\n    normalStrength: 5,\n    smoothing: 3.8,\n    specularIntensity: 1.25,\n    shininess: 256\n  )\n  .texture(\n    mode: crosshatch,\n    alpha: 1,\n    scale: 1.3\n  )\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

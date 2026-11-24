@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "visions of a desert god"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 25, hueRotation: 98, speed: 65, octaves: 6, refractAmt: 13, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 100, yScale: 100).write(o0)\nnoise(hueRange: 27, hueRotation: 90, speed: 63, refractAmt: 24, ridges: false, wrap: false, xScale: 86, yScale: 92, type: 10, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 11, mix: -25, refractAAmt: 31, refractBAmt: 34).effects(effect: 0, effectAmt: 2, flip: 15, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

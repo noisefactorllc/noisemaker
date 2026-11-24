@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:9lVZTw",
+    "dslFile": "programs/9lVZTw/program.dsl"
+  },
+  "effects": [
+    "synth/cell",
+    "filter/tetraCosine",
+    "filter/invert",
+    "filter/lighting",
+    "mixer/focusBlur",
+    "filter/feedback",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/adjust"
+  ],
+  "dsl": "search synth, filter, mixer, render, points\n\nlet osc1 = osc(type: oscKind.sawInv)\n\ncell(\n  scale: 71.02,\n  cellScale: 100,\n  cellSmooth: 71.07,\n  variation: 100,\n  speed: 5,\n  seed: 15\n)\n  .tetraCosine(\n    colorMode: oklch,\n    offsetR: 0.695,\n    offsetG: 0.144,\n    offsetB: 0.948,\n    ampR: 0.235,\n    ampG: 0.103,\n    ampB: 0.41,\n    freqR: 4,\n    freqG: 4,\n    freqB: 4,\n    phaseR: 0.87,\n    phaseG: 0.941,\n    phaseB: 0.74,\n    rotation: fwd,\n    offset: osc1\n  )\n  .invert()\n  .write(o0)\n\nread(o0)\n  .lighting(\n    normalStrength: 5,\n    smoothing: 10,\n    specularIntensity: 0.83,\n    shininess: 133,\n    reflection: 14.8,\n    refraction: 41,\n    aberration: 64.6\n  )\n  .focusBlur(\n    tex: read(o0),\n    aperture: 1.85,\n    sampleBias: 58.75\n  )\n  .feedback(\n    blendMode: lighten,\n    mix: 58.57,\n    intensity: -9.27\n  )\n  .subchain(name: \"lens effects\", id: \"1kos\") {\n    .temporalAberration()\n    .bloom(taps: 15)\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.12, alpha: 0.66)\n  }\n  .adjust(\n    mode: oklab,\n    rotation: -19.8,\n    saturation: 0.84,\n    brightness: 1.36,\n    contrast: 0.71\n  )\n  .write(o2)\n\nrender(o2)",
+  "surface": "o2",
+  "resolution": [
+    64,
+    64
+  ]
+}

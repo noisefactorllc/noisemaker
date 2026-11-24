@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "hexflake"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/shapeMixer",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRotation: 37, kaleido: 6, metric: 2, wrap: true, palette: grayscale, type: 3, colorMode: 4, xScale: 100, yScale: 100, octaves: 1).write(o0)\nnoise(hueRotation: 37, kaleido: 6, metric: 2, wrap: true, palette: grayscale, type: 3, colorMode: 4, xScale: 100, yScale: 100, octaves: 1).shapeMixer(wrap: true, palette: 0, blendMode: 7, animate: 1, levels: 0).effects(effect: 110, effectAmt: 1, flip: 18, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

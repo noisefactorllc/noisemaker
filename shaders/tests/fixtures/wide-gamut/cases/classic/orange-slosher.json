@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "orange slosher"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 67, hueRotation: 76, speed: 38, loopOffset: 300, loopScale: 92, refractAmt: 32, wrap: true, type: 10, colorMode: 6, kaleido: 1, xScale: 90, yScale: 90, octaves: 1).write(o0)\nshapes(speedA: 11, loopAOffset: 330, loopAScale: 63, speedB: 67, loopBOffset: 410, loopBScale: 86, palette: barstow, wrap: true, cyclePalette: 0, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 3, mix: 26, refractAAmt: 47, refractBAmt: 80).refract().lensDistortion(aberration: 60, distortion: -56, speed: 41, loopScale: 72, alpha: 0, shape: 4, tint: #adc123, vignetteAmt: -100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "awesome dreams"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 32, hueRotation: 33, speed: 53, octaves: 6, refractAmt: 86, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 94, yScale: 94).write(o0)\nnoise(hueRange: 58, hueRotation: 54, speed: 97, loopOffset: 20, loopScale: 82, refractAmt: 100, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 90, yScale: 90, octaves: 1).coalesce(tex: read(o0), blendMode: 16, mix: 4, refractAAmt: 100, refractBAmt: 0).lensDistortion(aberration: 100, blendMode: 0, hueRange: 100, hueRotation: 15, blendMode: 1, modulate: true, passthru: 46, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

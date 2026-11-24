@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "shiny simplex"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/shapeMixer",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(palette: blueSkies, refractAmt: 100, ridges: false, type: 10, colorMode: 5, kaleido: 1, xScale: 5, yScale: 5, octaves: 1).write(o0)\nnoise(palette: blueSkies, refractAmt: 0, ridges: false, type: 10, colorMode: 5, kaleido: 1, xScale: 3, yScale: 3, octaves: 1).shapeMixer(wrap: true, palette: 0, blendMode: 7, animate: 1, levels: 0).refract().lensDistortion(aberration: 40, blendMode: 0, hueRange: 0, hueRotation: 0, blendMode: 0, modulate: true, passthru: 66, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

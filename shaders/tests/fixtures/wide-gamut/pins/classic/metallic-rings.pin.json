@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/metallic-rings.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4044,
+        "uniqueColors": 4006,
+        "sha256": "b8031bf3a108358d7e25b2d8166b8dfe5f562103d3fc78af7fe0e30c14d2febc"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4044,
+        "uniqueColors": 4006,
+        "sha256": "47712d62aea2584729e0da5b94bab95058111f1868a95e23216809405c3a4d76"
+      }
+    }
+  }
+}

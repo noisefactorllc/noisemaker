@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/that-one-time-on-ayahuasca.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 596,
+        "sha256": "d9cf4643cce5412b822a795fcde66982fa2b3b97272948cea56c8a846c165f13"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 596,
+        "sha256": "ac70b5bea570f877aee52b0539c9892d97fc2b8a0fc1abc7790420b75c98bc03"
+      }
+    }
+  }
+}

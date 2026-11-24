@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/distance-feedback.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 212,
+        "sha256": "5eac6ecbea5bf419c50fb7b7ac6e10b83238e5cd76c78a9dba7d18a79f8f03e2"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 212,
+        "sha256": "88042184bcbf27096fcc2f057e933f052364649f927eeb6a564a8b4694d3db9b"
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "forge"
+  },
+  "effects": [
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/effects",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\ncellNoise(colorMode: 2, speed: 2, scale: 19, palette: solaris, cellScale: 75, smooth: 0, variation: 0, cyclePalette: 1, rotatePalette: 0).effects(effect: 6, effectAmt: 4, flip: 0, offsetX: -17, offsetY: -15, rotation: 142, scaleAmt: 150).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

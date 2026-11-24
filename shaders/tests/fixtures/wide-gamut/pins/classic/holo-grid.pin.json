@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/holo-grid.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4081,
+        "uniqueColors": 148,
+        "sha256": "59515466f0cdb096b838ed3ae614aa2e7c22d5a803f8ec8d18e355ca5998d6c5"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4081,
+        "uniqueColors": 148,
+        "sha256": "faf63d89b9054aff6fc56b2b6181ea6bc8fdc94d660da556dc0c5196885a03c3"
+      }
+    }
+  }
+}

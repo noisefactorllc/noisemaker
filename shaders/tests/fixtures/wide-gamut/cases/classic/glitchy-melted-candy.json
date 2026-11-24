@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "glitchy melted candy"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/glitch"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(palette: cottonCandy, refractAmt: 34, ridges: false, type: 10, colorMode: 4, kaleido: 1, xScale: 2, yScale: 2, octaves: 1).write(o0)\nnoise(palette: cottonCandy, refractAmt: 62, ridges: false, type: 10, colorMode: 4, kaleido: 1, xScale: 3, yScale: 3, octaves: 1).composite(tex: read(o0), blendMode: 113).glitch(aberration: 32, distortion: 96, glitchiness: 6, scanlinesAmt: 69, vignetteAmt: 49, xChonk: 88, yChonk: 8).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

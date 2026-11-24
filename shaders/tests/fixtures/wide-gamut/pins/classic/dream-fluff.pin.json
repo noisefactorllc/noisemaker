@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/dream-fluff.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4092,
+        "uniqueColors": 3919,
+        "sha256": "b8db8177c55eecf09fb1228a03c107a7d1f45dd7e582245efe1c1a630d90d8f0"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4092,
+        "uniqueColors": 3919,
+        "sha256": "7aa5441f726ce76483430665b71306f273a73fff05cd3d0bce9a61531a9f5ea4"
+      }
+    }
+  }
+}

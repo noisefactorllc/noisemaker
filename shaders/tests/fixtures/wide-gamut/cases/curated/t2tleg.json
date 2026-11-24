@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:t2TLEg",
+    "dslFile": "programs/t2TLEg/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "filter/tetraCosine",
+    "filter/lighting"
+  ],
+  "dsl": "search synth, filter\nlet midsReact = audio(band: 1, min: 24.225, max: 82.365)\n\nperlin(scale: midsReact, octaves: 2)\n  .tetraCosine(\n    colorMode: hsv,\n    offsetR: 0.645,\n    offsetG: 0.694,\n    offsetB: 0.2,\n    ampR: 0.479,\n    ampG: 0.707,\n    ampB: 0.399,\n    freqR: 4,\n    phaseR: 0.186,\n    phaseG: 0.132,\n    phaseB: 0.62,\n    repeat: 5,\n    offset: 0.799,\n    alpha: 0.662\n  )\n  .lighting(\n    normalStrength: 4.25,\n    smoothing: 4.1,\n    specularIntensity: 1.17,\n    shininess: 182,\n    lightDirection: vec3(-0.111, 0.167, 0.98),\n    reflection: 37.6,\n    refraction: 42.1,\n    aberration: 40.1\n  )\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

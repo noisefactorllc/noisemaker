@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "out of focus"
+  },
+  "effects": [
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\ncellNoise(colorMode: 1, speed: 1, palette: neptune, scale: 14, cellScale: 75, smooth: 0, variation: 0, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRange: 31, hueRotation: 44, speed: 100, refractAmt: 45, ridges: false, wrap: true, xScale: 100, yScale: 93, type: 2, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 7, mix: 66, refractAAmt: 0, refractBAmt: 0).lensDistortion(aberration: 59, distortion: -39, speed: 46, loopScale: 66, alpha: 46, shape: 2, tint: #fa7938, vignetteAmt: -100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

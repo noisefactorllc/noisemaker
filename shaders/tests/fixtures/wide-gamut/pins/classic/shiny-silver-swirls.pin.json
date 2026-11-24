@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/shiny-silver-swirls.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3766,
+        "uniqueColors": 2636,
+        "sha256": "7e936b74147e730085d54a3b9b3c51ac783f2907cdeb0646d43fcdfceb7d29df"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3766,
+        "uniqueColors": 2636,
+        "sha256": "1608cb11d81bc587888ac8ca33f9477b92e837a47b04fbc920405ee373bda0f9"
+      }
+    }
+  }
+}

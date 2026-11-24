@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "feedback tunnel"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 83, hueRotation: 81, speed: 100, refractAmt: 90, ridges: true, wrap: true, xScale: 100, yScale: 97, type: 10, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 81, hueRotation: 66, speed: 100, refractAmt: 100, ridges: true, wrap: true, xScale: 99, yScale: 96, type: 10, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 15, mix: -86, refractAAmt: 48, refractBAmt: 60).lensDistortion(aberration: 100, blendMode: 0, hueRange: 100, hueRotation: 0, blendMode: 0, modulate: true, passthru: 33, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

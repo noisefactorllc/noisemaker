@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:M9joOw",
+    "dslFile": "programs/M9joOw/program.dsl"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "filter/translate",
+    "synth/navierStokes",
+    "filter/palette",
+    "render/pointsEmit",
+    "points/flock",
+    "render/pointsBillboardRender",
+    "classicNoisedeck/coalesce",
+    "filter/sharpen",
+    "filter/lighting",
+    "mixer/focusBlur",
+    "filter/parallax",
+    "filter/seamless",
+    "filter/rotate",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/adjust",
+    "filter/vaseline"
+  ],
+  "dsl": "search synth, filter, mixer, classicNoisedeck, render, points\n\nlet osc1 = osc(type: oscKind.sine, max: 0.45)\nlet osc2 = osc(type: oscKind.sine, max: 0.35)\nlet osc3 = osc(type: oscKind.noise, max: 0.21)\n\nfrom(classicNoisedeck, noise(\n  type: linear,\n  xScale: 100,\n  yScale: 100,\n  ridges: true,\n  seed: 81,\n  refractAmt: 31.42,\n  loopScale: 100,\n  speed: 100,\n  colorMode: oklab\n))\n  .translate()\n  .write(o0)\n\nnavierStokes(\n  tex: read(o0),\n  iterations: 40,\n  speed: 145,\n  dyeDecay: 98.52,\n  inputForce: 1,\n  inputDye: 1,\n  inputIntensity: 0\n)\n  .write(o1)\n\nread(o1)\n  .palette(\n    index: sherbet,\n    rotation: fwd,\n    offset: 50,\n    alpha: 0.53\n  )\n  .subchain(name: \"particle life\", id: \"3t1l\") {\n    .pointsEmit(attrition: 1.07)\n    .flock()\n    .pointsBillboardRender(\n      shapeMode: soft,\n      blendMode: alpha,\n      depositOpacity: 100,\n      pointSize: 15.88,\n      sizeVariation: 100,\n      rotationVar: 100,\n      density: 0.34,\n      intensity: 83.87,\n      inputIntensity: 40.83\n    )\n  }\n  .coalesce(\n    tex: read(o0),\n    blendMode: overlay,\n    mix: -3.52,\n    refractAAmt: 7.01\n  )\n  .sharpen(amount: 5)\n  .lighting(\n    normalStrength: 5,\n    smoothing: 1.9,\n    specularIntensity: 0.87,\n    shininess: 87,\n    reflection: 23.7,\n    refraction: 22.3,\n    aberration: 46.4,\n    heightMap: read(o1)\n  )\n  .focusBlur(\n    tex: read(o1),\n    focalDistance: 29.06,\n    aperture: 1.56,\n    sampleBias: 16.57\n  )\n  .parallax(heightMap: read(o1), direction: vec3(-0.653, -0.757, 0))\n  .seamless(repeat: 1)\n  .translate(x: osc1, y: osc3)\n  .rotate(rotation: osc2)\n  .subchain(name: \"lens effects\", id: \"pn80\") {\n    .temporalAberration(\n      redDelay: 4,\n      greenDelay: 1,\n      blueDelay: 0\n    )\n    .bloom(\n      threshold: 0.2,\n      softKnee: 0.11,\n      intensity: 0.9,\n      radius: 34,\n      taps: 39\n    )\n    .lens(displacement: -0.2)\n    .vignette(brightness: 0.25, alpha: 0.25)\n  }\n  .adjust(\n    saturation: 0.77,\n    brightness: 0.96,\n    contrast: 0.58\n  )\n  .vaseline(alpha: 0.73)\n  .write(o2)\n\nrender(o2)",
+  "surface": "o2",
+  "resolution": [
+    64,
+    64
+  ]
+}

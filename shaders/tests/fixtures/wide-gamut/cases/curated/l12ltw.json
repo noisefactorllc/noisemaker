@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:l12LTw",
+    "dslFile": "programs/l12LTw/program.dsl"
+  },
+  "effects": [
+    "synth/mandala",
+    "filter/polar",
+    "filter/translate",
+    "filter/rotate",
+    "filter/pinch",
+    "filter/warp",
+    "classicNoisedeck/cellRefract",
+    "filter/smooth",
+    "filter/palette",
+    "filter/chrome",
+    "filter/feedback",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/vaseline"
+  ],
+  "dsl": "search filter, synth, render, points, mixer, classicNoisedeck\n\nlet osc1 = osc(type: oscKind.sawInv)\nlet osc3 = osc(type: oscKind.sine, max: 0.27, speed: 4)\n\nmandala(\n  scale: 20,\n  rotation: 157.955,\n  thickness: 0.19,\n  smoothness: 0.752,\n  symmetry: 21,\n  bindu: true,\n  layers: 12,\n  layerSpacing: 0.55,\n  twist: 43.092,\n  shapeGrowth: 0.386,\n  fgColor: #79a719ff,\n  bgColor: #2b0e82ff,\n  animation: rotate,\n  speed: -1,\n  pulseDepth: 0.976\n)\n  .polar(\n    mode: vortex,\n    rotation: 2,\n    speed: 2,\n    aspectLens: false\n  )\n  .translate(y: osc1, wrap: mirror)\n  .rotate(wrap: mirror, speed: -1)\n  .pinch(strength: osc3)\n  .warp(\n    strength: 34.36,\n    scale: 0.94,\n    speed: 3,\n    wrap: repeat\n  )\n  .cellRefract(\n    amount: 40.87,\n    shape: octagon,\n    scale: 88.38,\n    cellScale: 100,\n    smooth: 56.28,\n    variation: 100\n  )\n  .smooth()\n  .palette(\n    index: ghostly,\n    offset: 23,\n    repeat: 2,\n    alpha: 0.503\n  )\n  .chrome(\n    detail: 3.39,\n    smoothness: 23.11,\n    distortion: 53.077\n  )\n  .palette(\n    index: mars,\n    offset: 24,\n    alpha: 0.547\n  )\n  .feedback(\n    blendMode: lighten,\n    mix: 30.17,\n    distortion: 0.84\n  )\n  .subchain(name: \"lens effects\", id: \"7ark\") {\n    .temporalAberration(\n      redDelay: 2,\n      greenDelay: 1,\n      blueDelay: 0\n    )\n    .bloom(\n      threshold: 0.45,\n      intensity: 1.45,\n      taps: 15\n    )\n    .lens(displacement: -0.8)\n    .vignette(brightness: 0.07)\n  }\n  .vaseline(alpha: 0.58)\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

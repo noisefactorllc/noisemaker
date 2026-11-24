@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "holographic noodles"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 9, hueRotation: 32, speed: 17, refractAmt: 22, ridges: true, wrap: true, xScale: 90, yScale: 90, type: 3, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 9, hueRotation: 67, speed: 25, refractAmt: 0, ridges: true, wrap: true, xScale: 60, yScale: 60, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 9, mix: 48, refractAAmt: 14, refractBAmt: 3).lensDistortion(aberration: 70, blendMode: 0, hueRange: 50, hueRotation: 34, blendMode: 1, modulate: false, passthru: 44, alpha: 0, speed: 0, distortion: 0).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

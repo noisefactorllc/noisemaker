@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/betelgeuse.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3463,
+        "sha256": "3673d8d290d44c539d57097463b80c9125b49b10fb2b709adb5e0580c363b556"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3463,
+        "sha256": "f9990a093e396017a7f6d41a002d44ce3fea06b974d3ac362583b06e2f720ca0"
+      }
+    }
+  }
+}

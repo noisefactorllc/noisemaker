@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/synth3d/heightmap3d/parity-case.json",
+  "resolution": [
+    96,
+    80
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 96,
+        "height": 80,
+        "nonzeroRgbPixels": 6684,
+        "uniqueColors": 16,
+        "sha256": "be810dd9c971af33f24e4db26353dcc99f245707ff51cd20ae856fdc1dfd285f"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 96,
+        "height": 80,
+        "nonzeroRgbPixels": 6684,
+        "uniqueColors": 16,
+        "sha256": "89ac316ee14788c91cb74f5935a43297698f47f593faa4486e70e6bb59e7abea"
+      }
+    }
+  }
+}

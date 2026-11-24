@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:K3MMgw",
+    "dslFile": "programs/K3MMgw/program.dsl"
+  },
+  "effects": [
+    "synth/cell",
+    "synth/perlin",
+    "filter/palette",
+    "synth3d/heightmap3d",
+    "render/renderLandscape3d",
+    "filter/sobel",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vaseline"
+  ],
+  "dsl": "search synth, filter, synth3d, render, points, mixer\n\nlet osc1 = osc(type: oscKind.saw)\n\ncell(\n  shape: triangle,\n  scale: 81.67,\n  cellScale: 100,\n  speed: 5\n)\n  .write(o0)\n\nperlin(\n  scale: 57.13,\n  colorMode: mono,\n  speed: 3\n)\n  .palette(\n    index: vibrant,\n    rotation: back,\n    offset: 94.412,\n    repeat: 2,\n    alpha: 0.536\n  )\n  .write(o2)\n\nheightmap3d(\n  heightTex: read(o0),\n  tex: read(o2),\n  heightScale: 0.5,\n  baseHeight: 0.08\n)\n  .renderLandscape3d(\n    zoom: 2.43,\n    ambient: 0.16,\n    diffuseIntensity: 1.02,\n    specularIntensity: 0.2,\n    bgColor: #000000,\n    viewMode: perspective,\n    rotateX: 1.47,\n    rotateZ: osc1,\n    posZ: 83.2,\n    fieldOfView: 114\n  )\n  .sobel(amount: 1.96)\n  .subchain(name: \"lens effects\", id: \"m56y\") {\n    .temporalAberration()\n    .bloom(\n      threshold: 0.15,\n      softKnee: 0.18,\n      intensity: 1.55,\n      taps: 15\n    )\n    .lens(displacement: -0.61, aspectLens: false)\n    .vaseline()\n  }\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

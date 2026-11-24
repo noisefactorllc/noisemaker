@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "candy glass"
+  },
+  "effects": [
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\ncellNoise(colorMode: 2, speed: 1, palette: barstow, scale: 17, cellScale: 75, smooth: 50, variation: 0, cyclePalette: 0, rotatePalette: 0).write(o0)\nnoise(hueRange: 89, hueRotation: 27, speed: 100, loopOffset: 410, loopScale: 100, refractAmt: 49, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 65, yScale: 65, octaves: 1).coalesce(tex: read(o0), blendMode: 15, mix: -38).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

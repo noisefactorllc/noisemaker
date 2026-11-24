@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/pmu1gg.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2708,
+        "uniqueColors": 393,
+        "sha256": "57689be945739230e3490a94c96594b5eb17692cc7fee5b513c965621d7e91b9"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2708,
+        "uniqueColors": 393,
+        "sha256": "c28679012239433e317ac9b18e3fddd3b6f08eebcc3529ed6172cff41b9c319a"
+      }
+    }
+  }
+}

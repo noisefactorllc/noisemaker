@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:Iaf_pQ",
+    "dslFile": "programs/Iaf_pQ/program.dsl"
+  },
+  "effects": [
+    "synth/noise",
+    "filter/seamless",
+    "filter/adjust",
+    "filter/tunnel",
+    "classicNoisedeck/cellRefract",
+    "filter/lighting",
+    "filter/prismaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search filter, synth, classicNoisedeck, render, points, mixer\nlet highsReact = audio(band: 2, min: 70, max: 140)\n\nnoise(\n  octaves: 1,\n  scaleX: 100,\n  scaleY: 100,\n  seed: 53,\n  ridges: true,\n  loopScale: 100,\n  speed: highsReact\n)\n  .seamless(blend: 0.32, repeat: 1)\n  .adjust(\n    hueRange: 33.48,\n    saturation: 2.68,\n    brightness: 1.45,\n    contrast: 0.44\n  )\n  .tunnel(\n    scale: -1,\n    speed: 5,\n    rotation: -2,\n    center: 48.67\n  )\n  .cellRefract(\n    amount: 37.83,\n    direction: 360,\n    speed: 5,\n    shape: circle,\n    scale: 91.09,\n    cellScale: 77.48,\n    smooth: 100,\n    variation: 100,\n    seed: 24,\n    effectWidth: 6\n  )\n  .adjust(\n    rotation: -73.72,\n    hueRange: 200,\n    saturation: 0.82\n  )\n  .lighting(\n    normalStrength: 5,\n    smoothing: 5.2,\n    specularIntensity: 1.19,\n    lightDirection: vec3(0.356, -0.278, 0.892),\n    reflection: 29.8,\n    refraction: 30.1,\n    aberration: 27.6\n  )\n  .subchain(name: \"lens effects\", id: \"0nhw\") {\n    .prismaticAberration(\n      aberration: 38.69,\n      modulate: true,\n      hueRange: 100,\n      saturation: -86.58,\n      passthru: 70.78\n    )\n    .bloom(intensity: 0.6, taps: 15)\n    .lens(displacement: -0.5)\n    .vignette()\n  }\n  .adjust(\n    rotation: -90.28,\n    hueRange: 15.8,\n    saturation: 2.58,\n    brightness: 1.34\n  )\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

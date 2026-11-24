@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:MQ2ojg",
+    "dslFile": "programs/MQ2ojg/program.dsl"
+  },
+  "effects": [
+    "synth/noise",
+    "synth/reactionDiffusion",
+    "filter/palette",
+    "filter/lighting"
+  ],
+  "dsl": "search synth, filter\n\nnoise(scaleX: 87, scaleY: 87)\n  .write(o0)\n\nreactionDiffusion(\n  tex: read(o0),\n  smoothing: bSpline3x3,\n  sourceF: brightness,\n  feed: 37.95,\n  kill: 62.88,\n  rate1: 80.95,\n  rate2: 21.19,\n  weight: 27.34,\n  inputIntensity: 22.61\n)\n  .palette(\n    index: tungsten,\n    rotation: fwd,\n    offset: 40.731,\n    alpha: 0.58\n  )\n  .lighting(\n    normalStrength: 1.7,\n    smoothing: 5.9,\n    reflection: 26.2,\n    refraction: 13.6,\n    aberration: 7\n  )\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

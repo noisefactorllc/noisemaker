@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/prismatic-contours.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4072,
+        "sha256": "43d34ea9ffb3868778a4dbf2a4e0d4068c38e7e0c3b72dc7a991f9eaab4a30a9"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4072,
+        "sha256": "6b4b80dac24001f1441395f291e081af7d8aef3ef31226d5706348ae9706095c"
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "heartwave"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "synth/pattern",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 84, hueRotation: 10, speed: 47, refractAmt: 100, ridges: true, wrap: true, xScale: 97, yScale: 100, type: 3, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\npattern(fgColor: #8480ff, bgColor: #000000, rotation: -5, scale: 19, type: 3, speed: 1, animation: 0).coalesce(tex: read(o0), blendMode: 17, mix: -15, refractAAmt: 29, refractBAmt: 100).lensDistortion(aberration: 22, distortion: -8, speed: -20, loopScale: 60, alpha: 28, shape: 6, tint: #bc49b8, vignetteAmt: -69).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/liquid-metal-sunsets.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3885,
+        "sha256": "3d9739f9c3dcbb76b9c817ae53bc574a720a4402a5ce7aa4c1657a1e35b2b6cc"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3885,
+        "sha256": "6df1d6b3064fb38445a2f05475205b650dcb7806d5952df1dbd0c225f66fa63d"
+      }
+    }
+  }
+}

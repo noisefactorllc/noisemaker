@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/hyperdimension.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4069,
+        "uniqueColors": 3687,
+        "sha256": "e89bbe4703c4f66d438d6b7732d0db0b93cf23908e92a169edade1d5a7302445"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4069,
+        "uniqueColors": 3687,
+        "sha256": "a64c7668b6121b500ea0a265170dd89b3a47aaa94c18be8404b6064300c84c9e"
+      }
+    }
+  }
+}

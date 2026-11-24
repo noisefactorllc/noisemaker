@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:4mEx7g",
+    "dslFile": "programs/4mEx7g/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "render/pointsEmit",
+    "points/flock",
+    "points/life",
+    "render/pointsRender",
+    "render/pointsBillboardRender",
+    "filter/blur",
+    "synth/navierStokes",
+    "filter/palette",
+    "filter/lighting",
+    "mixer/focusBlur",
+    "filter/adjust",
+    "filter/grain",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nperlin(\n  scale: 62.13,\n  colorMode: mono,\n  ridges: true,\n  seed: 36,\n  speed: 2\n)\n  .subchain(name: \"flow field particles\", id: \"lkjw\") {\n    .pointsEmit(stateSize: x64, attrition: 0.15)\n    .flock(\n      separation: 4.3,\n      alignment: 1.5,\n      cohesion: 1.4,\n      perceptionRadius: 145,\n      separationRadius: 62,\n      maxSpeed: 10,\n      maxForce: 1,\n      noiseWeight: 0.47\n    )\n    .life(\n      typeCount: 8,\n      attractionScale: 0.9,\n      repulsionScale: 5,\n      minRadius: 0.027,\n      maxRadius: 0.18,\n      maxSpeed: 0.01,\n      friction: 1\n    )\n    .pointsRender(\n      density: 17.6,\n      intensity: 85.92,\n      inputIntensity: 22.17\n    )\n    .pointsBillboardRender(\n      shapeMode: square,\n      depositOpacity: 71.16,\n      pointSize: 40.95,\n      sizeVariation: 100,\n      rotationVar: 100,\n      seed: 0,\n      density: 0,\n      intensity: 13.82,\n      inputIntensity: 100\n    )\n  }\n  .blur()\n  .write(o0)\n\nnavierStokes(\n  tex: read(o0),\n  zoom: x4,\n  iterations: 40,\n  smoothing: bSpline4x4,\n  speed: 68.41,\n  dyeDecay: 97.52,\n  velocityDecay: 100,\n  inputForce: 0.32,\n  inputDye: 1,\n  inputIntensity: 4.23\n)\n  .palette(\n    index: eventHorizon,\n    offset: 82,\n    repeat: 6,\n    alpha: 0.64\n  )\n  .lighting(\n    normalStrength: 4.04,\n    smoothing: 4.3,\n    specularIntensity: 0.71,\n    shininess: 130,\n    reflection: 21.8,\n    refraction: 23,\n    aberration: 18.4\n  )\n  .focusBlur(\n    tex: read(o0),\n    focalDistance: 15.35,\n    aperture: 2.62,\n    sampleBias: 33.51\n  )\n  .adjust(brightness: 1.9, contrast: 0.8)\n  .grain(alpha: 0.18)\n  .subchain(name: \"lens effects\", id: \"dpxp\") {\n    .temporalAberration(\n      redDelay: 4,\n      greenDelay: 2,\n      blueDelay: 0\n    )\n    .bloom(taps: 15)\n    .lens(displacement: -0.52)\n    .vignette(brightness: 0.44, alpha: 0.67)\n  }\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

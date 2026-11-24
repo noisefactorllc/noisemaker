@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/9tnqbw.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1944,
+        "uniqueColors": 1465,
+        "sha256": "2b1cefc021f1ae36629dccaa1de8b19201b5371363358b68962751cf56e451d8"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1944,
+        "uniqueColors": 1465,
+        "sha256": "388757b5784fc44398e70e08428d3aba129f016863f1dc1f00abccd97fd58391"
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "dramatic pattern"
+  },
+  "effects": [
+    "synth/pattern",
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\npattern(fgColor: #ffffff, bgColor: #000000, rotation: 142, scale: 20, type: 8, speed: 1, animation: 0).write(o0)\ncellNoise(speed: 1, palette: brushedMetal, scale: 17, cellScale: 75, smooth: 50, variation: 0, cyclePalette: 0, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 13, mix: 60, refractAAmt: 1, refractBAmt: 100).lensDistortion(aberration: 27, distortion: -31, speed: -59, loopScale: 60, alpha: 34, shape: 0, tint: #5849bc, vignetteAmt: -37).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/kaleidopalooze.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 239,
+        "sha256": "be4f6ce76e2bef6876ab634213e48345ae921a589b0dad4f6c430126f2568407"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 239,
+        "sha256": "e120cab0ce8161bc375226cdde8445fce411ef8e0cd6593aa9d1fc8394e4756c"
+      }
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:HmX6ZA",
+    "dslFile": "programs/HmX6ZA/program.dsl"
+  },
+  "effects": [
+    "synth/bitwise",
+    "filter/palette",
+    "render/pointsEmit",
+    "points/flock",
+    "render/pointsBillboardRender",
+    "filter/translate",
+    "filter/rotate",
+    "filter/smooth",
+    "filter/parallax",
+    "filter/lighting",
+    "mixer/focusBlur",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/adjust"
+  ],
+  "dsl": "search synth, filter, user, classicNoisedeck, render, points, mixer\n\nlet osc1 = osc(type: oscKind.noise)\nlet osc3 = osc(type: oscKind.noise, max: 0.39, seed: 4943)\nlet osc2 = osc(type: oscKind.sawInv, speed: 12.6)\n\nbitwise(\n  operation: nand,\n  scale: 100,\n  seed: 4,\n  speed: 1,\n  colorOffset: 59\n)\n  .palette(\n    index: darkSatin,\n    rotation: fwd,\n    offset: osc2\n  )\n  .subchain(name: \"flow field particles\", id: \"vyce\") {\n    .pointsEmit(attrition: 1.77)\n    .flock(\n      alignment: 5,\n      cohesion: 3.2,\n      perceptionRadius: 99,\n      separationRadius: 5,\n      maxSpeed: 3.8,\n      maxForce: 0.34,\n      noiseWeight: 0.27\n    )\n    .pointsBillboardRender(\n      shapeMode: square,\n      blendMode: alpha,\n      depositOpacity: 100,\n      pointSize: 18.66,\n      sizeVariation: 100,\n      density: 13.86,\n      intensity: 0,\n      inputIntensity: 100\n    )\n  }\n  .translate(y: osc1)\n  .rotate(rotation: osc3, speed: -1)\n  .smooth(\n    type: blur,\n    strength: 0.87,\n    threshold: 0.26,\n    radius: 1.4\n  )\n  .parallax(direction: vec3(-0.667, 0.611, 0.427), pivot: 0.78)\n  .write(o0)\n\nread(o0)\n  .palette(\n    index: darkSatin,\n    offset: 34,\n    alpha: 0.68\n  )\n  .lighting(\n    normalStrength: 5,\n    specularIntensity: 1.46,\n    shininess: 40,\n    lightDirection: vec3(-0.378, -0.567, 0.732),\n    reflection: 15,\n    refraction: 15,\n    aberration: 18.1,\n    heightMap: read(o0)\n  )\n  .focusBlur(\n    tex: read(o0),\n    focalDistance: 88.21,\n    aperture: 1,\n    sampleBias: 64\n  )\n  .subchain(name: \"lens effects\", id: \"vlqd\") {\n    .temporalAberration(\n      redDelay: 1,\n      greenDelay: 2,\n      blueDelay: 0\n    )\n    .bloom(threshold: 0.7, taps: 37)\n    .lens(displacement: -0.67)\n    .vignette(brightness: 0.21)\n  }\n  .adjust(\n    rotation: 70.86,\n    brightness: 1.06,\n    contrast: 0.74\n  )\n  .write(o2)\n\nrender(o2)",
+  "surface": "o2",
+  "resolution": [
+    64,
+    64
+  ]
+}

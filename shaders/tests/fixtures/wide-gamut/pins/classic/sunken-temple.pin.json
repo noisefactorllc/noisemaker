@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/sunken-temple.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3437,
+        "uniqueColors": 247,
+        "sha256": "c2fee7339ffbff3d781c1a74c3e9f099dd7ab7c4a686d180687f650f25eaeeb6"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3437,
+        "uniqueColors": 247,
+        "sha256": "372616db0fe91c6a06ba34800de7eca443cc79fc928b67f80b15692d78f52996"
+      }
+    }
+  }
+}

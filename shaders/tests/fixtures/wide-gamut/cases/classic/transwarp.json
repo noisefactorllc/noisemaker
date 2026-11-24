@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "transwarp"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 0, hueRotation: 84, speed: 50, octaves: 6, refractAmt: 69, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 89, yScale: 89).write(o0)\nnoise(hueRange: 39, hueRotation: 55, speed: 100, loopOffset: 10, loopScale: 15, refractAmt: 55, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 1, yScale: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 10, mix: 34, refractAAmt: 16, refractBAmt: 19).lensDistortion(aberration: 100, blendMode: 0, hueRange: 100, hueRotation: 15, blendMode: 0, modulate: true, passthru: 62, saturation: -15, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

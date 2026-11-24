@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/curated/t45hpg.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4045,
+        "sha256": "b2f76e26282ab110470fbd95c47a08b6d708feda80963bf9146e1d4a9ddeadf8"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4045,
+        "sha256": "5d3682f086b7be3d4f638606edc2dd4070718b1a048ee03c21913541c8710c9d"
+      }
+    }
+  }
+}

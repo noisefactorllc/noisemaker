@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:kwI7eQ",
+    "dslFile": "programs/kwI7eQ/program.dsl"
+  },
+  "effects": [
+    "synth/mnca",
+    "filter/tetraCosine",
+    "filter/lighting",
+    "filter/prismaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "synth/noise"
+  ],
+  "dsl": "search filter, synth, render, points, mixer\nlet highsReact = audio(band: 2, min: 64.939, max: 129.878)\n\nmnca(\n  tex: read(o1),\n  smoothing: bSpline4x4,\n  speed: highsReact,\n  weight: 46.76,\n  n1v1: 37.397,\n  n1r1: 36.19,\n  n1v2: 85.071,\n  n1r2: 59.39,\n  n1v3: 78.473,\n  n1r3: 59.21,\n  n1v4: 40.291,\n  n1r4: 9.6,\n  n2v1: 57.169,\n  n2r1: 74.141,\n  n2v2: 75.756,\n  n2r2: 18.421\n)\n  .tetraCosine(\n    offsetR: 0.459,\n    offsetG: 0.168,\n    offsetB: 0.284,\n    ampR: 0.166,\n    ampG: 0.079,\n    ampB: 0.398,\n    freqR: 2,\n    freqG: 3,\n    freqB: 3,\n    phaseR: 0.719,\n    phaseG: 0.681,\n    phaseB: 0.814,\n    rotation: fwd,\n    repeat: 3,\n    offset: 0.729,\n    alpha: 0.651\n  )\n  .lighting(\n    normalStrength: 0.99,\n    smoothing: 3.7,\n    reflection: 17.4,\n    refraction: 11.1,\n    aberration: 17\n  )\n  .subchain(name: \"lens effects\", id: \"9amq\") {\n    .prismaticAberration(\n      aberration: 100,\n      modulate: true,\n      hueRange: 100,\n      saturation: -100\n    )\n    .bloom(\n      threshold: 0.45,\n      intensity: 0.7,\n      taps: 33\n    )\n    .lens(displacement: -0.5)\n    .vignette(brightness: 0.18, alpha: 0.77)\n  }\n  .write(o0)\n\nnoise(\n  type: catmullRom4x4,\n  octaves: 1,\n  scaleX: 36.96,\n  scaleY: 100,\n  seed: 28,\n  loopOffset: verticalScan,\n  loopScale: 100,\n  speed: -100\n)\n  .write(o1)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

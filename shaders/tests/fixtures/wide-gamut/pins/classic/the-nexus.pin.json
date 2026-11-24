@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/the-nexus.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4094,
+        "uniqueColors": 3940,
+        "sha256": "df283a4b7179e56167963b7f8b5ec4dad741e9eae4da3901bd96fdb9b277af33"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4094,
+        "uniqueColors": 3938,
+        "sha256": "8c0aed84df6dcaaf9485bb6f70f9ab890f2e0e8ad56915f723dc4ad973525815"
+      }
+    }
+  }
+}

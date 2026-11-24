@@ -1,0 +1,27 @@
+{
+  "case": "shaders/effects/classicNoisedeck/refract/parity-case.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4083,
+        "sha256": "974244699401e547fe65caf730605b50ab8ebea02f028b14189be6f18129ca29"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4083,
+        "sha256": "7f8b52b94b1024ab0ebed7822cd08d7c8ed8ac7c4a0f66edde3a50016b054db0"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/quantum-fluctuations.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3931,
+        "uniqueColors": 3457,
+        "sha256": "50fd737665f69fc66fe6f3cc07d2accee3b1b7199de5612c3f82afaaa8b04c7e"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3931,
+        "uniqueColors": 3457,
+        "sha256": "1adbddd9921163f135283485e84ec702faa4bd3853991b4f2796f3379c739783"
+      }
+    }
+  }
+}

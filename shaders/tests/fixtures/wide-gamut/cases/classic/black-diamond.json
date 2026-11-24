@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "black diamond"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 54, hueRotation: 39, speed: 56, octaves: 2, refractAmt: 59, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 90, yScale: 90).write(o0)\nnoise(hueRotation: 13, kaleido: 6, metric: 2, palette: summoning, wrap: true, type: 3, colorMode: 4, xScale: 92, yScale: 92, octaves: 1).coalesce(tex: read(o0), blendMode: 9, mix: -55, refractAAmt: 44, refractBAmt: 19).effects(effect: 120, effectAmt: 2, flip: 15, offsetX: 0, offsetY: -16, rotation: 51, scaleAmt: 134).lensDistortion(aberration: 47, blendMode: 0, hueRange: 31, hueRotation: 0, blendMode: 1, modulate: true, passthru: 51, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/wacky-canvas.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2133,
+        "uniqueColors": 8,
+        "sha256": "f51c1346eca02e7b953c422ea3b38f927b3a6b7bcb09cfe8f1a7bc3f78564a5c"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2133,
+        "uniqueColors": 8,
+        "sha256": "aaaf632ca22ee7193cac907bc241e26922a3aacaab526f4aa93d9d93b347ac28"
+      }
+    }
+  }
+}

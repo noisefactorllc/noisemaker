@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "holo-transmission"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/bitEffects",
+    "classicNoisedeck/glitch",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 9, hueRotation: 15, speed: 73, loopOffset: 300, loopScale: 29, refractAmt: 71, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 74, yScale: 74, octaves: 1).write(o0)\nbitEffects(colorScheme: 5, formula: 0, interp: 0, speed: 34, n: 1, rotation: 0, scale: 88).glitch(aberration: 14).effects(effectAmt: 13, effect: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

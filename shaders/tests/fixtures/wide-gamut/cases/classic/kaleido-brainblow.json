@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "kaleido brainblow"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 47, hueRotation: 73, speed: 95, octaves: 5, refractAmt: 79, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 88, yScale: 88).write(o0)\nnoise(hueRange: 56, hueRotation: 47, speed: 100, refractAmt: 10, ridges: true, wrap: false, xScale: 86, yScale: 95, type: 10, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 10, mix: -46, refractAAmt: 0, refractBAmt: 100).effects(effect: 0, effectAmt: 2, flip: 15, offsetX: -18, offsetY: 41, rotation: 125, scaleAmt: 142).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

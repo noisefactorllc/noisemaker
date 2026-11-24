@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "liquid ice"
+  },
+  "effects": [
+    "classicNoisedeck/cellNoise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\ncellNoise(colorMode: 1, speed: 1, palette: jester, scale: 15, cellScale: 75, smooth: 50, variation: 0, cyclePalette: 1, rotatePalette: 0).write(o0)\ncellNoise(colorMode: 2, speed: 1, palette: neptune, scale: 18, cellScale: 75, smooth: 0, variation: 0, cyclePalette: 1, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 0, mix: -50, refractAAmt: 61, refractBAmt: 34).lensDistortion(aberration: 30, distortion: -32, speed: 15, loopScale: 73, alpha: 59, shape: 0, tint: #5e9e96, vignetteAmt: -100).refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/black-diamond.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3626,
+        "uniqueColors": 965,
+        "sha256": "f0bc8f272336193cd48c689f0f56f848cca684ddcc1556bd6e4d4c12d78182cb"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3626,
+        "uniqueColors": 965,
+        "sha256": "d3830a567803fe94acc097aded95bac0c4b618d0b246e4e5fb4c48632bc51869"
+      }
+    }
+  }
+}

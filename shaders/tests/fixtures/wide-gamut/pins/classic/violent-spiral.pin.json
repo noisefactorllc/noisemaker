@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/violent-spiral.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 978,
+        "uniqueColors": 91,
+        "sha256": "c4a6864860f823257b91dd1473ba126c6e6b1182387216ab4750c3deaad27bce"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 978,
+        "uniqueColors": 91,
+        "sha256": "88fd15235683cb6881b39f735425fbb0c15d70008981af991dbd068406aa5400"
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "dotstortion"
+  },
+  "effects": [
+    "synth/pattern"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\npattern(fgColor: #000000, bgColor: #ffffff, rotation: 0, scale: 13, type: 1, speed: 1, animation: 0).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

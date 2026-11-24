@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/awesome-dreams.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4067,
+        "sha256": "05cfb9e1b33a66bf4772d0902976757773d9bbe0bd5955af75920c6a0cf40509"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4067,
+        "sha256": "0eaa225ad0b421757dfdd690256ef2046855235079ab9e6461c6426e50461643"
+      }
+    }
+  }
+}

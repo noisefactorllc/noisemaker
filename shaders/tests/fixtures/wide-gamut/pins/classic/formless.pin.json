@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/formless.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 800,
+        "sha256": "f81f5b7e6ce94bc492615dcf395e40aa9820d1316749e7a0a20cfe4a428fe6bc"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 800,
+        "sha256": "17300d0a763c8494e08f68112f425f03d51886f47189b2dbd5ef05c947e2f402"
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:TxGb7g",
+    "dslFile": "programs/TxGb7g/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "filter/adjust",
+    "filter/celShading",
+    "filter/palette"
+  ],
+  "dsl": "search synth, filter\n\nlet osc1 = osc(type: oscKind.saw)\n\nperlin(scale: 65.36, seed: 19)\n  .adjust(rotation: osc1, hueRange: 200)\n  .celShading(levels: 2, edgeThreshold: 0.01)\n  .palette(\n    index: springtime,\n    rotation: fwd,\n    repeat: 10\n  )\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

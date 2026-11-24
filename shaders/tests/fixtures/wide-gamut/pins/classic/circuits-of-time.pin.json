@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/circuits-of-time.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3047,
+        "uniqueColors": 2534,
+        "sha256": "3875d3742c304a1721c4cca72be5e2517953b41d0f8374f4c23cedadf95d4546"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3047,
+        "uniqueColors": 2534,
+        "sha256": "06da23535258cc807ea279356d748b397977de5d44d7bc4e68ad9b5aa122fcff"
+      }
+    }
+  }
+}

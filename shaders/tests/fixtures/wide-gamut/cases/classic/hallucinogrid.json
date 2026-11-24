@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "hallucinogrid"
+  },
+  "effects": [
+    "synth/pattern",
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\npattern(fgColor: #00ffd5, bgColor: #000000, rotation: 130, scale: 15, type: 2, speed: 1, animation: 4).write(o0)\nnoise(hueRange: 21, hueRotation: 43, speed: 100, refractAmt: 100, ridges: true, wrap: true, xScale: 99, yScale: 97, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 9, mix: -56, refractAAmt: 27, refractBAmt: 29).lensDistortion(aberration: 100, distortion: -64, speed: -10, loopScale: 62, alpha: 11, shape: 0, tint: #75c5c7, vignetteAmt: -100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

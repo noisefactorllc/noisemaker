@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/double-mask.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1394,
+        "uniqueColors": 7,
+        "sha256": "9fb178a0aa1190bcddd367c39ebfe17000612970c76185a86a1a36d723943d51"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1394,
+        "uniqueColors": 7,
+        "sha256": "a031189e3ee41d5d4028053544bfba5d5c08eee7ff8d7ea798b911ade847c419"
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:ZZw1JQ",
+    "dslFile": "programs/ZZw1JQ/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "filter/adjust",
+    "render/pointsEmit",
+    "points/life",
+    "points/flow",
+    "render/pointsBillboardRender",
+    "render/pointsRender"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\nlet highsReact = audio(band: 2, min: 84, max: 168)\n\nperlin(\n  scale: 19.94,\n  octaves: 2,\n  seed: 64\n)\n  .adjust(\n    mode: hsv,\n    rotation: highsReact,\n    hueRange: 63.6,\n    saturation: 1.54,\n    brightness: 1.1,\n    contrast: 0.53\n  )\n  .subchain(name: \"particle life\", id: \"860b\") {\n    .pointsEmit(attrition: 2.12)\n    .life(\n      typeCount: 8,\n      attractionScale: 3,\n      repulsionScale: 2.3,\n      minRadius: 0.009,\n      maxRadius: 0.1,\n      maxSpeed: 0.007,\n      friction: 0.96,\n      matrixSeed: 629\n    )\n    .flow(stride: 60, strideDeviation: 0.5)\n    .pointsBillboardRender(\n      shapeMode: soft,\n      depositOpacity: 3.49,\n      pointSize: 64,\n      sizeVariation: 100,\n      density: 9.26,\n      intensity: 70.94,\n      inputIntensity: 100\n    )\n    .pointsRender(intensity: 92.42, inputIntensity: 48.91)\n  }\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

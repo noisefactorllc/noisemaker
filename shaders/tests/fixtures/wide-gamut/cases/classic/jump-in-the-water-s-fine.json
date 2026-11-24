@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "jump in, the water's fine"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 95, hueRotation: 40, speed: 4, loopOffset: 300, loopScale: 38, refractAmt: 50, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 77, yScale: 77, octaves: 1).write(o0)\nshapes(speedA: 21, loopAOffset: 10, loopAScale: 72, speedB: 9, loopBOffset: 10, loopBScale: 65, palette: justRed, wrap: true, cyclePalette: 0, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 11, mix: -13, refractAAmt: 75, refractBAmt: 14).refract().colorLab(colorMode: 3, dither: 0, hueRange: 104, hueRotation: 2, levels: 0, palette: sulphur).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

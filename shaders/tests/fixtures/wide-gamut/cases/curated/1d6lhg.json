@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:1D6LHg",
+    "dslFile": "programs/1D6LHg/program.dsl"
+  },
+  "effects": [
+    "synth/noise",
+    "filter/palette",
+    "render/pointsEmit",
+    "points/life",
+    "points/lenia",
+    "render/pointsRender",
+    "render/pointsBillboardRender",
+    "filter/rotate",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search filter, mixer, points, render, synth, classicNoisedeck\n\nlet osc1 = osc(type: oscKind.sine, speed: 17)\nlet osc2 = osc(type: oscKind.noise, speed: 3)\nlet osc3 = osc(type: oscKind.noise, max: 0.19, speed: 7, seed: 7066)\n\nlet osc4 = osc(type: oscKind.sine, speed: 4)\nnoise(\n  loopOffset: circle,\n  loopScale: 90.55,\n  speed: 100,\n  colorMode: mono\n)\n  .palette(\n    index: sherbet,\n    offset: 75.952,\n    repeat: 3,\n    alpha: 0.892\n  )\n  .subchain(name: \"life\", id: \"zxnr\") {\n    .pointsEmit(\n      stateSize: x64,\n      layout: center,\n      seed: 11,\n      attrition: osc3\n    )\n    .life(\n      typeCount: 8,\n      attractionScale: 2.2,\n      repulsionScale: osc1,\n      minRadius: 0.021,\n      maxSpeed: osc2,\n      friction: 0.98,\n      matrixSeed: 78.425\n    )\n    .lenia(\n      muK: 7.5,\n      sigmaK: 9.1,\n      repulsion: 0.6,\n      dt: 0.08,\n      searchRadius: 11,\n      depositAmount: 1.4\n    )\n    .pointsRender(\n      density: 100,\n      intensity: osc4,\n      inputIntensity: 0,\n      rotateX: 4.221,\n      rotateY: 0.646,\n      rotateZ: 1.316,\n      viewScale: 1.546,\n      posX: -25.066,\n      posY: -19.438,\n      matteOpacity: 0.839\n    )\n    .pointsBillboardRender(\n      shapeMode: soft,\n      blendMode: alpha,\n      depositOpacity: 19.76,\n      pointSize: 45.8,\n      sizeVariation: 100,\n      density: 0,\n      intensity: 40.23,\n      inputIntensity: 100\n    )\n  }\n  .rotate(speed: 1)\n  .subchain(name: \"lens effects\", id: \"a2sw\") {\n    .temporalAberration(\n      redDelay: 3,\n      greenDelay: 1.5,\n      blueDelay: 0\n    )\n    .bloom(\n      threshold: 0.55,\n      intensity: 1.05,\n      taps: 45\n    )\n    .lens(displacement: 0.24)\n    .vignette()\n  }\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

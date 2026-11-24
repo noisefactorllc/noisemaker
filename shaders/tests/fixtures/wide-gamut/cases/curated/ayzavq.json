@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:AyZAVQ",
+    "dslFile": "programs/AyZAVQ/program.dsl"
+  },
+  "effects": [
+    "synth/pattern",
+    "mixer/blendMode",
+    "render/loopBegin",
+    "filter/warp",
+    "filter/feedback",
+    "render/loopEnd",
+    "filter/lighting",
+    "filter/normalMap",
+    "filter/adjust",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "synth/perlin"
+  ],
+  "dsl": "search synth, filter, mixer, render, points\nlet midsReact = audio(band: 1, min: 0.5, max: 1.7)\n\npattern(\n  type: triangularGrid,\n  scale: 16.65,\n  thickness: 0.82,\n  smoothness: 1,\n  rotation: 45\n)\n  .blendMode(tex: read(o3), mode: softLight)\n  .subchain(name: \"feedback loop with waves\", id: \"n5un\") {\n    .loopBegin(alpha: 95.08, intensity: 99.28)\n    .warp(\n      strength: 14.05,\n      scale: 0.72,\n      speed: midsReact\n    )\n    .feedback(\n      mix: 74.58,\n      refractAAmt: 10.97,\n      refractBAmt: 6.31\n    )\n    .loopEnd()\n  }\n  .write(o0)\n\nread(o0)\n  .lighting(\n    normalStrength: 5,\n    smoothing: 3.2,\n    specularIntensity: 0.41,\n    shininess: 77,\n    lightDirection: vec3(0.189, 0.356, 0.915),\n    reflection: 28.7,\n    refraction: 25.8,\n    aberration: 19.5\n  )\n  .write(o1)\n\nread(o0)\n  .normalMap()\n  .blendMode(\n    tex: read(o1),\n    mode: diff,\n    mix: -29.56\n  )\n  .adjust(\n    rotation: -142.01,\n    hueRange: 200,\n    saturation: 0.78,\n    brightness: 0.6,\n    contrast: 0.82\n  )\n  .subchain(name: \"lens effects\", id: \"oa4k\") {\n    .chromaticAberration(aberration: 19.65)\n    .bloom(taps: 15)\n    .lens(displacement: -0.45)\n    .vignette(brightness: 0.06, alpha: 0.9)\n  }\n  .write(o2)\n\nperlin()\n  .write(o3)\n\nrender(o2)",
+  "surface": "o2",
+  "resolution": [
+    64,
+    64
+  ]
+}

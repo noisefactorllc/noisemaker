@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/witchy-waves.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4010,
+        "sha256": "facfec6d191727165f57eaab558f2afaddbaa48a9ac0ec28537a5e14481a1b13"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4010,
+        "sha256": "b03f54bc9bced77f9198663d17f2d7190c00f8f1c400a714526d7d538e68fe93"
+      }
+    }
+  }
+}

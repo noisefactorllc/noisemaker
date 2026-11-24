@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "digital complexity"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 92, hueRotation: 13, speed: 53, octaves: 6, refractAmt: 0, ridges: false, type: 10, colorMode: 6, kaleido: 1, xScale: 29, yScale: 29).write(o0)\nnoise(hueRange: 95, hueRotation: 77, speed: 48, octaves: 7, refractAmt: 0, ridges: false, type: 10, colorMode: 6, kaleido: 1, xScale: 83, yScale: 83).coalesce(tex: read(o0), blendMode: 5, mix: -30, refractAAmt: 47, refractBAmt: 61).effects(effect: 7, effectAmt: 1, flip: 0, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

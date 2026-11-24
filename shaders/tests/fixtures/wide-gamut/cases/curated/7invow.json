@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:7INvow",
+    "dslFile": "programs/7INvow/program.dsl"
+  },
+  "effects": [],
+  "dsl": "search user\n\nprismaticChemtrails(\n  dispersion: 0.46,\n  driftAmount: 0,\n  mixWisp: 1,\n  prismIntensity: 2,\n  trailDensity: 5.18\n)\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ],
+  "userEffects": [
+    {
+      "name": "prismaticChemtrails",
+      "namespace": "user",
+      "func": "prismaticChemtrails",
+      "description": "Prismatic chemtrails: a filter-style effect that looks like viewing the scene through a prism at a sky full of dissolving chemtrail wisps. ELEMENTS: (1) Radial spectral dispersion — 16-20 sample taps displaced outward from frame center, each tap's displacement scales signed (t-0.5)*dispersion*centerDist, tap color weighted by a saturated cosine rainbow palette (red outermost, violet innermost), accumulated with center-weighted Gaussian-ish weights so the frame center stays sharp and dispersion blooms toward edges. (2) Anisotropic FBM wisps — 5-octave value-noise FBM with domain stretched vertically (uv.x*1.0, uv.y*6.0) to form horizontal trail streaks, pale steel-blue/white (0.85,0.88,0.92) base tint. Wisps undulate with a pendulum drift: noise domain offset by driftAmount*sin(time*TAU) horizontally plus a second parallax layer offset by driftAmount*cos(time*TAU) moving oppositely. A gentle timeCircle vec2(cos(time*TAU), sin(time*TAU))*0.3 added to the noise coordinates gives organic undulation. (3) Iridescent sheen — where wisp density and radial center-distance are both high, wisps are tinted by the spectral cosine palette shifted by hueOffset + 0.05*sin(time*TAU*2.0); dispersion amount is wisp-modulated via mixWisp. (4) Dispersion breathing — dispersion scales by 0.8+0.2*sin(time*TAU). ANIMATION: every animated value is a pure sinusoid of time*TAU with INTEGER cycle counts (1 or 2); noise domain moves only via sin/cos oscillation and timeCircle sampling, never raw time ramps. COLOR: bright airy pastel-to-vivid — pale blue-white base interrupted by saturated full-spectrum bands; smoothstep-weighted taps, no banding, no channel-only fringing.",
+      "tags": [
+        "custom",
+        "user"
+      ],
+      "globals": {
+        "dispersion": {
+          "type": "float",
+          "default": 0.5,
+          "uniform": "dispersion",
+          "min": 0,
+          "max": 1,
+          "ui": {
+            "label": "dispersion",
+            "control": "slider"
+          }
+        },
+        "driftAmount": {
+          "type": "float",
+          "default": 0.15,
+          "uniform": "driftAmount",
+          "min": 0,
+          "max": 0.5,
+          "ui": {
+            "label": "driftAmount",
+            "control": "slider"
+          }
+        },
+        "hueOffset": {
+          "type": "float",
+          "default": 0,
+          "uniform": "hueOffset",
+          "min": 0,
+          "max": 1,
+          "ui": {
+            "label": "hueOffset",
+            "control": "slider"
+          }
+        },
+        "mixWisp": {
+          "type": "float",
+          "default": 0.7,
+          "uniform": "mixWisp",
+          "min": 0,
+          "max": 1,
+          "ui": {
+            "label": "mixWisp",
+            "control": "slider"
+          }
+        },
+        "prismIntensity": {
+          "type": "float",
+          "default": 1,
+          "uniform": "prismIntensity",
+          "min": 0,
+          "max": 2,
+          "ui": {
+            "label": "prismIntensity",
+            "control": "slider"
+          }
+        },
+        "trailDensity": {
+          "type": "float",
+          "default": 3,
+          "uniform": "trailDensity",
+          "min": 0.5,
+          "max": 8,
+          "ui": {
+            "label": "trailDensity",
+            "control": "slider"
+          }
+        }
+      },
+      "passes": [
+        {
+          "name": "render",
+          "program": "prismaticChemtrails",
+          "inputs": {},
+          "outputs": {
+            "fragColor": "outputTex"
+          }
+        }
+      ],
+      "shaders": {
+        "prismaticChemtrails": {
+          "glsl": "#version 300 es\nprecision highp float;\n\nuniform float time;\nuniform vec2 resolution;\nuniform vec2 fullResolution;\n\nout vec4 fragColor;\n\n#define TAU 6.283185307179586\n#define PI 3.141592653589793\n\nuniform float dispersion;    // 0.0-1.0, radial spectral dispersion strength\nuniform float driftAmount;   // 0.0-0.5, wisp drift oscillation amplitude\nuniform float hueOffset;     // 0.0-1.0, iridescent sheen hue shift\nuniform float mixWisp;       // 0.0-1.0, wisp modulation of dispersion\nuniform float prismIntensity; // 0.0-2.0, prism effect strength\nuniform float trailDensity;  // 0.5-8.0, chemtrail wisp density\n\nfloat hash(vec2 p) {\n    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);\n}\n\nfloat valueNoise(vec2 p) {\n    vec2 i = floor(p);\n    vec2 f = fract(p);\n    vec2 u = f * f * (3.0 - 2.0 * f);\n    float a = hash(i);\n    float b = hash(i + vec2(1.0, 0.0));\n    float c = hash(i + vec2(0.0, 1.0));\n    float d = hash(i + vec2(1.0, 1.0));\n    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);\n}\n\nfloat fbm(vec2 p) {\n    float v = 0.0;\n    float amp = 0.5;\n    for (int i = 0; i < 5; i++) {\n        v += amp * valueNoise(p);\n        p = p * 2.02 + vec2(1.7, 9.2);\n        amp *= 0.5;\n    }\n    return v;\n}\n\n// Saturated rainbow palette: red at t=0, through spectrum to violet\nvec3 rainbowPalette(float t) {\n    vec3 c = 0.5 + 0.5 * cos(TAU * (t + vec3(0.0, 0.33, 0.67)));\n    // boost saturation\n    float g = dot(c, vec3(0.299, 0.587, 0.114));\n    return mix(vec3(g), c, 1.6);\n}\n\n// Pale steel-blue/white base tint for chemtrail wisps\nvec3 wispTint(float density) {\n    vec3 base = vec3(0.85, 0.88, 0.92);\n    return mix(vec3(1.0), base, clamp(density, 0.0, 1.0));\n}\n\nfloat gaussianWeight(float x, float sigma) {\n    return exp(-(x * x) / (2.0 * sigma * sigma));\n}\n\nvoid main() {\n    vec2 uv = gl_FragCoord.xy / resolution;\n    vec2 centered = uv - 0.5;\n    centered.x *= resolution.x / resolution.y;\n    \n    // ═══════════════════════════════════════════════════════════════════════════\n    // LOOPING PRIMITIVES - ALL ANIMATION MUST USE THESE\n    // time goes 0→1, so t goes 0→TAU, completing exactly one cycle\n    // ═══════════════════════════════════════════════════════════════════════════\n    float t = time * TAU;           // Converts time 0→1 to radians 0→TAU\n    vec2 timeCircle = vec2(cos(t), sin(t));  // For noise sampling - traces a circle\n    float pulse = 0.5 + 0.5 * sin(t);        // 0→1→0 smooth oscillation\n    float wave = sin(t);                      // -1→1→-1 smooth oscillation\n\n// Radial prism bloom: sharp at the optical center, wider at the edges.\n    float aspect = resolution.x / resolution.y;\n    float centerDist = length(centered);\n    float edgeBloom = smoothstep(0.0, 0.85, centerDist);\n    vec2 radialDirection = centered / max(centerDist, 0.0001);\n    radialDirection.x /= aspect;\n\n    vec2 wispDomain = vec2(uv.x, uv.y * 6.0) * trailDensity;\n    vec2 driftA = vec2(driftAmount * sin(t), 0.0);\n    vec2 driftB = vec2(-driftAmount * cos(t), 0.0);\n    vec2 organicMotion = timeCircle * 0.3;\n\n    float localWispA = fbm(wispDomain + driftA + organicMotion);\n    float localWispB = fbm(wispDomain * 1.23 + driftB\n                         - organicMotion + vec2(8.1, 3.7));\n    float localDensity = smoothstep(\n        0.36, 0.69, localWispA * 0.65 + localWispB * 0.35\n    );\n\n    float breathing = 0.8 + 0.2 * sin(t);\n    float dispersionWidth = dispersion * breathing * 0.16;\n    dispersionWidth *= mix(1.0, 0.35 + 1.35 * localDensity, mixWisp);\n    dispersionWidth *= clamp(prismIntensity, 0.0, 2.0);\n\n    float sheenShift = hueOffset + 0.05 * sin(t * 2.0);\n    vec3 spectralSum = vec3(0.0);\n    vec3 spectralNormalization = vec3(0.0);\n    vec3 neutralSum = vec3(0.0);\n    float totalWeight = 0.0;\n\n    // Each tap views a complete airy sky with dissolving horizontal trails.\n    for (int tap = 0; tap < 18; ++tap) {\n        float tapPosition = float(tap) / 17.0;\n        float signedPosition = tapPosition - 0.5;\n        vec2 sampleUV = uv + radialDirection\n                     * signedPosition * dispersionWidth * centerDist;\n\n        vec3 sky = mix(\n            vec3(0.88, 0.94, 0.99),\n            vec3(0.34, 0.63, 0.87),\n            smoothstep(0.0, 1.0, sampleUV.y)\n        );\n\n        vec2 domain = vec2(sampleUV.x, sampleUV.y * 6.0)\n                    * trailDensity;\n        float noiseA = fbm(domain + driftA + organicMotion);\n        float noiseB = fbm(domain * 1.23 + driftB\n                        - organicMotion + vec2(8.1, 3.7));\n        float vapor = smoothstep(0.34, 0.73, 0.65 * noiseA + 0.35 * noiseB);\n\n        // Explicit narrow trail coverage, warped and eroded into soft wisps.\n        float trails = 0.0;\n        for (int trail = 0; trail < 6; ++trail) {\n            float id = float(trail);\n            float seed = hash(vec2(id + 1.0, 17.2));\n            float layerSign = (trail == 0 || trail == 2 || trail == 4)\n                            ? 1.0 : -1.0;\n            float pendulum = layerSign > 0.0\n                           ? driftAmount * sin(t)\n                           : -driftAmount * cos(t);\n            float trailX = sampleUV.x + pendulum;\n            float baseHeight = 0.13 + id * 0.145;\n            float bend = 0.013 * sin(trailX * 7.0 + seed * TAU);\n            bend += (noiseA - 0.5) * 0.075;\n            float distanceToTrail = abs(sampleUV.y - baseHeight - bend);\n            float width = (0.007 + 0.010 * seed)\n                        * (0.65 + 0.35 * vapor)\n                        * sqrt(max(trailDensity, 0.5) / 3.0);\n            float coverage = 1.0 - smoothstep(width, width * 3.6, distanceToTrail);\n            float segment = smoothstep(-0.15, 0.12, trailX + seed * 0.2)\n                          * (1.0 - smoothstep(0.78, 1.2, trailX - seed * 0.15));\n            float dissolution = smoothstep(0.28, 0.65,\n                mix(noiseA, noiseB, seed));\n            trails = max(trails, coverage * segment * dissolution);\n        }\n\n        float density = clamp(trails * 0.94 + vapor * 0.23, 0.0, 1.0);\n        vec3 paleWisp = wispTint(density);\n        vec3 sheen = clamp(rainbowPalette(\n            sampleUV.x * 0.55 + sampleUV.y * 0.22\n            + sheenShift + noiseB * 0.25\n        ), 0.0, 1.0);\n        sheen = mix(vec3(1.0), sheen, 0.65);\n        float sheenMask = smoothstep(0.25, 0.85, density) * edgeBloom;\n        sheenMask *= clamp(prismIntensity * 0.65, 0.0, 0.9);\n        vec3 cloudColor = mix(paleWisp, sheen, sheenMask);\n        vec3 sceneColor = mix(sky, cloudColor, density * 0.88);\n\n        // Positive saturated full-spectrum weights, red outward/violet inward.\n        vec3 spectrum = clamp(\n            rainbowPalette((1.0 - tapPosition) * 0.78), 0.0, 1.0\n        );\n        spectrum = mix(vec3(0.08), vec3(1.0), spectrum);\n        float weight = gaussianWeight(signedPosition, 0.27);\n        weight *= 1.0 - smoothstep(0.38, 0.62, abs(signedPosition));\n\n        spectralSum += sceneColor * spectrum * weight;\n        spectralNormalization += spectrum * weight;\n        neutralSum += sceneColor * weight;\n        totalWeight += weight;\n    }\n\n    vec3 dispersedColor = spectralSum / max(spectralNormalization, vec3(0.0001));\n    vec3 neutralColor = neutralSum / max(totalWeight, 0.0001);\n    float prismBlend = clamp(prismIntensity, 0.0, 1.0);\n    vec3 color = mix(neutralColor, dispersedColor, prismBlend);\n    color = max(color, vec3(0.0));\n\n//  Color Output \n    // Gentle center-weighted exposure so the frame core stays bright and airy\n    // while the prismatic bloom dissolves outward toward the frame edges.\n    float centerProtect = 1.0 - 0.18 * edgeBloom;\n    color *= centerProtect;\n\n    // Soft tonal shaping to keep pastels airy without clipping highlights.\n    color = color / (color + vec3(0.85)) * 1.65;\n    color = pow(clamp(color, 0.0, 1.0), vec3(0.92));\n\n    // Final pastel lift toward a bright sky-white base.\n    color = mix(color, mix(color, vec3(1.0), 0.12), smoothstep(0.4, 1.0, centerDist));\n\n    fragColor = vec4(color, 1.0);\n}"
+        }
+      },
+      "textures": {}
+    }
+  ],
+  "backends": [
+    "webgl2"
+  ]
+}

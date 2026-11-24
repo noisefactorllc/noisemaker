@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/awakening.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4090,
+        "uniqueColors": 3381,
+        "sha256": "3d1290468743ad8212c3d6f3208a5e0db333d8917b6c620b2dccf0a99be1f887"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4090,
+        "uniqueColors": 3381,
+        "sha256": "bdbc520ec6c9adc688eb7d8ef52f04f175e1601e16cd2dc07c2cfd90ffbbf26c"
+      }
+    }
+  }
+}

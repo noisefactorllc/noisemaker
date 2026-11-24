@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/oil-cloud.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4050,
+        "sha256": "546a68ea8f020b70dbc8e5cd595080f7bc5e189d1c4112f9217697effa53a802"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4050,
+        "sha256": "a60e5f53fac8bd04ed4b4afbf5d4fcff046d26f14f47eede43f5b3e8ddd7af87"
+      }
+    }
+  }
+}

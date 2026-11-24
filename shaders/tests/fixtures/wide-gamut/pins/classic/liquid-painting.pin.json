@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/liquid-painting.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4087,
+        "uniqueColors": 4025,
+        "sha256": "f97ff910a8256c4df8e030a2683d5214c22a05120be51a0db855f5be9be3cc34"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4087,
+        "uniqueColors": 4025,
+        "sha256": "2f1770c1c3054228c31469404311db50ef54a3124d76f36cdeb007f9a7d5cab4"
+      }
+    }
+  }
+}

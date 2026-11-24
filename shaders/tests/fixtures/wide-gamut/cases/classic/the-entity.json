@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "the entity"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 94, hueRotation: 75, speed: 43, loopOffset: 200, loopScale: 92, refractAmt: 57, wrap: true, type: 2, colorMode: 6, kaleido: 1, xScale: 71, yScale: 71, octaves: 1).effects(effect: 8, effectAmt: 1, flip: 13, offsetX: 0, offsetY: 0, rotation: 90, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

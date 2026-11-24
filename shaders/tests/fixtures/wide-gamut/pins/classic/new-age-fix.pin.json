@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/new-age-fix.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3087,
+        "uniqueColors": 2327,
+        "sha256": "f1400901330353618a15bd98e22be00a332bca7c650576bc0c70b23cdd03708a"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3087,
+        "uniqueColors": 2327,
+        "sha256": "a4b60701880ea0f11c23e8e025fc4acb41ffff1259b9b4ada20a0fddf94ac497"
+      }
+    }
+  }
+}

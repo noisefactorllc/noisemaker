@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "gleaming the square"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 21, hueRotation: 33, speed: -12, loopOffset: 40, loopScale: 100, refractAmt: 60, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 100, yScale: 100, octaves: 1).write(o0)\nshapes(speedA: -40, loopAOffset: 330, loopAScale: 75, speedB: -68, loopBOffset: 40, loopBScale: 34, palette: tungsten, wrap: true, cyclePalette: 0, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 100, mix: -18, refractAAmt: 17, refractBAmt: 42).refract().lensDistortion(aberration: 29, distortion: -100, speed: -60, loopScale: 93, alpha: 0, shape: 4, tint: #000000, vignetteAmt: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

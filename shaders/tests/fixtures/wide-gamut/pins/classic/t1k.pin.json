@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/t1k.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3936,
+        "uniqueColors": 3627,
+        "sha256": "691c3a7fb6f1d38261dc1e5fd4e7b6eb6e0a8dba7ad9ab70ed7e8eb76ae76a4c"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3936,
+        "uniqueColors": 3629,
+        "sha256": "cefbfd9ef86455fd0c8e916806161fceca7a57bd79cd014f86906227da4fae69"
+      }
+    }
+  }
+}

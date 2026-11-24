@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "hyperdimension"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 15, hueRotation: 39, speed: 54, refractAmt: 100, ridges: true, wrap: false, xScale: 96, yScale: 98, type: 3, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 29, hueRotation: 51, speed: 47, refractAmt: 100, ridges: true, wrap: false, xScale: 96, yScale: 96, type: 3, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 9, mix: 59, refractAAmt: 52, refractBAmt: 90).lensDistortion(aberration: 26, blendMode: 0, hueRange: 0, hueRotation: 29, blendMode: 1, modulate: false, passthru: 26, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/low-tech-kaleido.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1118,
+        "uniqueColors": 266,
+        "sha256": "688ce4d65aa60bed7b4f2a0435e3eb5b10892051a4818aa88fbb0e9343d773d8"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1118,
+        "uniqueColors": 266,
+        "sha256": "ec1d31f884cbb1395198ea1dc3c8eae19417d8c157e444377b3484a37face083"
+      }
+    }
+  }
+}

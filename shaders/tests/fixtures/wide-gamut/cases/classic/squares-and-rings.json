@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "squares and rings"
+  },
+  "effects": [
+    "synth/pattern",
+    "classicNoisedeck/coalesce"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\npattern(fgColor: #e5bfa2, bgColor: #4111c1, rotation: 0, scale: 17, type: 6, speed: 1, animation: 0).write(o0)\npattern(fgColor: #ad2b50, bgColor: #e2bcc8, rotation: 0, scale: 19, type: 5, speed: 1, animation: 0).coalesce(tex: read(o0), blendMode: 2, mix: 17).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

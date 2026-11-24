@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/twinkle-twinkle.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4095,
+        "uniqueColors": 868,
+        "sha256": "a59318710b56c19a4449e5b4e785fa3fe7252ffecfe41580219e382bbea010ad"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4095,
+        "uniqueColors": 868,
+        "sha256": "9ce9f299cdb5aab3aa4eae8f3b662e6b6d3a784626a283a1e19a37c417abc3b0"
+      }
+    }
+  }
+}

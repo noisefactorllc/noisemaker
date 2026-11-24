@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/here-they-come.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 436,
+        "uniqueColors": 226,
+        "sha256": "a0bfbbb6e2e16c223407e88491f18b1e7442916e40cbff2ef0e877163e420f69"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 436,
+        "uniqueColors": 226,
+        "sha256": "16e004ee00d9c767170bffb2905fb46d0cba6fa68ffaad5bae3c8a0abbff4211"
+      }
+    }
+  }
+}

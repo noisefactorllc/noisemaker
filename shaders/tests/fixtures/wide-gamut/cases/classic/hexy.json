@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "hexy"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/kaleido",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 13, hueRotation: 38, speed: -74, loopOffset: 60, loopScale: 59, refractAmt: 9, wrap: true, type: 1, colorMode: 6, kaleido: 1, xScale: 94, yScale: 94, octaves: 1).kaleido(direction: 2, effectWidth: 2, sides: 6, kernel: 0, speed: 0, loopOffset: 10, loopScale: 71, metric: 0, wrap: true).lensDistortion(aberration: 17, distortion: -26, speed: 0, loopScale: 25, alpha: 0, shape: 2, tint: #6bd6ca, vignetteAmt: -58).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

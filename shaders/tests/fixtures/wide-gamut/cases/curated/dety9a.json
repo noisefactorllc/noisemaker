@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:deTy9A",
+    "dslFile": "programs/deTy9A/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "filter/lowPoly",
+    "filter/texture",
+    "filter/rotate",
+    "filter/parallax",
+    "filter/palette",
+    "filter/lighting",
+    "mixer/focusBlur",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/adjust"
+  ],
+  "dsl": "search synth, filter, mixer, render, points\n\nlet osc1 = osc(type: oscKind.sine, min: 0.46, max: 0.61)\nlet osc2 = osc(type: oscKind.sine, max: 0.2)\n\nperlin(\n  scale: 17.23,\n  octaves: 2,\n  dimensions: 3,\n  ridges: true,\n  speed: 3\n)\n  .lowPoly(\n    scale: 95,\n    seed: 10,\n    mode: distance2,\n    edgeStrength: 0.69,\n    alpha: 0.78,\n    speed: 2\n  )\n  .texture(alpha: 0.51, scale: 8.6)\n  .rotate(rotation: osc1)\n  .parallax(direction: vec3(-0.886, 0.464, 0))\n  .write(o0)\n\nread(o0)\n  .palette(index: jester, alpha: 0.76)\n  .lighting(\n    normalStrength: 5,\n    smoothing: 1.9,\n    specularIntensity: 0.34,\n    shininess: 88,\n    reflection: 26.1,\n    refraction: 42.4,\n    aberration: 26.6,\n    heightMap: read(o0)\n  )\n  .focusBlur(\n    tex: read(o0),\n    focalDistance: 72.63,\n    aperture: 1.68,\n    sampleBias: 11.52\n  )\n  .subchain(name: \"lens effects\", id: \"5yux\") {\n    .temporalAberration()\n    .bloom(threshold: 0.65, taps: 29)\n    .lens(displacement: -0.73)\n    .vignette(brightness: 0.16, alpha: 0.84)\n  }\n  .adjust(\n    rotation: osc2,\n    saturation: 0.4,\n    brightness: 1.15,\n    contrast: 0.63\n  )\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

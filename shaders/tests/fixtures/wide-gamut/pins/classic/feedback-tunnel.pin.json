@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/feedback-tunnel.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4077,
+        "uniqueColors": 3927,
+        "sha256": "9eea1069d9c551214ef70b8c1f949c7159f3cc9126d5ff72d6f9912d7d0afcd6"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4077,
+        "uniqueColors": 3927,
+        "sha256": "42aff343659321761dad1e512a349a6a69f4c9e64c03934f915eb8434c4decf2"
+      }
+    }
+  }
+}

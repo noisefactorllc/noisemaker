@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:1Hjbig",
+    "dslFile": "programs/1Hjbig/program.dsl"
+  },
+  "effects": [
+    "synth/noise",
+    "render/pointsEmit",
+    "points/flow",
+    "points/life",
+    "render/pointsRender",
+    "render/pointsBillboardRender",
+    "filter/blur",
+    "synth/navierStokes",
+    "filter/palette",
+    "filter/lighting",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/smoothstep",
+    "filter/adjust"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nnoise(\n  type: hermite,\n  octaves: 4,\n  scaleX: 100,\n  scaleY: 100,\n  seed: 40,\n  speed: 30,\n  colorMode: mono\n)\n  .subchain(name: \"flow field particles\", id: \"lkjw\") {\n    .pointsEmit()\n    .flow(\n      behavior: unruly,\n      strideDeviation: 0.5,\n      kink: 10\n    )\n    .life(friction: 0.08)\n    .pointsRender(\n      density: 4.79,\n      intensity: 93.63,\n      inputIntensity: 59.72\n    )\n    .pointsBillboardRender(\n      shapeMode: soft,\n      depositOpacity: 19.7,\n      pointSize: 64,\n      sizeVariation: 100,\n      density: 1.3,\n      intensity: 0,\n      inputIntensity: 100\n    )\n  }\n  .blur()\n  .write(o0)\n\nnavierStokes(\n  tex: read(o0),\n  zoom: x4,\n  iterations: 40,\n  smoothing: bSpline4x4,\n  speed: 145,\n  dyeDecay: 97.52,\n  velocityDecay: 100,\n  inputForce: 1,\n  inputDye: 1,\n  inputIntensity: 3.9\n)\n  .palette(\n    index: grayscale,\n    offset: 58,\n    alpha: 0.25\n  )\n  .lighting(\n    normalStrength: 5,\n    smoothing: 2.1,\n    specularIntensity: 0.7,\n    shininess: 130,\n    reflection: 21.8,\n    refraction: 23,\n    aberration: 18.4\n  )\n  .subchain(name: \"lens effects\", id: \"esfj\") {\n    .chromaticAberration(aberration: 25)\n    .bloom(\n      threshold: 0.3,\n      intensity: 1.2,\n      radius: 33,\n      taps: 45,\n      tint: #00b2ff\n    )\n    .lens(displacement: -0.41)\n    .vignette(brightness: 0.12, alpha: 0.67)\n  }\n  .smoothstep(edge0: 0.01, edge1: 0.56)\n  .adjust(brightness: 2.49, contrast: 0.8)\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

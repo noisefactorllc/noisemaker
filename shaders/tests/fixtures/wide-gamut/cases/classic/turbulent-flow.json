@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "turbulent flow"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 23, hueRotation: 60, speed: 100, loopOffset: 300, loopScale: 69, refractAmt: 68, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 75, yScale: 75, octaves: 1).write(o0)\nnoise(hueRange: 100, hueRotation: 60, speed: 15, loopOffset: 300, loopScale: 69, refractAmt: 68, wrap: true, type: 3, colorMode: 6, kaleido: 1, xScale: 75, yScale: 75, octaves: 1).coalesce(tex: read(o0), blendMode: 0, mix: -22, refractAAmt: 0, refractBAmt: 8).refract().refract().write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

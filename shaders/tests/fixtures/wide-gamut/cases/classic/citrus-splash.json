@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "citrus splash"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 23, hueRotation: 42, speed: 33, refractAmt: 0, ridges: false, wrap: true, xScale: 60, yScale: 59, type: 3, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nshapes(speedA: 13, loopAOffset: 320, loopAScale: 43, speedB: -39, loopBOffset: 330, loopBScale: 1, palette: barstow, wrap: true, cyclePalette: 0, rotatePalette: 0).coalesce(tex: read(o0), blendMode: 3, mix: 30, refractAAmt: 23, refractBAmt: 36).refract().lensDistortion(aberration: 47, distortion: -39, speed: -16, loopScale: 16, alpha: 27, shape: 0, tint: #412036, vignetteAmt: -35).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

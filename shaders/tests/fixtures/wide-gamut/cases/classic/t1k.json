@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "t1k"
+  },
+  "effects": [
+    "classicNoisedeck/shapes",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/refract",
+    "classicNoisedeck/colorLab"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nshapes(speedA: -79, loopAOffset: 50, loopAScale: 73, speedB: 15, loopBOffset: 50, loopBScale: 74, wrap: true, palette: brushedMetal, cyclePalette: 0, rotatePalette: 0).write(o0)\nshapes(speedA: -47, loopAOffset: 330, loopAScale: 50, speedB: 54, loopBOffset: 50, loopBScale: 69, wrap: true, palette: tungsten, cyclePalette: 0, rotatePalette: 0).composite(tex: read(o0), blendMode: 1, inputColor: #ec7739, mix: 20, range: 76).refract().colorLab(colorMode: 2, dither: 0, hueRange: 200, hueRotation: 0, levels: 0, palette: sulphur).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

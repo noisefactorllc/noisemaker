@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/wobble-factory.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4093,
+        "uniqueColors": 3336,
+        "sha256": "2ea74c103d21c231cd0e37eac229caceadc83e99f69b1ea117b6cb4cb2e480f0"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4093,
+        "uniqueColors": 3336,
+        "sha256": "3908f0797c316013256ef92ef1a505de634c69f27fd48222a831847a77dedd0a"
+      }
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "blaster:0BgVzw",
+    "dslFile": "programs/0BgVzw/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "render/pointsEmit",
+    "points/flow",
+    "points/flock",
+    "points/life",
+    "render/pointsRender",
+    "render/pointsBillboardRender",
+    "filter/blur",
+    "synth/navierStokes",
+    "filter/palette",
+    "filter/lighting",
+    "filter/adjust",
+    "filter/temporalAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette",
+    "filter/grain"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\n\nperlin(octaves: 6, ridges: true)\n  .subchain(name: \"flow field particles\", id: \"lkjw\") {\n    .pointsEmit(stateSize: x2048)\n    .flow(\n      behavior: randomMix,\n      stride: 39,\n      kink: 5.9\n    )\n    .flock(\n      separation: 2.8,\n      alignment: 1.4,\n      cohesion: 2.9,\n      perceptionRadius: 35,\n      separationRadius: 41,\n      maxSpeed: 6.8,\n      maxForce: 0.74,\n      wallMargin: 10,\n      noiseWeight: 0\n    )\n    .life(\n      typeCount: 8,\n      friction: 0.08,\n      matrixSeed: 0\n    )\n    .pointsRender(\n      density: 100,\n      intensity: 73.61,\n      inputIntensity: 59.72\n    )\n    .pointsBillboardRender(\n      shapeMode: soft,\n      depositOpacity: 100,\n      pointSize: 33.19,\n      sizeVariation: 100,\n      seed: 0,\n      density: 0.78,\n      intensity: 44.72,\n      inputIntensity: 100\n    )\n  }\n  .blur()\n  .write(o0)\n\nnavierStokes(\n  tex: read(o0),\n  zoom: x4,\n  iterations: 40,\n  smoothing: bSpline4x4,\n  speed: 145,\n  dyeDecay: 97.52,\n  velocityDecay: 100,\n  inputForce: 1,\n  inputDye: 1,\n  inputIntensity: 6.01\n)\n  .palette(\n    index: silvermane,\n    offset: 13,\n    alpha: 0.67\n  )\n  .lighting(\n    normalStrength: 5,\n    specularIntensity: 0.7,\n    shininess: 130,\n    reflection: 21.8,\n    refraction: 23,\n    aberration: 18.4\n  )\n  .adjust(brightness: 1.9, contrast: 0.8)\n  .subchain(name: \"lens effects\", id: \"dpxp\") {\n    .temporalAberration(redDelay: 8, blueDelay: 0)\n    .bloom(taps: 15)\n    .lens(displacement: -0.28)\n    .vignette(brightness: 0.36, alpha: 0.45)\n  }\n  .grain(alpha: 0.18)\n  .write(o1)\n\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

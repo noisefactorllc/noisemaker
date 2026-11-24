@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:GPHYAQ",
+    "dslFile": "programs/GPHYAQ/program.dsl"
+  },
+  "effects": [
+    "synth/perlin",
+    "filter/tetraCosine",
+    "filter/lighting",
+    "filter/chromaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search synth, filter, render, points, mixer\nlet highsReact = audio(band: 2, min: 39.032, max: 78.064)\n\nperlin(\n  scale: highsReact,\n  octaves: 3,\n  colorMode: mono,\n  dimensions: 3,\n  warpIterations: 4,\n  warpScale: 60.04,\n  warpIntensity: 40.84,\n  seed: 61\n)\n  .tetraCosine(\n    colorMode: hsv,\n    offsetR: 0.358,\n    offsetG: 0.156,\n    offsetB: 0.28,\n    ampR: 0.725,\n    ampG: 0.727,\n    ampB: 0.731,\n    freqR: 2,\n    freqG: 3,\n    freqB: 4,\n    phaseR: 0.06,\n    phaseG: 0.298,\n    phaseB: 0.406,\n    repeat: 0.69\n  )\n  .lighting(\n    normalStrength: 5,\n    smoothing: 3,\n    reflection: 61.6,\n    refraction: 53.8,\n    aberration: 25.4\n  )\n  .subchain(name: \"lens effects\", id: \"hx21\") {\n    .chromaticAberration(aberration: 25.15)\n    .bloom(\n      threshold: 0.95,\n      softKnee: 0.32,\n      intensity: 1.6,\n      taps: 32\n    )\n    .lens(displacement: -0.5)\n    .vignette()\n  }\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

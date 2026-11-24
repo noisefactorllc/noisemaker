@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "curated",
+    "key": "visualize:xceTLA",
+    "dslFile": "programs/xceTLA/program.dsl"
+  },
+  "effects": [
+    "synth/noise",
+    "filter/adjust",
+    "filter/lowPoly",
+    "render/loopBegin",
+    "classicNoisedeck/cellRefract",
+    "render/loopEnd",
+    "filter/lighting",
+    "filter/prismaticAberration",
+    "filter/bloom",
+    "filter/lens",
+    "filter/vignette"
+  ],
+  "dsl": "search user, synth, filter, render, points, mixer, classicNoisedeck\nlet highsReact = audio(band: 2, min: 70, max: 140)\n\nnoise(\n  octaves: 1,\n  scaleX: 100,\n  scaleY: 100,\n  ridges: true,\n  loopScale: 88.32,\n  speed: highsReact\n)\n  .adjust(\n    mode: hsv,\n    rotation: -106.84,\n    hueRange: 200,\n    saturation: 0.55\n  )\n  .lowPoly(\n    scale: 89,\n    seed: 28,\n    mode: distance2,\n    edgeStrength: 1,\n    alpha: 0.52\n  )\n  .subchain(name: \"feedback loop with warp\", id: \"29dv\") {\n    .loopBegin(alpha: 93.8, intensity: 95.03)\n    .cellRefract(\n      amount: 1.47,\n      speed: 5,\n      shape: circle,\n      scale: 74.49,\n      cellScale: 78.88,\n      smooth: 57.32,\n      variation: 100,\n      seed: 59\n    )\n    .adjust(rotation: 28.43, hueRange: 85.1)\n    .loopEnd()\n  }\n  .lighting()\n  .subchain(name: \"lens effects\", id: \"vkst\") {\n    .prismaticAberration(\n      aberration: 100,\n      modulate: true,\n      hueRotation: 180,\n      hueRange: 100,\n      saturation: -100,\n      passthru: 50.41\n    )\n    .bloom(\n      threshold: 0.95,\n      intensity: 0.5,\n      taps: 38\n    )\n    .lens(displacement: -0.54)\n    .vignette(brightness: 0.19)\n  }\n  .adjust(\n    hueRange: 200,\n    saturation: 1.83,\n    contrast: 0.57\n  )\n  .write(o0)\n\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ]
+}

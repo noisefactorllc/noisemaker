@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "repeat after me"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 24, hueRotation: 54, speed: 50, refractAmt: 100, ridges: true, wrap: true, xScale: 100, yScale: 95, type: 10, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 14, hueRotation: 62, speed: 53, refractAmt: 0, ridges: false, wrap: true, xScale: 99, yScale: 100, type: 10, colorMode: 6, kaleido: 1, octaves: 1).coalesce(tex: read(o0), blendMode: 15, mix: -41, refractAAmt: 0, refractBAmt: 19).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

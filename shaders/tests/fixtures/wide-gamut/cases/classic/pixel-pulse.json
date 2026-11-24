@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "pixel pulse"
+  },
+  "effects": [
+    "classicNoisedeck/bitEffects",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nbitEffects(baseHueRange: 95, colorScheme: 2, complexity: 50, formula: 30, hueRange: 32, hueRotation: 35, speed: 65, tiles: 36, maskFormula: 30, maskColorScheme: 2).coalesce(tex: read(o0), blendMode: 18, mix: -42, refractAAmt: 0, refractBAmt: 0).effects(effect: 100, effectAmt: 1, flip: 18, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

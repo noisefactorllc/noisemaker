@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/color-zoo.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 1190,
+        "sha256": "89a3d66bbca5cc87262f70e99d24b2ca6c5305a9104a22ac66a93950dc73787a"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 1190,
+        "sha256": "d3a460af2439b74b9178c8f144d0768f25c9969c5787a18aadfe3e1eae326935"
+      }
+    }
+  }
+}

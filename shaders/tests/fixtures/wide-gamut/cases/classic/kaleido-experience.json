@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "kaleido experience"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/coalesce",
+    "classicNoisedeck/effects"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 63, hueRotation: 73, speed: 35, octaves: 8, refractAmt: 81, ridges: true, type: 10, colorMode: 6, kaleido: 1, xScale: 93, yScale: 93).write(o0)\nnoise(hueRotation: 45, kaleido: 8, metric: 1, palette: skykissed, wrap: true, type: 2, colorMode: 4, xScale: 99, yScale: 99, octaves: 1).coalesce(tex: read(o0), blendMode: 10, mix: 15, refractAAmt: 76, refractBAmt: 44).effects(effect: 0, effectAmt: 1, flip: 16, offsetX: 0, offsetY: 0, rotation: 0, scaleAmt: 100).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

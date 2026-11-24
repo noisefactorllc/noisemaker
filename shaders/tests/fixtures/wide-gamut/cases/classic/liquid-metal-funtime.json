@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "list": "classic",
+    "key": "liquid metal funtime"
+  },
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/composite",
+    "classicNoisedeck/lensDistortion"
+  ],
+  "dsl": "search classicNoisedeck, synth, filter\nnoise(hueRange: 10, hueRotation: 54, speed: 17, refractAmt: 26, ridges: false, wrap: true, xScale: 92, yScale: 99, type: 10, colorMode: 6, kaleido: 1, octaves: 1).write(o0)\nnoise(hueRange: 10, hueRotation: 76, speed: 30, refractAmt: 50, ridges: true, wrap: true, xScale: 91, yScale: 99, type: 3, colorMode: 6, kaleido: 1, octaves: 1).composite(tex: read(o0), blendMode: 2, inputColor: #141414, mix: 41, range: 86).lensDistortion(aberration: 100, blendMode: 0, hueRange: 0, hueRotation: 68, blendMode: 1, modulate: true, passthru: 57, alpha: 0, speed: 0, distortion: 0).write(o1)\nrender(o1)",
+  "surface": "o1",
+  "resolution": [
+    64,
+    64
+  ]
+}

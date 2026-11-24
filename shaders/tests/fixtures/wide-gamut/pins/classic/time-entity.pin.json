@@ -1,0 +1,27 @@
+{
+  "case": "shaders/tests/fixtures/wide-gamut/cases/classic/time-entity.json",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3219,
+        "uniqueColors": 754,
+        "sha256": "7f90d0f7168207b84e78acf4da70e0dc8c4f2235aa63f3ca665b5234d56911f4"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3219,
+        "uniqueColors": 754,
+        "sha256": "e8104fd088c084083e751474cdddd481b03d2675dc4bc2e9d22c46f519ba379c"
+      }
+    }
+  }
+}
