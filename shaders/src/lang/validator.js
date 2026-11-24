@@ -7,7 +7,7 @@ import { resolveParamAliases } from './paramAliases.js'
 import { checkEffectAlias } from './effectAliases.js'
 import { decodeJsonStringLiteralContent } from './stringLiterals.js'
 import { SURFACE } from '../stability.js'
-import { drawU32, joinKey, randIntFrom } from './draws.js'
+import { chanceFrom, drawU32, joinKey, randIntFrom } from './draws.js'
 import { RandomCallError, containsRandom, resolveRandom, sourceCallsRandom } from './randomize.js'
 
 /**
@@ -292,7 +292,7 @@ export function validate(ast) {
     const keyScope = []
     // Occurrence names: the elements of each effect name, counted in source
     // order across the program.
-    const occurrenceCounts = new Map()
+    let occurrenceCounts = new Map()
     function nextOccurrence(effectName) {
         const n = (occurrenceCounts.get(effectName) || 0) + 1
         occurrenceCounts.set(effectName, n)
@@ -357,6 +357,146 @@ export function validate(ast) {
             pushDiag(error.code, error.node || node, error.message)
             return undefined
         }
+    }
+
+    // Parts, by name. A part is expanded where it is used; its source stays.
+    const partDecls = new Map()
+    for (const decl of ast.parts || []) {
+        if (partDecls.has(decl.name)) pushDiag('S012', decl, `part '${decl.name}' is declared twice`)
+        else partDecls.set(decl.name, decl)
+        for (const item of decl.body) {
+            // `_` names are meta keywords on a use, so a part's lets cannot take them.
+            if (item.type === 'VarAssign' && item.name.startsWith('_')) {
+                pushDiag('S012', decl, `part '${decl.name}': a let name may not start with '_': '${item.name}'`)
+            }
+        }
+    }
+    // The top-level statement being compiled, for "declared before use".
+    let statementIndex = 0
+    const partStack = []
+
+    function topLevelLetNames(decl) {
+        return new Set(decl.body.filter(item => item.type === 'VarAssign').map(item => item.name))
+    }
+
+    // The part a `use` names: by name, or drawn by pick() at the use's key.
+    // Every candidate of a pick is checked against the use's arguments.
+    function resolvePartTarget(use, useKey) {
+        const argNames = Object.keys(use.kwargs || {}).filter(k => !k.startsWith('_'))
+        const lookUp = (ident) => {
+            const decl = partDecls.get(ident.name)
+            if (!decl) {
+                pushDiag('S012', use, `No part named '${ident.name}'. Parts: ${[...partDecls.keys()].join(', ') || 'none'}`)
+                return null
+            }
+            if ((decl.planIndex ?? 0) > statementIndex) {
+                pushDiag('S012', use, `part '${ident.name}' is used before it is declared`)
+                return null
+            }
+            const lets = topLevelLetNames(decl)
+            for (const name of argNames) {
+                if (!lets.has(name)) pushDiag('S012', use, `part '${ident.name}' has no let '${name}'`)
+            }
+            return decl
+        }
+        let target = use.target
+        if (target && target.type === 'Random') {
+            if (target.fn !== 'pick') {
+                pushDiag('S012', use, 'use() takes a part name, or pick() of part names')
+                return null
+            }
+            for (const arg of target.args || []) {
+                if (arg.type !== 'Ident') {
+                    pushDiag('S012', use, 'use(pick(...)) takes part names')
+                    return null
+                }
+                lookUp(arg)
+            }
+            target = resolveRandomAt(target, joinKey(useKey, 'part'))
+        }
+        if (!target || target.type !== 'Ident') {
+            if (target) pushDiag('S012', use, 'use() takes a part name, or pick() of part names')
+            return null
+        }
+        const decl = lookUp(target)
+        if (decl && partStack.includes(decl.name)) {
+            pushDiag('S012', use, `part nesting is circular: ${[...partStack, decl.name].join(' -> ')}`)
+            return null
+        }
+        return decl
+    }
+
+    // Run `body` inside a use of `decl`: the use's arguments evaluated where
+    // the use is written, the part's lets declared, and the key scope, seed
+    // scope and occurrence names of the part body in place.
+    function withPart(decl, use, useKey, body) {
+        let ownSeed = null
+        const seedNode = use.kwargs?._seed
+        if (seedNode !== undefined) {
+            if (containsRandom(seedNode)) {
+                pushDiag('S013', use, 'A random call cannot set _seed: it must be a literal')
+            } else if (seedNode.type !== 'Number' || !Number.isInteger(seedNode.value) || seedNode.value < 0 || seedNode.value > 4294967295) {
+                pushDiag('S012', use, '_seed must be a whole number from 0 to 4294967295')
+            } else {
+                ownSeed = seedNode.value
+            }
+        }
+        if (use.kwargs?._id !== undefined) {
+            pushDiag('S012', use, '_id: on a use site arrives with element ids')
+        }
+        const overrides = new Map()
+        for (const [name, value] of Object.entries(use.kwargs || {})) {
+            if (name.startsWith('_')) continue
+            let resolved = substitute(clone(value))
+            if (containsRandom(resolved)) resolved = resolveRandomAt(resolved, joinKey(useKey, `arg:${name}`))
+            if (resolved !== undefined) overrides.set(name, resolved)
+        }
+        const savedScope = keyScope.splice(0)
+        if (ownSeed !== null) keyScope.push(`part:${decl.name}`)
+        else keyScope.push(...savedScope, useKey)
+        if (ownSeed !== null) seedScopes.push(ownSeed)
+        const savedCounts = occurrenceCounts
+        occurrenceCounts = new Map()
+        const shadowed = new Map()
+        for (const item of decl.body) {
+            if (item.type === 'VarAssign' && !shadowed.has(item.name)) {
+                shadowed.set(item.name, symbols.has(item.name) ? { value: symbols.get(item.name) } : null)
+            }
+        }
+        partStack.push(decl.name)
+        try {
+            body(item => {
+                // A part's top-level let, replaced by a use argument or not.
+                // A replaced let is still validated and drawn; its value is
+                // not used.
+                declareVar(item)
+                if (overrides.has(item.name)) symbols.set(item.name, overrides.get(item.name))
+            })
+        } finally {
+            partStack.pop()
+            for (const [name, previous] of shadowed) {
+                if (previous) symbols.set(name, previous.value)
+                else symbols.delete(name)
+            }
+            occurrenceCounts = savedCounts
+            if (ownSeed !== null) seedScopes.pop()
+            keyScope.splice(0, keyScope.length, ...savedScope)
+        }
+    }
+
+    // A maybe's decision, drawn at `<scope>/maybe_<n>/decide`.
+    function maybeDecision(node, maybeKey) {
+        let p = substitute(clone(node.probability))
+        if (containsRandom(p)) p = resolveRandomAt(p, joinKey(maybeKey, 'p'))
+        if (!p || p.type !== 'Number' || !(p.value >= 0 && p.value <= 1)) {
+            if (p) pushDiag('S012', node, 'maybe(p): the probability must be a number between 0 and 1')
+            return false
+        }
+        return chanceFrom(drawU32(scopeSeed(), joinKey(...keyScope, maybeKey, 'decide')), p.value)
+    }
+
+    function hasStructure(calls) {
+        return (calls || []).some(c => c && (c.type === 'Use' || c.type === 'MaybeTail'))
     }
 
     // Whether an effect call, or a chain of them, has a random call among
@@ -1176,6 +1316,43 @@ export function validate(ast) {
             const allowStarterless = options.allowStarterless === true
             let current = input
             for (const original of calls) {
+                if (original.type === 'MaybeTail') {
+                    const maybeKey = nextOccurrence('maybe')
+                    const taken = maybeDecision(original, maybeKey)
+                    keyScope.push(maybeKey)
+                    try {
+                        if (taken) {
+                            current = processChain(original.body, current, options)
+                        } else {
+                            // Validated, then dropped.
+                            const saved = {chain: chain.length, states: states.length, temp: tempIndex}
+                            processChain(original.body, current, options)
+                            chain.length = saved.chain
+                            states.length = saved.states
+                            tempIndex = saved.temp
+                        }
+                    } finally {
+                        keyScope.pop()
+                    }
+                    continue
+                }
+                if (original.type === 'Use') {
+                    const useKey = `use@${nextOccurrence('use')}`
+                    const decl = resolvePartTarget(original, useKey)
+                    if (!decl) continue
+                    withPart(decl, original, useKey, declare => {
+                        for (const item of decl.body) {
+                            if (item.type === 'VarAssign') {
+                                declare(item)
+                            } else if (item.type === 'ChainTail' || (item.chain && !item.write && !item.write3d)) {
+                                current = processChain(item.chain, current, options)
+                            } else {
+                                pushDiag('S005', original, `part '${decl.name}' holds whole chains; use it as a statement, not in a chain`)
+                            }
+                        }
+                    })
+                    continue
+                }
                 // Handle Read node (pipeline built-in for reading 2D surfaces)
                 if (original.type === 'Read') {
                     // GUARD: read() is a STARTER NODE. It MUST NOT be chained inline.
@@ -2258,7 +2435,46 @@ export function validate(ast) {
             }
             return withSource(node, stmt)
         }
-        return compileChainStatement(stmt)
+        if (stmt.type === 'MaybeStmt') {
+            const maybeKey = nextOccurrence('maybe')
+            const taken = maybeDecision(stmt, maybeKey)
+            const savedTemp = tempIndex
+            keyScope.push(maybeKey)
+            let body
+            try {
+                body = compileBlock(stmt.body)
+            } finally {
+                keyScope.pop()
+            }
+            if (!taken) tempIndex = savedTemp
+            return withSource({type: 'Branch', cond: evalCondition({type: 'Boolean', value: taken}), then: taken ? body : [], elif: [], else: []}, stmt)
+        }
+        if (stmt.chain?.length === 1 && stmt.chain[0].type === 'Use' && !stmt.write && !stmt.write3d) {
+            const use = stmt.chain[0]
+            const useKey = `use@${nextOccurrence('use')}`
+            const decl = resolvePartTarget(use, useKey)
+            const body = []
+            if (decl) {
+                withPart(decl, use, useKey, declare => {
+                    for (const item of decl.body) {
+                        if (item.type === 'VarAssign') {
+                            declare(item)
+                        } else if (item.type === 'MaybeStmt' || item.type === 'IfStmt' || item.write || item.write3d) {
+                            const compiled = compileStmt(item)
+                            if (compiled) body.push(compiled)
+                        } else {
+                            pushDiag('S005', use, `part '${decl.name}' continues a chain; use it in a chain`)
+                        }
+                    }
+                })
+            }
+            return withSource({type: 'Branch', cond: evalCondition({type: 'Boolean', value: true}), then: body, elif: [], else: []}, stmt)
+        }
+        const plan = compileChainStatement(stmt)
+        // A chain with a use or a maybe is written back from its source,
+        // never from its expansion.
+        if (plan && hasStructure(stmt.chain)) withSource(plan, stmt)
+        return plan
     }
 
     // Statements compile in order. Each one sees the lets written before it,
@@ -2266,6 +2482,7 @@ export function validate(ast) {
     // last statement are still declared, so their own checks run.
     const statements = ast.plans || []
     for (let index = 0; index < statements.length; index++) {
+        statementIndex = index
         declareVarsBefore(index)
         const compiled = compileStmt(statements[index])
         if (compiled) plans.push(compiled)
@@ -2283,6 +2500,7 @@ export function validate(ast) {
     // Preserve trailing comments from program
     const result = {plans, diagnostics: diagnosticsList, render, vars, searchNamespaces}
     if (hasSeedDirective) { result.seed = programSeed }
+    if (ast.parts) { result.parts = ast.parts }
     if (ast.trailingComments) { result.trailingComments = ast.trailingComments }
     // The plans in source order. A let's `planIndex` points into this list,
     // so the unparser can keep statement order after hosts remove plans.

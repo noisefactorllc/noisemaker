@@ -1185,6 +1185,82 @@ function formatLetExpr(expr, options = {}) {
 }
 
 /**
+ * Write a statement from its parser node. Statements with a part, a use or a
+ * maybe are written this way, so the source keeps them and never their
+ * expansion.
+ * @param {object} node - Parser statement, part declaration or chain element
+ * @param {object} options - Unparse options
+ * @param {string} indent - Indentation of the statement's first line
+ * @returns {string} DSL source
+ */
+function formatSourceStatement(node, options = {}, indent = '') {
+    const inner = indent + '    '
+    const comments = (node.leadingComments || []).map(c => `${indent}${c}\n`).join('')
+    const expr = value => formatLetExpr(value, options)
+    const callText = (name, args, kwargs) => {
+        const parts = (args || []).map(expr)
+        for (const [k, v] of Object.entries(kwargs || {})) parts.push(`${k}: ${expr(v)}`)
+        return `${name}(${parts.join(', ')})`
+    }
+    const element = (el, lineIndent) => {
+        switch (el.type) {
+            case 'Use':
+                return callText('use', [el.target], el.kwargs)
+            case 'Write':
+                return `write(${el.surface?.name ?? el.surface})`
+            case 'Write3D':
+                return `write3d(${el.tex3d?.name ?? el.tex3d}, ${el.geo?.name ?? el.geo})`
+            case 'Read':
+                return `read(${el.surface?.name ?? expr(el.surface)})`
+            case 'MaybeTail':
+                return `maybe(${expr(el.probability)}) {\n${tail(el.body, lineIndent + '    ')}\n${lineIndent}}`
+            case 'Subchain': {
+                const meta = []
+                if (el.name) meta.push(`name: ${formatStringLiteral(el.name)}`)
+                if (el.id) meta.push(`id: ${formatStringLiteral(el.id)}`)
+                return `subchain(${meta.join(', ')}) {\n${(el.body || []).map(c => `${lineIndent}    .${element(c, lineIndent + '    ')}`).join('\n')}\n${lineIndent}}`
+            }
+            default:
+                return callText(el.name, el.args, el.kwargs)
+        }
+    }
+    // A chain fragment that continues another chain: one element per line.
+    const tail = (els, lineIndent) => els.map(el => {
+        const lead = (el.leadingComments || []).map(c => `${lineIndent}${c}\n`).join('')
+        return el.type === 'MaybeTail'
+            ? `${lead}${lineIndent}${element(el, lineIndent)}`
+            : `${lead}${lineIndent}.${element(el, lineIndent)}`
+    }).join('\n')
+    const chain = (els) => {
+        const [head, ...rest] = els
+        const text = `${indent}${element(head, indent)}`
+        return rest.length ? `${text}\n${tail(rest, indent + '  ')}` : text
+    }
+    const block = (body) => body.map(item => formatSourceStatement(item, options, inner)).join('\n')
+    switch (node.type) {
+        case 'PartDecl':
+            return `${comments}${indent}part ${node.name} {\n${block(node.body)}\n${indent}}`
+        case 'MaybeStmt':
+            return `${comments}${indent}maybe(${expr(node.probability)}) {\n${block(node.body)}\n${indent}}`
+        case 'IfStmt': {
+            let text = `${comments}${indent}if (${expr(node.condition)}) {\n${block(node.then)}\n${indent}}`
+            for (const e of node.elif || []) text += ` elif (${expr(e.condition)}) {\n${block(e.then)}\n${indent}}`
+            if (node.else) text += ` else {\n${block(node.else)}\n${indent}}`
+            return text
+        }
+        case 'VarAssign':
+            return `${comments}${indent}let ${node.name} = ${expr(node.expr)}`
+        case 'ChainTail':
+            return `${comments}${tail(node.chain, indent)}`
+        default:
+            return `${comments}${chain(node.chain)}`
+    }
+}
+
+const hasStructure = node => node?.type === 'MaybeStmt' ||
+    (node?.chain || []).some(el => el && (el.type === 'Use' || el.type === 'MaybeTail'))
+
+/**
  * Unparse a compiled control-flow plan (Branch, Break, Continue or Return),
  * or a `let` (VarAssign) inside a block body.
  * Conditions and return values come from the parser statement that the
@@ -1268,7 +1344,9 @@ export function unparse(compiled, overrides = {}, options = {}) {
     const planOrder = compiled.planOrder || plans
     const remaining = new Set(plans)
     const varsBefore = new Map()
-    for (const v of compiled.vars || []) {
+    const declarations = [...(compiled.vars || []), ...(compiled.parts || [])]
+        .sort((a, b) => (a.planIndex ?? 0) - (b.planIndex ?? 0))
+    for (const v of declarations) {
         let at = plans.length
         for (let k = v.planIndex ?? 0; k < planOrder.length; k++) {
             if (remaining.has(planOrder[k])) {
@@ -1290,6 +1368,10 @@ export function unparse(compiled, overrides = {}, options = {}) {
                     lines.push(c)
                 }
             }
+            if (v.type === 'PartDecl') {
+                lines.push(formatSourceStatement({ ...v, leadingComments: [] }, options))
+                continue
+            }
             const exprStr = formatLetExpr(v.expr, options)
             lines.push(`let ${v.name} = ${exprStr}`)
         }
@@ -1307,6 +1389,11 @@ export function unparse(compiled, overrides = {}, options = {}) {
     for (let planIndex = 0; planIndex < plans.length; planIndex++) {
         const plan = plans[planIndex]
         if (planIndex > 0) emitVars(planIndex)
+        if (hasStructure(plan.source)) {
+            lines.push(formatSourceStatement(plan.source, options))
+            if (planIndex < plans.length - 1) lines.push('')
+            continue
+        }
         if (!plan.chain) {
             const statement = unparseControlFlow(plan, searchNamespaces, options)
             if (statement !== null) {

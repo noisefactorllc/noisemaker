@@ -355,6 +355,41 @@ changes no other draw. A ``let`` draws once, and every use of it shares the
 value. A call with its own ``seed:`` argument draws the same value whatever
 the program seed.
 
+With a ``seed`` directive, an effect whose ``seed`` parameter is not set
+takes a seed drawn from the program seed, different for each effect. The
+drawn seed is not written into the source; an explicit ``seed:`` wins. A
+program without the directive keeps every effect's own default.
+
+``_seed:`` gives one element or one ``use`` its own seed. Its draws, and its
+effects' seeds, then come from that seed alone, so ``use(edgePass, _seed:
+12)`` names the same variation of ``edgePass`` in any program.
+
+A ``part`` names a fragment for reuse. ``use`` inserts it as a chain's start,
+as a chain element, or as a statement when the part holds whole chains.
+Arguments to ``use`` replace the part's top-level ``let`` values.
+``maybe(p)`` includes its block with probability ``p``.
+
+.. code-block:: none
+
+  part edgePass {
+      .edge(amount: rand(100, 300))
+  }
+  part cellBase {
+      let scale = randInt(40, 90)
+      cell(scale: scale)
+  }
+
+  use(cellBase, scale: 70)
+  maybe(0.5) {
+      .posterize(levels: randInt(3, 10))
+  }
+  .use(edgePass)
+  .write(o0)
+
+Each ``use`` draws separately. ``use(pick(cellBase, perlinBase))`` picks a
+part. A part is declared before it is used, and parts are local to their
+program. The source keeps ``part``, ``use`` and ``maybe`` as written.
+
 Random calls may appear in parameter values, ``let`` values, vectors,
 arithmetic, automation arguments and ``if`` conditions. They may not choose a
 surface or an effect, appear in a directive, or appear in an arrow function,

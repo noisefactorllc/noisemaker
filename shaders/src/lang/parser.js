@@ -6,7 +6,12 @@
  * SearchDirective::= 'search' Namespace ( ',' Namespace )*    // Required (P004)
  * Namespace      ::= Ident | Keyword                          // A registered namespace (P004)
  * SeedDirective  ::= 'seed' Digit+                           // The program seed, 0 to 4294967295 (P011)
- * Statement      ::= VarAssign | ChainStmt | IfStmt | Break | Continue | Return
+ * Statement      ::= VarAssign | ChainStmt | IfStmt | MaybeStmt | Break | Continue | Return
+ * PartDecl       ::= 'part' Ident '{' ( VarAssign | MaybeStmt | ChainStmt | ChainTail )* '}'   // Top level only
+ * ChainTail      ::= ( Comment* '.' ChainElement | MaybeTail )+   // A part's chain fragment
+ * MaybeStmt      ::= 'maybe' '(' Expr ')' Block
+ * MaybeTail      ::= '.'? 'maybe' '(' Expr ')' '{' ChainTail '}'
+ * UseCall        ::= 'use' '(' Expr ( ',' Kwarg )* ')'   // A chain head or element; the Expr names a part or picks one
  * RenderDirective::= 'render' '(' OutputRef ')'
  * Block          ::= '{' ( Statement ';'* )* '}'
  * IfStmt         ::= 'if' '(' Expr ')' Block ('elif' '(' Expr ')' Block)* ('else' Block)?
@@ -530,6 +535,7 @@ export function parse(tokens, options = {}) {
         const vars = []
         let render = null
         let programSeed = null
+        const parts = []
         const trailingComments = []
 
         const appendStatement = (stmt) => {
@@ -559,6 +565,20 @@ export function parse(tokens, options = {}) {
             'IDENT', 'RENDER', 'WRITE', 'WRITE3D', 'TRUE', 'FALSE',
             'IF', 'ELIF', 'ELSE', 'BREAK', 'CONTINUE', 'RETURN'
         ])
+
+        // `part <name> {` declares a part. `part` is not a keyword.
+        function isPartDeclStart() {
+            const t = peek()
+            return t.type === 'IDENT' && t.lexeme === 'part' &&
+                tokens[current + 1]?.type === 'IDENT' && tokens[current + 2]?.type === 'LBRACE'
+        }
+
+        function parsePartDecl() {
+            const t = advance() // consume 'part'
+            const name = advance().lexeme
+            const body = parsePartBody()
+            return {type: 'PartDecl', name, body, loc: locOf(t)}
+        }
 
         // `seed` begins the seed directive only where a statement could not
         // begin: a call (`seed(`) or a chain (`seed.`) is not a directive.
@@ -662,6 +682,15 @@ export function parse(tokens, options = {}) {
                 parseSeedDirective()
                 continue
             }
+            if (isPartDeclStart()) {
+                const decl = parsePartDecl()
+                if (leadingComments.length > 0) decl.leadingComments = leadingComments
+                // Statement order, as for a let.
+                Object.defineProperty(decl, 'planIndex', { value: plans.length, enumerable: false })
+                parts.push(decl)
+                while (peek().type === 'SEMICOLON') advance()
+                continue
+            }
             if (peek().type === 'RENDER') {
                 consumeRender()
                 // Attach leading comments to render if present
@@ -690,6 +719,7 @@ export function parse(tokens, options = {}) {
 
         const program = { type: 'Program', plans, render }
         if (programSeed !== null) { program.seed = programSeed }
+        if (parts.length) { program.parts = parts }
         if (vars.length) { program.vars = vars }
         if (trailingComments.length) { program.trailingComments = trailingComments }
 
@@ -748,6 +778,15 @@ export function parse(tokens, options = {}) {
             }
             const expr = parseAdditive()
             return {type: 'VarAssign', name, expr}
+        }
+
+        if (isMaybeStart(current) && !maybeBodyIsTail(current)) {
+            const t = advance() // consume 'maybe'
+            expect('LPAREN', "Expect '('")
+            const probability = parseAdditive()
+            expect('RPAREN', "Expect ')'")
+            const body = parseBlock()
+            return {type: 'MaybeStmt', probability, body, loc: locOf(t)}
         }
 
         switch (peek().type) {
@@ -810,8 +849,113 @@ export function parse(tokens, options = {}) {
         return {chain, write, write3d}
     }
 
+    // `maybe(` at a token index.
+    function isMaybeStart(index) {
+        const t = tokens[index]
+        return t?.type === 'IDENT' && t.lexeme === 'maybe' && tokens[index + 1]?.type === 'LPAREN'
+    }
+
+    // Whether the block after `maybe(...)` at `index` is a chain tail, that
+    // is, whether its first token after comments is '.'.
+    function maybeBodyIsTail(index) {
+        let i = index + 1
+        let depth = 0
+        for (; i < tokens.length; i++) {
+            const type = tokens[i].type
+            if (type === 'LPAREN') depth++
+            else if (type === 'RPAREN' && --depth === 0) break
+        }
+        i++
+        if (tokens[i]?.type !== 'LBRACE') return false
+        i++
+        while (tokens[i] && tokens[i].type === 'COMMENT') i++
+        return tokens[i]?.type === 'DOT'
+    }
+
+    function toUse(call) {
+        if (call.args.length !== 1) {
+            throw parserError('P007', `use() takes one part, and its other arguments by name, at line ${call.loc.line} col ${call.loc.col}`, call.loc)
+        }
+        const node = {type: 'Use', target: call.args[0], loc: call.loc}
+        if (call.kwargs) node.kwargs = call.kwargs
+        return node
+    }
+
+    function parseMaybeTail() {
+        const t = advance() // consume 'maybe'
+        expect('LPAREN', "Expect '('")
+        const probability = parseAdditive()
+        expect('RPAREN', "Expect ')'")
+        expect('LBRACE', "Expect '{'")
+        const body = parseChainTail()
+        expect('RBRACE', "Expect '}'")
+        return {type: 'MaybeTail', probability, body, loc: locOf(t)}
+    }
+
+    // A chain fragment that continues another chain: '.' elements and
+    // `maybe` tails, up to a token that cannot continue it.
+    function parseChainTail() {
+        const calls = []
+        while (true) {
+            const savedPos = current
+            const leadingComments = collectComments()
+            if (isMaybeStart(current) && maybeBodyIsTail(current)) {
+                const tail = parseMaybeTail()
+                if (leadingComments.length > 0) tail.leadingComments = leadingComments
+                calls.push(tail)
+                continue
+            }
+            if (peek().type !== 'DOT') {
+                current = savedPos
+                break
+            }
+            advance()
+            const allComments = [...leadingComments, ...collectComments()]
+            const element = parseChainElement('statement')
+            if (allComments.length > 0) element.leadingComments = allComments
+            calls.push(element)
+        }
+        return calls
+    }
+
+    function parseChainElement(context) {
+        const nextType = peek().type
+        if (nextType === 'WRITE' || nextType === 'WRITE3D') {
+            if (context === 'expression') {
+                const t = peek()
+                throw parserError('P005', `'.write()' is only allowed in statement context at line ${t.line} col ${t.col}`, t)
+            }
+            return parseWriteCall()
+        }
+        if (nextType === 'SUBCHAIN') return parseSubchainCall()
+        if (isMaybeStart(current)) return parseMaybeTail()
+        const call = parseCall()
+        return call.type === 'Call' && call.name === 'use' ? toUse(call) : call
+    }
+
+    function parsePartBody() {
+        expect('LBRACE', "Expect '{'")
+        const body = []
+        while (true) {
+            const leadingComments = collectComments()
+            if (peek().type === 'RBRACE') break
+            let stmt
+            if (peek().type === 'DOT' || (isMaybeStart(current) && maybeBodyIsTail(current))) {
+                stmt = {type: 'ChainTail', chain: parseChainTail()}
+            } else {
+                stmt = parseStatement()
+            }
+            if (leadingComments.length > 0) stmt.leadingComments = leadingComments
+            body.push(stmt)
+            while (peek().type === 'SEMICOLON') advance()
+        }
+        expect('RBRACE', "Expect '}'")
+        return body
+    }
+
     function parseChain(context = 'statement') {
-        const firstCall = parseCall()
+        const head = parseCall()
+        const firstCall = head.type === 'Call' && head.name === 'use' ? toUse(head) : head
         const calls = [firstCall]
         // Comments can appear before the DOT in a chain
         // e.g., noise() \n // comment \n .bloom()
@@ -820,6 +964,12 @@ export function parse(tokens, options = {}) {
             const savedPos = current
             // Collect any comments that might precede the DOT
             const leadingComments = collectComments()
+            if (context === 'statement' && isMaybeStart(current) && maybeBodyIsTail(current)) {
+                const tail = parseMaybeTail()
+                if (leadingComments.length > 0) tail.leadingComments = leadingComments
+                calls.push(tail)
+                continue
+            }
             if (peek().type !== 'DOT') {
                 // No more chaining - restore position so comments belong to next statement
                 current = savedPos
@@ -855,7 +1005,14 @@ export function parse(tokens, options = {}) {
                 // Continue parsing - subchain is chainable
                 continue
             }
-            const call = parseCall()
+            if (isMaybeStart(current)) {
+                const tail = parseMaybeTail()
+                if (allComments.length > 0) tail.leadingComments = allComments
+                calls.push(tail)
+                continue
+            }
+            const parsed = parseCall()
+            const call = parsed.type === 'Call' && parsed.name === 'use' ? toUse(parsed) : parsed
             if (allComments.length > 0) {
                 call.leadingComments = allComments
             }
