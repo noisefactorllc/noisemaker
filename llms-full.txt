@@ -13,7 +13,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `847698510fabe64b188bc7481f0b5c01a6feafaf`.
+- Noisemaker: `af8d54d29d6030a674e1d619313040eed024f6bf`.
 - Shade MCP: `1815133b47eaa33aee11d4a677cfea2f3939cf38`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.5.4`. Its
   lockfile pins `@modelcontextprotocol/sdk` 1.32.2; the `npx` install below
@@ -414,8 +414,9 @@ which is why the terminal `write(oN)` is the thing that makes a scene
 observable at all.
 
 A `volume()` node marches one of the `vol0`-`vol7` atlases, which are fixed at
-64 cubed (`VOLUME_ATLAS_SIZE`, declared identically in `compiler.js`,
-`volume-renderer.js`, and `pipeline.js`, and allocated as 64x4096 `rgba16f`). A
+64 cubed (`VOLUME_ATLAS_SIZE`, declared in `compiler.js` and
+`volume-renderer.js`; `pipeline.js`'s `createSurfaces()` hardwires the same
+64x4096 `rgba16f` allocation with inline literals). A
 `volume()` node therefore samples a 64-cube whatever `volumeSize` the producing
 chain declares; a mismatch is rejected at compile time rather than rescaled, and
 a runtime `volumeSize` change on a pinned surface is refused with a warning.

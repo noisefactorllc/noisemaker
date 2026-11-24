@@ -1181,6 +1181,41 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-24 — candidate pair: Noisemaker
+    `af8d54d29d6030a674e1d619313040eed024f6bf` and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Audited the Noisemaker range
+    `847698510..af8d54d2` (the delivered trigger end `084176b7`, the 1.5
+    release commit, sits inside it; the observed delivered range
+    `74be4a66..084176b7` covers the same content, and the three tip commits
+    touch only `docs/`, `AGENTS.md`, `test/scene-graph-ci.test.js`, and the
+    downstream workflow). The range
+    is the scene-graph campaign. Its own commits updated the contract's
+    scene, language, and runtime sections in-band; this pass re-audited the
+    scene statements against source (`compileScene()`, `SCENE_COLOR_TEXTURE`,
+    `graph.sceneIR` with `graph._isScene`, `VOLUME_ATLAS_SIZE` 64 with
+    `ERR_VOLUME_ATLAS_SIZE`, the 64x4096 atlas allocation) and re-ran the
+    four repository contract tests, which re-check the graph shape, delivery
+    pair, parity statement, and frame lifetime against source. Shade range
+    `1815133..0d5042b` changes only `package.json` and `package-lock.json`,
+    so the pin and the delivery stay: release `v0.5.4` still resolves to the
+    pinned Shade source, and `vendor/shade-mcp/` is unchanged over the
+    Noisemaker range. Verified: the `NM_CHANGED_FILES` selection of
+    `node scripts/run-js-tests.js --skip-parity` (5 modules, exit 0),
+    `npm run lint` (exit 0), Shade `npm run typecheck` (exit 0) and
+    `npm test` (46 files, 548 tests, exit 0), and Shade
+    `node scripts/browser-smoke.mjs` with `NOISEMAKER` set (all 14 checks,
+    exit 0, including the genuine WebGPU render on Chromium's SwiftShader
+    Vulkan ICD). The snapshot block above names this candidate pair.
+    One configured-pin session on this pair initialized server `shade-mcp`
+    0.5.4 / protocol `2025-06-18` with SDK 1.32.2, listed 21 tools, and ran
+    the eight worked calls without MCP `isError`. All eight responses
+    reproduced the recorded transcript key-for-key, and the frame metrics
+    and benchmark times hold this session's values (59.47 FPS against the
+    30 FPS target). The container's SwiftShader GL backend made the GL
+    driver surface its ReadPixels stall warning through `console_errors`;
+    the recorded session saw no console messages. Pending: exact-source CI
+    and live readback. The completed checkpoint stays unchanged until those
+    pass.
   - 2026-11-22 — completed delivery pair: Noisemaker
     `847698510fabe64b188bc7481f0b5c01a6feafaf` and Shade MCP
     `1815133b47eaa33aee11d4a677cfea2f3939cf38`. The immutable `.mcp.json`
