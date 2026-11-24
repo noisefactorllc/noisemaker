@@ -10,6 +10,7 @@ import {
     FULLSCREEN_TRIANGLE_VERTEX_COUNT
 } from '../default-shaders.js'
 import { WebGL2FrameExportAdapter } from './webgl2-frame-export.js'
+import { DISPLAY_P3, SRGB, configureWebGL2Canvas, gamutQuery } from '../color-output.js'
 
 import { DIAGNOSTIC_CODES, DiagnosticCollector, ShaderDiagnostic, parseGLSLInfoLog } from './diagnostics.js'
 
@@ -44,11 +45,30 @@ function mipLevelSize(dim, level) {
 }
 
 export class WebGL2Backend extends Backend {
-    constructor(context, canvas) {
+    /**
+     * @param {WebGL2RenderingContext} context
+     * @param {HTMLCanvasElement} [canvas]
+     * @param {object} [options]
+     * @param {'srgb'|'display-p3'} [options.colorOutput='srgb'] - The space the drawing buffer is in (configureWebGL2Canvas)
+     * @param {{requested: string, env?: object}} [options.colorRequest] - The host's request, which a display change applies again
+     */
+    constructor(context, canvas, { colorOutput = SRGB, colorRequest = null } = {}) {
         super(context)
         this.gl = context
         this.canvas = canvas || context.canvas || null
         this.isContextLost = false
+        this.colorOutput = colorOutput === DISPLAY_P3 ? DISPLAY_P3 : SRGB
+
+        // A display-p3 request follows the display: when the window moves to a
+        // display of another gamut, the drawing buffer is set again at the
+        // next frame.
+        this._colorRequest = colorRequest
+        this._colorOutputStale = false
+        this._gamutQuery = colorRequest?.requested === DISPLAY_P3 ? gamutQuery(colorRequest.env) : null
+        if (this._gamutQuery?.addEventListener) {
+            this._onGamutChange = () => { this._colorOutputStale = true }
+            this._gamutQuery.addEventListener('change', this._onGamutChange)
+        }
         this.fbos = new Map() // texture_id -> framebuffer
         this.depthBuffers = new Map() // fbo -> depth renderbuffer (for mesh rendering)
         this.fullscreenVAO = null
@@ -2034,6 +2054,7 @@ export class WebGL2Backend extends Backend {
 
     beginFrame() {
         const gl = this.gl
+        if (this._colorOutputStale) this._reconfigureColorOutput()
         gl.clearColor(0, 0, 0, 0)
 
         // Latch the error-check state for this whole frame (see constructor)
@@ -2080,6 +2101,84 @@ export class WebGL2Backend extends Backend {
         }
     }
 
+    /**
+     * Set the drawing buffer again for the host's request, after a display
+     * change. Leaving the display-p3 path puts the canvas back to srgb in an
+     * 8-bit buffer (configureWebGL2Canvas).
+     * @private
+     */
+    _reconfigureColorOutput() {
+        this._colorOutputStale = false
+        if (!this.gl || !this._colorRequest) return
+        this.colorOutput = configureWebGL2Canvas(this.gl, this._colorRequest)
+    }
+
+    /**
+     * A copy of the presented canvas, read from the drawing buffer as it is.
+     * preserveDrawingBuffer keeps the last presented frame there. Only the
+     * display-p3 path has the copy: its 16-bit float buffer is read with the
+     * FLOAT read type, and the rows are given top row first, as the WebGPU
+     * copy gives them. The values are premultiplied, as the drawing buffer
+     * holds them. Read an srgb canvas with readPixels or toBlob.
+     * @returns {Promise<{width: number, height: number, format: string, bytesPerPixel: number, data: Uint8Array}>}
+     */
+    readCanvasCopy() {
+        if (this._colorOutputReleased) {
+            return Promise.reject(new Error('The backend was released; read the canvas copy from the current pipeline'))
+        }
+        const gl = this.gl
+        if (this.colorOutput !== DISPLAY_P3 || !gl) {
+            return Promise.reject(new Error('The canvas copy exists only on the display-p3 path; read an srgb canvas with readPixels or toBlob'))
+        }
+        if (gl.isContextLost?.()) {
+            return Promise.reject(new Error('The WebGL2 context is lost; read the canvas copy after the rebuild'))
+        }
+        try {
+            const width = gl.drawingBufferWidth
+            const height = gl.drawingBufferHeight
+            const rowFloats = width * 4
+            const pixels = new Float32Array(rowFloats * height)
+            // An error flag left by earlier work would be read as this read's.
+            for (let flags = 0; flags < 16 && gl.getError() !== gl.NO_ERROR; flags++) {
+                // Each call clears one flag.
+            }
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+            gl.readPixels(0, 0, width, height, gl.RGBA, gl.FLOAT, pixels)
+            if (gl.isContextLost?.()) {
+                return Promise.reject(new Error('The WebGL2 context is lost; read the canvas copy after the rebuild'))
+            }
+            const error = gl.getError()
+            if (error !== gl.NO_ERROR) {
+                return Promise.reject(new Error(`readPixels of the drawing buffer failed with GL error ${error}`))
+            }
+            // readPixels gives the bottom row first: flip the rows in place.
+            const row = new Float32Array(rowFloats)
+            for (let top = 0, bottom = height - 1; top < bottom; top++, bottom--) {
+                row.set(pixels.subarray(top * rowFloats, (top + 1) * rowFloats))
+                pixels.copyWithin(top * rowFloats, bottom * rowFloats, (bottom + 1) * rowFloats)
+                pixels.set(row, bottom * rowFloats)
+            }
+            return Promise.resolve({ width, height, format: 'rgba32float', bytesPerPixel: 16, data: new Uint8Array(pixels.buffer) })
+        } catch (error) {
+            return Promise.reject(error)
+        }
+    }
+
+    /**
+     * Stop following the display, and refuse every later canvas copy.
+     * destroy() does this. A pipeline disposed after its context was lost
+     * does not destroy the backend, so it calls this alone: the display
+     * listener would otherwise keep the backend reachable.
+     */
+    releaseColorOutput() {
+        if (this._gamutQuery?.removeEventListener && this._onGamutChange) {
+            this._gamutQuery.removeEventListener('change', this._onGamutChange)
+        }
+        this._gamutQuery = null
+        this._colorOutputStale = false
+        this._colorOutputReleased = true
+    }
+
     present(textureId) {
         const gl = this.gl
         const tex = this.textures.get(textureId)
@@ -2119,6 +2218,10 @@ export class WebGL2Backend extends Backend {
     }
 
     destroy(options = {}) {
+        // First, so that a teardown step that throws cannot leave the display
+        // listener attached.
+        this.releaseColorOutput()
+
         const gl = this.gl
         if (!gl) {
             return

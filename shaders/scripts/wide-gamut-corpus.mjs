@@ -12,11 +12,11 @@
  *       Records the surface pin of every pin case with pin-effect-pixels.mjs --out.
  *   node shaders/scripts/wide-gamut-corpus.mjs canvas [--only <id>]
  *       Records the srgb canvas bytes, after present, of every canvas case.
- *   node shaders/scripts/wide-gamut-corpus.mjs banding [--only <id>] [--frames <file>]
+ *   node shaders/scripts/wide-gamut-corpus.mjs banding [--backend webgpu|webgl2] [--only <id>] [--frames <file>]
  *       Models the quantization of an 8-bit and a 16-bit float Display P3
- *       canvas on the srgb WebGPU frames of the canvas cases, and prints the
- *       summary. It renders no P3 canvas. --frames also writes the result of
- *       each frame to <file>.
+ *       canvas, or drawing buffer, on the srgb frames of the canvas cases on
+ *       one backend (WebGPU by default), and prints the summary. It renders
+ *       no P3 canvas. --frames also writes the result of each frame to <file>.
  *   node shaders/scripts/wide-gamut-corpus.mjs matrix
  *       Records what each wide-gamut support check reports in headless Chromium.
  *   node shaders/scripts/wide-gamut-corpus.mjs list --programs <dir> --w <sha> --gpu <renderer>
@@ -390,11 +390,11 @@ export function frameBanding(bytes) {
     return { colors: colors.size, formats }
 }
 
-async function measureBanding(cases) {
+async function measureBanding(cases, backend = 'webgpu') {
     const frames = []
     let failed = 0
     await forEachCanvasFrame(cases, {
-        only: 'webgpu',
+        only: backend,
         visit: frame => {
             if (frame.error) { failed++; console.log(`FAIL ${frame.caseFile} :: ${frame.error}`); return }
             frames.push({ case: frame.caseFile, ...frameBanding(frame.bytes) })
@@ -645,12 +645,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     } else if (command === 'matrix') {
         console.log(JSON.stringify(await recordMatrix(), null, 2))
     } else if (command === 'banding') {
-        // An 8-bit or a 16-bit Display P3 canvas, modeled on the srgb WebGPU
-        // frames of the canvas-bytes cases. Prints the summary, and writes
-        // only the --frames file when it is given.
+        // An 8-bit or a 16-bit Display P3 canvas, modeled on the srgb frames
+        // of the canvas-bytes cases on one backend. Prints the summary, and
+        // writes only the --frames file when it is given.
         const only = flag('--only')
+        const backend = flag('--backend') ?? 'webgpu'
+        if (backend !== 'webgpu' && backend !== 'webgl2') throw new Error('banding takes --backend webgpu or webgl2')
         const todo = only ? canvasCases().filter(file => file.includes(only)) : canvasCases()
-        const { summary, frames } = await measureBanding(todo)
+        const { summary, frames } = await measureBanding(todo, backend)
         if (flag('--frames')) writeJson(path.resolve(flag('--frames')), frames)
         console.log(JSON.stringify(summary, null, 2))
         process.exitCode = summary.failed ? 1 : 0

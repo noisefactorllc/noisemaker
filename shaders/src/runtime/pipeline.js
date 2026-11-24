@@ -12,7 +12,7 @@ import { CUBE_FACE_BASES } from '../renderer/cubeCamera.js'
 import { CanvasSink, SinkManager } from './sink.js'
 import { preflightEffect, mrtFormatBytes } from './preflight.js'
 import { DiagnosticCollector } from './backends/diagnostics.js'
-import { SRGB, configureWebGPUCanvas } from './color-output.js'
+import { SRGB, configureWebGL2Canvas, configureWebGPUCanvas } from './color-output.js'
 
 /**
  * Oscillator evaluation functions.
@@ -3202,7 +3202,6 @@ export class Pipeline {
  * @param {boolean} options.preferWebGPU - Use WebGPU if available
  * @param {'srgb'|'display-p3'} [options.colorOutput='srgb'] - The canvas color space. 'display-p3'
  *   falls back to 'srgb' when a support check fails; read the result from pipeline.colorOutput.
- *   On WebGL2 the canvas stays 'srgb'.
  */
 export async function createPipeline(graph, options = {}) {
     let backend
@@ -3257,7 +3256,9 @@ export async function createPipeline(graph, options = {}) {
         if (!gl) {
             throw new Error('WebGL2 not available')
         }
-        backend = new WebGL2Backend(gl, options.canvas)
+        const requested = options.colorOutput ?? SRGB
+        const colorOutput = configureWebGL2Canvas(gl, { requested })
+        backend = new WebGL2Backend(gl, options.canvas, { colorOutput, colorRequest: { requested } })
     } else {
         throw new Error('No backend available or canvas not provided')
     }
