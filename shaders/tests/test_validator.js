@@ -189,21 +189,20 @@ test('keyword first, then positionals fill remaining slots in order',
         if (a.quality !== 4) throw new Error(`quality: expected 4, got ${a.quality}`)
     })
 
-test('excess positional arguments are reported as a warning, and the call keeps its filled slots',
+test('excess positional arguments are an error, and the call keeps its filled slots',
     'search synth, filter\nnoise().kaleid(4, 9, 9).write(o0)', (result) => {
         const diag = result.diagnostics.find(d => /too many|excess|positional/i.test(d.message || ''))
         if (!diag) {
             throw new Error(`Expected a diagnostic for excess positionals, got ${JSON.stringify(result.diagnostics)}`)
         }
         if (diag.code !== 'S009') throw new Error(`Expected S009, got ${diag.code}`)
-        if (diag.severity !== 'warning') throw new Error(`Expected a warning, got ${diag.severity}`)
+        if (diag.severity !== 'error') throw new Error(`Expected an error, got ${diag.severity}`)
         if (diag.message !== "Too many positional arguments for kaleid(): 'kaleid' takes 1") {
             throw new Error(`Unexpected message: ${diag.message}`)
         }
-        // A program that passes them compiled before the report existed, so
-        // nothing here may be an error.
+        // S009 is the only error: the filled slots are not reported.
         const errors = result.diagnostics.filter(d => d.severity === 'error')
-        if (errors.length) throw new Error(`Expected no error, got ${JSON.stringify(errors)}`)
+        if (errors.length !== 1 || errors[0] !== diag) throw new Error(`Expected S009 as the only error, got ${JSON.stringify(errors)}`)
         const a = argsOf(result, 'filter.kaleid')
         if (a.nSides !== 4) throw new Error(`nSides: expected 4, got ${a.nSides}`)
     })

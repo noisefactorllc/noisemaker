@@ -1804,9 +1804,8 @@ export function validate(ast) {
                 }
 
                 // Positionals left over after every slot is filled correspond to
-                // no parameter. They bind to nothing, and the call renders
-                // without them. That is a warning, not an error: a program
-                // that passes them compiled before this was reported.
+                // no parameter, so they would bind to nothing. On 2.x that is an
+                // error: a program that passes them does not compile.
                 if (byIndex) posCursor = specArgs.length
                 if (posCursor < call.args.length) {
                     const extra = call.args[posCursor]

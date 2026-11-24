@@ -25,7 +25,7 @@ const diagnostics = {
   S006: { stage: 'semantic', severity: 'error', message: 'Starter chain missing write() call' },
   S007: { stage: 'semantic', severity: 'warning', message: 'Deprecated parameter alias' },
   S008: { stage: 'semantic', severity: 'warning', message: 'Deprecated effect' },
-  S009: { stage: 'semantic', severity: 'warning', message: 'Too many positional arguments' },
+  S009: { stage: 'semantic', severity: 'error', message: 'Too many positional arguments' },
   R001: { stage: 'runtime', severity: 'error', message: 'Runtime error' }
 }
 

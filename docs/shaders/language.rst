@@ -250,9 +250,9 @@ Given ``blur(amount, angle, quality)``, all three of these bind ``amount: 0.9``,
 
 In the second call, ``4`` would have reached ``angle`` by position; because
 ``angle:`` is already claimed, it shifts to ``quality``. A positional left
-over once every slot is filled binds to nothing. The program still compiles,
-and the validator reports the warning ``S009``: ``Too many positional
-arguments for blur(): 'blur' takes 3``.
+over once every slot is filled would bind to nothing, so the validator reports
+the error ``S009``: ``Too many positional arguments for blur(): 'blur' takes
+3``, and the program does not compile.
 
 ``//`` comments may appear inside an argument list, an array literal or an
 object literal, between arguments. They are skipped by the parser, so a
@@ -1102,7 +1102,7 @@ Diagnostics
      - Deprecated effect
    * - S009
      - Semantic
-     - Warning
+     - Error
      - Too many positional arguments
    * - R001
      - Runtime
