@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import test from 'node:test'
 
 const workflow = name => readFileSync(new URL(`../.github/workflows/${name}.yml`, import.meta.url), 'utf8')
@@ -40,4 +43,49 @@ test('scene-graph pushes cannot run publication jobs', () => {
   assert.match(pushBlock(workflow('release')), /tags:/)
   assert.doesNotMatch(pushBlock(workflow('release')), /branches:/)
   assert.match(jobBlock(workflow('dependabot-auto-merge'), 'auto-merge'), /workflow_run\.event == 'pull_request'/)
+})
+
+// The downstream notice goes out only for a 1.x tree: a 2.x tree pushed to main by mistake queues no port work.
+const notifySteps = () => [...jobBlock(workflow('downstream'), 'notify').matchAll(/\n {6}- name: ([^\n]+)\n([\s\S]*?)(?=\n {6}- name:|\n {6}#|$)/g)]
+  .map(([, name, body]) => ({ name, body }))
+const guardStep = () => notifySteps().find(step => step.name === 'Require a 1.x tree')
+const guardScript = () => {
+  const lines = guardStep().body.split('\n'), start = lines.findIndex(line => /^ {8}run: \|$/.test(line))
+  return lines.slice(start + 1).filter(line => line.startsWith('          ') || line === '').map(line => line.slice(10)).join('\n')
+}
+
+test('the downstream guard reads the pushed version and refuses any major other than 1', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'downstream-guard-'))
+  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  // A stand-in for curl: it serves the fixture only for pyproject.toml at the pushed commit, and fails as an unreachable file does.
+  const sha = 'a'.repeat(40)
+  writeFileSync(join(dir, 'curl'), `#!/bin/sh\nfor last; do :; done\n[ "$last" = "https://raw.githubusercontent.com/owner/repository/${sha}/pyproject.toml" ] || exit 22\n[ -f "$FIXTURE" ] || exit 22\ncat "$FIXTURE"\n`)
+  chmodSync(join(dir, 'curl'), 0o755)
+  const run = metadata => {
+    const fixture = join(dir, 'pyproject.toml')
+    rmSync(fixture, { force: true })
+    if (metadata !== null) writeFileSync(fixture, metadata)
+    return spawnSync('bash', ['-c', guardScript()], { encoding: 'utf8',
+      env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, FIXTURE: fixture, GITHUB_REPOSITORY: 'owner/repository', GITHUB_SHA: sha } })
+  }
+  const project = version => `[project]\nname = "noisemaker"\nversion = "${version}"\n\n[tool.mypy]\npython_version = "3.11"\n`
+  for (const version of ['1.0', '1.5']) assert.equal(run(project(version)).status, 0, `${version} notifies`)
+  const refused = run(project('2.0'))
+  assert.notEqual(refused.status, 0)
+  assert.match(refused.stdout, /declares version 2\.0, of major 2/)
+  for (const [name, metadata] of [['a missing version', '[project]\nname = "noisemaker"\n'], ['an unreadable version', project('two')],
+    ['a file that is not TOML', 'version = "1.0\n'], ['an unreadable file', null]]) {
+    const result = run(metadata)
+    assert.notEqual(result.status, 0, `${name} is refused`)
+    assert.match(result.stdout, /no downstream notice is sent/, name)
+  }
+})
+
+test('the downstream guard runs before the token and the notice, every time', () => {
+  const names = notifySteps().map(step => step.name)
+  const guard = names.indexOf('Require a 1.x tree')
+  assert.ok(guard >= 0, 'the guard step exists')
+  assert.ok(guard < names.indexOf('Mint GitHub App token'), 'the guard is before the token step')
+  assert.ok(guard < names.indexOf('Notify'), 'the guard is before the notice')
+  assert.doesNotMatch(guardStep().body, /^ {8}(if|continue-on-error):/m, 'the guard has no condition and cannot be skipped')
 })

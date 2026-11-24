@@ -20,6 +20,30 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
+      # The queue matches a notice by repository and paths, not by branch, so this
+      # side sends one only for a 1.x tree: the version in pyproject.toml, where the
+      # release reads the series, must be of major 1.
+      - name: Require a 1.x tree
+        run: |
+          set -euo pipefail
+          url="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}/pyproject.toml"
+          if ! metadata=$(curl -fsSL --retry 3 --max-time 30 "$url"); then
+            echo "::error::pyproject.toml of ${GITHUB_SHA} could not be read; no downstream notice is sent"
+            exit 1
+          fi
+          # project.version, as the release's reader takes it; any TOML it cannot read gives no version.
+          version=$(python3 -c 'import sys, tomllib; print(tomllib.loads(sys.stdin.read()).get("project", {}).get("version", ""))' <<< "$metadata" 2>/dev/null) || version=""
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+ ]]; then
+            echo "::error::pyproject.toml of ${GITHUB_SHA} declares no readable version (read: '${version}'); no downstream notice is sent"
+            exit 1
+          fi
+          major=${version%%.*}
+          if [ "$major" != 1 ]; then
+            echo "::error::pyproject.toml of ${GITHUB_SHA} declares version ${version}, of major ${major}; a downstream notice is sent only for a 1.x tree"
+            exit 1
+          fi
+          echo "pyproject.toml of ${GITHUB_SHA} declares version ${version}, of major 1"
+
       - name: Check the downstream dispatch configuration
         env:
           QUEUE_REPOSITORY: ${{ secrets.QUEUE_REPOSITORY }}
