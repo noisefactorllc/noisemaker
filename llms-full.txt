@@ -13,7 +13,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `af8d54d29d6030a674e1d619313040eed024f6bf`.
+- Noisemaker: `f635c0808b555aa75c46786c2e4cd5b8620533a4`.
 - Shade MCP: `1815133b47eaa33aee11d4a677cfea2f3939cf38`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.5.4`. Its
   lockfile pins `@modelcontextprotocol/sdk` 1.32.2; the `npx` install below

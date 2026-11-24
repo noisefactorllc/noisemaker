@@ -1097,7 +1097,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `847698510fabe64b188bc7481f0b5c01a6feafaf` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-22
+- **Checkpoint:** noisemaker `f635c0808b555aa75c46786c2e4cd5b8620533a4` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-24
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -1181,6 +1181,29 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-24 — completed delivery pair: Noisemaker
+    `f635c0808b555aa75c46786c2e4cd5b8620533a4` and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. The immutable `.mcp.json`
+    pin is that Shade source, delivered release `v0.5.4` resolves to the
+    same source, and the vendored subtrees are unchanged. The audited
+    Noisemaker range `847698510..f635c08` is the scene-graph campaign
+    through the 1.5 release `084176b71`. The candidate entry below records
+    the audit, the tests, and the configured-pin session. Independent
+    review required that delivery recapture before approval plus one
+    contract-statement correction (the volume-atlas declaration names),
+    and both landed before approval. Shade range `1815133..0d5042b` is
+    dependency-only, so the pin and the delivery stay. Exact-source
+    [JavaScript 45318068416](https://github.com/noisefactorllc/noisemaker/actions/runs/45318068416)
+    and [Site 45318068417](https://github.com/noisefactorllc/noisemaker/actions/runs/45318068417)
+    passed at `f635c08`. Shade
+    [CI 45203393772](https://github.com/noisefactorllc/shade-mcp/actions/runs/45203393772),
+    [Quality 45203394080](https://github.com/noisefactorllc/shade-mcp/actions/runs/45203394080)
+    and [Downstream 45203393939](https://github.com/noisefactorllc/shade-mcp/actions/runs/45203393939)
+    passed at `0d5042b`. The live deployment metadata reports `f635c08`,
+    and a full GET of `https://noisemaker.app/llms-full.txt` returned HTTP
+    200 and exactly matched the committed file, SHA-256
+    `3e74415ad2d5e833324c8569850df4ed02055bdb1334613c3aabcca7c22976f0`.
+    The checkpoint and contract snapshot now name that qualified pair.
   - 2026-11-24 — candidate pair: Noisemaker
     `af8d54d29d6030a674e1d619313040eed024f6bf` and Shade MCP
     `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Audited the Noisemaker range
