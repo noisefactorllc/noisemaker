@@ -12,6 +12,7 @@ import { expandPalette } from '../../../shaders/src/runtime/palette-expansion.js
 import { writeUniformAliases } from '../../../shaders/src/runtime/uniform-aliases.js'
 import { extractEffectsFromDsl } from './dsl-utils.js'
 import { compile, unparse, formatValue } from '../../../shaders/src/lang/index.js'
+import { bindingOf, pinParameter, setProgramSeed, unpinParameter } from '../../../shaders/src/lang/seeding.js'
 import { getEffect, isStarterEffect } from '../../../shaders/src/renderer/canvas.js'
 
 /**
@@ -345,11 +346,23 @@ export class ProgramState extends Emitter {
      * @returns {string} DSL program text
      */
     toDsl() {
+        return this._rewriteDsl()
+    }
+
+    /**
+     * Generate DSL text from current state, after `edit` changes the
+     * compiled program (seed edits use this).
+     * @param {function(object): void} [edit]
+     * @returns {string} DSL program text
+     * @private
+     */
+    _rewriteDsl(edit) {
         if (!this._renderer?.currentDsl) return ''
 
         try {
             const compiled = compile(this._renderer.currentDsl)
             if (!compiled?.plans) return this._renderer.currentDsl
+            if (edit) edit(compiled)
 
             // Apply parameter overrides from state
             const overrides = this._buildParameterOverrides()
@@ -390,6 +403,136 @@ export class ProgramState extends Emitter {
             console.warn('[ProgramState] Failed to generate DSL:', err)
             return this._renderer?.currentDsl || ''
         }
+    }
+
+    // =========================================================================
+    // Seeds
+    // =========================================================================
+
+    /**
+     * The program seed: the value of its seed directive, or null without one.
+     * @returns {number|null}
+     */
+    getSeed() {
+        const dsl = this._renderer?.currentDsl
+        if (!dsl) return null
+        try {
+            return compile(dsl).seed ?? null
+        } catch {
+            return null
+        }
+    }
+
+    /**
+     * Set the program seed. It writes the seed directive, an ordinary edit,
+     * and resolves every draw again.
+     * @param {number} seed - A whole number from 0 to 4294967295
+     * @returns {string} The new DSL
+     */
+    setSeed(seed) {
+        return this._applySeedEdit(compiled => setProgramSeed(compiled, seed))
+    }
+
+    /**
+     * Set a fresh random program seed.
+     * @returns {number} The new seed
+     */
+    reseed() {
+        const seed = globalThis.crypto.getRandomValues(new Uint32Array(1))[0]
+        this.setSeed(seed)
+        return seed
+    }
+
+    /**
+     * How a parameter's value is set: `{kind: 'random'}` for a random call or
+     * a random let, `{kind: 'inherited-seed'}` for an effect seed drawn from
+     * the program seed, or null.
+     * @param {string} stepKey - Step identifier (e.g., "step_0")
+     * @param {string} paramName - Parameter name
+     */
+    getBinding(stepKey, paramName) {
+        const index = this._stepIndexOf(stepKey)
+        const dsl = this._renderer?.currentDsl
+        if (index === null || !dsl) return null
+        try {
+            const binding = bindingOf(compile(dsl), index, paramName)
+            return binding ? { kind: binding.kind, ...(binding.let && { let: binding.let }) } : null
+        } catch {
+            return null
+        }
+    }
+
+    /**
+     * Pin a randomized parameter: its value stays through reseeds and edits.
+     * Pinning an inherited seed makes it the effect's own seed.
+     * @returns {string} The new DSL
+     */
+    pin(stepKey, paramName) {
+        const index = this._requireStepIndex(stepKey)
+        return this._applySeedEdit(compiled => {
+            if (!pinParameter(compiled, index, paramName)) {
+                throw new Error(`'${paramName}' of ${stepKey} is not randomized`)
+            }
+        })
+    }
+
+    /**
+     * Unpin a parameter. Calls that a parameter in `keep` also depends on
+     * stay pinned.
+     * @param {Array<[string, string]>} [keep] - Pinned [stepKey, paramName] pairs
+     * @returns {string} The new DSL
+     */
+    unpin(stepKey, paramName, keep = []) {
+        const index = this._requireStepIndex(stepKey)
+        const kept = keep.map(([key, name]) => [this._requireStepIndex(key), name])
+        return this._applySeedEdit(compiled => unpinParameter(compiled, index, paramName, kept))
+    }
+
+    _stepIndexOf(stepKey) {
+        const match = /^step_(\d+)$/.exec(stepKey)
+        return match ? Number(match[1]) : null
+    }
+
+    _requireStepIndex(stepKey) {
+        const index = this._stepIndexOf(stepKey)
+        if (index === null) throw new Error(`Unknown step '${stepKey}'`)
+        return index
+    }
+
+    /**
+     * Apply a seed edit: rewrite the DSL, hand it to the renderer, and update
+     * the values. A change that alters only values updates uniforms; a
+     * change of structure or of a compile-time define asks for a recompile.
+     * @private
+     */
+    _applySeedEdit(edit) {
+        if (!this._renderer) throw new Error('ProgramState has no renderer')
+        let failure = null
+        const dsl = this._rewriteDsl(compiled => {
+            try {
+                edit(compiled)
+            } catch (error) {
+                failure = error
+            }
+        })
+        if (failure) throw failure
+        const defineValues = () => {
+            const values = []
+            for (const [stepKey, stepState] of this._stepStates) {
+                for (const [name, spec] of Object.entries(stepState.effectDef?.globals || {})) {
+                    if (spec?.define) values.push(`${stepKey}.${name}=${JSON.stringify(this.getValue(stepKey, name))}`)
+                }
+            }
+            return values.join('|')
+        }
+        const structureChanged = this.wouldChangeStructure(dsl)
+        const definesBefore = defineValues()
+        this._renderer.currentDsl = dsl
+        this.fromDsl(dsl)
+        const recompile = structureChanged || defineValues() !== definesBefore
+        if (recompile) this.emit('recompileNeeded', { reason: 'seed' })
+        this.emit('seedchange', { seed: this.getSeed(), dsl, recompile })
+        return dsl
     }
 
     /**

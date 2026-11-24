@@ -146,6 +146,12 @@ function drawFor(node, ctx, path) {
     return drawU32(ctx.seed, joinKey(ctx.key, ...path))
 }
 
+// The draw of a call, kept on its node (not enumerable) so that a pin can
+// write the seed that reproduces it.
+function recordDraw(node, u) {
+    Object.defineProperty(node, '_draw', { value: u, configurable: true, writable: true })
+}
+
 function rangeError(node, error) {
     if (error instanceof RangeError) return new RandomCallError(node, error.message)
     return error
@@ -234,6 +240,7 @@ function resolveCall(node, ctx, path) {
         }
     }
     const u = drawFor(node, ctx, path)
+    recordDraw(node, u)
     try {
         switch (node.fn) {
             case 'rand': {
@@ -288,5 +295,6 @@ function resolvePick(node, ctx, path) {
         throw new RandomCallError(node, 'pick() needs at least one value')
     }
     const u = drawFor(node, ctx, path)
+    recordDraw(node, u)
     return items[pickIndex(u, items.length)]
 }

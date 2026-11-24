@@ -1665,6 +1665,11 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 if (call.randomSources?.[key] && formatValue(value) !== formatValue(step.args?.[key])) {
                     delete call.randomSources[key]
                 }
+                // An edited inherited seed becomes the effect's own seed.
+                if (call.inheritedSeeds?.[key] && formatValue(value) !== formatValue(step.args?.[key])) {
+                    call.inheritedSeeds = { ...call.inheritedSeeds }
+                    delete call.inheritedSeeds[key]
+                }
                 // Always allow internal _ prefixed args (e.g., _skip)
                 if (key.startsWith('_')) {
                     call.kwargs[key] = value

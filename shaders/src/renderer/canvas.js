@@ -22,9 +22,11 @@
 import { registerOp } from '../lang/ops.js'
 import { lex } from '../lang/lexer.js'
 import { parse } from '../lang/parser.js'
+import { unparse } from '../lang/unparser.js'
+import { setProgramSeed } from '../lang/seeding.js'
 import { registerParamAliases } from '../lang/paramAliases.js'
 import { registerEffectAlias } from '../lang/effectAliases.js'
-import { registerStarterOps } from '../lang/validator.js'
+import { registerStarterOps, validate } from '../lang/validator.js'
 import { createRuntime, compileGraph, compileGraphFor, swapGraph } from '../runtime/compiler.js'
 import { WebGPUBackend } from '../runtime/backends/webgpu.js'
 import { resolveSoftwareRendering } from './software-rendering.js'
@@ -952,6 +954,31 @@ export class CanvasRenderer {
     /** @param {string} dsl - Set current DSL */
     set currentDsl(dsl) {
         this._currentDsl = dsl
+    }
+
+    /**
+     * The program seed of the current DSL, or null without a seed directive.
+     * @returns {number|null}
+     */
+    getSeed() {
+        if (!this._currentDsl) return null
+        return validate(parse(lex(this._currentDsl))).seed ?? null
+    }
+
+    /**
+     * Set the program seed and compile the program again. For hosts without
+     * ProgramState; ProgramState.setSeed also keeps parameter edits.
+     * @param {number} seed - A whole number from 0 to 4294967295
+     * @returns {Promise<object|null>} The compile result
+     */
+    async setSeed(seed) {
+        const compiled = validate(parse(lex(this._currentDsl)))
+        setProgramSeed(compiled, seed)
+        const dsl = unparse(compiled, {}, {
+            getEffectDef: (name, namespace) => getEffect(name) || getEffect(name.replace('.', '/')) ||
+                (namespace ? getEffect(`${namespace}/${name}`) || getEffect(`${namespace}.${name}`) : null)
+        })
+        return this.compile(dsl)
     }
 
     // =========================================================================

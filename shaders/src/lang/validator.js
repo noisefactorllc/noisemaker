@@ -353,6 +353,8 @@ export function validate(ast) {
     const letDeclarations = new Map()
     // The key of the value an effect is passed into, while it compiles.
     const valueKeys = []
+    // The substituted source of each random `let`, by its parser node.
+    const letSources = new Map()
     // The seeds of the enclosing `_seed:` scopes, innermost last.
     const seedScopes = []
     const scopeSeed = () => (seedScopes.length ? seedScopes[seedScopes.length - 1] : programSeed)
@@ -810,6 +812,8 @@ export function validate(ast) {
         }
         if (node.type === 'Random') {
             const mapped = {...node, args: (node.args || []).map(a => substitute(a, resolving))}
+            // The call as written in the source, for pinning. Not enumerable.
+            Object.defineProperty(mapped, '_origin', { value: node._origin || node })
             if (node.kwargs) {
                 mapped.kwargs = {}
                 for (const [k, v] of Object.entries(node.kwargs)) mapped.kwargs[k] = substitute(v, resolving)
@@ -991,6 +995,8 @@ export function validate(ast) {
             letDeclarations.set(scopeKey, k)
             const resolved = resolveRandomAt(expr, k === 1 ? `let:${v.name}` : `let:${v.name}#${k}`)
             if (resolved === undefined) return
+            // The substituted source, with each call's draw, for pinning.
+            letSources.set(v, expr)
             expr = resolved
         }
         markLetIds(expr)
@@ -2569,6 +2575,7 @@ export function validate(ast) {
     const result = {plans, diagnostics: diagnosticsList, render, vars, searchNamespaces}
     if (hasSeedDirective) { result.seed = programSeed }
     if (ast.parts) { result.parts = ast.parts }
+    Object.defineProperty(result, 'letSources', { value: letSources, enumerable: false })
     if (ast.trailingComments) { result.trailingComments = ast.trailingComments }
     // The plans in source order. A let's `planIndex` points into this list,
     // so the unparser can keep statement order after hosts remove plans.
