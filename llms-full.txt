@@ -98,8 +98,8 @@ type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
 
 type Diagnostic = {
   code: "S001" | "S002" | "S003" | "S004" | "S005" | "S006" |
-        "S007" | "S008" | "S009" | "S010" | "S011" | "P008" | "P009" |
-        "P010"
+        "S007" | "S008" | "S009" | "S010" | "S011" | "S012" | "S013" |
+        "S014" | "P008" | "P009" | "P010"
   message: string
   severity: "error" | "warning"
   nodeId?: string | number | null  // null on the P008-P010 subchain warnings
@@ -809,6 +809,7 @@ Declared diagnostic codes are:
 | `P008` | parser/warning | Unknown subchain argument key (the value is discarded); returned in `compile()` diagnostics with `nodeId: null` |
 | `P009` | parser/warning | Duplicate subchain argument key (the last value wins); `nodeId: null` |
 | `P010` | parser/warning | Missing `,` between subchain arguments; `nodeId: null` |
+| `P011` | parser/error | Invalid `seed` directive: repeated, before `search` or after another statement, or a value outside 0-4294967295; additive `error.diagnostic` on the legacy `SyntaxError` |
 | `S001` | semantic/error | unknown effect/argument/enum, invalid surface, illegal inline read, invalid function, and other semantic failures |
 | `S002` | semantic/warning | clamping, wrong numeric/vector/array form |
 | `S003` | semantic/error | unresolved identifier or enum choice, or a variable read before its `let` |
@@ -820,6 +821,9 @@ Declared diagnostic codes are:
 | `S009` | semantic/error | positional arguments left over after every parameter is filled; the program does not compile |
 | `S010` | semantic/warning | a repeated element `_id:`; the first element in compile order (step number) keeps it |
 | `S011` | semantic/error | an `_id:` inside a `let` value that is used more than once |
+| `S012` | semantic/error | an invalid random call: wrong, repeated or non-numeric arguments, an empty `pick()`, `choices()` outside `pick()`, a call-level `seed:` outside 0-4294967295, or a name a `let` hides |
+| `S013` | semantic/error | a random call where the value must be fixed: `_seed:`, `_skip:`, a call-level `seed:`, a surface, a run-time arrow function, or an effect held by a `let` |
+| `S014` | semantic/warning | an element's occurrence name is another element's `_id:`; the element draws under that name with a `'` suffix |
 | `R001` | runtime/error | declared but not emitted by the compiler/backends shown here |
 
 Raw lexer/parser failures are `SyntaxError` instances with the unchanged legacy

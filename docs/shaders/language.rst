@@ -1190,6 +1190,10 @@ Diagnostics
      - Parser
      - Warning
      - Missing ',' between subchain arguments
+   * - P011
+     - Parser
+     - Error
+     - Invalid seed directive
    * - S001
      - Semantic
      - Error
@@ -1234,6 +1238,18 @@ Diagnostics
      - Semantic
      - Error
      - Element id in a let value used more than once
+   * - S012
+     - Semantic
+     - Error
+     - Invalid random call
+   * - S013
+     - Semantic
+     - Error
+     - Random call not allowed here
+   * - S014
+     - Semantic
+     - Warning
+     - Key name taken by an _id
    * - R001
      - Runtime
      - Error
@@ -1250,3 +1266,6 @@ Common Errors
 * **S008 (Deprecated effect):** A newer effect replaces this effect, but the previous effect still works. Use the current name.
 * **S010 (Duplicate element id):** Two elements have the same ``_id:``. The first one in compile order keeps it. Give the later one an id of its own.
 * **S011 (Element id in a let value used more than once):** A ``let`` value that holds an ``_id:`` is used more than once. Write the ``_id:`` at each use instead.
+* **S012 (Invalid random call):** A random call has wrong arguments: an unknown or repeated argument, a missing or non-numeric bound, an empty ``pick()``, a ``choices()`` outside ``pick()``, a call-level ``seed:`` outside 0 to 4294967295, or a random function name that a ``let`` hides.
+* **S013 (Random call not allowed here):** A random call stands where its value must be fixed: in ``_seed:``, ``_skip:`` or a call-level ``seed:``, as a surface, in an arrow function evaluated at run time, or in an effect held by a ``let``.
+* **S014 (Key name taken by an _id):** An element's occurrence name, such as ``noise_2``, is another element's ``_id:``. The element draws under the name with a ``'`` suffix, such as ``noise_2'``. Give the element an ``_id:`` of its own, or pick a different id, to keep its draws under a name you chose.

@@ -728,8 +728,8 @@ export function expand(compilationResult, options = {}) {
                 for (const [argName, arg] of Object.entries(step.args)) {
                     const isObjectArg = arg !== null && typeof arg === 'object'
 
-                    // The element id names the element; it is no uniform
-                    if (argName === '_id') continue
+                    // The element id names the element and _seed restarts its draws; neither is a uniform
+                    if (argName === '_id' || argName === '_seed') continue
 
                     // Skip surface arguments (already processed in first pass)
                     if (isTextureArg(arg)) {
@@ -902,8 +902,8 @@ export function expand(compilationResult, options = {}) {
                     for (const [argName, arg] of Object.entries(step.args)) {
                         const isObjectArg = arg !== null && typeof arg === 'object'
 
-                        // The element id names the element; it is no uniform
-                        if (argName === '_id') continue
+                        // The element id names the element and _seed restarts its draws; neither is a uniform
+                        if (argName === '_id' || argName === '_seed') continue
 
                         // Skip texture arguments (handled in inputs)
                         if (isTextureArg(arg)) {

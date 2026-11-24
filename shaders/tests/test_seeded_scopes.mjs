@@ -4,6 +4,7 @@ import { CanvasRenderer, compile, registerStarterOps, unparse } from '../src/ind
 import { mergeIntoEnums } from '../src/lang/enums.js'
 import { drawU32, randFrom, randIntFrom } from '../src/lang/draws.js'
 import { validateEffectDefinition } from '../src/runtime/effect-validator.js'
+import { compileGraph } from '../src/runtime/compiler.js'
 import noise from '../effects/synth/noise/definition.js'
 import splat from '../effects/classicNoisedeck/splat/definition.js'
 import life from '../effects/points/life/definition.js'
@@ -103,4 +104,10 @@ test('_seed round-trips and must be a literal whole number', () => {
     assert.ok(codes(compile('search synth\nnoise(_seed: randInt(1, 2)).write(o0)')).includes('S013'))
     assert.ok(codes(compile('search synth\nnoise(_seed: 1.5).write(o0)')).includes('S012'))
     assert.ok(codes(compile('search synth\nnoise(_seed: 4294967296).write(o0)')).includes('S012'))
+})
+
+test('the expanded graph carries no _seed uniform', () => {
+    const graph = compileGraph('search synth\nnoise(_seed: 5).write(o0)\nrender(o0)')
+    assert.ok(graph.passes.length > 0)
+    for (const pass of graph.passes) assert.ok(!('_seed' in (pass.uniforms || {})), JSON.stringify(pass.uniforms))
 })
