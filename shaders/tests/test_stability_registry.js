@@ -51,13 +51,13 @@ const STABLE_HOST_MEMBERS = new Set([
     'bundlePath', 'canvas', 'capabilities', 'clearTileRegion', 'colorOutput', 'compile', 'convertParameterForUniform',
     'createFrameExportQueue', 'currentDsl', 'currentEffect', 'currentFPS', 'deferredFrameCount', 'dispose', 'enums',
     'frameCount', 'getEffectDescription', 'getEffectsFromManifest', 'getFrameTimeStats', 'getLoadedEffectIds',
-    'getLoadedEffectIdsByNamespace', 'getLocale', 'getMediaSteps', 'hasEffect', 'initEnums', 'isContextLost',
+    'getLoadedEffectIdsByNamespace', 'getLocale', 'getMediaSteps', 'getSeed', 'hasEffect', 'initEnums', 'isContextLost',
     'isRunning', 'lastPassCount', 'lastRenderTime', 'lastTime', 'loadEffect', 'loadEffectDefinition',
     'loadEffectFromBundle', 'loadEffectShaders', 'loadEffects', 'loadManifest', 'loadOBJFromString', 'loadOBJFromURL',
     'loadedEffects', 'localize', 'loopDuration', 'manifest', 'midiState', 'pipeline', 'preferredBackend',
     'registerEffectWithRuntime', 'registerEffectsFromBundle', 'registerEffectsFromBundles', 'registerPortableEffect',
     'registerStarterOpForEffect', 'render', 'renderCubemap', 'resetCanvas', 'resetFrameTimeStats', 'resize',
-    'resolveEnumValue', 'setAudioState', 'setLocale', 'setLoopDuration', 'setMidiState', 'setTileRegion', 'setUniform',
+    'resolveEnumValue', 'setAudioState', 'setLocale', 'setLoopDuration', 'setMidiState', 'setSeed', 'setTileRegion', 'setUniform',
     'softwareRendering', 'start', 'stepFrame', 'stop', 'switchBackend', 'syncTime', 'updateTextureFromSource',
     'useBundles'
 ])
