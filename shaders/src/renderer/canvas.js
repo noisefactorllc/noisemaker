@@ -264,9 +264,9 @@ export class CanvasRenderer {
      * @param {boolean} [options.preferWebGPU=false] - Use WebGPU backend
      * @param {'srgb'|'display-p3'} [options.colorOutput='srgb'] - The canvas color space. 'display-p3'
      *   presents in Display P3 where the browser, the display and the backend support it, and falls
-     *   back to 'srgb' otherwise. Read the space in use from colorOutput.
-     *   The present step does not convert colors yet: on a Display P3 canvas, a program's values
-     *   show unchanged as Display P3 values.
+     *   back to 'srgb' otherwise. Read the space in use from colorOutput. On a Display P3 canvas,
+     *   the present step converts each pixel from sRGB, clamped to the sRGB gamut, so a program
+     *   shows the colors it shows on an srgb canvas.
      * @param {string} [options.softwareRendering='off'] - Single-frame mode for a software rasterizer:
      *   'off' runs no detection; 'auto' turns the mode on when no GPU renders WebGL2; 'on' forces it.
      *   In the mode, WebGPU is unavailable, start() renders one frame without a loop, and

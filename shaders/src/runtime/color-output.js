@@ -144,6 +144,19 @@ export function configureWebGL2ColorOutput(gl) {
     return gl.drawingBufferColorSpace === DISPLAY_P3 ? DISPLAY_P3 : SRGB
 }
 
+/**
+ * Refuse a pass that writes to 'screen' under 'display-p3'. Such a pass renders
+ * into the canvas directly and skips the present conversion, so its colors
+ * would show as Display P3 values. No effect writes to 'screen'.
+ * @param {'srgb'|'display-p3'} colorOutput
+ * @param {string} passId
+ */
+export function refuseScreenOutput(colorOutput, passId) {
+    if (colorOutput === DISPLAY_P3) {
+        throw new Error(`Pass ${passId} writes to screen, which skips the present conversion; under display-p3 a pass writes to a surface`)
+    }
+}
+
 /** WebGL2's sized formats of a drawing buffer, for environments without a context's constants. */
 const RGBA8 = 0x8058
 const RGBA16F = 0x881A

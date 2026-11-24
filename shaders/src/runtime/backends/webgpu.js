@@ -15,7 +15,8 @@ import {
     DEFAULT_VERTEX_SHADER_WGSL
 } from '../default-shaders.js'
 import { WebGPUFrameExportAdapter } from './webgpu-frame-export.js'
-import { DISPLAY_P3, SRGB, configureWebGPUCanvas, gamutQuery } from '../color-output.js'
+import { DISPLAY_P3, SRGB, configureWebGPUCanvas, gamutQuery, refuseScreenOutput } from '../color-output.js'
+import { DISPLAY_P3_WGSL } from '../display-p3-conversion.js'
 import {
     DIAGNOSTIC_CODES,
     DiagnosticCollector,
@@ -2455,6 +2456,7 @@ export class WebGPUBackend extends Backend {
 
         // Handle screen output (direct to canvas)
         if (!outputTex && outputId === 'screen' && this.context) {
+            refuseScreenOutput(this.colorOutput, pass.id)
             const currentTexture = this.context.getCurrentTexture()
             outputTex = {
                 handle: currentTexture,
@@ -4534,7 +4536,7 @@ export class WebGPUBackend extends Backend {
      * Get or create the blit pipeline for presenting to canvas
      */
     getBlitPipeline() {
-        if (this._blitPipeline) return this._blitPipeline
+        if (this._blitPipeline && this._blitPipelineColorOutput === this.colorOutput) return this._blitPipeline
 
         const blitShaderSource = `
             struct VertexOutput {
@@ -4570,7 +4572,15 @@ export class WebGPUBackend extends Backend {
             }
         `
 
-        const module = this.device.createShaderModule({ code: blitShaderSource })
+        // The display-p3 path presents through the conversion
+        // (display-p3-conversion.js); srgb as before.
+        const code = this.colorOutput === DISPLAY_P3
+            ? blitShaderSource
+                .replace('@fragment', `${DISPLAY_P3_WGSL}\n            @fragment`)
+                .replace('return textureSample(srcTex, srcSampler, input.uv);', 'return nmPresentDisplayP3(textureSample(srcTex, srcSampler, input.uv));')
+            : blitShaderSource
+        const module = this.device.createShaderModule({ code })
+        this._blitPipelineColorOutput = this.colorOutput
 
         this._blitPipeline = this.device.createRenderPipeline({
             layout: 'auto',

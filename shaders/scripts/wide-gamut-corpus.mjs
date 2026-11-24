@@ -17,6 +17,13 @@
  *       canvas, or drawing buffer, on the srgb frames of the canvas cases on
  *       one backend (WebGPU by default), and prints the summary. It renders
  *       no P3 canvas. --frames also writes the result of each frame to <file>.
+ *   node shaders/scripts/wide-gamut-corpus.mjs p3check [--backend webgpu|webgl2] [--headed] [--only <id>] [--frames <file>]
+ *       Renders each canvas case under srgb and under display-p3 on one
+ *       backend, converts the display-p3 canvas copy back to sRGB, compares it
+ *       with the srgb canvas (compareP3Frame), and prints the summary. Without
+ *       --headed, the browser is headless and the page reports a P3 display to
+ *       the renderer. --frames also writes the result of each frame to <file>.
+ *       --check fails when the summary exceeds ROUND_TRIP_BOUNDS.
  *   node shaders/scripts/wide-gamut-corpus.mjs matrix
  *       Records what each wide-gamut support check reports in headless Chromium.
  *   node shaders/scripts/wide-gamut-corpus.mjs list --programs <dir> --w <sha> --gpu <renderer>
@@ -26,7 +33,7 @@
  *       scene pin to its case and its --check result.
  *
  * Everything it writes is under shaders/tests/fixtures/wide-gamut/, except the
- * --frames file of banding.
+ * --frames file of banding and p3check.
  */
 import crypto from 'node:crypto'
 import fs from 'node:fs'
@@ -34,6 +41,7 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { extractEffectNamesFromDsl } from '../../demo/shaders/lib/demo-ui.js'
+import { DISPLAY_P3_TO_SRGB, SRGB_TO_DISPLAY_P3, decodeSrgb, displayP3ToSrgb, encodeSrgb } from '../src/runtime/display-p3-conversion.js'
 import { matchesTargetEffectPass } from '../../scripts/lib/shader-parity-attestation.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -168,17 +176,24 @@ export const caseBackends = pinCase => pinCase.backends ?? ['webgl2', 'webgpu']
 
 // The page renders a case as the pin tool does, then reads the presented canvas:
 // WebGL2 by readPixels on the default framebuffer (premultiplied, bottom-up), and
-// WebGPU by toBlob, decoded in Node (unpremultiplied, top-down). Design 4.6.
-function canvasPage(baseUrl, pinCase, preferWebGPU) {
+// WebGPU by toBlob, decoded in Node (unpremultiplied, top-down).
+// Under 'display-p3' the page reads the canvas copy instead (premultiplied
+// floats, top-down), and with stubP3 it reports a P3 display to the renderer,
+// for a browser whose display has none.
+function canvasPage(baseUrl, pinCase, preferWebGPU, { colorOutput = 'srgb', stubP3 = false } = {}) {
     const [width, height] = pinCase.resolution
+    const stub = stubP3 ? `const p3Query = { media: '(color-gamut: p3)', matches: true, addEventListener() {}, removeEventListener() {} };
+const matchMediaOf = window.matchMedia.bind(window);
+window.matchMedia = (media) => media === '(color-gamut: p3)' ? p3Query : matchMediaOf(media);` : ''
     return `<!doctype html>
 <link rel="icon" href="data:,">
 <canvas id="canvas" width="${width}" height="${height}"></canvas>
 <script type="module">
 import { CanvasRenderer } from '${baseUrl}/shaders/src/index.js';
+${stub}
 const canvas = document.getElementById('canvas');
 try {
-const renderer = new CanvasRenderer({ canvas, width: ${width}, height: ${height}, basePath: '${baseUrl}/shaders', preferWebGPU: ${preferWebGPU} });
+const renderer = new CanvasRenderer({ canvas, width: ${width}, height: ${height}, basePath: '${baseUrl}/shaders', preferWebGPU: ${preferWebGPU}, colorOutput: '${colorOutput}' });
 await renderer.loadManifest();
 for (const definition of ${JSON.stringify(pinCase.userEffects ?? [])}) await renderer.registerPortableEffect(structuredClone(definition));
 await renderer.loadEffects(${JSON.stringify(pinCase.effects)});
@@ -206,6 +221,28 @@ for (const mesh of ${JSON.stringify(pinCase.meshInputs ?? [])}) {
 }
 const backend = renderer.pipeline.backend.getName();
 async function readCanvas() {
+    if ('${colorOutput}' === 'display-p3') {
+        if (renderer.colorOutput !== 'display-p3') throw new Error('The renderer did not take display-p3: ' + renderer.colorOutput);
+        // The same frame as the srgb read: after two renders. WebGPU copies at
+        // the next present; WebGL2 reads the drawing buffer as it is.
+        await renderer.render(0);
+        let frame;
+        if (backend === 'WebGL2') {
+            await renderer.render(0);
+            frame = await renderer.pipeline.backend.readCanvasCopy();
+        } else {
+            const pending = renderer.pipeline.backend.readCanvasCopy();
+            await renderer.render(0);
+            frame = await pending;
+        }
+        const floats = frame.format === 'rgba16float'
+            ? Array.from(new Uint16Array(frame.data.buffer, frame.data.byteOffset, frame.data.byteLength / 2), (h) => {
+                const e = (h >> 10) & 31, f = h & 1023, s = h >> 15 ? -1 : 1;
+                return s * (e === 0 ? f * 2 ** -24 : e === 31 ? (f ? NaN : Infinity) : (1 + f / 1024) * 2 ** (e - 15));
+            })
+            : Array.from(new Float32Array(frame.data.buffer, frame.data.byteOffset, frame.data.byteLength / 4));
+        return { method: 'canvasCopy', format: frame.format, floats };
+    }
     await renderer.render(0);
     await renderer.render(0);
     await renderer.pipeline.backend.device?.queue?.onSubmittedWorkDone?.();
@@ -219,7 +256,7 @@ async function readCanvas() {
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
     return { method: 'toBlob', png: Array.from(new Uint8Array(await blob.arrayBuffer())) };
 }
-const same = (a, b) => { const x = a.bytes ?? a.png, y = b.bytes ?? b.png; if (x.length !== y.length) return false; for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return false; return true; };
+const same = (a, b) => { const x = a.bytes ?? a.png ?? a.floats, y = b.bytes ?? b.png ?? b.floats; if (x.length !== y.length) return false; for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return false; return true; };
 // A case with settleMs is read once two consecutive readings agree, as the pin tool reads it.
 const settleMs = ${JSON.stringify(pinCase.settleMs || 0)};
 let result = await readCanvas();
@@ -254,7 +291,7 @@ export function frameRecord(method, width, height, bytes) {
 // Chromium, reads the presented canvas, and passes each frame to `visit`:
 // { caseFile, backend, method, width, height, bytes, gpu } or { caseFile, backend, error }.
 // `done` runs after the last backend of a case.
-async function forEachCanvasFrame(cases, { only = null, visit, done = () => {} }) {
+async function forEachCanvasFrame(cases, { only = null, visit, done = () => {}, colorOutput = 'srgb', headed = false }) {
     const { chromium } = await import('playwright')
     const { PNG } = await import('pngjs')
     const effectsDir = path.join(repoRoot, 'shaders/effects')
@@ -262,8 +299,12 @@ async function forEachCanvasFrame(cases, { only = null, visit, done = () => {} }
     process.env.SHADE_PROJECT_ROOT = repoRoot
     const { acquireServer, releaseServer } = await import('../../vendor/shade-mcp/harness/index.js')
     const baseUrl = await acquireServer(undefined, repoRoot, effectsDir)
-    const browser = await chromium.launch({ headless: true, args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan',
-        process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=vulkan'] })
+    // Playwright launches Chromium with --force-color-profile=srgb, which would
+    // make a headed browser report an sRGB display; a headed run keeps the
+    // display's own profile.
+    const browser = await chromium.launch({ headless: !headed, args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan',
+        process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=vulkan'],
+        ...(headed ? { ignoreDefaultArgs: ['--force-color-profile=srgb'] } : {}) })
     try {
         for (const [index, caseFile] of cases.entries()) {
             const pinCase = readJson(path.join(repoRoot, caseFile))
@@ -271,13 +312,16 @@ async function forEachCanvasFrame(cases, { only = null, visit, done = () => {} }
             for (const backend of caseBackends(pinCase).filter(name => !only || name === only)) {
                 const page = await browser.newPage({ viewport: { width, height } })
                 try {
-                    if (backend === 'webgpu') await page.goto(`${baseUrl}/shaders/manifest.json`, { waitUntil: 'load' })
-                    await page.setContent(canvasPage(baseUrl, pinCase, backend === 'webgpu'), { waitUntil: 'load' })
+                    // WebGPU needs the page on the server's origin. A headed browser
+                    // refuses to load an error response, so the page is a file that exists.
+                    if (backend === 'webgpu') await page.goto(`${baseUrl}/shaders/effects/manifest.json`, { waitUntil: 'load' })
+                    await page.setContent(canvasPage(baseUrl, pinCase, backend === 'webgpu', { colorOutput, stubP3: colorOutput === 'display-p3' && !headed }), { waitUntil: 'load' })
                     await page.waitForFunction(() => window.canvasResult, null, { timeout: 60000 })
                     const result = await page.evaluate(() => window.canvasResult)
                     if (result.error) throw new Error(result.error)
                     if (result.backend.toLowerCase() !== backend) throw new Error(`expected ${backend}, got ${result.backend}`)
-                    if (result.method === 'readPixels') visit({ caseFile, backend, method: 'readPixels', width, height, bytes: result.bytes, gpu: result.gpu })
+                    if (result.method === 'canvasCopy') visit({ caseFile, backend, method: 'canvasCopy', width, height, floats: result.floats, gpu: result.gpu })
+                    else if (result.method === 'readPixels') visit({ caseFile, backend, method: 'readPixels', width, height, bytes: result.bytes, gpu: result.gpu })
                     else {
                         const png = PNG.sync.read(Buffer.from(result.png))
                         visit({ caseFile, backend, method: 'toBlob', width: png.width, height: png.height, bytes: png.data, gpu: result.gpu })
@@ -328,19 +372,12 @@ async function recordCanvas(cases) {
     return failed
 }
 
-// The present conversion to Display P3 (clamp, decode the sRGB curve, the
-// sRGB-to-P3 primaries matrix, clamp, encode) and its inverse, to measure how
-// a Display P3 canvas format holds the sRGB colors of a frame.
-const decodeSrgb = v => { const a = Math.abs(v); return Math.sign(v) * (a <= 0.04045 ? a / 12.92 : ((a + 0.055) / 1.055) ** 2.4) }
-const encodeSrgb = v => { const a = Math.abs(v); return Math.sign(v) * (a <= 0.0031308 ? a * 12.92 : 1.055 * a ** (1 / 2.4) - 0.055) }
-const SRGB_TO_P3 = [[0.8224621, 0.1775380, 0], [0.0331941, 0.9668058, 0], [0.0170827, 0.0723974, 0.9105199]]
-function invert3(m) {
-    const [[a, b, c], [d, e, f], [g, h, i]] = m
-    const det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
-    return [[e * i - f * h, c * h - b * i, b * f - c * e], [f * g - d * i, a * i - c * g, c * d - a * f], [d * h - e * g, b * g - a * h, a * e - b * d]]
-        .map(row => row.map(value => value / det))
-}
-const P3_TO_SRGB = invert3(SRGB_TO_P3)
+// An opaque sRGB color in 0 to 1 through the present conversion to Display P3
+// and back (decode the sRGB curve, the sRGB-to-P3 primaries matrix, encode,
+// each canvas format's quantization), from the renderer's own constants, to
+// measure how a Display P3 canvas format holds the sRGB colors of a frame.
+const SRGB_TO_P3 = SRGB_TO_DISPLAY_P3
+const P3_TO_SRGB = DISPLAY_P3_TO_SRGB
 const apply3 = (m, v) => m.map(row => row[0] * v[0] + row[1] * v[1] + row[2] * v[2])
 const clamp01 = v => Math.min(1, Math.max(0, v))
 /** The nearest IEEE 754 half-precision value: round to nearest, ties to even. */
@@ -369,6 +406,143 @@ export function p3RoundTrip(rgb, quantize) {
     const p3 = apply3(SRGB_TO_P3, rgb.map(c => decodeSrgb(c / 255))).map(c => quantize(encodeSrgb(clamp01(c))))
     const back = apply3(P3_TO_SRGB, p3.map(decodeSrgb)).map(c => Math.round(clamp01(encodeSrgb(c)) * 255))
     return { p3, back, error: Math.max(...back.map((c, i) => Math.abs(c - rgb[i]))) }
+}
+
+/**
+ * A display-p3 canvas copy, converted back to sRGB, against the srgb canvas of
+ * the same case. The copy is premultiplied and top-down. The srgb read-back is
+ * premultiplied and bottom-up on WebGL2 (readPixels), and unpremultiplied and
+ * top-down on WebGPU (toBlob). Opaque pixels are compared in each 8-bit
+ * channel. Translucent pixels are compared on premultiplied values on WebGL2,
+ * and on unpremultiplied values on WebGPU, as each srgb read-back holds them.
+ * A pixel whose srgb alpha is 0 is compared on alpha; on WebGL2, where the
+ * srgb read-back keeps a color at alpha 0, its color is compared too
+ * (zeroAlpha). On WebGL2 a translucent pixel whose color exceeds its alpha is
+ * counted apart (overAlpha).
+ * @returns {{opaque: object, translucent: object, overAlpha: object, zeroAlpha: object, alphaMaxError: number}}
+ */
+export function compareP3Frame({ srgb, p3, backend, width, height }) {
+    // maxPremultipliedError is the error times alpha: on WebGL2 it is maxError;
+    // on WebGPU it shows how much of maxError comes from unpremultiplying.
+    const bucket = () => ({ pixels: 0, maxError: 0, overOne: 0, maxPremultipliedError: 0 })
+    // On WebGL2 the srgb read-back is premultiplied, so a translucent pixel
+    // whose color exceeds its alpha shows; its error is counted apart.
+    const stats = { opaque: bucket(), translucent: bucket(), alphaMaxError: 0, overAlpha: { pixels: 0, maxError: 0 }, zeroAlpha: { pixels: 0, maxError: 0 } }
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const i = (y * width + x) * 4
+            const j = backend === 'webgl2' ? ((height - 1 - y) * width + x) * 4 : i
+            const alpha = clamp01(p3[i + 3])
+            stats.alphaMaxError = Math.max(stats.alphaMaxError, Math.abs(Math.round(alpha * 255) - srgb[j + 3]))
+            if (srgb[j + 3] === 0) {
+                // A color at alpha 0 adds to what is behind it on a premultiplied canvas.
+                // At a P3 alpha of 0 the copy holds the color as it is; at an alpha
+                // below half an 8-bit step it is premultiplied, as for any alpha.
+                if (backend === 'webgl2' && (srgb[j] || srgb[j + 1] || srgb[j + 2])) {
+                    const color = alpha > 0 ? [0, 1, 2].map(c => p3[i + c] / alpha) : [p3[i], p3[i + 1], p3[i + 2]]
+                    const shown = displayP3ToSrgb(color).map(v => Math.round(clamp01(alpha > 0 ? v * alpha : v) * 255))
+                    stats.zeroAlpha.pixels++
+                    stats.zeroAlpha.maxError = Math.max(stats.zeroAlpha.maxError, ...shown.map((v, c) => Math.abs(v - srgb[j + c])))
+                }
+                continue
+            }
+            const straight = alpha > 0 ? [0, 1, 2].map(c => p3[i + c] / alpha) : [0, 0, 0]
+            const back = displayP3ToSrgb(straight)
+            const opaque = srgb[j + 3] === 255
+            // Clamped as the srgb read-back is: premultiplied on WebGL2, unpremultiplied on WebGPU.
+            const scale = !opaque && backend === 'webgl2' ? alpha * 255 : 255
+            // A value that is not a number counts as the largest error.
+            const error = Math.max(...back.map((v, c) => {
+                const step = Math.abs(Math.round(Math.min(255, Math.max(0, v * scale))) - srgb[j + c])
+                return Number.isFinite(step) ? step : 255
+            }))
+            if (!opaque && backend === 'webgl2' && Math.max(srgb[j], srgb[j + 1], srgb[j + 2]) > srgb[j + 3]) {
+                stats.overAlpha.pixels++
+                stats.overAlpha.maxError = Math.max(stats.overAlpha.maxError, error)
+                continue
+            }
+            const target = opaque ? stats.opaque : stats.translucent
+            target.pixels++
+            target.maxError = Math.max(target.maxError, error)
+            target.maxPremultipliedError = Math.max(target.maxPremultipliedError, scale === 255 ? error * alpha : error)
+            if (error > 1) target.overOne++
+        }
+    }
+    return stats
+}
+
+/**
+ * The bounds of the display-p3 round trip, in 8-bit steps, measured on the
+ * corpus and frozen. Opaque pixels, translucent pixels on WebGL2
+ * (premultiplied, the over-alpha ones among them) and colored pixels at alpha
+ * 0 stay within one step, and alpha is exact. On WebGPU a translucent pixel is
+ * compared unpremultiplied, against toBlob, where an 8-bit step of a
+ * premultiplied value grows as alpha falls: translucent is the measured bound
+ * of that error, and translucentPremultiplied the bound of the same error
+ * times alpha.
+ */
+export const ROUND_TRIP_BOUNDS = Object.freeze({
+    webgl2: Object.freeze({ opaque: 1, translucent: 1, translucentPremultiplied: 1, overAlpha: 1, zeroAlpha: 1, alpha: 0 }),
+    webgpu: Object.freeze({ opaque: 1, translucent: 11, translucentPremultiplied: 2, overAlpha: 1, zeroAlpha: 1, alpha: 0 }),
+})
+
+/**
+ * The round-trip bounds a summary of measureP3 exceeds, one line each; empty
+ * when it holds them. A value that is not a number exceeds its bound, and a
+ * summary with no frame fails.
+ * @returns {string[]}
+ */
+export function roundTripExcesses(summary) {
+    const bounds = ROUND_TRIP_BOUNDS[summary.backend]
+    const excesses = []
+    const check = (name, value, bound) => { if (!(value <= bound)) excesses.push(`${summary.backend} ${name}: ${value} > ${bound}`) }
+    check('opaque', summary.opaque.maxError, bounds.opaque)
+    check('translucent', summary.translucent.maxError, bounds.translucent)
+    check('translucent premultiplied', summary.translucent.maxPremultipliedError, bounds.translucentPremultiplied)
+    check('over-alpha', summary.overAlpha.maxError, bounds.overAlpha)
+    check('zero-alpha', summary.zeroAlpha.maxError, bounds.zeroAlpha)
+    check('alpha', summary.alphaMaxError, bounds.alpha)
+    if (summary.failed) excesses.push(`${summary.backend}: ${summary.failed} cases failed to render`)
+    if (!(summary.frames > 0)) excesses.push(`${summary.backend}: no frame was compared`)
+    return excesses
+}
+
+/** Every canvas case under srgb and under display-p3 on one backend, compared (compareP3Frame). */
+async function measureP3(cases, backend, { headed = false } = {}) {
+    const srgbFrames = new Map()
+    let failed = 0
+    const fail = frame => { failed++; console.log(`FAIL ${frame.caseFile} :: ${frame.error}`) }
+    await forEachCanvasFrame(cases, { only: backend, visit: frame => (frame.error ? fail(frame) : srgbFrames.set(frame.caseFile, frame)) })
+    const frames = []
+    await forEachCanvasFrame(cases, {
+        only: backend,
+        colorOutput: 'display-p3',
+        headed,
+        visit: frame => {
+            if (frame.error) return fail(frame)
+            const reference = srgbFrames.get(frame.caseFile)
+            if (!reference) return
+            frames.push({ case: frame.caseFile, ...compareP3Frame({ srgb: reference.bytes, p3: frame.floats, backend, width: frame.width, height: frame.height }) })
+        },
+    })
+    const sum = (key, field) => frames.reduce((total, frame) => total + frame[key][field], 0)
+    const max = (key, field) => Math.max(0, ...frames.map(frame => frame[key][field]))
+    const summary = {
+        backend, headed, frames: frames.length, failed,
+        opaque: { pixels: sum('opaque', 'pixels'), maxError: max('opaque', 'maxError'), overOne: sum('opaque', 'overOne') },
+        translucent: {
+            pixels: sum('translucent', 'pixels'),
+            maxError: max('translucent', 'maxError'),
+            overOne: sum('translucent', 'overOne'),
+            maxPremultipliedError: max('translucent', 'maxPremultipliedError'),
+        },
+        alphaMaxError: Math.max(0, ...frames.map(frame => frame.alphaMaxError)),
+        overAlpha: { pixels: frames.reduce((total, frame) => total + frame.overAlpha.pixels, 0), maxError: Math.max(0, ...frames.map(frame => frame.overAlpha.maxError)),
+            frames: frames.filter(frame => frame.overAlpha.pixels > 0).length },
+        zeroAlpha: { pixels: frames.reduce((total, frame) => total + frame.zeroAlpha.pixels, 0), maxError: Math.max(0, ...frames.map(frame => frame.zeroAlpha.maxError)),
+            frames: frames.filter(frame => frame.zeroAlpha.pixels > 0).length },
+    }
+    return { summary, frames }
 }
 
 /** The banding of one frame's opaque pixels in each canvas format. */
@@ -656,6 +830,17 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         if (flag('--frames')) writeJson(path.resolve(flag('--frames')), frames)
         console.log(JSON.stringify(summary, null, 2))
         process.exitCode = summary.failed ? 1 : 0
+    } else if (command === 'p3check') {
+        const only = flag('--only')
+        const backend = flag('--backend') ?? 'webgpu'
+        if (backend !== 'webgpu' && backend !== 'webgl2') throw new Error('p3check takes --backend webgpu or webgl2')
+        const todo = only ? canvasCases().filter(file => file.includes(only)) : canvasCases()
+        const { summary, frames } = await measureP3(todo, backend, { headed: process.argv.includes('--headed') })
+        if (flag('--frames')) writeJson(path.resolve(flag('--frames')), frames)
+        console.log(JSON.stringify(summary, null, 2))
+        const excesses = process.argv.includes('--check') ? roundTripExcesses(summary) : []
+        for (const excess of excesses) console.log(`Round-trip bound exceeded: ${excess}`)
+        process.exitCode = summary.failed || excesses.length ? 1 : 0
     } else if (command === 'canvas') {
         const only = flag('--only')
         const todo = only ? canvasCases().filter(file => file.includes(only)) : canvasCases()
@@ -663,7 +848,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         console.log(`canvas: ${todo.length - failed} recorded, ${failed} failed`)
         process.exitCode = failed ? 1 : 0
     } else {
-        console.error('Usage: wide-gamut-corpus.mjs cases|pins|canvas|banding|matrix|list')
+        console.error('Usage: wide-gamut-corpus.mjs cases|pins|canvas|banding|p3check|matrix|list')
         process.exit(2)
     }
 }

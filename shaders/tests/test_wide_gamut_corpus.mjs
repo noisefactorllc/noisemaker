@@ -149,3 +149,53 @@ test('the banding measurement converts sRGB to Display P3, and back', async () =
     assert.equal(frame.formats.rgba8unorm.mergedColors, 1)
     assert.deepEqual(frame.formats.rgba16float, { maxError: 1, colorsOverOne: 0, mergedColors: 0 })
 })
+
+test('compareP3Frame converts a display-p3 copy back to sRGB and compares it as each backend reads the srgb canvas', async () => {
+    const { compareP3Frame } = await import('../scripts/wide-gamut-corpus.mjs')
+    const { presentDisplayP3 } = await import('../src/runtime/display-p3-conversion.js')
+    // Two pixels, top row first: an opaque color, and the same color at half alpha.
+    const color = [128, 64, 255]
+    const opaque = presentDisplayP3([...color.map(c => c / 255), 1])
+    const translucent = presentDisplayP3([...color.map(c => c / 510), 0.5])
+    const p3 = [...opaque, ...translucent]
+    // WebGPU: toBlob, unpremultiplied, top-down.
+    const webgpu = compareP3Frame({ srgb: [...color, 255, ...color, 128], p3, backend: 'webgpu', width: 1, height: 2 })
+    assert.deepEqual([webgpu.opaque.pixels, webgpu.opaque.maxError, webgpu.translucent.pixels, webgpu.alphaMaxError], [1, 0, 1, 0])
+    assert.ok(webgpu.translucent.maxError <= 1)
+    // WebGL2: readPixels, premultiplied, bottom-up.
+    const premultiplied = color.map(c => Math.round(c * 128 / 255))
+    const webgl2 = compareP3Frame({ srgb: [...premultiplied, 128, ...color, 255], p3, backend: 'webgl2', width: 1, height: 2 })
+    assert.deepEqual([webgl2.opaque.pixels, webgl2.opaque.maxError, webgl2.translucent.pixels], [1, 0, 1])
+    assert.ok(webgl2.translucent.maxError <= 1)
+    // On WebGL2, a colored pixel at alpha 0 is compared on its converted color.
+    const glow = compareP3Frame({ srgb: [77, 51, 26, 0], p3: presentDisplayP3([77 / 255, 51 / 255, 26 / 255, 0]), backend: 'webgl2', width: 1, height: 1 })
+    assert.deepEqual([glow.zeroAlpha.pixels, glow.zeroAlpha.maxError], [1, 0])
+    const dropped = compareP3Frame({ srgb: [77, 51, 26, 0], p3: [0, 0, 0, 0], backend: 'webgl2', width: 1, height: 1 })
+    assert.deepEqual([dropped.zeroAlpha.pixels, dropped.zeroAlpha.maxError], [1, 77], 'a dropped color is seen')
+    // An alpha below half an 8-bit step: the srgb byte is 0, and the copy is premultiplied as for any alpha.
+    const faint = compareP3Frame({ srgb: [77, 0, 0, 0], p3: presentDisplayP3([77 / 255, 0, 0, 1e-4]), backend: 'webgl2', width: 1, height: 1 })
+    assert.deepEqual([faint.zeroAlpha.pixels, faint.zeroAlpha.maxError], [1, 0])
+    // A reference two steps away counts as over one; a transparent pixel is compared on alpha only.
+    const off = compareP3Frame({ srgb: [color[0] + 2, color[1], color[2], 255, 9, 9, 9, 0], p3: [...opaque, 0, 0, 0, 0], backend: 'webgpu', width: 1, height: 2 })
+    assert.deepEqual([off.opaque.maxError, off.opaque.overOne, off.translucent.pixels, off.alphaMaxError], [2, 1, 0, 0])
+})
+
+test('roundTripExcesses names each frozen round-trip bound a summary exceeds, and refuses NaN and an empty run', async () => {
+    const { ROUND_TRIP_BOUNDS, roundTripExcesses } = await import('../scripts/wide-gamut-corpus.mjs')
+    const summary = (backend, b, step = 0, { failed = 0, frames = 1 } = {}) => ({
+        backend, failed, frames,
+        opaque: { maxError: b.opaque + step },
+        translucent: { maxError: b.translucent + step, maxPremultipliedError: b.translucentPremultiplied + step },
+        overAlpha: { maxError: b.overAlpha + step },
+        zeroAlpha: { maxError: b.zeroAlpha + step },
+        alphaMaxError: b.alpha + step,
+    })
+    for (const backend of ['webgl2', 'webgpu']) {
+        const b = ROUND_TRIP_BOUNDS[backend]
+        assert.deepEqual(roundTripExcesses(summary(backend, b)), [], `${backend} at its bounds`)
+        assert.equal(roundTripExcesses(summary(backend, b, 1, { failed: 2 })).length, 7)
+        assert.equal(roundTripExcesses(summary(backend, b, NaN)).length, 6, 'NaN exceeds every bound')
+        assert.deepEqual(roundTripExcesses(summary(backend, b, 0, { frames: 0 })), [`${backend}: no frame was compared`])
+    }
+    assert.deepEqual(ROUND_TRIP_BOUNDS.webgl2, { opaque: 1, translucent: 1, translucentPremultiplied: 1, overAlpha: 1, zeroAlpha: 1, alpha: 0 })
+})

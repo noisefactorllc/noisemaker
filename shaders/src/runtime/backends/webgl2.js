@@ -10,7 +10,8 @@ import {
     FULLSCREEN_TRIANGLE_VERTEX_COUNT
 } from '../default-shaders.js'
 import { WebGL2FrameExportAdapter } from './webgl2-frame-export.js'
-import { DISPLAY_P3, SRGB, configureWebGL2Canvas, gamutQuery } from '../color-output.js'
+import { DISPLAY_P3, SRGB, configureWebGL2Canvas, gamutQuery, refuseScreenOutput } from '../color-output.js'
+import { DISPLAY_P3_GLSL } from '../display-p3-conversion.js'
 
 import { DIAGNOSTIC_CODES, DiagnosticCollector, ShaderDiagnostic, parseGLSLInfoLog } from './diagnostics.js'
 
@@ -272,8 +273,6 @@ export class WebGL2Backend extends Backend {
     }
 
     createPresentProgram() {
-        const gl = this.gl
-        const vs = DEFAULT_VERTEX_SHADER
         const fs = `#version 300 es
         precision highp float;
         in vec2 v_texCoord;
@@ -282,6 +281,31 @@ export class WebGL2Backend extends Backend {
         void main() {
             fragColor = texture(u_texture, v_texCoord);
         }`
+        return this._linkPresentProgram(fs)
+    }
+
+    /**
+     * The present program of the display-p3 path: the same sampling, through
+     * the present conversion (display-p3-conversion.js). Made the first time a
+     * Display P3 canvas is presented.
+     */
+    createDisplayP3PresentProgram() {
+        const fs = `#version 300 es
+        precision highp float;
+        in vec2 v_texCoord;
+        uniform sampler2D u_texture;
+        out vec4 fragColor;
+${DISPLAY_P3_GLSL}
+        void main() {
+            fragColor = nmPresentDisplayP3(texture(u_texture, v_texCoord));
+        }`
+        return this._linkPresentProgram(fs)
+    }
+
+    /** @private */
+    _linkPresentProgram(fs) {
+        const gl = this.gl
+        const vs = DEFAULT_VERTEX_SHADER
 
         const vertShader = this.compileShader(gl.VERTEX_SHADER, vs)
         const fragShader = this.compileShader(gl.FRAGMENT_SHADER, fs)
@@ -1425,6 +1449,7 @@ export class WebGL2Backend extends Backend {
             }
 
             fbo = this.fbos.get(outputId)
+            if (!fbo && outputId === 'screen') refuseScreenOutput(this.colorOutput, effectivePass.id)
             if (!fbo && outputId !== 'screen') {
                 console.warn(`[executePass] FBO not found for ${outputId} in pass ${effectivePass.id}`)
                 this._recordMissingRenderTarget('fbo', outputId, effectivePass.id)
@@ -2187,6 +2212,24 @@ export class WebGL2Backend extends Backend {
             return
         }
 
+        // The display-p3 path presents through the conversion; srgb as before.
+        // The conversion program is made once; if it does not link, its frames
+        // are skipped, as a missing srgb program's are.
+        if (this.colorOutput === DISPLAY_P3 && this._displayP3PresentProgram === undefined) {
+            let failure = null
+            try {
+                this._displayP3PresentProgram = this.createDisplayP3PresentProgram()
+            } catch (error) {
+                failure = error
+                this._displayP3PresentProgram = null
+            }
+            if (!this._displayP3PresentProgram) {
+                console.error(`Present skipped: the display-p3 present program did not ${failure ? 'compile' : 'link'}`, failure ?? '')
+            }
+        }
+        const presentProgram = this.colorOutput === DISPLAY_P3 ? this._displayP3PresentProgram : this.presentProgram
+        if (!presentProgram) return
+
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight)
 
@@ -2194,11 +2237,11 @@ export class WebGL2Backend extends Backend {
         gl.clearColor(0, 0, 0, 1)
         gl.clear(gl.COLOR_BUFFER_BIT)
 
-        gl.useProgram(this.presentProgram.handle)
+        gl.useProgram(presentProgram.handle)
 
         gl.activeTexture(gl.TEXTURE0)
         gl.bindTexture(gl.TEXTURE_2D, tex.handle)
-        gl.uniform1i(this.presentProgram.uniforms.texture, 0)
+        gl.uniform1i(presentProgram.uniforms.texture, 0)
 
         gl.bindVertexArray(this.fullscreenVAO)
         gl.drawArrays(gl.TRIANGLES, 0, FULLSCREEN_TRIANGLE_VERTEX_COUNT)
@@ -2248,6 +2291,10 @@ export class WebGL2Backend extends Backend {
             gl.deleteProgram(this.presentProgram.handle)
         }
         this.presentProgram = null
+        if (this._displayP3PresentProgram?.handle) {
+            gl.deleteProgram(this._displayP3PresentProgram.handle)
+        }
+        this._displayP3PresentProgram = null
 
         if (this.fullscreenVAO) {
             gl.deleteVertexArray(this.fullscreenVAO)

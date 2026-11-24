@@ -12,6 +12,14 @@ test.use({ headless: true })
 
 const DSL = 'search synth\nsolid(color: [0.5, 0.25, 1], alpha: 1).write(o0)\nrender(o0)'
 
+// The program's color, through the present conversion, as the reference implementation gives it.
+const CONVERTED = page => page.evaluate(async () => (await import('/shaders/src/runtime/display-p3-conversion.js')).presentDisplayP3([0.5, 0.25, 1, 1]))
+
+// A 16-bit float canvas holds each value within half a step of its 10-bit
+// fraction; the copy's values are printed to 3 decimals.
+const expectConverted = (value, expected) => value.split(',').map(Number).forEach((channel, index) =>
+    expect(Math.abs(channel - expected[index])).toBeLessThanOrEqual(2 ** -10 + 5e-4))
+
 // A display gamut query that the page can change, as moving the window does.
 const STUB_P3 = () => {
     const query = new EventTarget()
@@ -126,8 +134,9 @@ test('on a P3 display, the canvas is Display P3 in rgba16float, and the copy hol
         for (let i = 0; i < halves.length; i += 4) values.add([0, 1, 2, 3].map(c => half(halves[i + c]).toFixed(3)).join(','))
         return { width: frame.width, height: frame.height, format: frame.format, values: [...values] }
     })
-    // The present step does not convert yet: the presented values are the program's, unchanged.
-    expect(copy).toEqual({ width: 16, height: 8, format: 'rgba16float', values: ['0.500,0.250,1.000,1.000'] })
+    // The present step converts: the canvas holds the program's color in Display P3.
+    expect([copy.width, copy.height, copy.format, copy.values.length]).toEqual([16, 8, 'rgba16float', 1])
+    expectConverted(copy.values[0], await CONVERTED(page))
     expect(errors).toEqual([])
 })
 
