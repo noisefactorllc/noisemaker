@@ -7,6 +7,13 @@ import { collectBindings, evaluateBindings } from '../src/scene/bindings.js'
 import { MidiState, AudioState } from '../src/runtime/external-input.js'
 import { Pipeline } from '../src/runtime/pipeline.js'
 
+// MIDI velocity decays with the milliseconds since note-on (evaluateMidi), and
+// a note's time and an evaluation's time are both Date.now(). Held fixed, the
+// clock cannot advance between the two, so an exact expected velocity does not
+// depend on how fast the test runs. No assertion here needs time to pass.
+const FIXED_NOW = Date.now()
+Date.now = () => FIXED_NOW
+
 function build(src) {
   const ir = compileScene(compile(src))
   const tree = SceneTree.fromIR(ir)
