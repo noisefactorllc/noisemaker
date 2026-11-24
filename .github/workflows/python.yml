@@ -2,7 +2,7 @@ name: Python
 
 on:
   push:
-    branches: [ main, scene-graph ]
+    branches: [ main, scene-graph, 2.x ]
     paths:
       - 'noisemaker/**'
       - 'share/**'

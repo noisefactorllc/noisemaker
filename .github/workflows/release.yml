@@ -2,8 +2,10 @@ name: Release
 
 on:
   push:
+    # A prerelease tag (v2.0.0-pre.N) starts no run and creates no GitHub Release.
     tags:
       - 'v*'
+      - '!v*-pre.*'
 
 permissions:
   contents: read
@@ -16,8 +18,8 @@ jobs:
     - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         fetch-depth: 0
-    - name: Require the release commit on main
-      run: git merge-base --is-ancestor "$GITHUB_SHA^{commit}" refs/remotes/origin/main
+    - name: Require the release commit on 2.x
+      run: git merge-base --is-ancestor "$GITHUB_SHA^{commit}" refs/remotes/origin/2.x
 
   build-js-bundles:
     needs: [verify-source]
@@ -237,9 +239,11 @@ jobs:
           sha256sum "${names[@]}" > SHA256SUMS
           sha256sum --check SHA256SUMS
         )
+        # A 2.x Release is never marked Latest: Latest stays a 1.x release.
         gh release create "$TAG" \
           --title "Noisemaker $TAG" \
           --generate-notes \
+          --latest=false \
           "${release_assets[@]}" \
           "$release_dir/SHA256SUMS"
 

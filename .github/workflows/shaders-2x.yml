@@ -1,0 +1,292 @@
+# The 2.x line's shader workflow. A push to 2.x runs every test and builds the
+# bundle and the documentation as artifacts; it publishes nothing. Only a manual
+# dispatch for a named SHA publishes, as a prerelease (2.0.0-pre.N) with no
+# rolling alias, through the library release's prerelease line.
+#
+#   gh workflow run shaders-2x.yml --ref 2.x -f sha=<the head of 2.x>
+name: Shaders 2.x
+
+on:
+  push:
+    branches: [ 2.x ]
+    paths:
+      - 'shaders/**'
+      - '!shaders/README-SHADERS.md'
+      - '!shaders/AGENTS.md'
+      - '!shaders/effects/HELP_TEMPLATE.md'
+      - 'vendor/shade-mcp/**'
+      - 'scripts/**'
+      - 'demo/**'
+      - 'docs/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.config.js'
+      # Every workflow change runs the workflow-contract test below.
+      - '.github/workflows/**'
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'The 2.x commit to publish as a prerelease. It must be the head of 2.x, the commit this run checks out'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Shader tests
+    runs-on: ubuntu-latest
+    outputs:
+      ships: ${{ steps.ships.outputs.ships }}
+
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      with:
+        fetch-depth: 0
+
+    # vendor/shade-mcp/ is test tooling and docs/ is not in the bundle. A push
+    # that changes nothing else is tested like any other, but its bundle would
+    # be the bundle already built. The docs job still builds its artifact.
+    - name: Decide whether this push changes what ships
+      id: ships
+      env:
+        BEFORE: ${{ github.event.before }}
+      run: |
+        if [ "$GITHUB_EVENT_NAME" = push ] \
+          && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null \
+          && ! git diff --name-only "$BEFORE" "$GITHUB_SHA" | grep -qvE '^(vendor/shade-mcp|docs)/'; then
+          echo "Only vendor/shade-mcp/ or docs/ changed; no bundle is built."
+          echo "ships=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "ships=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Set up Node.js
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: '22'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install --include=dev
+
+    - name: Verify the workflow contract of the 2.x line
+      run: node --test test/scene-graph-ci.test.js
+
+    - name: Verify shader parity attestations (CPU only)
+      env:
+        SHADER_PARITY_BASE: ${{ github.event.before }}
+        SHADER_PARITY_ALL: ${{ github.event_name == 'workflow_dispatch' }}
+      run: npm run test:shaders:parity-attestations
+
+    - name: Run DSL language tests
+      run: npm run test:shaders:lang
+
+    - name: Run renderer sink and frame export tests
+      run: npm run test:shaders:runtime
+
+    - name: Install Playwright browsers
+      run: npx playwright install chromium
+
+    - name: Run shader compile and render test
+      run: npm run test:shaders:render:webgl2
+
+    - name: Run shader structure tests
+      run: npm run test:shaders:structure
+
+    - name: Run effect string catalog tests
+      run: npm run test:shaders:i18n
+
+  # The WebGL2/WebGPU suites need a real GPU. They run on the self-hosted Apple
+  # Silicon runner in the noisemaker-gpu runner group, for 2.x pushes and
+  # dispatches only.
+  gpu:
+    name: GPU tests
+    if: github.ref == 'refs/heads/2.x'
+    runs-on:
+      group: noisemaker-gpu
+      labels: [noisemaker-gpu]
+    timeout-minutes: 25
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      with:
+        persist-credentials: false
+
+    # No hosted npm cache: the runner keeps ~/.npm on its own disk.
+    - name: Set up Node.js
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: '22'
+
+    # Install scripts would run dependency code on the self-hosted machine.
+    - name: Install dependencies
+      run: npm ci --ignore-scripts
+
+    - name: Install Playwright browsers
+      run: npx playwright install chromium
+
+    - name: Verify WebGPU uploads, resampling, and storage execution
+      run: npm run test:shaders:render:webgpu
+
+    - name: Verify scenes on both GPU backends
+      run: npm run test:shaders:visual
+
+    - name: Verify pixel pins on both GPU backends
+      run: npm run test:shaders:pins
+
+    - name: Verify alpha compositing on both GPU backends
+      run: npm run test:shaders:alpha
+
+    - name: Verify WebGPU frame export matches canvas presentation
+      run: npm run test:shaders:frame-export-orientation
+
+    - name: Verify voxel heightfields and landscape rendering on both GPU backends
+      run: npm run test:shaders:landscape
+
+    - name: Verify particle heightmaps and focus on both GPU backends
+      run: npm run test:shaders:particles
+
+    - name: Verify classicNoisedeck/effects matches WebGL2 on WebGPU
+      run: npm run test:shaders:classic-effects
+
+    - name: Verify effects show their input unmirrored on both GPU backends
+      run: npm run test:shaders:orientation
+
+  bundle:
+    name: Bundle shaders
+    runs-on: ubuntu-latest
+    needs: [test, gpu]
+    if: needs.test.outputs.ships == 'true'
+
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: '22'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install --include=dev
+
+    - name: Build shader bundles
+      run: npm run bundle:shaders
+
+    - name: Package shader bundle
+      run: |
+        mkdir -p dist/release
+        tar -C dist -czf dist/release/noisemaker-shaders.tar.gz shaders/ effects/
+
+    - name: Upload shader bundle artifact
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: noisemaker-shaders
+        path: dist/release/noisemaker-shaders.tar.gz
+        retention-days: 7
+
+  # The documentation as the docs release builds it, kept as a review artifact.
+  # It publishes nothing: no site or docs release runs from this line.
+  docs:
+    name: Build the documentation
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+    - name: Set up Python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: '3.12'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: '22'
+        cache: 'npm'
+
+    - name: Build the documentation
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install -r docs/sphinx-requirements.txt
+        python -m pip install -e . --no-deps
+        npm install --include=dev
+        npm run bundle
+        cp dist/noisemaker.min.js docs/_static/
+        npm run bundle:shaders -- --minify-shaders
+        cp dist/shaders/noisemaker-shaders-core.min.js docs/_static/
+        cp -r dist/effects docs/_static/
+        cp shaders/effects/manifest.json docs/_static/effects/
+        sphinx-build -b dirhtml docs docs/_build/html
+
+    - name: Upload the documentation artifact
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: noisemaker-docs-2x
+        path: docs/_build/html
+        retention-days: 7
+
+  # Publishes the prerelease of exactly the SHA that the dispatch names. It runs
+  # only for a manual dispatch, so no push publishes.
+  prerelease:
+    name: Dispatch the prerelease
+    runs-on: ubuntu-latest
+    needs: [bundle, docs]
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/2.x'
+    permissions: {}
+
+    steps:
+    - name: Require the named SHA to be this run's commit and the head of 2.x
+      env:
+        NAMED: ${{ github.event.inputs.sha }}
+      run: |
+        set -euo pipefail
+        if [ "$NAMED" != "$GITHUB_SHA" ]; then
+          echo "::error::The dispatch names ${NAMED}, but this run checked out ${GITHUB_SHA}; nothing is published"
+          exit 1
+        fi
+        head=$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/2.x | cut -f1)
+        if [ "$head" != "$GITHUB_SHA" ]; then
+          echo "::error::${GITHUB_SHA} is not the head of 2.x (${head:-none}); nothing is published"
+          exit 1
+        fi
+
+    - name: Check the release dispatch configuration
+      env:
+        RELEASE_REPOSITORY: ${{ secrets.RELEASE_REPOSITORY }}
+        LIBRARY_RELEASE_WORKFLOW: ${{ secrets.LIBRARY_RELEASE_WORKFLOW }}
+      run: |
+        missing=""
+        [ -n "$RELEASE_REPOSITORY" ] || missing="$missing RELEASE_REPOSITORY"
+        [ -n "$LIBRARY_RELEASE_WORKFLOW" ] || missing="$missing LIBRARY_RELEASE_WORKFLOW"
+        if [ -n "$missing" ]; then
+          echo "::error::The release dispatch is not configured. Empty or unset secret(s):$missing"
+          exit 1
+        fi
+
+    - name: Mint release GitHub App token
+      id: app-token
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      with:
+        client-id: Iv23liy6T6BW0BXuZRzx
+        private-key: ${{ secrets.EHSRE_APP_PRIVATE_KEY }}
+        owner: noisefactorllc
+        repositories: ${{ secrets.RELEASE_REPOSITORY }}
+
+    - name: Dispatch the prerelease of noisemaker
+      env:
+        GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        RELEASE_REPOSITORY: ${{ secrets.RELEASE_REPOSITORY }}
+        LIBRARY_RELEASE_WORKFLOW: ${{ secrets.LIBRARY_RELEASE_WORKFLOW }}
+      run: |
+        gh workflow run "$LIBRARY_RELEASE_WORKFLOW" \
+          --repo "$GITHUB_REPOSITORY_OWNER/$RELEASE_REPOSITORY" \
+          --ref main \
+          -f library=noisemaker \
+          -f sha=${{ github.sha }} \
+          -f line=prerelease
+        echo "Dispatched the prerelease of noisemaker @ ${{ github.sha }}"
