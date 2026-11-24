@@ -11,7 +11,7 @@ import {
 } from '../default-shaders.js'
 import { WebGL2FrameExportAdapter } from './webgl2-frame-export.js'
 import { DISPLAY_P3, SRGB, configureWebGL2Canvas, gamutQuery, refuseScreenOutput } from '../color-output.js'
-import { DISPLAY_P3_GLSL } from '../display-p3-conversion.js'
+import { DISPLAY_P3_GLSL, MEDIA_DISPLAY_P3_GLSL, decodesInDisplayP3 } from '../display-p3-conversion.js'
 
 import { DIAGNOSTIC_CODES, DiagnosticCollector, ShaderDiagnostic, parseGLSLInfoLog } from './diagnostics.js'
 
@@ -726,10 +726,23 @@ ${DISPLAY_P3_GLSL}
             return { width: 0, height: 0 }
         }
 
-        // Create texture if it doesn't exist or if dimensions changed
-        if (!tex || tex.width !== width || tex.height !== height) {
+        // A program that declares `gamut p3` decodes its media in Display P3
+        // (mediaGamutOf, which the pipeline sets). Camera frames, a 2D canvas
+        // whose context is srgb, and a browser that cannot decode in Display
+        // P3 keep the default upload.
+        if (this.mediaGamutOf?.() === 'p3' && decodesInDisplayP3(source, options.context2d) && this._canDecodeDisplayP3()) {
+            return this._uploadDisplayP3(id, source, width, height, flipY)
+        }
+
+        // Create texture if it doesn't exist, if dimensions changed, or if a
+        // Display P3 upload left a float texture in its place
+        if (!tex || tex.width !== width || tex.height !== height || tex.displayP3) {
             if (tex) {
                 gl.deleteTexture(tex.handle)
+                if (tex.displayP3) {
+                    gl.deleteTexture(tex.displayP3.staging)
+                    gl.deleteFramebuffer(tex.displayP3.framebuffer)
+                }
             }
 
             const texture = gl.createTexture()
@@ -769,6 +782,111 @@ ${DISPLAY_P3_GLSL}
         gl.bindTexture(gl.TEXTURE_2D, null)
 
         return { width, height }
+    }
+
+    /**
+     * Upload a source in Display P3, for a program that declares `gamut p3`:
+     * the browser decodes it into a 16-bit float staging texture with
+     * unpackColorSpace 'display-p3', which is restored afterwards, and a draw
+     * converts it to extended sRGB in the media texture, so colors outside
+     * sRGB stay. The media texture is 16-bit float.
+     * @private
+     */
+    _uploadDisplayP3(id, source, width, height, flipY) {
+        const gl = this.gl
+        let tex = this.textures.get(id)
+        if (!tex || tex.width !== width || tex.height !== height || !tex.displayP3) {
+            if (tex) this.destroyTexture(id)
+            const make = () => {
+                const handle = gl.createTexture()
+                gl.bindTexture(gl.TEXTURE_2D, handle)
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, width, height, 0, gl.RGBA, gl.HALF_FLOAT, null)
+                return handle
+            }
+            const handle = make()
+            const framebuffer = gl.createFramebuffer()
+            gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer)
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, handle, 0)
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+            tex = {
+                handle,
+                width,
+                height,
+                format: 'rgba16f',
+                glFormat: this.resolveFormat('rgba16f'),
+                isExternal: true,
+                displayP3: { staging: make(), framebuffer }
+            }
+            this.textures.set(id, tex)
+        }
+
+        // The decode, in Display P3. unpackColorSpace is context state, so it
+        // is put back for every later upload.
+        const previousSpace = gl.unpackColorSpace
+        gl.bindTexture(gl.TEXTURE_2D, tex.displayP3.staging)
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, flipY)
+        gl.unpackColorSpace = 'display-p3'
+        try {
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, gl.RGBA, gl.HALF_FLOAT, source)
+        } finally {
+            gl.unpackColorSpace = previousSpace
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false)
+        }
+
+        // The conversion to extended sRGB, texel for texel.
+        gl.bindFramebuffer(gl.FRAMEBUFFER, tex.displayP3.framebuffer)
+        gl.viewport(0, 0, width, height)
+        gl.useProgram(this._mediaDisplayP3Program.handle)
+        gl.activeTexture(gl.TEXTURE0)
+        gl.bindTexture(gl.TEXTURE_2D, tex.displayP3.staging)
+        gl.uniform1i(this._mediaDisplayP3Program.uniforms.texture, 0)
+        gl.bindVertexArray(this.fullscreenVAO)
+        gl.drawArrays(gl.TRIANGLES, 0, FULLSCREEN_TRIANGLE_VERTEX_COUNT)
+        gl.bindVertexArray(null)
+        gl.useProgram(null)
+        gl.bindTexture(gl.TEXTURE_2D, null)
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        return { width, height }
+    }
+
+    /**
+     * Whether this context can decode media in Display P3: it has
+     * unpackColorSpace, tested before it is set, as for
+     * drawingBufferColorSpace, and the conversion program links. A program
+     * that does not link is not tried again.
+     * @private
+     */
+    _canDecodeDisplayP3() {
+        if (!('unpackColorSpace' in this.gl)) return false
+        if (this._mediaDisplayP3Program === undefined) {
+            try {
+                this._mediaDisplayP3Program = this._linkMediaDisplayP3Program()
+            } catch (error) {
+                this._mediaDisplayP3Program = null
+                console.error('The Display P3 media conversion did not compile or link; media keeps the default upload', error)
+            }
+        }
+        return this._mediaDisplayP3Program !== null
+    }
+
+    /** @private The draw that converts a Display P3 staging texture to extended sRGB. */
+    _linkMediaDisplayP3Program() {
+        const fs = `#version 300 es
+        precision highp float;
+        uniform sampler2D u_texture;
+        out vec4 fragColor;
+${MEDIA_DISPLAY_P3_GLSL}
+        void main() {
+            vec4 p3 = texelFetch(u_texture, ivec2(gl_FragCoord.xy), 0);
+            fragColor = vec4(nmDisplayP3ToSrgb(p3.rgb), p3.a);
+        }`
+        const program = this._linkPresentProgram(fs)
+        if (!program) throw new Error('The Display P3 media conversion did not link')
+        return program
     }
 
     /**
@@ -923,6 +1041,10 @@ ${DISPLAY_P3_GLSL}
 
         if (tex) {
             gl.deleteTexture(tex.handle)
+            if (tex.displayP3) {
+                gl.deleteTexture(tex.displayP3.staging)
+                gl.deleteFramebuffer(tex.displayP3.framebuffer)
+            }
             this.textures.delete(id)
         }
 
@@ -2309,6 +2431,8 @@ ${DISPLAY_P3_GLSL}
             if (program?.handle) gl.deleteProgram(program.handle)
         }
         this._displayP3PresentPrograms = {}
+        if (this._mediaDisplayP3Program?.handle) gl.deleteProgram(this._mediaDisplayP3Program.handle)
+        this._mediaDisplayP3Program = undefined
 
         if (this.fullscreenVAO) {
             gl.deleteVertexArray(this.fullscreenVAO)

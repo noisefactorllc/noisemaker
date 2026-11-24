@@ -1635,6 +1635,7 @@ export class CanvasRenderer {
         const oldPipeline = this._pipeline
         this._pipeline = null
         this._uniformBindings = new Map()
+        this._mediaUploads?.clear()
 
         try {
             oldPipeline.dispose({ loseContext })
@@ -1914,7 +1915,39 @@ export class CanvasRenderer {
             }
         }
 
+        this._uploadMediaAgainForGamut(compiledPipeline)
+
         return compiledPipeline
+    }
+
+    /**
+     * @private Upload media again after a compile that changes the gamut
+     * directive. A still image is uploaded once, and its texture holds the
+     * decode of the program it was uploaded under: Display P3 only under
+     * `gamut p3`. A texture on another backend is the host's to upload again.
+     * @param {object} pipeline
+     */
+    _uploadMediaAgainForGamut(pipeline) {
+        const backend = pipeline?.backend
+        if (!this._mediaUploads || !backend) return
+        const gamut = pipeline.graph?.gamut ?? null
+        const mediaTextures = new Set((pipeline.graph?.mediaSteps ?? []).map(step => step.textureId))
+        for (const [texId, upload] of this._mediaUploads) {
+            // A texture on another backend, or one that no media step of the
+            // program binds any more, is not kept.
+            if (upload.backend !== backend || !mediaTextures.has(texId) || !backend.textures?.has(texId)) {
+                this._mediaUploads.delete(texId)
+                continue
+            }
+            if (upload.gamut === gamut) continue
+            upload.gamut = gamut
+            // The compile succeeded: a source that cannot be uploaded again keeps its old decode.
+            try {
+                backend.updateTextureFromSource(texId, upload.source, upload.options)
+            } catch (error) {
+                console.error(`[updateTextureFromSource] ${texId} could not be decoded again for the new gamut directive`, error)
+            }
+        }
     }
 
     /**
@@ -2724,6 +2757,12 @@ export class CanvasRenderer {
      *   getImageData() bytes on WebGPU, as WebGL2 uploads them. Uploading
      *   never asks the source for a context: that would give a canvas with
      *   none yet a 2D context for good.
+     *
+     * In a program that declares `gamut p3`, the source decodes in Display P3
+     * into a 16-bit float texture of extended sRGB. The renderer keeps the last
+     * source of each media texture, and uploads it again after a compile that
+     * changes the gamut directive; a source that can no longer be read keeps
+     * its old decode.
      * @returns {{ width: number, height: number }} Source dimensions
      */
     updateTextureFromSource(texId, source, options = {}) {
@@ -2732,7 +2771,27 @@ export class CanvasRenderer {
             return { width: 0, height: 0 }
         }
 
-        return this._pipeline.backend.updateTextureFromSource(texId, source, options)
+        // The last upload of each texture, kept so that a compile that changes the
+        // gamut directive can decode it again (_uploadMediaAgainForGamut). The
+        // record is reused, so a video frame allocates nothing. Camera frames
+        // never decode in Display P3, and are not kept.
+        const backend = this._pipeline.backend
+        if (typeof VideoFrame === 'function' && source instanceof VideoFrame) {
+            this._mediaUploads?.delete(texId)
+            return backend.updateTextureFromSource(texId, source, options)
+        }
+        this._mediaUploads ??= new Map()
+        const upload = this._mediaUploads.get(texId)
+        const gamut = this._pipeline.graph?.gamut ?? null
+        if (upload) {
+            upload.source = source
+            upload.options = options
+            upload.backend = backend
+            upload.gamut = gamut
+        } else {
+            this._mediaUploads.set(texId, { source, options, backend, gamut })
+        }
+        return backend.updateTextureFromSource(texId, source, options)
     }
 
     /**

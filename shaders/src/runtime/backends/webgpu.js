@@ -16,7 +16,7 @@ import {
 } from '../default-shaders.js'
 import { WebGPUFrameExportAdapter } from './webgpu-frame-export.js'
 import { DISPLAY_P3, SRGB, configureWebGPUCanvas, gamutQuery, refuseScreenOutput } from '../color-output.js'
-import { DISPLAY_P3_WGSL } from '../display-p3-conversion.js'
+import { DISPLAY_P3_WGSL, MEDIA_DISPLAY_P3_WGSL, decodesInDisplayP3 } from '../display-p3-conversion.js'
 import {
     DIAGNOSTIC_CODES,
     DiagnosticCollector,
@@ -526,6 +526,7 @@ export class WebGPUBackend extends Backend {
         const tex = this.textures.get(id)
         if (tex) {
             tex.handle.destroy()
+            tex.displayP3?.staging.destroy()
             this.textures.delete(id)
         }
     }
@@ -746,10 +747,21 @@ export class WebGPUBackend extends Backend {
 
         const flipY = options.flipY !== false
 
-        // Create texture if it doesn't exist or if dimensions changed
-        if (!tex || tex.width !== width || tex.height !== height) {
+        // A program that declares `gamut p3` decodes its media in Display P3
+        // (mediaGamutOf, which the pipeline sets). Camera frames and a 2D
+        // canvas whose context is srgb keep the default upload.
+        if (this.mediaGamutOf?.() === 'p3' && decodesInDisplayP3(source, options.context2d)) {
+            const p3Context2d = options.context2d?.canvas === source ? options.context2d : null
+            const uploaded = this._uploadDisplayP3(id, source, width, height, flipY, p3Context2d)
+            if (uploaded) return uploaded
+        }
+
+        // Create texture if it doesn't exist, if dimensions changed, or if a
+        // Display P3 upload left a float texture in its place
+        if (!tex || tex.width !== width || tex.height !== height || tex.displayP3) {
             if (tex) {
                 tex.handle.destroy()
+                tex.displayP3?.staging.destroy()
             }
 
             const texture = this.device.createTexture({
@@ -829,6 +841,115 @@ export class WebGPUBackend extends Backend {
         return { width, height }
     }
 
+
+    /**
+     * Upload a source in Display P3, for a program that declares `gamut p3`.
+     * The browser decodes it into a staging texture in Display P3:
+     * copyExternalImageToTexture with a 'display-p3' destination, or, for a
+     * willReadFrequently 2D canvas, getImageData in 'display-p3'. A render
+     * pass then converts it to extended sRGB in the media texture, which is
+     * 16-bit float, so colors outside sRGB stay.
+     * @private
+     */
+    _uploadDisplayP3(id, source, width, height, flipY, context2d) {
+        const bytes = !!context2d?.getContextAttributes?.().willReadFrequently
+        // The canvas's own space, Display P3 here, read before any texture
+        // changes: a browser that answers in another space keeps the default
+        // upload, with the media texture as it was.
+        let image = null
+        if (bytes) {
+            image = context2d.getImageData(0, 0, width, height, { colorSpace: 'display-p3' })
+            if (image.colorSpace !== 'display-p3') return null
+        }
+        const stagingFormat = bytes ? 'rgba8unorm' : 'rgba16float'
+        let tex = this.textures.get(id)
+        if (!tex || tex.width !== width || tex.height !== height || tex.displayP3?.stagingFormat !== stagingFormat) {
+            if (tex) this.destroyTexture(id)
+            const usage = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
+            const handle = this.device.createTexture({ size: { width, height, depthOrArrayLayers: 1 }, format: 'rgba16float', usage })
+            const staging = this.device.createTexture({ size: { width, height, depthOrArrayLayers: 1 }, format: stagingFormat, usage })
+            tex = {
+                handle,
+                view: handle.createView(),
+                width,
+                height,
+                format: 'rgba16f',
+                gpuFormat: 'rgba16float',
+                isExternal: true,
+                displayP3: { staging, stagingView: staging.createView(), stagingFormat }
+            }
+            this.textures.set(id, tex)
+        }
+
+        const { staging } = tex.displayP3
+        if (bytes) {
+            const pixels = image.data
+            const rowBytes = width * 4
+            let data = pixels
+            if (flipY) {
+                data = new Uint8Array(pixels.length)
+                for (let row = 0; row < height; row++) {
+                    const from = (height - 1 - row) * rowBytes
+                    data.set(pixels.subarray(from, from + rowBytes), row * rowBytes)
+                }
+            }
+            this.device.queue.writeTexture({ texture: staging }, data, { bytesPerRow: rowBytes, rowsPerImage: height }, { width, height })
+        } else {
+            try {
+                this.device.queue.copyExternalImageToTexture(
+                    { source, flipY },
+                    { texture: staging, colorSpace: 'display-p3' },
+                    { width, height }
+                )
+            } catch (err) {
+                // As the default upload does: a canvas that cannot be read uploads as transparent black.
+                if (!(source instanceof HTMLCanvasElement) || err?.name !== 'OperationError') throw err
+                this.device.queue.writeTexture({ texture: staging }, new Uint16Array(width * height * 4), { bytesPerRow: width * 8, rowsPerImage: height }, { width, height })
+            }
+        }
+
+        // The conversion to extended sRGB, texel for texel.
+        this._mediaDisplayP3Pipeline ??= this._createMediaDisplayP3Pipeline()
+        const bindGroup = this.device.createBindGroup({
+            layout: this._mediaDisplayP3Pipeline.getBindGroupLayout(0),
+            entries: [{ binding: 0, resource: tex.displayP3.stagingView }]
+        })
+        const encoder = this.device.createCommandEncoder()
+        const pass = encoder.beginRenderPass({
+            colorAttachments: [{ view: tex.view, clearValue: { r: 0, g: 0, b: 0, a: 0 }, loadOp: 'clear', storeOp: 'store' }]
+        })
+        pass.setPipeline(this._mediaDisplayP3Pipeline)
+        pass.setBindGroup(0, bindGroup)
+        pass.draw(3, 1, 0, 0)
+        pass.end()
+        this.queue.submit([encoder.finish()])
+        return { width, height }
+    }
+
+    /** @private The render pipeline that converts a Display P3 staging texture to extended sRGB. */
+    _createMediaDisplayP3Pipeline() {
+        const code = `
+            @vertex
+            fn vs(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {
+                var points = array<vec2<f32>, 3>(vec2<f32>(-1.0, -1.0), vec2<f32>(3.0, -1.0), vec2<f32>(-1.0, 3.0));
+                return vec4<f32>(points[i], 0.0, 1.0);
+            }
+            @group(0) @binding(0) var src: texture_2d<f32>;
+            ${MEDIA_DISPLAY_P3_WGSL}
+            @fragment
+            fn fs(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+                let p3 = textureLoad(src, vec2<u32>(position.xy), 0);
+                return vec4<f32>(nmDisplayP3ToSrgb(p3.rgb), p3.a);
+            }
+        `
+        const module = this.device.createShaderModule({ code })
+        return this.device.createRenderPipeline({
+            layout: 'auto',
+            vertex: { module, entryPoint: 'vs' },
+            fragment: { module, entryPoint: 'fs', targets: [{ format: 'rgba16float' }] },
+            primitive: { topology: 'triangle-list' }
+        })
+    }
 
     /**
      * Copy one texture to another (blit operation).

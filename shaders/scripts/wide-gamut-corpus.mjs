@@ -24,6 +24,12 @@
  *       --headed, the browser is headless and the page reports a P3 display to
  *       the renderer. --frames also writes the result of each frame to <file>.
  *       --check fails when the summary exceeds ROUND_TRIP_BOUNDS.
+ *   node shaders/scripts/wide-gamut-corpus.mjs p3photo
+ *       Writes the Display P3 PNG fixture, display-p3-photo.png: P3 red, P3
+ *       green, P3 blue, P3 middle gray and an orange inside sRGB whose P3 and
+ *       sRGB values differ, one pixel each. Headless Chromium
+ *       draws it on a Display P3 canvas, and the PNG carries that canvas's
+ *       Display P3 profile.
  *   node shaders/scripts/wide-gamut-corpus.mjs matrix
  *       Records what each wide-gamut support check reports in headless Chromium.
  *   node shaders/scripts/wide-gamut-corpus.mjs list --programs <dir> --w <sha> --gpu <renderer>
@@ -545,6 +551,15 @@ async function measureP3(cases, backend, { headed = false } = {}) {
     return { summary, frames }
 }
 
+/** The pixels of the Display P3 PNG fixture, left to right. */
+export const P3_PHOTO_COLORS = Object.freeze([
+    'color(display-p3 1 0 0)',
+    'color(display-p3 0 1 0)',
+    'color(display-p3 0 0 1)',
+    'color(display-p3 0.5 0.5 0.5)',
+    'color(display-p3 0.8 0.4 0.2)',
+])
+
 /** The banding of one frame's opaque pixels in each canvas format. */
 export function frameBanding(bytes) {
     const colors = new Set()
@@ -841,6 +856,23 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         const excesses = process.argv.includes('--check') ? roundTripExcesses(summary) : []
         for (const excess of excesses) console.log(`Round-trip bound exceeded: ${excess}`)
         process.exitCode = summary.failed || excesses.length ? 1 : 0
+    } else if (command === 'p3photo') {
+        const { chromium } = await import('playwright')
+        const browser = await chromium.launch({ headless: true })
+        try {
+            const page = await browser.newPage()
+            const bytes = await page.evaluate(async (colors) => {
+                const canvas = new OffscreenCanvas(colors.length, 1)
+                const context = canvas.getContext('2d', { colorSpace: 'display-p3' })
+                colors.forEach((color, x) => { context.fillStyle = color; context.fillRect(x, 0, 1, 1) })
+                return Array.from(new Uint8Array(await (await canvas.convertToBlob({ type: 'image/png' })).arrayBuffer()))
+            }, P3_PHOTO_COLORS)
+            const file = path.join(repoRoot, 'shaders/tests/fixtures/wide-gamut/display-p3-photo.png')
+            fs.writeFileSync(file, Buffer.from(bytes))
+            console.log(`wrote ${path.relative(repoRoot, file)}, ${bytes.length} bytes`)
+        } finally {
+            await browser.close()
+        }
     } else if (command === 'canvas') {
         const only = flag('--only')
         const todo = only ? canvasCases().filter(file => file.includes(only)) : canvasCases()
@@ -848,7 +880,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         console.log(`canvas: ${todo.length - failed} recorded, ${failed} failed`)
         process.exitCode = failed ? 1 : 0
     } else {
-        console.error('Usage: wide-gamut-corpus.mjs cases|pins|canvas|banding|p3check|matrix|list')
+        console.error('Usage: wide-gamut-corpus.mjs cases|pins|canvas|banding|p3check|p3photo|matrix|list')
         process.exit(2)
     }
 }

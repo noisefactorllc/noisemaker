@@ -190,3 +190,67 @@ fn nmPresentDisplayP3Unclamped(c: vec4<f32>) -> vec4<f32> {
     return nmConvertDisplayP3(c.rgb, c.a);
 }
 `
+
+// Display P3 to extended sRGB, for media that a program declaring `gamut p3`
+// decodes in Display P3: decode the sRGB curve, the P3-to-sRGB matrix, and
+// encode the sRGB curve without a clamp, so colors outside sRGB stay.
+const inverseColumns = DISPLAY_P3_TO_SRGB[0].map((_, column) => DISPLAY_P3_TO_SRGB.map(row => row[column]))
+
+/** The media conversion in GLSL ES 3.00: nmDisplayP3ToSrgb(vec3) -> vec3. */
+export const MEDIA_DISPLAY_P3_GLSL = `
+const mat3 NM_DISPLAY_P3_TO_SRGB = mat3(
+    ${inverseColumns.map(column => column.map(glslFloat).join(', ')).join(',\n    ')});
+vec3 nmDecodeSrgb(vec3 v) {
+    vec3 m = abs(v);
+    vec3 lo = m / ${glslFloat(LINEAR_SLOPE)};
+    vec3 hi = pow((m + ${glslFloat(OFFSET)}) / ${glslFloat(SCALE)}, vec3(${glslFloat(GAMMA)}));
+    return sign(v) * mix(hi, lo, lessThanEqual(m, vec3(${glslFloat(DECODE_EDGE)})));
+}
+vec3 nmEncodeSrgb(vec3 v) {
+    vec3 m = abs(v);
+    vec3 lo = m * ${glslFloat(LINEAR_SLOPE)};
+    vec3 hi = ${glslFloat(SCALE)} * pow(m, vec3(1.0 / ${glslFloat(GAMMA)})) - ${glslFloat(OFFSET)};
+    return sign(v) * mix(hi, lo, lessThanEqual(m, vec3(${glslFloat(ENCODE_EDGE)})));
+}
+vec3 nmDisplayP3ToSrgb(vec3 p3) {
+    return nmEncodeSrgb(NM_DISPLAY_P3_TO_SRGB * nmDecodeSrgb(p3));
+}
+`
+
+/** The media conversion in WGSL: nmDisplayP3ToSrgb(vec3f) -> vec3f. */
+export const MEDIA_DISPLAY_P3_WGSL = `
+const NM_DISPLAY_P3_TO_SRGB = mat3x3<f32>(
+    ${inverseColumns.map(column => column.map(wgslFloat).join(', ')).join(',\n    ')});
+fn nmDecodeSrgb(v: vec3<f32>) -> vec3<f32> {
+    let m = abs(v);
+    let lo = m / ${wgslFloat(LINEAR_SLOPE)};
+    let hi = pow((m + vec3<f32>(${wgslFloat(OFFSET)})) / ${wgslFloat(SCALE)}, vec3<f32>(${wgslFloat(GAMMA)}));
+    return sign(v) * select(hi, lo, m <= vec3<f32>(${wgslFloat(DECODE_EDGE)}));
+}
+fn nmEncodeSrgb(v: vec3<f32>) -> vec3<f32> {
+    let m = abs(v);
+    let lo = m * ${wgslFloat(LINEAR_SLOPE)};
+    let hi = ${wgslFloat(SCALE)} * pow(m, vec3<f32>(1.0 / ${wgslFloat(GAMMA)})) - vec3<f32>(${wgslFloat(OFFSET)});
+    return sign(v) * select(hi, lo, m <= vec3<f32>(${wgslFloat(ENCODE_EDGE)}));
+}
+fn nmDisplayP3ToSrgb(p3: vec3<f32>) -> vec3<f32> {
+    return nmEncodeSrgb(NM_DISPLAY_P3_TO_SRGB * nmDecodeSrgb(p3));
+}
+`
+
+/**
+ * Whether a media source decodes in Display P3 in a program that declares
+ * `gamut p3`. Camera VideoFrames keep the default upload (out of scope), and so
+ * does a 2D canvas whose context is srgb: it holds only sRGB colors, and its
+ * default upload keeps both backends reading the same bytes.
+ * @param {object} source
+ * @param {CanvasRenderingContext2D} [context2d] - The source canvas's 2D context, when the caller has it
+ * @returns {boolean}
+ */
+export function decodesInDisplayP3(source, context2d) {
+    if (typeof VideoFrame === 'function' && source instanceof VideoFrame) return false
+    if (context2d && context2d.canvas === source) {
+        return context2d.getContextAttributes?.().colorSpace === 'display-p3'
+    }
+    return true
+}

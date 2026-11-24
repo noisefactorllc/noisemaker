@@ -597,6 +597,10 @@ export class Pipeline {
             // The canvas presents with the current graph's gamut directive.
             this.sinkManager.add(new CanvasSink(backend, () => this.graph?.gamut ?? null))
         }
+        // Media uploads decode in Display P3 while the current graph declares `gamut p3`.
+        if (backend) {
+            backend.mediaGamutOf = () => this.graph?.gamut ?? null
+        }
         this._disposed = false
         // Queryable structured diagnostics for the historically-silent
         // unknown-dimension-form fallback.

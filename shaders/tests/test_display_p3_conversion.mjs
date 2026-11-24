@@ -95,3 +95,16 @@ test('a program that declares gamut p3 keeps a color outside sRGB: Display P3 re
     close(presentDisplayP3([1.5, 1.5, 1.5, 1], { clampToSrgb: false }), [1, 1, 1, 1], 0, 'still clamped to the P3 gamut')
     close(presentDisplayP3([0.3, 0.2, 0.1, 1], { clampToSrgb: false }), presentDisplayP3([0.3, 0.2, 0.1, 1]), 0, 'an sRGB color is the same either way')
 })
+
+test('the media conversion carries the inverse matrix in GLSL and WGSL, column by column, and the JavaScript conversion keeps colors outside sRGB', async () => {
+    const { MEDIA_DISPLAY_P3_GLSL, MEDIA_DISPLAY_P3_WGSL } = await import('../src/runtime/display-p3-conversion.js')
+    const columns = [0, 1, 2].map(column => DISPLAY_P3_TO_SRGB.map(row => row[column]))
+    for (const source of [MEDIA_DISPLAY_P3_GLSL, MEDIA_DISPLAY_P3_WGSL]) {
+        const body = source.slice(source.indexOf('NM_DISPLAY_P3_TO_SRGB'), source.indexOf(');'))
+        assert.deepEqual(body.match(/-?\d+\.\d+(?:e-?\d+)?/g).map(Number), columns.flat())
+        assert.match(source, /nmDisplayP3ToSrgb/)
+    }
+    // P3 red, decoded in Display P3 and converted, is outside sRGB.
+    const red = displayP3ToSrgb([1, 0, 0])
+    assert.ok(red[0] > 1 && red[1] < 0 && red[2] < 0)
+})

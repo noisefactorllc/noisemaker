@@ -1890,7 +1890,7 @@ type CompiledGraph = {
   sceneIR: SceneIR | null
   sceneVolumeAtlasScopes: Record<string, {surface: string, size: number}>
   mediaSteps: Array<{textureId: string, uniform: string, stepIndex: number, effect: string}> // per-step external texture bindings, one entry per distinct texture id in program order
-  gamut: 'p3' | null                 // the program's gamut directive; 'p3' skips the sRGB clamp on a Display P3 canvas
+  gamut: 'p3' | null                 // the program's gamut directive; 'p3' skips the sRGB clamp on a Display P3 canvas, and media decode in Display P3
   compiledAt: number                 // Date.now(), milliseconds since epoch
 }
 
@@ -2471,6 +2471,16 @@ gets, so a 2D context created there would lock out a later WebGPU or WebGL2
 context. Any other canvas takes the `copyExternalImageToTexture()` path. A
 canvas with no rendering context has no pixels to copy; WebGPU catches the
 copy's `OperationError` and writes transparent black, as WebGL2 uploads it.
+In a program that declares `gamut p3`, a source decodes in Display P3 instead:
+WebGL2 uploads it with `unpackColorSpace = 'display-p3'`, restored afterwards,
+and WebGPU with a `'display-p3'` destination, or, for a willReadFrequently 2D
+canvas in Display P3, `getImageData()` in `'display-p3'`. A pass converts it to
+extended sRGB in a 16-bit float texture, so colors outside sRGB stay. Camera
+`VideoFrame`s, a 2D canvas whose context is srgb (when the caller passes it as
+`options.context2d`), and a WebGL2 context without `unpackColorSpace` keep the
+default upload. After a compile that changes the gamut directive,
+`CanvasRenderer` uploads each media texture's last source again; a source that
+can no longer be read, such as a closed `ImageBitmap`, keeps its old decode.
 Unknown or zero-sized sources return zero dimensions. Canvas/media callers may
 therefore read the dimensions directly on either backend rather than awaiting a
 backend-specific promise.
