@@ -53,3 +53,9 @@ Use the **shade** MCP server for all shader development tasks: compiling, render
 - Do not disable, remove, or hobble tests
 - Never simulate weighted randomness by repeating values — use explicit probability checks
 - Node is allowed only for tests; production JS is vanilla browser-only
+
+## Branches
+
+- Work only on `main` (Noisemaker 1.x) or on `2.x` (Noisemaker 2), each in its own clone, and only on the branch that the clone is on. Never switch a clone to the other branch.
+- `main` is merged into `2.x`. Never merge or push `2.x` into `main`.
+- Never create another branch, a worktree or a pull request.
