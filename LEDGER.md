@@ -1232,11 +1232,13 @@ work, verify it, then update the checkpoint and append a log line.
     One configured-pin session on this pair initialized server `shade-mcp`
     0.5.4 / protocol `2025-06-18` with SDK 1.32.2, listed 21 tools, and ran
     the eight worked calls without MCP `isError`. All eight responses
-    reproduced the recorded transcript key-for-key, and the frame metrics
-    and benchmark times hold this session's values (59.47 FPS against the
-    30 FPS target). The container's SwiftShader GL backend made the GL
-    driver surface its ReadPixels stall warning through `console_errors`;
-    the recorded session saw no console messages. Pending: exact-source CI
+    matched the recorded transcript on every constant field. The frame
+    metrics and benchmark times hold this session's values (59.47 FPS
+    against the 30 FPS target). Five responses carry a `console_errors`
+    array that the recorded transcript does not have: the container's
+    SwiftShader GL backend made the GL driver log its ReadPixels stall
+    warning, and the tool reports page console messages in that array.
+    Pending: exact-source CI
     and live readback. The completed checkpoint stays unchanged until those
     pass.
   - 2026-11-22 — completed delivery pair: Noisemaker
