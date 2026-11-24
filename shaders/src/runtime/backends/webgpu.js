@@ -15,6 +15,7 @@ import {
     DEFAULT_VERTEX_SHADER_WGSL
 } from '../default-shaders.js'
 import { WebGPUFrameExportAdapter } from './webgpu-frame-export.js'
+import { DISPLAY_P3, SRGB, configureWebGPUCanvas, gamutQuery } from '../color-output.js'
 import {
     DIAGNOSTIC_CODES,
     DiagnosticCollector,
@@ -223,7 +224,16 @@ export function resolveCullState(cullMode, fallback = 'none') {
 }
 
 export class WebGPUBackend extends Backend {
-    constructor(device, context) {
+    /**
+     * @param {GPUDevice} device
+     * @param {GPUCanvasContext|null} context
+     * @param {object} [options]
+     * @param {GPUCanvasConfiguration} [options.canvasConfiguration] - The configuration the canvas was given
+     * @param {'srgb'|'display-p3'} [options.colorOutput='srgb'] - The color output in effect
+     * @param {{requested: string, configuration: GPUCanvasConfiguration, env?: object}} [options.colorRequest] -
+     *   What the host asked for and the sRGB configuration, to reconfigure the canvas after a display change
+     */
+    constructor(device, context, { canvasConfiguration = null, colorOutput = SRGB, colorRequest = null } = {}) {
         super(device)
         this.device = device
         this.context = context
@@ -235,9 +245,30 @@ export class WebGPUBackend extends Backend {
         this.retiredStorageBuffers = [] // Replaced buffers awaiting submission completion
         this.commandEncoder = null
         this.defaultVertexModule = null
-        this.canvasFormat = (typeof navigator !== 'undefined' && navigator.gpu?.getPreferredCanvasFormat)
+        // The canvas format is the one the canvas was configured with. A Display
+        // P3 canvas has its own format (color-output.js), so the preferred
+        // format at construction is only the last resort.
+        let configured = canvasConfiguration
+        if (!configured && typeof context?.getConfiguration === 'function') {
+            try { configured = context.getConfiguration() } catch { configured = null }
+        }
+        this.canvasConfiguration = configured ?? null
+        this.canvasFormat = configured?.format ?? ((typeof navigator !== 'undefined' && navigator.gpu?.getPreferredCanvasFormat)
             ? navigator.gpu.getPreferredCanvasFormat()
-            : null
+            : null)
+        this.colorOutput = colorOutput === DISPLAY_P3 ? DISPLAY_P3 : SRGB
+
+        // A display-p3 request follows the display: when the window moves to a
+        // display of another gamut, the canvas is configured again at the next
+        // frame.
+        this._colorRequest = colorRequest
+        this._colorOutputStale = false
+        this._canvasCopyRequests = []
+        this._gamutQuery = context && colorRequest?.requested === DISPLAY_P3 ? gamutQuery(colorRequest.env) : null
+        if (this._gamutQuery?.addEventListener) {
+            this._onGamutChange = () => { this._colorOutputStale = true }
+            this._gamutQuery.addEventListener('change', this._onGamutChange)
+        }
 
         // Depth textures for 3D mesh rendering, cached by viewport size.
         // A frame may encode probe and screen passes at different sizes into
@@ -4250,6 +4281,8 @@ export class WebGPUBackend extends Backend {
     }
 
     beginFrame() {
+        if (this._colorOutputStale) this._reconfigureColorOutput()
+
         // Return active buffers to pool
         while (this.activeUniformBuffers.length > 0) {
             const buffer = this.activeUniformBuffers.pop()
@@ -4287,6 +4320,48 @@ export class WebGPUBackend extends Backend {
         await this.queue.onSubmittedWorkDone()
     }
 
+    /**
+     * Configure the canvas again for the requested color output, after a
+     * display change. A new canvas format needs a new blit pipeline; pass
+     * pipelines are kept per format already.
+     * @private
+     */
+    _reconfigureColorOutput() {
+        this._colorOutputStale = false
+        if (!this.context || !this._colorRequest) return
+        const { colorOutput, configuration } = configureWebGPUCanvas(this.context, this._colorRequest.configuration, this._colorRequest)
+        this.colorOutput = colorOutput
+        this.canvasConfiguration = configuration
+        if (colorOutput !== DISPLAY_P3) {
+            for (const { reject } of this._canvasCopyRequests?.splice(0) ?? []) {
+                reject(new Error('The canvas left the display-p3 path before the next present; read an srgb canvas with toBlob'))
+            }
+        }
+        if (configuration.format !== this.canvasFormat) {
+            this.canvasFormat = configuration.format
+            this._blitPipeline = null
+        }
+    }
+
+    /**
+     * A copy of the presented canvas, read back after the next present. The
+     * backend encodes the copy in the same submission as the present blit:
+     * the texture from getCurrentTexture() is presented when the task ends,
+     * so a later read sees another texture. Only the display-p3
+     * path has the copy, because only its canvas has the COPY_SRC usage. Read
+     * an srgb canvas with toBlob.
+     * @returns {Promise<{width: number, height: number, format: string, bytesPerPixel: number, data: Uint8Array}>}
+     */
+    readCanvasCopy() {
+        if (this._colorOutputReleased) {
+            return Promise.reject(new Error('The backend was released; read the canvas copy from the current pipeline'))
+        }
+        if (this.colorOutput !== DISPLAY_P3 || !this.context) {
+            return Promise.reject(new Error('The canvas copy exists only on the display-p3 path; read an srgb canvas with toBlob'))
+        }
+        return new Promise((resolve, reject) => (this._canvasCopyRequests ??= []).push({ resolve, reject }))
+    }
+
     present(textureId) {
         if (!this.context) return
 
@@ -4317,10 +4392,64 @@ export class WebGPUBackend extends Backend {
         renderPass.draw(3, 1, 0, 0) // Full-screen triangle
         renderPass.end()
 
+        // Only a display-p3 canvas has the COPY_SRC usage that the copy needs.
+        const copy = this.colorOutput === DISPLAY_P3 && this._canvasCopyRequests?.length > 0
+            ? this._encodeCanvasCopy(commandEncoder, canvasTexture)
+            : null
+
         this.queue.submit([commandEncoder.finish()])
+
+        if (copy) this._resolveCanvasCopy(copy)
+    }
+
+    /**
+     * Encode the canvas copy, or refuse the waiting requests when the copy
+     * buffer would exceed the device's maxBufferSize: a buffer the device
+     * refuses makes the whole submission invalid, the present blit with it.
+     * @private
+     */
+    _encodeCanvasCopy(commandEncoder, canvasTexture) {
+        const requests = this._canvasCopyRequests.splice(0)
+        const format = this.canvasFormat
+        const bytesPerPixel = format === 'rgba16float' ? 8 : 4
+        const width = canvasTexture.width
+        const height = canvasTexture.height
+        const bytesPerRow = Math.ceil(width * bytesPerPixel / 256) * 256
+        const size = bytesPerRow * height
+        const limit = this.device.limits?.maxBufferSize
+        if (limit !== undefined && size > limit) {
+            for (const { reject } of requests) reject(new Error(`The canvas copy needs ${size} bytes, more than the device's maxBufferSize of ${limit}`))
+            return null
+        }
+        const buffer = this.device.createBuffer({ size, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ })
+        commandEncoder.copyTextureToBuffer({ texture: canvasTexture }, { buffer, bytesPerRow }, { width, height })
+        return { requests, buffer, format, bytesPerPixel, width, height, bytesPerRow }
+    }
+
+    /** @private */
+    _resolveCanvasCopy({ requests, buffer, format, bytesPerPixel, width, height, bytesPerRow }) {
+        buffer.mapAsync(GPUMapMode.READ).then(() => {
+            const padded = new Uint8Array(buffer.getMappedRange())
+            const rowBytes = width * bytesPerPixel
+            const data = new Uint8Array(rowBytes * height)
+            for (let row = 0; row < height; row++) data.set(padded.subarray(row * bytesPerRow, row * bytesPerRow + rowBytes), row * rowBytes)
+            buffer.unmap()
+            buffer.destroy()
+            // Each request gets its own pixel array, so one caller cannot change another's.
+            requests.forEach(({ resolve }, index) => resolve({ width, height, format, bytesPerPixel, data: index === 0 ? data : data.slice() }))
+        }).catch(error => {
+            // A map that fails, or a read of the mapped range that throws,
+            // refuses the requests. Destroying a destroyed buffer does nothing.
+            buffer.destroy()
+            for (const { reject } of requests) reject(error)
+        })
     }
 
     destroy(options = {}) {
+        // First, so that a teardown step that throws cannot leave the display
+        // listener attached or a copy waiting.
+        this.releaseColorOutput('The backend was destroyed before the next present')
+
         if (!options?.skipTextures) {
             for (const id of Array.from(this.textures.keys())) {
                 this.destroyTexture(id)
@@ -4382,6 +4511,23 @@ export class WebGPUBackend extends Backend {
 
         this.context = null
         this.queue = null
+    }
+
+    /**
+     * Stop following the display, and refuse the canvas copies that wait for
+     * a present and every later one. destroy() does this. A pipeline disposed after its backend
+     * was lost does not destroy the backend, so it calls this alone: the
+     * display listener would otherwise keep the backend reachable.
+     * @param {string} [reason] - The message of the refused copies
+     */
+    releaseColorOutput(reason = 'The backend was released before the next present') {
+        if (this._gamutQuery?.removeEventListener && this._onGamutChange) {
+            this._gamutQuery.removeEventListener('change', this._onGamutChange)
+        }
+        this._gamutQuery = null
+        this._colorOutputStale = false
+        this._colorOutputReleased = true
+        for (const { reject } of this._canvasCopyRequests?.splice(0) ?? []) reject(new Error(reason))
     }
 
     /**

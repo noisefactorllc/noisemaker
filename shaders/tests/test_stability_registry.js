@@ -48,7 +48,7 @@ const STATUS_WORDING = [CALLOUT, GRAMMAR_MARKER, '(Preview)', '(preview)', 'Prev
  */
 const STABLE_HOST_MEMBERS = new Set([
     'addSink', 'applyParameterValues', 'applyStepParameterValues', 'audioState', 'backend', 'buildUniformBindings',
-    'bundlePath', 'canvas', 'capabilities', 'clearTileRegion', 'compile', 'convertParameterForUniform',
+    'bundlePath', 'canvas', 'capabilities', 'clearTileRegion', 'colorOutput', 'compile', 'convertParameterForUniform',
     'createFrameExportQueue', 'currentDsl', 'currentEffect', 'currentFPS', 'deferredFrameCount', 'dispose', 'enums',
     'frameCount', 'getEffectDescription', 'getEffectsFromManifest', 'getFrameTimeStats', 'getLoadedEffectIds',
     'getLoadedEffectIdsByNamespace', 'getLocale', 'getMediaSteps', 'hasEffect', 'initEnums', 'isContextLost',

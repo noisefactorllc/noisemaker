@@ -12,6 +12,11 @@
  *       Records the surface pin of every pin case with pin-effect-pixels.mjs --out.
  *   node shaders/scripts/wide-gamut-corpus.mjs canvas [--only <id>]
  *       Records the srgb canvas bytes, after present, of every canvas case.
+ *   node shaders/scripts/wide-gamut-corpus.mjs banding [--only <id>] [--frames <file>]
+ *       Models the quantization of an 8-bit and a 16-bit float Display P3
+ *       canvas on the srgb WebGPU frames of the canvas cases, and prints the
+ *       summary. It renders no P3 canvas. --frames also writes the result of
+ *       each frame to <file>.
  *   node shaders/scripts/wide-gamut-corpus.mjs matrix
  *       Records what each wide-gamut support check reports in headless Chromium.
  *   node shaders/scripts/wide-gamut-corpus.mjs list --programs <dir> --w <sha> --gpu <renderer>
@@ -20,7 +25,8 @@
  *       a case the pin tool cannot render to its reason; --scene-pins maps each
  *       scene pin to its case and its --check result.
  *
- * Everything it writes is under shaders/tests/fixtures/wide-gamut/.
+ * Everything it writes is under shaders/tests/fixtures/wide-gamut/, except the
+ * --frames file of banding.
  */
 import crypto from 'node:crypto'
 import fs from 'node:fs'
@@ -244,7 +250,11 @@ export function frameRecord(method, width, height, bytes) {
     return { method, width, height, nonzeroRgbPixels, uniqueColors: colors.size, sha256: sha256(Buffer.from(bytes)) }
 }
 
-async function recordCanvas(cases) {
+// Renders each case on each of its backends (or only `only`) in headless
+// Chromium, reads the presented canvas, and passes each frame to `visit`:
+// { caseFile, backend, method, width, height, bytes, gpu } or { caseFile, backend, error }.
+// `done` runs after the last backend of a case.
+async function forEachCanvasFrame(cases, { only = null, visit, done = () => {} }) {
     const { chromium } = await import('playwright')
     const { PNG } = await import('pngjs')
     const effectsDir = path.join(repoRoot, 'shaders/effects')
@@ -254,15 +264,11 @@ async function recordCanvas(cases) {
     const baseUrl = await acquireServer(undefined, repoRoot, effectsDir)
     const browser = await chromium.launch({ headless: true, args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan',
         process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=vulkan'] })
-    const existing = fs.existsSync(canvasFile) ? readJson(canvasFile) : { baselines: {} }
-    let failed = 0
     try {
         for (const [index, caseFile] of cases.entries()) {
             const pinCase = readJson(path.join(repoRoot, caseFile))
             const [width, height] = pinCase.resolution
-            const entry = {}
-            let gpu = ''
-            for (const backend of caseBackends(pinCase)) {
+            for (const backend of caseBackends(pinCase).filter(name => !only || name === only)) {
                 const page = await browser.newPage({ viewport: { width, height } })
                 try {
                     if (backend === 'webgpu') await page.goto(`${baseUrl}/shaders/manifest.json`, { waitUntil: 'load' })
@@ -271,18 +277,39 @@ async function recordCanvas(cases) {
                     const result = await page.evaluate(() => window.canvasResult)
                     if (result.error) throw new Error(result.error)
                     if (result.backend.toLowerCase() !== backend) throw new Error(`expected ${backend}, got ${result.backend}`)
-                    gpu = result.gpu
-                    if (result.method === 'readPixels') entry[backend] = frameRecord('readPixels', width, height, result.bytes)
+                    if (result.method === 'readPixels') visit({ caseFile, backend, method: 'readPixels', width, height, bytes: result.bytes, gpu: result.gpu })
                     else {
                         const png = PNG.sync.read(Buffer.from(result.png))
-                        entry[backend] = frameRecord('toBlob', png.width, png.height, png.data)
+                        visit({ caseFile, backend, method: 'toBlob', width: png.width, height: png.height, bytes: png.data, gpu: result.gpu })
                     }
                 } catch (error) {
-                    entry[backend] = { error: String(error?.message ?? error).slice(0, 300) }
+                    visit({ caseFile, backend, error: String(error?.message ?? error).slice(0, 300) })
                 } finally {
                     await page.close()
                 }
             }
+            done({ caseFile, index })
+        }
+    } finally {
+        await browser.close()
+        releaseServer()
+    }
+}
+
+async function recordCanvas(cases) {
+    const existing = fs.existsSync(canvasFile) ? readJson(canvasFile) : { baselines: {} }
+    let failed = 0
+    let entry = {}
+    let gpu = ''
+    await forEachCanvasFrame(cases, {
+        visit: frame => {
+            if (frame.error) entry[frame.backend] = { error: frame.error }
+            else {
+                gpu = frame.gpu
+                entry[frame.backend] = frameRecord(frame.method, frame.width, frame.height, frame.bytes)
+            }
+        },
+        done: ({ caseFile, index }) => {
             const ok = Object.values(entry).every(frame => frame.sha256 && frame.nonzeroRgbPixels > 0)
             if (!ok) failed++
             if (gpu) {
@@ -290,16 +317,101 @@ async function recordCanvas(cases) {
                 existing.baselines[gpu][caseFile] = entry
             }
             console.log(`${index + 1}/${cases.length} ${ok ? 'ok' : 'FAIL'} ${caseFile}${ok ? '' : ` :: ${JSON.stringify(entry).slice(0, 300)}`}`)
-        }
-    } finally {
-        await browser.close()
-        releaseServer()
-    }
+            entry = {}
+            gpu = ''
+        },
+    })
     for (const gpu of Object.keys(existing.baselines)) {
         existing.baselines[gpu] = Object.fromEntries(Object.entries(existing.baselines[gpu]).sort(([a], [b]) => a.localeCompare(b)))
     }
     writeJson(canvasFile, existing)
     return failed
+}
+
+// The present conversion to Display P3 (clamp, decode the sRGB curve, the
+// sRGB-to-P3 primaries matrix, clamp, encode) and its inverse, to measure how
+// a Display P3 canvas format holds the sRGB colors of a frame.
+const decodeSrgb = v => { const a = Math.abs(v); return Math.sign(v) * (a <= 0.04045 ? a / 12.92 : ((a + 0.055) / 1.055) ** 2.4) }
+const encodeSrgb = v => { const a = Math.abs(v); return Math.sign(v) * (a <= 0.0031308 ? a * 12.92 : 1.055 * a ** (1 / 2.4) - 0.055) }
+const SRGB_TO_P3 = [[0.8224621, 0.1775380, 0], [0.0331941, 0.9668058, 0], [0.0170827, 0.0723974, 0.9105199]]
+function invert3(m) {
+    const [[a, b, c], [d, e, f], [g, h, i]] = m
+    const det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
+    return [[e * i - f * h, c * h - b * i, b * f - c * e], [f * g - d * i, a * i - c * g, c * d - a * f], [d * h - e * g, b * g - a * h, a * e - b * d]]
+        .map(row => row.map(value => value / det))
+}
+const P3_TO_SRGB = invert3(SRGB_TO_P3)
+const apply3 = (m, v) => m.map(row => row[0] * v[0] + row[1] * v[1] + row[2] * v[2])
+const clamp01 = v => Math.min(1, Math.max(0, v))
+/** The nearest IEEE 754 half-precision value: round to nearest, ties to even. */
+export function toHalf(v) {
+    if (!Number.isFinite(v) || v === 0) return v
+    const a = Math.abs(v)
+    if (a >= 65520) return Math.sign(v) * Infinity
+    let exponent = Math.floor(Math.log2(a))
+    if (2 ** exponent > a) exponent--
+    else if (2 ** (exponent + 1) <= a) exponent++
+    const step = 2 ** (Math.max(exponent, -14) - 10)
+    const q = a / step
+    let n = Math.floor(q)
+    const rest = q - n
+    if (rest > 0.5 || (rest === 0.5 && n % 2 === 1)) n++
+    return Math.sign(v) * n * step
+}
+
+export const CANVAS_QUANTIZERS = {
+    'rgba8unorm': v => Math.round(clamp01(v) * 255) / 255,
+    'rgba16float': toHalf,
+}
+
+/** An 8-bit sRGB color through the present conversion into a P3 canvas format, and back. */
+export function p3RoundTrip(rgb, quantize) {
+    const p3 = apply3(SRGB_TO_P3, rgb.map(c => decodeSrgb(c / 255))).map(c => quantize(encodeSrgb(clamp01(c))))
+    const back = apply3(P3_TO_SRGB, p3.map(decodeSrgb)).map(c => Math.round(clamp01(encodeSrgb(c)) * 255))
+    return { p3, back, error: Math.max(...back.map((c, i) => Math.abs(c - rgb[i]))) }
+}
+
+/** The banding of one frame's opaque pixels in each canvas format. */
+export function frameBanding(bytes) {
+    const colors = new Set()
+    for (let i = 0; i < bytes.length; i += 4) if (bytes[i + 3] === 255) colors.add((bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2])
+    const formats = {}
+    for (const [format, quantize] of Object.entries(CANVAS_QUANTIZERS)) {
+        const codes = new Set()
+        let maxError = 0, overOne = 0
+        for (const color of colors) {
+            const { p3, error } = p3RoundTrip([color >> 16, (color >> 8) & 255, color & 255], quantize)
+            codes.add(p3.join(','))
+            maxError = Math.max(maxError, error)
+            if (error > 1) overOne++
+        }
+        formats[format] = { maxError, colorsOverOne: overOne, mergedColors: colors.size - codes.size }
+    }
+    return { colors: colors.size, formats }
+}
+
+async function measureBanding(cases) {
+    const frames = []
+    let failed = 0
+    await forEachCanvasFrame(cases, {
+        only: 'webgpu',
+        visit: frame => {
+            if (frame.error) { failed++; console.log(`FAIL ${frame.caseFile} :: ${frame.error}`); return }
+            frames.push({ case: frame.caseFile, ...frameBanding(frame.bytes) })
+        },
+    })
+    const summary = { frames: frames.length, failed, colors: frames.reduce((sum, frame) => sum + frame.colors, 0), formats: {} }
+    for (const format of Object.keys(CANVAS_QUANTIZERS)) {
+        const stats = frames.map(frame => frame.formats[format])
+        summary.formats[format] = {
+            maxError: Math.max(0, ...stats.map(s => s.maxError)),
+            colorsOverOne: stats.reduce((sum, s) => sum + s.colorsOverOne, 0),
+            framesOverOne: stats.filter(s => s.colorsOverOne > 0).length,
+            mergedColors: stats.reduce((sum, s) => sum + s.mergedColors, 0),
+            framesWithMergedColors: stats.filter(s => s.mergedColors > 0).length,
+        }
+    }
+    return { summary, frames }
 }
 
 export const matrixFile = path.join(corpusDir, 'browser-matrix.json')
@@ -532,6 +644,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         console.log(`corpus: ${list.cases.length} cases, ${list.excluded.length} excluded`)
     } else if (command === 'matrix') {
         console.log(JSON.stringify(await recordMatrix(), null, 2))
+    } else if (command === 'banding') {
+        // An 8-bit or a 16-bit Display P3 canvas, modeled on the srgb WebGPU
+        // frames of the canvas-bytes cases. Prints the summary, and writes
+        // only the --frames file when it is given.
+        const only = flag('--only')
+        const todo = only ? canvasCases().filter(file => file.includes(only)) : canvasCases()
+        const { summary, frames } = await measureBanding(todo)
+        if (flag('--frames')) writeJson(path.resolve(flag('--frames')), frames)
+        console.log(JSON.stringify(summary, null, 2))
+        process.exitCode = summary.failed ? 1 : 0
     } else if (command === 'canvas') {
         const only = flag('--only')
         const todo = only ? canvasCases().filter(file => file.includes(only)) : canvasCases()
@@ -539,7 +661,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         console.log(`canvas: ${todo.length - failed} recorded, ${failed} failed`)
         process.exitCode = failed ? 1 : 0
     } else {
-        console.error('Usage: wide-gamut-corpus.mjs cases|pins|canvas|matrix|list')
+        console.error('Usage: wide-gamut-corpus.mjs cases|pins|canvas|banding|matrix|list')
         process.exit(2)
     }
 }

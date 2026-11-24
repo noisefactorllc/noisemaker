@@ -260,6 +260,11 @@ export class CanvasRenderer {
      * @param {number} [options.height=1024] - Render resolution height; sizes an unsized canvas element
      * @param {string} [options.basePath='../../shaders'] - Base path for shader assets
      * @param {boolean} [options.preferWebGPU=false] - Use WebGPU backend
+     * @param {'srgb'|'display-p3'} [options.colorOutput='srgb'] - The canvas color space. 'display-p3'
+     *   presents in Display P3 where the browser, the display and the backend support it, and falls
+     *   back to 'srgb' otherwise. Read the space in use from colorOutput. WebGL2 stays 'srgb'.
+     *   The present step does not convert colors yet: on a Display P3 canvas, a program's values
+     *   show unchanged as Display P3 values.
      * @param {string} [options.softwareRendering='off'] - Single-frame mode for a software rasterizer:
      *   'off' runs no detection; 'auto' turns the mode on when no GPU renders WebGL2; 'on' forces it.
      *   In the mode, WebGPU is unavailable, start() renders one frame without a loop, and
@@ -285,6 +290,7 @@ export class CanvasRenderer {
         this._height = options.height || 1024
         this._basePath = options.basePath || '../../shaders'
         this._preferWebGPU = options.preferWebGPU || false
+        this._requestedColorOutput = options.colorOutput ?? 'srgb'
 
         // Software rendering mode: single frames on a software rasterizer, WebGL2 only
         this._softwareRendering = resolveSoftwareRendering(options.softwareRendering)
@@ -720,6 +726,16 @@ export class CanvasRenderer {
     /** @private True in software rendering mode; an instance built without the constructor is 'off'. */
     get _isSoftwareRendering() {
         return Boolean(this._softwareRendering?.active)
+    }
+
+    /**
+     * The color space the canvas presents in: 'srgb', or 'display-p3' when the
+     * colorOutput option asked for it and every support check passed. Before
+     * the first compile it is 'srgb'.
+     * @returns {'srgb'|'display-p3'}
+     */
+    get colorOutput() {
+        return this._pipeline?.colorOutput ?? 'srgb'
     }
 
     /** @returns {object|null} Current pipeline object */
@@ -1671,6 +1687,7 @@ export class CanvasRenderer {
                     width: this._width,
                     height: this._height,
                     preferWebGPU: this._preferWebGPU,
+                    colorOutput: this._requestedColorOutput,
                     shaderOverrides,
                     graph
                 })
@@ -1722,6 +1739,7 @@ export class CanvasRenderer {
                         width: this._width,
                         height: this._height,
                         preferWebGPU: this._preferWebGPU,
+                        colorOutput: this._requestedColorOutput,
                         shaderOverrides,
                         graph
                     })

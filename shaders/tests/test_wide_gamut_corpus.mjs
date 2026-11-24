@@ -110,3 +110,42 @@ test('every generated case file is listed, or excluded with its reason and no ba
         assert.ok(!listed.has(entry.case), `${entry.case} is not both listed and excluded`)
     }
 })
+
+test('the half-precision rounding is IEEE 754 round to nearest, ties to even', async () => {
+    const { toHalf } = await import('../scripts/wide-gamut-corpus.mjs')
+    assert.equal(toHalf(1), 1)
+    assert.equal(toHalf(0.5), 0.5)
+    assert.equal(toHalf(1 + 2 ** -11), 1, 'a tie goes to the even neighbor')
+    assert.equal(toHalf(1 + 3 * 2 ** -11), 1 + 2 ** -9, 'a tie goes to the even neighbor')
+    assert.equal(toHalf(0.1), 0.0999755859375)
+    assert.equal(toHalf(2 ** -24), 2 ** -24, 'the smallest subnormal')
+    assert.equal(toHalf(2 ** -26), 0)
+    assert.equal(toHalf(65504), 65504)
+    assert.equal(toHalf(65520), Infinity)
+    assert.equal(toHalf(-0.333), -toHalf(0.333))
+    if (typeof globalThis.Float16Array === 'function') {
+        const reference = new globalThis.Float16Array(1)
+        for (let i = 0; i <= 200000; i++) {
+            const v = i / 100000 - 0.5
+            reference[0] = v
+            assert.equal(toHalf(v), reference[0], `the rounding of ${v}`)
+        }
+    }
+})
+
+test('the banding measurement converts sRGB to Display P3, and back', async () => {
+    const { CANVAS_QUANTIZERS, p3RoundTrip, frameBanding } = await import('../scripts/wide-gamut-corpus.mjs')
+    const eight = CANVAS_QUANTIZERS.rgba8unorm, sixteen = CANVAS_QUANTIZERS.rgba16float
+    for (const level of [0, 1, 64, 128, 255]) assert.equal(p3RoundTrip([level, level, level], eight).error, 0, 'a gray keeps its value')
+    // sRGB red inside P3, at the P3 code that 8 bits give it.
+    assert.deepEqual(p3RoundTrip([255, 0, 0], eight).p3.map(v => Math.round(v * 255)), [234, 51, 35])
+    // A low channel beside a high one loses steps in 8 bits, not in 16.
+    assert.deepEqual(p3RoundTrip([10, 236, 144], eight), { p3: [108 / 255, 233 / 255, 152 / 255], back: [1, 236, 144], error: 9 })
+    assert.ok(p3RoundTrip([10, 236, 144], sixteen).error <= 1)
+    // sRGB (255, 0, 0) and (255, 1, 0) share one 8-bit P3 code, which is banding.
+    const frame = frameBanding(Uint8Array.from([255, 0, 0, 255, 255, 1, 0, 255, 10, 236, 144, 255, 0, 0, 0, 128]))
+    assert.equal(frame.colors, 3, 'translucent pixels are left out')
+    assert.equal(frame.formats.rgba8unorm.maxError, 9)
+    assert.equal(frame.formats.rgba8unorm.mergedColors, 1)
+    assert.deepEqual(frame.formats.rgba16float, { maxError: 1, colorsOverOne: 0, mergedColors: 0 })
+})

@@ -52,20 +52,78 @@ export function webgpuConfiguredColorSpace(context) {
 /**
  * Configure a WebGPU canvas for Display P3 with standard tone mapping, and
  * report the space in effect. When the read-back is not Display P3, the
- * context is configured again as the given configuration asks, in sRGB.
+ * context is configured again with the fallback configuration.
  * @param {GPUCanvasContext} context
  * @param {GPUCanvasConfiguration} configuration - device, format, usage, alphaMode
+ * @param {GPUCanvasConfiguration} [fallback] - The sRGB configuration; by default, the same one in 'srgb'
  * @returns {'srgb'|'display-p3'}
  */
-export function configureWebGPUColorOutput(context, configuration) {
+export function configureWebGPUColorOutput(context, configuration, fallback = { ...configuration, colorSpace: SRGB }) {
     try {
         context.configure({ ...configuration, colorSpace: DISPLAY_P3, toneMapping: { mode: 'standard' } })
         if (webgpuConfiguredColorSpace(context) === DISPLAY_P3) return DISPLAY_P3
     } catch {
         // A browser that refuses the space falls back like one that drops it.
     }
-    context.configure({ ...configuration, colorSpace: SRGB })
+    context.configure(fallback)
     return SRGB
+}
+
+/**
+ * The canvas format of a Display P3 WebGPU canvas. An 8-bit Display P3 canvas
+ * holds every P3 color, but it has fewer levels inside the sRGB gamut: an sRGB
+ * color that goes through the present conversion and back can move by more
+ * than one 8-bit step. A 16-bit float canvas keeps every 8-bit sRGB color
+ * within one step. `wide-gamut-corpus.mjs banding` measures both on the corpus.
+ */
+export const P3_CANVAS_FORMAT = 'rgba16float'
+
+/**
+ * GPUTextureUsage.COPY_SRC, and RENDER_ATTACHMENT, the canvas default usage,
+ * for environments without the GPUTextureUsage global.
+ */
+const COPY_SRC = 0x01
+const RENDER_ATTACHMENT = 0x10
+
+/**
+ * Configure a WebGPU canvas for a requested color output, and report what is
+ * in effect.
+ *
+ * Under 'srgb', or when a check fails, the context gets `configuration`
+ * exactly as given. Under 'display-p3', it gets `configuration` with the
+ * Display P3 color space, standard tone mapping, P3_CANVAS_FORMAT and the
+ * COPY_SRC usage, which the backend's canvas copy needs.
+ * @param {GPUCanvasContext} context
+ * @param {GPUCanvasConfiguration} configuration - The sRGB configuration: device, format, usage, alphaMode
+ * @param {object} [options]
+ * @param {'srgb'|'display-p3'} [options.requested='srgb']
+ * @param {object} [options.env=globalThis] - Provides matchMedia
+ * @returns {{colorOutput: 'srgb'|'display-p3', configuration: GPUCanvasConfiguration}}
+ */
+export function configureWebGPUCanvas(context, configuration, { requested = SRGB, env = globalThis } = {}) {
+    if (requested === DISPLAY_P3 && displaySupportsP3(env)) {
+        const wide = { ...configuration, format: P3_CANVAS_FORMAT, usage: (configuration.usage ?? RENDER_ATTACHMENT) | COPY_SRC }
+        if (configureWebGPUColorOutput(context, wide, configuration) === DISPLAY_P3) {
+            return { colorOutput: DISPLAY_P3, configuration: { ...wide, colorSpace: DISPLAY_P3, toneMapping: { mode: 'standard' } } }
+        }
+        return { colorOutput: SRGB, configuration }
+    }
+    context.configure(configuration)
+    return { colorOutput: SRGB, configuration }
+}
+
+/**
+ * The display's gamut query, or null where the environment has none.
+ * @param {object} [env=globalThis]
+ * @returns {MediaQueryList|null}
+ */
+export function gamutQuery(env = globalThis) {
+    if (typeof env?.matchMedia !== 'function') return null
+    try {
+        return env.matchMedia('(color-gamut: p3)') ?? null
+    } catch {
+        return null
+    }
 }
 
 /**

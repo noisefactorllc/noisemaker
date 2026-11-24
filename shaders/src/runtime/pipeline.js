@@ -12,6 +12,7 @@ import { CUBE_FACE_BASES } from '../renderer/cubeCamera.js'
 import { CanvasSink, SinkManager } from './sink.js'
 import { preflightEffect, mrtFormatBytes } from './preflight.js'
 import { DiagnosticCollector } from './backends/diagnostics.js'
+import { SRGB, configureWebGPUCanvas } from './color-output.js'
 
 /**
  * Oscillator evaluation functions.
@@ -652,6 +653,15 @@ export class Pipeline {
         this._hasRuntimeUniforms = false
         // Pre-allocated onUpdate context (avoids per-frame allocation)
         this._updateContext = { time: 0, delta: 0, uniforms: null }
+    }
+
+    /**
+     * The color space the canvas presents in: 'srgb', or 'display-p3' when the
+     * host asked for it and every support check passed (color-output.js).
+     * @returns {'srgb'|'display-p3'}
+     */
+    get colorOutput() {
+        return this.backend?.colorOutput ?? SRGB
     }
 
     /**
@@ -3160,6 +3170,13 @@ export class Pipeline {
                     captureError(error)
                 }
             }
+        } else if (typeof this.backend?.releaseColorOutput === 'function') {
+            // A lost backend is not destroyed, but it stops following the display.
+            try {
+                this.backend.releaseColorOutput()
+            } catch (error) {
+                captureError(error)
+            }
         }
 
         this.surfaces.clear()
@@ -3183,6 +3200,9 @@ export class Pipeline {
  * @param {number} options.width - Width in pixels
  * @param {number} options.height - Height in pixels
  * @param {boolean} options.preferWebGPU - Use WebGPU if available
+ * @param {'srgb'|'display-p3'} [options.colorOutput='srgb'] - The canvas color space. 'display-p3'
+ *   falls back to 'srgb' when a support check fails; read the result from pipeline.colorOutput.
+ *   On WebGL2 the canvas stays 'srgb'.
  */
 export async function createPipeline(graph, options = {}) {
     let backend
@@ -3212,18 +3232,26 @@ export async function createPipeline(graph, options = {}) {
             }
         })
         let context = null
+        let canvasOptions = {}
         if (options.canvas) {
             context = options.canvas.getContext('webgpu')
             if (context) {
-                context.configure({
+                const configuration = {
                     device: device,
                     format: navigator.gpu.getPreferredCanvasFormat(),
                     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_DST,
                     alphaMode: 'premultiplied'
-                })
+                }
+                const requested = options.colorOutput ?? SRGB
+                const configured = configureWebGPUCanvas(context, configuration, { requested })
+                canvasOptions = {
+                    canvasConfiguration: configured.configuration,
+                    colorOutput: configured.colorOutput,
+                    colorRequest: { requested, configuration }
+                }
             }
         }
-        backend = new WebGPUBackend(device, context)
+        backend = new WebGPUBackend(device, context, canvasOptions)
     } else if (options.canvas) {
         const gl = options.canvas.getContext('webgl2', { preserveDrawingBuffer: true })
         if (!gl) {
@@ -3235,7 +3263,14 @@ export async function createPipeline(graph, options = {}) {
     }
 
     const pipeline = new Pipeline(graph, backend, options)
-    await pipeline.init(options.width || 800, options.height || 600)
+    try {
+        await pipeline.init(options.width || 800, options.height || 600)
+    } catch (error) {
+        // The caller drops a pipeline that fails here. Its backend stops
+        // following the display, or the display listener keeps it reachable.
+        backend.releaseColorOutput?.()
+        throw error
+    }
 
     return pipeline
 }
