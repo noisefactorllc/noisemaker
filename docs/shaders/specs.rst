@@ -6,6 +6,7 @@ Specs
 
    effects
    language
+   seeded-draws
    deferred-rendering
    pipeline
    compiler
