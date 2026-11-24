@@ -196,6 +196,87 @@ export function validate(ast) {
     const render = ast.render ? ast.render.name : null
     let tempIndex = 0
 
+    // Element ids (`_id:`). An element's `_id:` is checked and copied into
+    // its step's args here. Duplicates are settled once the whole program is
+    // compiled (settleElementIds): the first element in traversal order, the
+    // order of the step numbers, keeps the id, and each later one gets S010
+    // and `idDuplicate`, so it keeps its position key. Step numbers survive
+    // an unparse round trip, so the same element keeps the id after it. An `_id:` written inside a `let` value carries
+    // the number of that value in `_letIdOrigin`; a second element that takes
+    // it gets S011 instead.
+    const ELEMENT_ID = /^[A-Za-z][A-Za-z0-9_]*$/
+    const elementIdRecords = new Map()
+    const letIdUses = new Set()
+    let letIdOrigins = 0
+
+    function elementId(idNode, element, args) {
+        if (idNode === undefined) return
+        const at = idNode?.loc ? idNode : element
+        if (idNode?.type !== 'String' || idNode._varRef !== undefined || !ELEMENT_ID.test(idNode.value)) {
+            pushDiag('S001', at, "_id: takes a string literal of letters, digits and '_' that starts with a letter")
+            return
+        }
+        const id = idNode.value
+        args._id = id
+        const origin = idNode._letIdOrigin
+        if (origin !== undefined) {
+            if (letIdUses.has(origin)) {
+                pushDiag('S011', at, `_id: "${id}" is in a 'let' value used more than once, so its uses would share one id`)
+                return
+            }
+            letIdUses.add(origin)
+        }
+        elementIdRecords.set(args, { id, at })
+    }
+
+    // A read() or read3d() passed as a parameter value is a surface, not a
+    // chain element, so it takes no `_id:`.
+    function rejectValueId(node) {
+        if (node && node._id !== undefined) {
+            pushDiag('S001', node._id?.loc ? node._id : node, "_id: names a chain element, and a 'read()' or 'read3d()' passed as a value is not one")
+        }
+    }
+
+    function settleElementIds(plans) {
+        const steps = []
+        const visit = (node) => {
+            if (!node || typeof node !== 'object') return
+            if (Array.isArray(node)) { node.forEach(visit); return }
+            if (Array.isArray(node.chain)) {
+                for (const step of node.chain) if (step?.args && elementIdRecords.has(step.args)) steps.push(step)
+            }
+            for (const key of ['then', 'elif', 'else', 'body']) visit(node[key])
+        }
+        visit(plans)
+        const byId = new Map()
+        for (const step of steps) {
+            const record = { ...elementIdRecords.get(step.args), step }
+            if (!byId.has(record.id)) byId.set(record.id, [])
+            byId.get(record.id).push(record)
+        }
+        for (const [id, records] of byId) {
+            records.sort((a, b) => a.step.temp - b.step.temp)
+            for (const record of records.slice(1)) {
+                record.step.idDuplicate = true
+                pushDiag('S010', record.at, `Duplicate _id: "${id}": another element, compiled before this one, keeps it`)
+            }
+        }
+    }
+
+    // Number each `_id:` written in a `let` value, once, so that every use of
+    // the value carries the same origin through `clone()`.
+    function markLetIds(node) {
+        if (!node || typeof node !== 'object') return
+        if (Array.isArray(node)) { node.forEach(markLetIds); return }
+        for (const holder of [node, node.kwargs]) {
+            const idNode = holder && typeof holder === 'object' ? holder._id : undefined
+            if (idNode && typeof idNode === 'object' && idNode._letIdOrigin === undefined) {
+                idNode._letIdOrigin = ++letIdOrigins
+            }
+        }
+        for (const value of Object.values(node)) markLetIds(value)
+    }
+
     const programSearchOrder = ast.namespace?.searchOrder
     if (!programSearchOrder || programSearchOrder.length === 0) {
         throw new Error("Missing required 'search' directive. Every program must start with 'search <namespace>, ...' to specify namespace search order.")
@@ -686,6 +767,7 @@ export function validate(ast) {
             delete node.letApplied
         }
         if (node.type === 'ArrayLiteral') delete node._resolvedElements
+        delete node._letIdOrigin
         for (const value of Object.values(node)) dropMarks(value)
     }
 
@@ -708,6 +790,7 @@ export function validate(ast) {
             if (resolved === undefined) return
             expr = resolved
         }
+        markLetIds(expr)
         if (expr && isStarterChain(expr)) {
             const head = firstChainCall(expr)
             if (head) pushDiag('S006', head)
@@ -1116,6 +1199,7 @@ export function validate(ast) {
                     if (original._skip === true) {
                         stepArgs._skip = true
                     }
+                    elementId(original._id, original, stepArgs)
                     const step = {
                         op: '_read',
                         args: stepArgs,
@@ -1162,6 +1246,7 @@ export function validate(ast) {
                     if (original._skip === true) {
                         stepArgs._skip = true
                     }
+                    elementId(original._id, original, stepArgs)
                     const step = {
                         op: '_read3d',
                         args: stepArgs,
@@ -1187,9 +1272,11 @@ export function validate(ast) {
                         continue
                     }
                     const idx = tempIndex++
+                    const writeArgs = { tex: surface }
+                    elementId(original._id, original, writeArgs)
                     const step = {
                         op: '_write',
-                        args: { tex: surface },
+                        args: writeArgs,
                         from: current,
                         temp: idx,
                         builtin: true
@@ -1223,9 +1310,11 @@ export function validate(ast) {
                         continue
                     }
                     const idx = tempIndex++
+                    const write3dArgs = { tex3d, geo }
+                    elementId(original._id, original, write3dArgs)
                     const step = {
                         op: '_write3d',
-                        args: { tex3d, geo },
+                        args: write3dArgs,
                         from: current,
                         temp: idx,
                         builtin: true
@@ -1548,6 +1637,7 @@ export function validate(ast) {
                         let invalidStarterChain = false
                         const starter = node ? getStarterInfo(node) : null
                     // Handle Read nodes (parser creates special Read type for read() calls)
+                    if (node && (node.type === 'Read' || node.type === 'Read3D')) rejectValueId(node)
                     if (node && node.type === 'Read' && node.surface) {
                         surf = toSurface(node.surface)
                     }
@@ -1787,6 +1877,7 @@ export function validate(ast) {
                         }
                         let value = null
                         // Handle Read3D nodes with single arg (read3d(vol0) for param use)
+                        if (node && (node.type === 'Read' || node.type === 'Read3D')) rejectValueId(node)
                         if (node && node.type === 'Read3D' && node.tex3d && !node.geo) {
                             const volName = node.tex3d.name
                             if (/^vol[0-7]$/.test(volName)) {
@@ -1819,6 +1910,7 @@ export function validate(ast) {
                         }
                         let value = null
                         // Handle Read3D nodes with single arg (read3d(geo0) for param use)
+                        if (node && (node.type === 'Read' || node.type === 'Read3D')) rejectValueId(node)
                         if (node && node.type === 'Read3D' && node.tex3d && !node.geo) {
                             const geoName = node.tex3d.name
                             if (/^geo[0-7]$/.test(geoName)) {
@@ -1989,6 +2081,12 @@ export function validate(ast) {
                     args[def.name] = randIntFrom(drawU32(callSeed, key), Math.ceil(def.min), Math.floor(def.max))
                     inheritedSeeds = inheritedSeeds || {}
                     inheritedSeeds[def.name] = true
+                }
+
+                // The element id (`_id:` meta-argument)
+                if (kw && kw._id !== undefined) {
+                    elementId(kw._id, call, args)
+                    seen.add('_id')
                 }
 
                 // Handle _skip meta-argument (skip this step in the pipeline)
@@ -2173,6 +2271,7 @@ export function validate(ast) {
         if (compiled) plans.push(compiled)
     }
     declareVarsBefore(Infinity)
+    settleElementIds(plans)
     dropMarks(plans)
 
     // Include original variable declarations for unparsing

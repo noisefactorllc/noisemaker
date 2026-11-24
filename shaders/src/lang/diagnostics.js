@@ -27,6 +27,8 @@ const diagnostics = {
   S007: { stage: 'semantic', severity: 'warning', message: 'Deprecated parameter alias' },
   S008: { stage: 'semantic', severity: 'warning', message: 'Deprecated effect' },
   S009: { stage: 'semantic', severity: 'error', message: 'Too many positional arguments' },
+  S010: { stage: 'semantic', severity: 'warning', message: 'Duplicate element id' },
+  S011: { stage: 'semantic', severity: 'error', message: 'Element id in a let value used more than once' },
   S012: { stage: 'semantic', severity: 'error', message: 'Invalid random call' },
   S013: { stage: 'semantic', severity: 'error', message: 'Random call not allowed here' },
   R001: { stage: 'runtime', severity: 'error', message: 'Runtime error' }

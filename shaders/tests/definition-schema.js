@@ -61,6 +61,22 @@ export function definitionSchema(instance) {
 }
 
 /**
+ * Parameter names no effect definition may declare. `_id` is a meta keyword on
+ * a chain element, `_seed` is reserved for the scoped seed of seeded
+ * randomization, and `id` is the keyword of scene nodes and subchains.
+ */
+export const RESERVED_PARAMETER_NAMES = Object.freeze(['id', '_id', '_seed'])
+
+/**
+ * The reserved names a definition schema declares as parameters, in the order
+ * of `RESERVED_PARAMETER_NAMES`. Empty for a definition that declares none.
+ */
+export function reservedNameViolations(schema) {
+    const globals = schema?.globals || {}
+    return RESERVED_PARAMETER_NAMES.filter(name => Object.hasOwn(globals, name))
+}
+
+/**
  * Load an effect's complete schema by importing its live `definition.js`
  * (or parsing its `definition.json`) — the same source the browser runtime
  * executes — from `effectDir`. Node-only (test/analysis surface), by design.

@@ -98,7 +98,8 @@ type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
 
 type Diagnostic = {
   code: "S001" | "S002" | "S003" | "S004" | "S005" | "S006" |
-        "S007" | "S008" | "S009" | "P008" | "P009" | "P010"
+        "S007" | "S008" | "S009" | "S010" | "S011" | "P008" | "P009" |
+        "P010"
   message: string
   severity: "error" | "warning"
   nodeId?: string | number | null  // null on the P008-P010 subchain warnings
@@ -316,6 +317,7 @@ type CompiledStep = {
   temp: number
   builtin?: boolean
   namespace?: object
+  idDuplicate?: true  // its args._id repeats an earlier element's (S010); it keeps its position key
   rawKwargs?: Record<string, ParsedExpr>
   argSources?: Record<string, "array">
   leadingComments?: string[]
@@ -816,6 +818,8 @@ Declared diagnostic codes are:
 | `S007` | semantic/warning | deprecated parameter alias |
 | `S008` | semantic/warning | deprecated effect alias |
 | `S009` | semantic/error | positional arguments left over after every parameter is filled; the program does not compile |
+| `S010` | semantic/warning | a repeated element `_id:`; the first element in compile order (step number) keeps it |
+| `S011` | semantic/error | an `_id:` inside a `let` value that is used more than once |
 | `R001` | runtime/error | declared but not emitted by the compiler/backends shown here |
 
 Raw lexer/parser failures are `SyntaxError` instances with the unchanged legacy

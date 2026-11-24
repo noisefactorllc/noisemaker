@@ -22,6 +22,8 @@ import {
     auditSchemaLoss,
     definitionSchema,
     loadCompleteDefinition,
+    RESERVED_PARAMETER_NAMES,
+    reservedNameViolations,
     serializeSchemaValue,
 } from './definition-schema.js'
 
@@ -154,5 +156,21 @@ for (const effectId of allEffects) {
 console.log(`corpus: ${allEffects.length} effects, lossy upstream projection on ${lossyCount}, contradictions ${contradictionCount}`)
 assert.equal(contradictionCount, 0, 'the upstream projection must never disagree with the live definition')
 assert.ok(lossyCount > 0, 'the corpus must exercise the fields the projection does not model')
+
+// ---------------------------------------------------------------------------
+// Reserved names: `_id` is an element's meta keyword, `_seed` is reserved for
+// the scoped seed of seeded randomization, and `id` is the keyword of scene
+// nodes and subchains, so no definition may declare a parameter by one of them.
+// ---------------------------------------------------------------------------
+
+assert.deepEqual(RESERVED_PARAMETER_NAMES, ['id', '_id', '_seed'])
+assert.deepEqual(reservedNameViolations({ globals: { amount: {}, _seed: {} } }), ['_seed'])
+assert.deepEqual(reservedNameViolations({ globals: { id: {}, _id: {} } }), ['id', '_id'])
+assert.deepEqual(reservedNameViolations({ globals: { amount: {} } }), [])
+assert.deepEqual(reservedNameViolations({}), [])
+for (const effectId of allEffects) {
+    const schema = await loadCompleteDefinition(path.join('shaders', 'effects', ...effectId.split('/')))
+    assert.deepEqual(reservedNameViolations(schema), [], `${effectId} declares no reserved parameter name`)
+}
 
 console.log('PASS: definition-schema regressions')

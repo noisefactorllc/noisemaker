@@ -20,9 +20,10 @@
  * SubchainCall   ::= 'subchain' '(' SubchainArgs? ')' '{' ( Comment* '.' Comment* Call )+ Comment* '}'
  * SubchainArgs   ::= String | SubchainPair ( ','? SubchainPair )* ','?
  * SubchainPair   ::= Ident ':' String
- * WriteCall      ::= 'write' '(' WriteTarget ')'       // Chainable - writes to surface & passes through
+ * WriteCall      ::= 'write' '(' WriteTarget ElementId? ')'   // Chainable - writes to surface & passes through
  * WriteTarget    ::= OutputRef | XyzRef | VelRef | RgbaRef | MeshRef | 'none'
- * Write3DCall    ::= 'write3d' '(' ( VolRef | OutputRef | Ident ) ',' ( GeoRef | OutputRef | Ident ) ')'
+ * Write3DCall    ::= 'write3d' '(' ( VolRef | OutputRef | Ident ) ',' ( GeoRef | OutputRef | Ident ) ElementId? ')'
+ * ElementId      ::= ',' '_id' ':' Expr                  // The validator requires a String
  * Call           ::= Ident '(' ArgList? ')'
  * ArgList        ::= ( Expr | Kwarg ) ( ',' ( Expr | Kwarg ) )* ','?
  * Kwarg          ::= Ident ':' Expr
@@ -888,12 +889,15 @@ export function parse(tokens, options = {}) {
             } else {
                 throw parserError('P005', `write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, mesh0, none) at line ${peek().line} col ${peek().col}`, peek())
             }
+            const id = parseWriteId()
             expect('RPAREN', "Expect ')'")
-            return {
+            const node = {
                 type: 'Write',
                 surface: surface,
                 loc: { line: tokenLine, col: tokenCol }
             }
+            if (id !== undefined) node._id = id
+            return node
         } else if (tokenType === 'WRITE3D') {
             advance() // consume 'write3d'
             expect('LPAREN', "Expect '('")
@@ -922,15 +926,36 @@ export function parse(tokens, options = {}) {
             } else {
                 throw parserError('P005', `Expected geo reference in write3d() at line ${peek().line} col ${peek().col}`, peek())
             }
+            const id = parseWriteId()
             expect('RPAREN', "Expect ')'")
-            return {
+            const node = {
                 type: 'Write3D',
                 tex3d: tex3d,
                 geo: geo,
                 loc: { line: tokenLine, col: tokenCol }
             }
+            if (id !== undefined) node._id = id
+            return node
         }
         throw parserError('P005', `Expected write or write3d at line ${tokenLine} col ${tokenCol}`, { line: tokenLine, col: tokenCol })
+    }
+
+    /**
+     * The optional element id after a write target: `write(o0, _id: "out")`
+     * or `write3d(vol0, geo0, _id: "out")`. Returns its value node, which the
+     * validator checks, or undefined when the call has none.
+     */
+    function parseWriteId() {
+        // Anything else after the targets is left for the closing paren's
+        // error, as before element ids.
+        const key = tokens[current + 1]
+        if (peek().type !== 'COMMA' || key?.type !== 'IDENT' || key.lexeme !== '_id' || tokens[current + 2]?.type !== 'COLON') {
+            return undefined
+        }
+        advance() // consume ','
+        const kwargs = {}
+        parseKwarg(kwargs)
+        return kwargs._id
     }
 
     /**
@@ -1172,6 +1197,8 @@ export function parse(tokens, options = {}) {
             if (kwargs._skip?.type === 'Boolean' && kwargs._skip.value === true) {
                 node._skip = true
             }
+            // The element id, checked by the validator
+            if (kwargs._id !== undefined) node._id = kwargs._id
             return node
         }
         // read3d() reads from tex3d (and optionally geo) surfaces
@@ -1190,6 +1217,8 @@ export function parse(tokens, options = {}) {
             if (kwargs._skip?.type === 'Boolean' && kwargs._skip.value === true) {
                 node._skip = true
             }
+            // The element id, checked by the validator
+            if (kwargs._id !== undefined) node._id = kwargs._id
             return node
         }
         return call
@@ -1467,7 +1496,12 @@ export function parse(tokens, options = {}) {
             const t = peek()
             throw parserError('P001', `Expected expression after '=' at line ${t.line} col ${t.col}`, t)
         }
+        const at = peek()
         obj[key] = parseArg()
+        // An element id's diagnostics point at its value, whatever its form.
+        if (key === '_id' && obj[key] && typeof obj[key] === 'object' && !obj[key].loc) {
+            obj[key].loc = locOf(at)
+        }
     }
 
     return parseProgram()

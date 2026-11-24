@@ -33,9 +33,10 @@ Grammar
    SubchainCall   ::= 'subchain' '(' SubchainArgs? ')' '{' ( Comment* '.' Comment* Call )+ Comment* '}'
    SubchainArgs   ::= String | SubchainPair ( ','? SubchainPair )* ','?
    SubchainPair   ::= Ident ':' String
-   WriteCall      ::= 'write' '(' WriteTarget ')'
+   WriteCall      ::= 'write' '(' WriteTarget ElementId? ')'
    WriteTarget    ::= OutputRef | XyzRef | VelRef | RgbaRef | MeshRef | 'none'
-   Write3DCall    ::= 'write3d' '(' ( VolRef | OutputRef | Ident ) ',' ( GeoRef | OutputRef | Ident ) ')'
+   Write3DCall    ::= 'write3d' '(' ( VolRef | OutputRef | Ident ) ',' ( GeoRef | OutputRef | Ident ) ElementId? ')'
+   ElementId      ::= ',' '_id' ':' String
    Call           ::= Ident '(' ArgList? ')'
    ArgList        ::= Expr ( ',' Expr )* ','? | Kwarg ( ',' Kwarg )* ','? | MixedArgs
    MixedArgs      ::= Arg ( ',' Arg )* ','?  (experimental)
@@ -388,6 +389,55 @@ The language supports ``if``, ``elif``, ``else`` for conditionals.
 
 **Arrow Functions:**
 Arrow functions (``() => expr``) are **lazy expressions**. The evaluator passes them unchanged to the effect or control structure without evaluating them immediately. That recipient determines when or whether to evaluate them.
+
+.. _shader-language-element-ids:
+
+Element Ids
+^^^^^^^^^^^
+
+A chain element can carry an id with the ``_id:`` keyword. The chain elements
+are effect calls, a starter passed as a value included, and the builtins
+``read``, ``read3d``, ``write`` and ``write3d``.
+
+.. code-block:: none
+
+  search synth, filter
+
+  noise(_id: "pond", octaves: 4)
+    .invert(_id: "flip")
+    .write(o0, _id: "out")
+
+  read(_id: "again", surface: o0)
+    .write(o1)
+
+The value is a string literal of letters, digits and ``_`` that starts with a
+letter. Any other value, a name bound by ``let`` included, is an error, reported
+where it is written.
+
+* An id is unique among the element ids of its program. Element ids are a
+  namespace of their own: the ``id:`` of scene nodes and of subchains keeps its
+  meaning, and ``scene()`` and ``subchain`` take no ``_id:``. Nor does a
+  ``read()`` or ``read3d()`` passed as a parameter value, which is a surface,
+  not a chain element.
+* When two elements have the same id, the first one in compile order keeps it,
+  and the later one gets the warning ``S010``. Compile order follows the
+  program, except that the values passed to a call's parameters compile before
+  the call, in the order the effect declares those parameters, and a ``let``
+  value compiles where it is used.
+* An ``_id:`` inside a ``let`` value that is used more than once is the error
+  ``S011``, because the uses would share one id. Give each use its own id where
+  it is called:
+
+.. code-block:: none
+
+  search synth
+
+  let base = noise(octaves: 4)
+  base(_id: "left").write(o0)
+  base(_id: "right").write(o1)
+
+The unparser writes ``_id:`` back as the first keyword of its element. A program
+without ``_id:`` compiles and unparses as it did before.
 
 Subchains
 ^^^^^^^^^
@@ -1141,6 +1191,14 @@ Diagnostics
      - Semantic
      - Error
      - Too many positional arguments
+   * - S010
+     - Semantic
+     - Warning
+     - Duplicate element id
+   * - S011
+     - Semantic
+     - Error
+     - Element id in a let value used more than once
    * - R001
      - Runtime
      - Error
@@ -1155,3 +1213,5 @@ Common Errors
 * **S006 (Starter chain missing write):** Generator-driven chains must end with ``.write()`` to produce a reusable surface.
 * **S007 (Deprecated parameter alias):** The parameter has a new name. The previous name still works. Use the current name.
 * **S008 (Deprecated effect):** A newer effect replaces this effect, but the previous effect still works. Use the current name.
+* **S010 (Duplicate element id):** Two elements have the same ``_id:``. The first one in compile order keeps it. Give the later one an id of its own.
+* **S011 (Element id in a let value used more than once):** A ``let`` value that holds an ``_id:`` is used more than once. Write the ``_id:`` at each use instead.
