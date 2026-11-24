@@ -1287,7 +1287,10 @@ export class ProgramState extends Emitter {
                 if ('stateSize' in stepState.values) {
                     const match = stepKey.match(/^step_(\d+)$/)
                     if (match) {
-                        pipeline.setUniform(`stateSize_node_${match[1]}`, stepState.values.stateSize)
+                        // An emitter keyed by its `_id:` scopes stateSize by its key.
+                        const nodeId = `node_${match[1]}`
+                        const stateId = pipeline.stateIdOf?.(nodeId) ?? nodeId
+                        pipeline.setUniform(`stateSize_${stateId}`, stepState.values.stateSize)
                     }
                 }
             }

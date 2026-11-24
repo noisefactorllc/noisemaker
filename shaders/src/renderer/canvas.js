@@ -995,6 +995,39 @@ export class CanvasRenderer {
     }
 
     /**
+     * The key of an element's state, for a host that reads or moves it. An
+     * element with an `_id:` keys its state textures and size parameters by
+     * the id and its resolved op name; a host gets the keys here instead of
+     * composing them.
+     * @param {string} elementId - The element's `_id:`
+     * @param {string} name - A state texture or size parameter of its effect,
+     *   such as `global_rd_state` or `zoom`
+     * @returns {string|null} The key, or null when the current program has no
+     *   such element or the element no such state
+     */
+    keyOf(elementId, name) {
+        const keys = this._pipeline?.graph?.elementKeys
+        if (!keys || !Object.hasOwn(keys, elementId)) return null
+        const state = keys[elementId].state
+        return Object.hasOwn(state, name) ? state[name] : null
+    }
+
+    /**
+     * Move live state from one key to another in the running session, as the
+     * rename of an element's `_id:` does: take both keys from keyOf(), the old
+     * one before the program changes. Nothing is stored outside the program
+     * text.
+     * @param {string} fromKey - The key that holds the state
+     * @param {string} toKey - The key that takes it
+     * @returns {boolean} False when the keys are not one state of one effect
+     *   under two ids, a key holds no state or names a size parameter, or a
+     *   texture is 3D or of another format
+     */
+    moveState(fromKey, toKey) {
+        return this._pipeline?.moveState?.(fromKey, toKey) ?? false
+    }
+
+    /**
      * Set a uniform value across all passes
      * @param {string} name - Uniform name
      * @param {*} value - Uniform value

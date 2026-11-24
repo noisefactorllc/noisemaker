@@ -79,7 +79,8 @@ function buildInputAliases(passes) {
         for (const texId of Object.values(pass.inputs)) {
             if (typeof texId !== 'string') continue
             if (written.has(texId) || aliases.has(texId)) continue
-            if (!PIPELINE_COLOR_INPUTS.some(name => texId === `${pass.nodeId}_${name}`)) continue
+            const ownId = pass.stateId ?? pass.nodeId
+            if (!PIPELINE_COLOR_INPUTS.some(name => texId === `${ownId}_${name}`)) continue
 
             const upstream = findUpstreamChainTexture(passes, i, pass.nodeId)
             if (upstream) aliases.set(texId, upstream)

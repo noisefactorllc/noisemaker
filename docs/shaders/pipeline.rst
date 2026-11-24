@@ -44,6 +44,7 @@ Compilation occurs when the DSL code changes. See :ref:`Compiler Specification <
    Different effects within a chain that name the same texture share it. Patterns such as ``loopBegin``/``loopEnd`` require this sharing for ``global_accum``.
    Each further instance of an effect in a chain keeps its own state, for example ``global_rd_state_chain_0_node_3``.
    Despite the prefix, these textures are not global to the program. See :ref:`global-texture-scope`.
+   An element with an ``_id:`` keys its own state by its id and op name instead of its position. See :ref:`element-state-keys`.
 #. **Resource Analysis:** Determine the first and last use of each non-global
    virtual texture and compute a linear-scan allocation map.
 #. **Assemble:** Package the ordered passes, programs, allocation map, texture
@@ -446,6 +447,51 @@ program to the ID. In this program, the first chain's accumulator is
   (``o0`` to ``o7``, ``vol0`` to ``vol7``, ``geo0`` to ``geo7``). Named surfaces are
   program-wide. The runtime refers to them internally as ``global_o0``,
   ``global_vol0`` and so on, without a scope suffix.
+
+.. _element-state-keys:
+
+8.0.3 State Keyed by an Element Id
+""""""""""""""""""""""""""""""""""
+
+An element with an ``_id:`` (see :ref:`shader-language-element-ids`) keys its
+own state by that id together with its resolved, namespaced op name, in place
+of its chain and step position. The key is ``id_<id>@<op>``, for example
+``id_pond@synth.reactionDiffusion``:
+
+* its private ``global_`` textures: ``global_rd_state_id_pond@synth.reactionDiffusion``;
+* its node-local textures: ``id_loop@filter.feedback__selfTex``;
+* the size parameters of that state: ``zoom_id_pond@synth.reactionDiffusion``;
+* the particle textures of an emitter with an id, and their ``stateSize``.
+
+Inserting, deleting or reordering other elements or chains therefore leaves
+the element's state in place across a recompile. A replacement effect under the
+same id has another op name, so it gets new state. Textures that several
+effects of a chain share, and the ``volumeSize`` that flows down a chain, keep
+their chain scope. An element without an ``_id:``, an element whose id
+repeats an earlier one (``S010``), and an element in a part body, whose id names
+it within one use of the part, keep their position keys as described above.
+
+A host reads the keys from the renderer and does not compose them:
+
+* ``renderer.keyOf(elementId, name)`` returns the key of the element's state
+  texture or size parameter ``name``, such as ``global_rd_state`` or ``zoom``,
+  or ``null`` when the current program has no such element or the element no
+  such state.
+* ``renderer.moveState(fromKey, toKey)`` copies the live state under one key
+  into another in the running session, for a rename of an element's id. Both
+  halves of a state surface move, or one node-local texture. The two keys
+  name one state of one effect under two ids. It returns ``false`` otherwise,
+  and when a key holds no state, names a size parameter, or names a 3D texture
+  or a texture of another format than the other key's. Nothing is stored
+  outside the program text.
+
+A rename takes the old key before the program changes:
+
+.. code-block:: javascript
+
+   const from = renderer.keyOf('pond', 'global_rd_state')
+   await renderer.compile(source.replace('_id: "pond"', '_id: "lake"'))
+   renderer.moveState(from, renderer.keyOf('lake', 'global_rd_state'))
 
 8.1 Resize Behavior
 ^^^^^^^^^^^^^^^^^^^^

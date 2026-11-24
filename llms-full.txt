@@ -2403,6 +2403,20 @@ consumer values before texture recreation. These paths prevent atlas
 dimensions (`volumeSize` by `volumeSize^2`) and shader addressing from
 disagreeing after graph load, resize, hot recompile, or a host/UI update.
 
+An element with an `_id:` keys its own state by its id and resolved op name,
+`id_<id>@<op>`, in place of its chain and step position: its private
+`global_` textures
+(`global_rd_state_id_pond@synth.reactionDiffusion`), its
+node-local textures (`id_loop@filter.feedback__selfTex`), the size parameters
+of that state (`zoom_id_pond@synth.reactionDiffusion`), and an emitter's
+particle textures. Inserting, deleting or reordering other elements leaves
+that state in place across a hot recompile. `CanvasRenderer.keyOf(elementId,
+name)` returns a key, or `null`; `CanvasRenderer.moveState(fromKey, toKey)`
+copies live state between two keys of one state under two ids, for a rename,
+and returns `false` when a key holds no state, names a size parameter, or names
+a 3D texture or one of another format. An element in a part body keeps its position key. `Pipeline.setUniform()` also reaches the
+id-scoped copy of an unscoped sizing name.
+
 `resolveDimension()` resolves `"screen"`, `"auto"`, `"input"` and
 `"resolution"` to the screen size without a diagnostic; `"input"` does not
 query the input texture. Any other string records `ERR_DIMENSION_FALLBACK`.

@@ -253,6 +253,9 @@ export function validate(ast) {
         // of the part.
         for (const step of steps) {
             const record = { ...elementIdRecords.get(step.args), step }
+            // A step in a part body carries its use path: its id names it
+            // within that use only.
+            if (record.scope) step.idScope = record.scope
             const key = `${record.scope}\u0000${record.id}`
             if (!byId.has(key)) byId.set(key, [])
             byId.get(key).push(record)

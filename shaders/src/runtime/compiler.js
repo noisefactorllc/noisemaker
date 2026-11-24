@@ -39,7 +39,7 @@ export function compileGraph(source, options = {}) {
     const sceneIR = compileScene(compilationResult)
 
     // Stage 2: Expand logical graph into render passes
-    const { passes, errors: expandErrors, programs, textureSpecs, renderSurface, mediaSteps } = expand(
+    const { passes, errors: expandErrors, programs, textureSpecs, renderSurface, mediaSteps, elementKeys } = expand(
         compilationResult,
         { shaderOverrides: options.shaderOverrides }
     )
@@ -81,6 +81,9 @@ export function compileGraph(source, options = {}) {
         mediaSteps, // Per-step external texture bindings (e.g. imageTex_step_0)
         compiledAt: Date.now()
     }
+    // The state keys of the elements with an `_id:` (CanvasRenderer.keyOf());
+    // a program without one carries none.
+    if (Object.keys(elementKeys).length > 0) graph.elementKeys = elementKeys
 
     return graph
 }

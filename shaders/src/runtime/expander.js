@@ -135,12 +135,27 @@ function collectGlobalTextureUsers(chain) {
  *   Example: { 0: { main: { glsl: '...', wgsl: '...' } } }
  * @returns {object} { passes, errors, programs, textureSpecs, renderSurface, mediaSteps }
  */
+/**
+ * The key an element with an `_id:` gives its state: its id and its resolved,
+ * namespaced op name. Each state texture and size parameter of the element
+ * takes it in place of its chain and step position, so a replacement effect
+ * under the same id gets new state.
+ * @param {string} id - The element's `_id:`
+ * @param {string} op - Its resolved op name, such as `synth.reactionDiffusion`
+ * @returns {string}
+ */
+export function elementStateKey(id, op) {
+    return `id_${id}@${op}`
+}
+
 export function expand(compilationResult, options = {}) {
     const shaderOverrides = options.shaderOverrides || {}
     const passes = []
     const errors = []
     const programs = {}
     const textureSpecs = {} // nodeId_texName -> { width, height, format, is3D?, depth? }
+    // id -> { op, key, state: { name: keyed name } } for each element keyed by its `_id:`
+    const elementKeys = {}
     const textureMap = new Map() // logical_id -> virtual_texture_id
     const writtenVolumes = new Map() // exported volume -> source sizing uniform
     const readVolumes = new Map() // reader sizing scope -> volume and preceding writer
@@ -409,9 +424,18 @@ export function expand(compilationResult, options = {}) {
             }
 
             const nodeId = `node_${step.temp}`
+            // An element with an `_id:` keys its own state by the id and its
+            // resolved op name (elementStateKey), in place of its chain and step
+            // position. An S010 duplicate keeps its position key, and so does an
+            // element in a part body, whose id names it within one use only.
+            const stateKey = typeof step.args?._id === 'string' && !step.idDuplicate && !step.idScope
+                ? elementStateKey(step.args._id, step.op) : null
+            const stateId = stateKey ?? nodeId
+            const elementState = stateKey ? (elementKeys[step.args._id] = { op: step.op, key: stateKey, state: {} }).state : null
+            const recordState = (name, keyed) => { if (elementState && keyed.includes(stateKey)) elementState[name] = keyed }
             // Preserve legacy IDs for the first instance. Repeated private state
             // gets a node suffix; cooperating effects retain the shared chain scope.
-            const instanceScopeId = seenEffects.has(effectDef) ? `${chainScopeId}_${nodeId}` : chainScopeId
+            const instanceScopeId = stateKey ?? (seenEffects.has(effectDef) ? `${chainScopeId}_${nodeId}` : chainScopeId)
             seenEffects.add(effectDef)
             const ownedTextures = new Set([
                 ...Object.keys(effectDef.textures || {}),
@@ -458,7 +482,7 @@ export function expand(compilationResult, options = {}) {
             // (which just pass through via outputXyz). Only the creator starts a new pipeline scope.
             const createsParticleTextures = effectDef.textures && effectDef.textures.global_xyz
             if (createsParticleTextures) {
-                currentParticlePipelineId = nodeId
+                currentParticlePipelineId = stateId
                 // Reset particle input variables - new pipeline starts fresh
                 currentInputXyz = null
                 currentInputVel = null
@@ -540,8 +564,9 @@ export function expand(compilationResult, options = {}) {
                         virtualTexId = scopeChainTex(texName)
                     } else {
                         // Node-local texture - add node prefix
-                        virtualTexId = `${nodeId}_${texName}`
+                        virtualTexId = `${stateId}_${texName}`
                     }
+                    recordState(texName, virtualTexId)
 
                     // When scoping textures to a pipeline or chain, we must also scope
                     // any param references in width/height. Otherwise all pipelines/chains
@@ -580,7 +605,10 @@ export function expand(compilationResult, options = {}) {
                                 const scopedParam = originalParam === 'volumeSize' ? volumeSizeParam
                                     : originalParam === 'stateSize' && currentParticlePipelineId && !texName.startsWith('global_')
                                         ? `${originalParam}_${currentParticlePipelineId}`
-                                        : chainSizeParam(`${originalParam}_${scopeSuffix}`, dimSpec.inherit)
+                                        : stateKey && isPrivateTex && !dimSpec.inherit && !shouldScopeAsParticle
+                                            ? `${originalParam}_${stateKey}`
+                                            : chainSizeParam(`${originalParam}_${scopeSuffix}`, dimSpec.inherit)
+                                recordState(originalParam, scopedParam)
                                 // Track this mapping so we can copy uniform values later.
                                 // An inherited dimension reads the scope's value and never
                                 // writes this effect's own value over it.
@@ -592,7 +620,10 @@ export function expand(compilationResult, options = {}) {
                             }
                             if (typeof dimSpec === 'object' && dimSpec.screenDivide !== undefined) {
                                 const originalParam = dimSpec.screenDivide
-                                const scopedParam = chainSizeParam(`${originalParam}_${scopeSuffix}`, false)
+                                const scopedParam = stateKey && isPrivateTex && !shouldScopeAsParticle
+                                    ? `${originalParam}_${stateKey}`
+                                    : chainSizeParam(`${originalParam}_${scopeSuffix}`, false)
+                                recordState(originalParam, scopedParam)
                                 scopedParamMap.set(originalParam, scopedParam)
                                 return {
                                     ...dimSpec,
@@ -616,8 +647,9 @@ export function expand(compilationResult, options = {}) {
                     if (texName.startsWith('global_')) {
                         virtualTexId = scopeChainTex(texName)
                     } else {
-                        virtualTexId = `${nodeId}_${texName}`
+                        virtualTexId = `${stateId}_${texName}`
                     }
+                    recordState(texName, virtualTexId)
                     textureSpecs[virtualTexId] = { ...spec, is3D: true }
                 }
             }
@@ -800,6 +832,8 @@ export function expand(compilationResult, options = {}) {
                 pass.effectFunc = effectDef.func || effectName
                 pass.effectNamespace = effectDef.namespace || null
                 pass.nodeId = nodeId
+                // The id the element's own textures carry, when it is keyed by its `_id:`
+                if (stateKey) pass.stateId = stateKey
                 pass.stepIndex = step.temp  // Track which step this pass belongs to
 
                 // Mark consumer passes that inherit volumeSize from upstream. Mirrors
@@ -1091,7 +1125,7 @@ export function expand(compilationResult, options = {}) {
                             pass.inputs[uniformName] = `${nodeId}_out`
                         } else {
                             // Internal texture or explicit reference - node-prefix it
-                            pass.inputs[uniformName] = `${nodeId}_${texRef}`
+                            pass.inputs[uniformName] = `${stateId}_${texRef}`
                         }
                     }
                 }
@@ -1156,7 +1190,7 @@ export function expand(compilationResult, options = {}) {
                             virtualTex = texRef
                         } else {
                             // Node-local texture - add node prefix
-                            virtualTex = `${nodeId}_${texRef}`
+                            virtualTex = `${stateId}_${texRef}`
                         }
                         pass.outputs[attachment] = virtualTex
                     }
@@ -1208,7 +1242,7 @@ export function expand(compilationResult, options = {}) {
                     // global_ prefix = chain-scoped; everything else = node-local
                     const virtualTexId = internalTexName.startsWith('global_')
                         ? scopeChainTex(internalTexName)
-                        : `${nodeId}_${internalTexName}`
+                        : `${stateId}_${internalTexName}`
                     textureMap.set(`${nodeId}_out`, virtualTexId)
                     currentInput = virtualTexId
                 }
@@ -1251,7 +1285,7 @@ export function expand(compilationResult, options = {}) {
                     // global_ prefix = chain-scoped; everything else = node-local
                     const virtualTexId = internalTexName.startsWith('global_')
                         ? scopeChainTex(internalTexName)
-                        : `${nodeId}_${internalTexName}`
+                        : `${stateId}_${internalTexName}`
                     textureMap.set(`${nodeId}_out3d`, virtualTexId)
                     currentInput3d = virtualTexId
                 }
@@ -1268,7 +1302,7 @@ export function expand(compilationResult, options = {}) {
                         textureMap.set(`${nodeId}_outGeo`, currentInputGeo)
                     }
                 } else {
-                    const virtualGeoId = `${nodeId}_${geoTexName}`
+                    const virtualGeoId = `${stateId}_${geoTexName}`
                     textureMap.set(`${nodeId}_outGeo`, virtualGeoId)
                     currentInputGeo = virtualGeoId
                 }
@@ -1285,7 +1319,7 @@ export function expand(compilationResult, options = {}) {
                 } else {
                     const virtualId = texName.startsWith('global_')
                         ? scopeChainTex(texName)
-                        : `${nodeId}_${texName}`
+                        : `${stateId}_${texName}`
                     textureMap.set(`${nodeId}_outXyz`, virtualId)
                     currentInputXyz = virtualId
                 }
@@ -1299,7 +1333,7 @@ export function expand(compilationResult, options = {}) {
                 } else {
                     const virtualId = texName.startsWith('global_')
                         ? scopeChainTex(texName)
-                        : `${nodeId}_${texName}`
+                        : `${stateId}_${texName}`
                     textureMap.set(`${nodeId}_outVel`, virtualId)
                     currentInputVel = virtualId
                 }
@@ -1313,7 +1347,7 @@ export function expand(compilationResult, options = {}) {
                 } else {
                     const virtualId = texName.startsWith('global_')
                         ? scopeChainTex(texName)
-                        : `${nodeId}_${texName}`
+                        : `${stateId}_${texName}`
                     textureMap.set(`${nodeId}_outRgba`, virtualId)
                     currentInputRgba = virtualId
                 }
@@ -1408,5 +1442,5 @@ export function expand(compilationResult, options = {}) {
         renderSurface = null
     }
 
-    return { passes, errors, programs, textureSpecs, renderSurface, mediaSteps }
+    return { passes, errors, programs, textureSpecs, renderSurface, mediaSteps, elementKeys }
 }

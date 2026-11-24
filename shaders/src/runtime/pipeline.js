@@ -14,6 +14,9 @@ import { preflightEffect, mrtFormatBytes } from './preflight.js'
 import { DiagnosticCollector } from './backends/diagnostics.js'
 import { SRGB, configureWebGL2Canvas, configureWebGPUCanvas } from './color-output.js'
 
+// A uniform scoped to one element by its `_id:` (expander elementStateKey()).
+const ELEMENT_SCOPED = /_id_[A-Za-z][A-Za-z0-9_]*@[^@]+$/
+
 /**
  * Oscillator evaluation functions.
  * Each returns a value between 0 and 1 based on the time phase.
@@ -1050,7 +1053,7 @@ export class Pipeline {
             updateTexture: (texName, canvas) => {
                 if (cancelled) return
                 // Map effect-local texture name to graph-scoped name
-                const texId = `${nodeId}_${texName}`
+                const texId = `${this.stateIdOf(nodeId)}_${texName}`
                 // An overlay canvas is the effect's own 2D canvas: its
                 // context tells WebGPU to upload a willReadFrequently overlay
                 // with the bytes WebGL2 uploads. Other sources (an
@@ -2113,6 +2116,77 @@ export class Pipeline {
     }
 
     /**
+     * Copy the live state under one element key into another, for a host
+     * that renames an element (CanvasRenderer.moveState()). A key is a state
+     * texture id that CanvasRenderer.keyOf() returns: both halves of a state
+     * surface (`global_…`) move, or one node-local texture. Nothing is stored
+     * outside the program text.
+     * @param {string} fromKey - The key that holds the state
+     * @param {string} toKey - The key that takes it
+     * @returns {boolean} False when a key holds no state, the two keys are
+     *   not one state of one op under two element ids, or a texture is 3D or
+     *   of another format
+     */
+    moveState(fromKey, toKey) {
+        if (typeof fromKey !== 'string' || typeof toKey !== 'string' || fromKey === toKey) return false
+        // Both keys name one state of one op, under two element ids: the
+        // to-key is a state of an element of the current program, and the
+        // from-key is that state's name under another id of the same op.
+        if (!this.isRenameOf(fromKey, toKey)) return false
+        const textures = (key) => {
+            if (key.startsWith('global_')) {
+                const surface = this.surfaces.get(this.parseGlobalName(key))
+                return surface ? [surface.read, surface.write] : null
+            }
+            return this.backend?.textures?.has?.(key) ? [key] : null
+        }
+        const from = textures(fromKey)
+        const to = textures(toKey)
+        if (!from || !to || from.length !== to.length) return false
+        // A copy needs two 2D textures of one format.
+        for (let i = 0; i < from.length; i++) {
+            const a = this.backend.textures?.get?.(from[i])
+            const b = this.backend.textures?.get?.(to[i])
+            if (!a || !b || a.format !== b.format || a.depth > 1 || b.depth > 1 || a.is3D || b.is3D) return false
+        }
+        for (let i = 0; i < from.length; i++) this.backend.copyTexture(from[i], to[i])
+        return true
+    }
+
+    /**
+     * Whether `fromKey` is the state `toKey` names, under another element id
+     * of the same op. `toKey` is a state of an element of the current program
+     * (graph.elementKeys); its state name and op fix where the id stands.
+     * @param {string} fromKey
+     * @param {string} toKey
+     * @returns {boolean}
+     */
+    isRenameOf(fromKey, toKey) {
+        for (const element of Object.values(this.graph?.elementKeys || {})) {
+            for (const [name, keyed] of Object.entries(element.state)) {
+                if (keyed !== toKey) continue
+                const [prefix, suffix] = keyed === `${name}_${element.key}` ? [`${name}_`, '']
+                    : keyed === `${element.key}_${name}` ? ['', `_${name}`] : [null, null]
+                if (prefix === null || !fromKey.startsWith(prefix) || !fromKey.endsWith(suffix)) return false
+                const fromElement = fromKey.slice(prefix.length, fromKey.length - suffix.length)
+                const id = fromElement.match(/^id_([A-Za-z][A-Za-z0-9_]*)@(.+)$/)
+                return Boolean(id) && id[2] === element.op && fromElement !== element.key
+            }
+        }
+        return false
+    }
+
+    /**
+     * The id an element's own textures carry: its state key when the element
+     * is keyed by its `_id:`, and its node id otherwise.
+     * @param {string} nodeId - The element's node id
+     * @returns {string}
+     */
+    stateIdOf(nodeId) {
+        return this.graph?.passes?.find(pass => pass.nodeId === nodeId)?.stateId ?? nodeId
+    }
+
+    /**
      * Set a global uniform value
      * Automatically triggers texture resizing if the parameter affects texture dimensions
      * NOTE: Does not overwrite automation configs (oscillator, midi, audio) in pass uniforms
@@ -2122,7 +2196,7 @@ export class Pipeline {
     setUniform(name, value) {
         // Apply mobile stateSize cap for particle systems
         // This prevents OOM on mobile devices with limited GPU memory
-        if ((name === 'stateSize' || name.startsWith('stateSize_node_')) && typeof value === 'number') {
+        if ((name === 'stateSize' || name.startsWith('stateSize_node_') || name.startsWith('stateSize_id_')) && typeof value === 'number') {
             const maxStateSize = this.backend?.capabilities?.maxStateSize || 2048
             if (value > maxStateSize) {
                 console.warn(`[Pipeline] Capping stateSize from ${value} to ${maxStateSize} for device compatibility`)
@@ -2168,7 +2242,7 @@ export class Pipeline {
 
         // Scoped uniforms (e.g. stateSize_node_5, volumeSize_chain_0) target
         // exactly one chain or particle pipeline; don't fan out to siblings.
-        const isScopedUniform = /_node_\d+$/.test(name) || /_chain_\d+$/.test(name)
+        const isScopedUniform = /_node_\d+$/.test(name) || /_chain_\d+$/.test(name) || ELEMENT_SCOPED.test(name)
 
         // Update the uniform in all passes that reference it.
         //
@@ -2201,7 +2275,7 @@ export class Pipeline {
                 }
                 if (!isScopedUniform && pass.uniforms) {
                     for (const key of Object.keys(pass.uniforms)) {
-                        if (key.startsWith(name + '_node_') || key.startsWith(name + '_chain_')) {
+                        if (key.startsWith(name + '_node_') || key.startsWith(name + '_chain_') || key.startsWith(name + '_id_')) {
                             const currentValue = pass.uniforms[key]
                             if (!this.isAutomationConfig(currentValue)) {
                                 pass.uniforms[key] = value
@@ -2314,6 +2388,7 @@ export class Pipeline {
      * Scoped params take two forms:
      *   - `paramName_node_N` (per-particle-pipeline, e.g. stateSize_node_5)
      *   - `paramName_chain_N` (per-chain, e.g. volumeSize_chain_0, zoom_chain_0)
+     *   - `paramName_id_<id>@<op>` (per element with an `_id:`, e.g. zoom_id_pond@synth.reactionDiffusion)
      * @param {number|string|object} spec - Dimension specification
      * @param {string} paramName - Base parameter name to check for
      * @returns {boolean} True if the spec references a scoped version of the parameter
@@ -2325,7 +2400,8 @@ export class Pipeline {
                   : null
         if (!ref) return false
         return ref.startsWith(paramName + '_node_') ||
-               ref.startsWith(paramName + '_chain_')
+               ref.startsWith(paramName + '_chain_') ||
+               ref.startsWith(paramName + '_id_')
     }
 
     /**
@@ -2945,9 +3021,10 @@ export class Pipeline {
             if (name.includes('state') || name.includes('State')) {
                 return true
             }
-            // Scoped particle textures: xyz_node_N, vel_node_N, rgba_node_N, points_trail_node_N
-            // These are created when multiple particle pipelines coexist in the same chain
-            if (/^(xyz|vel|rgba|points_trail)_node_\d+$/.test(name)) {
+            // Scoped particle textures: xyz_node_N, vel_node_N, rgba_node_N, points_trail_node_N,
+            // or the same names keyed by an emitter's `_id:`. These are created when
+            // multiple particle pipelines coexist in the same chain
+            if (/^(xyz|vel|rgba|points_trail)_(node_\d+|id_[A-Za-z][A-Za-z0-9_]*@[^@]+)$/.test(name)) {
                 return true
             }
             return false
