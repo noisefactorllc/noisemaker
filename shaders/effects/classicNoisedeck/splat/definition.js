@@ -140,6 +140,7 @@ export default new Effect({
       type: "int",
       default: 1,
       uniform: "speckSeed",
+      inheritsSeed: true,
       min: 1,
       max: 100,
       ui: {

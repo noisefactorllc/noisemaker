@@ -174,6 +174,7 @@ export default new Effect({
       type: "float",
       default: 42,
       uniform: "matrixSeed",
+      inheritsSeed: true,
       min: 0,
       max: 1000,
       step: 1,

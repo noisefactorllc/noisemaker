@@ -7,7 +7,7 @@ import { resolveParamAliases } from './paramAliases.js'
 import { checkEffectAlias } from './effectAliases.js'
 import { decodeJsonStringLiteralContent } from './stringLiterals.js'
 import { SURFACE } from '../stability.js'
-import { joinKey } from './draws.js'
+import { drawU32, joinKey, randIntFrom } from './draws.js'
 import { RandomCallError, containsRandom, resolveRandom, sourceCallsRandom } from './randomize.js'
 
 /**
@@ -222,6 +222,9 @@ export function validate(ast) {
     const letDeclarations = new Map()
     // The key of the value an effect is passed into, while it compiles.
     const valueKeys = []
+    // The seeds of the enclosing `_seed:` scopes, innermost last.
+    const seedScopes = []
+    const scopeSeed = () => (seedScopes.length ? seedScopes[seedScopes.length - 1] : programSeed)
 
     function choicesFor(effect, param) {
         let candidates = []
@@ -254,10 +257,10 @@ export function validate(ast) {
         return Object.keys(def.choices)
     }
 
-    function randomContext(key, seed = programSeed) {
+    function randomContext(key, seed = scopeSeed(), absolute = false) {
         return {
             seed,
-            key: joinKey(...keyScope, key),
+            key: absolute ? key : joinKey(...keyScope, key),
             isShadowed: name => symbols.has(name),
             choicesFor
         }
@@ -265,9 +268,9 @@ export function validate(ast) {
 
     // Resolve the random calls in a value written at `key`. Returns the
     // resolved value, or undefined after reporting an error.
-    function resolveRandomAt(node, key) {
+    function resolveRandomAt(node, key, seed, absolute) {
         try {
-            return resolveRandom(node, randomContext(key))
+            return resolveRandom(node, randomContext(key, seed, absolute))
         } catch (error) {
             if (!(error instanceof RandomCallError)) throw error
             pushDiag(error.code, error.node || node, error.message)
@@ -1377,11 +1380,32 @@ export function validate(ast) {
                 // The element's key for its draws: its occurrence name, or,
                 // for an effect passed as a value, the key of that value.
                 const occurrence = original.fromLet ? call.name : nextOccurrence(call.name)
-                const elementKey = valueKeys.length
-                    ? `${valueKeys[valueKeys.length - 1]}/e:${opName}`
-                    : `${opName}@${occurrence}`
+                // `_seed:` gives the element a scope of its own: its draws
+                // use that seed, and their keys restart at the element.
+                let elementSeed = null
+                const ownSeed = call.kwargs?._seed
+                if (ownSeed !== undefined) {
+                    if (containsRandom(ownSeed)) {
+                        pushDiag('S013', original, 'A random call cannot set _seed: it must be a literal')
+                    } else if (ownSeed.type !== 'Number' || !Number.isInteger(ownSeed.value) || ownSeed.value < 0 || ownSeed.value > 4294967295) {
+                        pushDiag('S012', ownSeed.loc ? ownSeed : original, '_seed must be a whole number from 0 to 4294967295')
+                    } else {
+                        elementSeed = ownSeed.value
+                    }
+                }
+                const callSeed = elementSeed ?? scopeSeed()
+                const restartsKeys = elementSeed !== null
+                const elementKey = restartsKeys
+                    ? opName
+                    : valueKeys.length
+                        ? `${valueKeys[valueKeys.length - 1]}/e:${opName}`
+                        : `${opName}@${occurrence}`
+                // Whether unseeded effect seeds inherit here: with a seed
+                // directive, or inside a `_seed:` scope.
+                const inherits = hasSeedDirective || restartsKeys || seedScopes.length > 0
                 let randomSources = null
-                let authoredSeed = false
+                const authoredSeeds = []
+                const inheritable = []
                 const isStarter = isStarterOp(opName)
                 const starterlessRoot = current === null
                 const allowPassthroughRoot = allowStarterless && SURFACE_PASSTHROUGH_CALLS.has(opName)
@@ -1472,14 +1496,18 @@ export function validate(ast) {
                     node = substitute(node)
                     const argKey = def.name
                     if (kw && kw[def.name] !== undefined) seen.add(def.name)
-                    if (def.name === 'seed' && hasSeedDirective && node !== undefined) authoredSeed = true
+                    const isSeedParam = def.name === 'seed' || def.inheritsSeed === true
+                    if (isSeedParam && inherits) {
+                        if (node !== undefined) authoredSeeds.push(def.name)
+                        else inheritable.push(def)
+                    }
                     if (node && node.type === 'Func' && sourceCallsRandom(node.src)) {
                         pushDiag('S013', original, `A random call cannot be evaluated at run time, in '${def.name}' of ${call.name}()`)
                         node = undefined
                     }
                     if (node && containsRandom(node)) {
                         const source = node
-                        node = resolveRandomAt(node, joinKey(elementKey, def.name))
+                        node = resolveRandomAt(node, joinKey(elementKey, def.name), callSeed, restartsKeys)
                         if (node !== undefined) {
                             randomSources = randomSources || {}
                             randomSources[argKey] = source
@@ -1528,22 +1556,26 @@ export function validate(ast) {
                         surf = inlineSurface
                     } else if (node && node.type === 'Chain') {
                         valueKeys.push(joinKey(elementKey, argKey))
+                        seedScopes.push(callSeed)
                         let idx
                         try {
                             idx = processChain(node.chain, null, {allowStarterless: true})
                         } finally {
                             valueKeys.pop()
+                            seedScopes.pop()
                         }
                         if (idx !== null && idx !== undefined) {
                             surf = {kind:'temp', index: idx}
                         }
                     } else if (node && node.type === 'Call') {
                         valueKeys.push(joinKey(elementKey, argKey))
+                        seedScopes.push(callSeed)
                         let idx
                         try {
                             idx = processChain([node], null, {allowStarterless: true})
                         } finally {
                             valueKeys.pop()
+                            seedScopes.pop()
                         }
                         if (idx !== null && idx !== undefined) {
                             surf = {kind:'temp', index: idx}
@@ -1940,6 +1972,25 @@ export function validate(ast) {
                     }
                 }
 
+                // The element's own seed is kept for the unparser.
+                if (kw && kw._seed !== undefined) {
+                    if (elementSeed !== null) args._seed = elementSeed
+                    seen.add('_seed')
+                }
+
+                // Effect seeds the program did not set inherit from the
+                // scope's seed: a draw over the parameter's whole-number range.
+                let inheritedSeeds = null
+                for (const def of inheritable) {
+                    if (!Number.isFinite(def.min) || !Number.isFinite(def.max)) continue
+                    const key = restartsKeys
+                        ? joinKey(elementKey, def.name, 'inherit')
+                        : joinKey(...keyScope, elementKey, def.name, 'inherit')
+                    args[def.name] = randIntFrom(drawU32(callSeed, key), Math.ceil(def.min), Math.floor(def.max))
+                    inheritedSeeds = inheritedSeeds || {}
+                    inheritedSeeds[def.name] = true
+                }
+
                 // Handle _skip meta-argument (skip this step in the pipeline)
                 if (kw && kw._skip !== undefined) {
                     const skipNode = kw._skip
@@ -2015,7 +2066,8 @@ export function validate(ast) {
                 // existing programs add no new fields to compiled output.
                 if (argSources) { step.argSources = argSources }
                 if (randomSources) { step.randomSources = randomSources }
-                if (authoredSeed) { step.authoredSeed = true }
+                if (authoredSeeds.length) { step.authoredSeeds = authoredSeeds }
+                if (inheritedSeeds) { step.inheritedSeeds = inheritedSeeds }
                 chain.push(step)
                 current = idx
             }

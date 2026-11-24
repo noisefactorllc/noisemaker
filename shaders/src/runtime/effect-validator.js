@@ -33,7 +33,7 @@ const ENABLED_BY_OPS = ['eq', 'neq', 'lt', 'gt', 'gte', 'lte', 'in', 'notIn']
 const GLOBAL_SPEC_KEYS = [
     'type', 'default', 'uniform', 'define', 'choices', 'enum',
     'min', 'max', 'step', 'zero', 'randMin', 'randMax', 'randChance', 'randChoices',
-    'colorModeUniform', 'ui'
+    'colorModeUniform', 'inheritsSeed', 'ui'
 ]
 
 const PASS_KEYS = [
@@ -643,6 +643,9 @@ function validateGlobals(globals, errors, context) {
             if (spec[field] !== undefined && !isFiniteNumber(spec[field])) {
                 errors.push(`${label}: "${field}" must be a finite number`)
             }
+        }
+        if (spec.inheritsSeed !== undefined && spec.inheritsSeed !== true) {
+            errors.push(`${label}: "inheritsSeed" must be true when present`)
         }
         if (spec.randChoices !== undefined) {
             if (!Array.isArray(spec.randChoices) || !spec.randChoices.every(isFiniteNumber)) {

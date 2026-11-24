@@ -2314,7 +2314,8 @@ export class CanvasRenderer {
                     min: spec.min,
                     max: spec.max,
                     uniform: spec.uniform,
-                    choices: spec.choices
+                    choices: spec.choices,
+                    ...(spec.inheritsSeed && { inheritsSeed: true })
                 }
             })
 

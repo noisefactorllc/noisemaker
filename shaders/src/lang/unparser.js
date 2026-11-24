@@ -923,6 +923,10 @@ function unparseCall(call, options = {}) {
             // program — vec3()/vec4()/hex paths run unchanged.
             const sourceForm = call.argSources?.[key]
 
+            // An inherited effect seed is drawn from the program seed; the
+            // source never holds it.
+            if (call.inheritedSeeds?.[key]) continue
+
             // A value drawn by a random call is written as the call.
             const randomSource = call.randomSources?.[key]
             if (randomSource) {
@@ -933,7 +937,7 @@ function unparseCall(call, options = {}) {
             // Check against default value. An authored seed is kept in a
             // program with a seed directive, where leaving it out would make
             // the effect inherit the program seed.
-            const keepAuthoredSeed = key === 'seed' && call.authoredSeed
+            const keepAuthoredSeed = call.authoredSeeds?.includes(key)
             if (defaultSpec && defaultSpec.default !== undefined && !keepAuthoredSeed) {
                 const formattedValue = formatValue(value, spec, options, sourceForm)
                 const formattedDefault = formatValue(defaultSpec.default, spec, options)
@@ -1483,7 +1487,8 @@ export function unparse(compiled, overrides = {}, options = {}) {
             // input form, so existing programs see no behavior change.
             if (step.argSources) call.argSources = step.argSources
             if (step.randomSources) call.randomSources = { ...step.randomSources }
-            if (step.authoredSeed) call.authoredSeed = true
+            if (step.inheritedSeeds) call.inheritedSeeds = step.inheritedSeeds
+            if (step.authoredSeeds) call.authoredSeeds = step.authoredSeeds
 
             // Start with original args (already keyed by param names)
             if (step.args) {
