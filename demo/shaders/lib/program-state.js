@@ -516,23 +516,30 @@ export class ProgramState extends Emitter {
             }
         })
         if (failure) throw failure
-        const defineValues = () => {
-            const values = []
-            for (const [stepKey, stepState] of this._stepStates) {
-                for (const [name, spec] of Object.entries(stepState.effectDef?.globals || {})) {
-                    if (spec?.define) values.push(`${stepKey}.${name}=${JSON.stringify(this.getValue(stepKey, name))}`)
-                }
-            }
-            return values.join('|')
-        }
         const structureChanged = this.wouldChangeStructure(dsl)
-        const definesBefore = defineValues()
+        const definesBefore = this._defineValues()
         this._renderer.currentDsl = dsl
         this.fromDsl(dsl)
-        const recompile = structureChanged || defineValues() !== definesBefore
+        const recompile = structureChanged || this._defineValues() !== definesBefore
         if (recompile) this.emit('recompileNeeded', { reason: 'seed' })
         this.emit('seedchange', { seed: this.getSeed(), dsl, recompile })
         return dsl
+    }
+
+    /**
+     * The values of the compile-time define parameters, as one string to
+     * compare before and after an edit.
+     * @returns {string}
+     * @private
+     */
+    _defineValues() {
+        const values = []
+        for (const [stepKey, stepState] of this._stepStates) {
+            for (const [name, spec] of Object.entries(stepState.effectDef?.globals || {})) {
+                if (spec?.define) values.push(`${stepKey}.${name}=${JSON.stringify(this.getValue(stepKey, name))}`)
+            }
+        }
+        return values.join('|')
     }
 
     /**
@@ -1359,15 +1366,18 @@ export class ProgramState extends Emitter {
 
         // Load DSL (this rebuilds stepStates from structure). A snapshot can
         // hold another program than the compiled one, as an undo across an
-        // added or removed step does. Make it the renderer's current program,
-        // so toDsl() and serialize() describe it, and ask the host to
-        // recompile once the state is restored.
+        // added or removed step or across a reseed does. Make it the
+        // renderer's current program, so toDsl(), serialize() and getSeed()
+        // describe it, and ask the host to recompile once the state is
+        // restored when its structure or a compile-time define differs.
         let programChanged = false
+        let definesBefore = null
         if (data.dsl) {
             if (this._renderer && this._renderer.currentDsl !== data.dsl) {
                 const compiled = extractEffectsFromDsl(this._renderer.currentDsl || '') || []
                 programChanged = !this._structuresMatch(compiled, extractEffectsFromDsl(data.dsl) || [])
-                if (programChanged) this._renderer.currentDsl = data.dsl
+                if (!programChanged) definesBefore = this._defineValues()
+                this._renderer.currentDsl = data.dsl
             }
             this.fromDsl(data.dsl)
         }
@@ -1379,6 +1389,8 @@ export class ProgramState extends Emitter {
                 stepState.values = { ...stepState.values, ...savedState.values }
             }
         }
+
+        if (definesBefore !== null && this._defineValues() !== definesBefore) programChanged = true
 
         this._applyToPipeline()
         this.emit('load', { structure: this._structure })

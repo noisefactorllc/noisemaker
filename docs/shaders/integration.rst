@@ -672,7 +672,7 @@ the image from ``imageSize``:
 Undo/Redo
 ---------
 
-Use ``serialize()``/``deserialize()`` for undo/redo. A snapshot can hold another program than the compiled one, for example after a step was added or removed. Then ``deserialize()`` makes the snapshot's program the renderer's ``currentDsl`` and emits ``recompileNeeded``, and the host compiles ``state.toDsl()``:
+Use ``serialize()``/``deserialize()`` for undo/redo. A snapshot can hold another program than the compiled one, for example after a step was added or removed, or after a reseed. Then ``deserialize()`` makes the snapshot's program the renderer's ``currentDsl``. When its structure or a compile-time define differs, it emits ``recompileNeeded``, and the host compiles ``state.toDsl()``:
 
 .. code-block:: javascript
 

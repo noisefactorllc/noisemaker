@@ -155,3 +155,49 @@ test('a pin in a part used once is written into the part', () => {
     state.setSeed(500)
     assert.equal(value(state, 'amount', 'step_1'), before)
 })
+
+test('an undo of a reseed restores the seed, the drawn values and the source', () => {
+    const src = 'search synth\nseed 7\nnoise(scaleY: rand(1, 10)).write(o0)'
+    const { host, state } = stateFor(src)
+    const before = value(state, 'scaleY')
+    const snapshot = state.serialize()
+    state.setSeed(8)
+    assert.notEqual(value(state, 'scaleY'), before)
+    state.deserialize(snapshot)
+    assert.equal(state.getSeed(), 7)
+    assert.equal(host.currentDsl, snapshot.dsl)
+    assert.equal(value(state, 'scaleY'), before)
+    assert.match(state.toDsl(), /^search synth\nseed 7\n/)
+    assert.match(state.toDsl(), /scaleY: rand\(1, 10\)/)
+})
+
+test('an undo of a reseed that changed structure asks for a recompile', () => {
+    const dsl = 'search synth, filter\nseed 0\nnoise()\nmaybe(0.5) {\n    .posterize()\n}\n.write(o0)'
+    const taken = s => chanceFrom(drawU32(s, 'maybe_1/decide'), 0.5)
+    let other = 1
+    while (taken(other) === taken(0)) other++
+    const { host, state, events } = stateFor(dsl)
+    const snapshot = state.serialize()
+    state.setSeed(other)
+    events.length = 0
+    state.deserialize(snapshot)
+    assert.equal(state.getSeed(), 0)
+    assert.equal(host.currentDsl, snapshot.dsl)
+    assert.deepEqual(events.map(e => e[0]), ['recompileNeeded'])
+})
+
+test('an undo of a reseed that changed a compile-time define asks for a recompile', () => {
+    const dsl = s => `search synth\nseed ${s}\nnoise(type: pick(0, 1)).write(o0)`
+    let other = 1
+    while (compile(dsl(other)).plans[0].chain[0].args.type === compile(dsl(0)).plans[0].chain[0].args.type) other++
+    const { host, state, events } = stateFor(dsl(0))
+    const type = value(state, 'type')
+    const snapshot = state.serialize()
+    state.setSeed(other)
+    assert.equal(events.find(e => e[0] === 'seedchange')[1].recompile, true)
+    events.length = 0
+    state.deserialize(snapshot)
+    assert.equal(host.currentDsl, snapshot.dsl)
+    assert.equal(value(state, 'type'), type)
+    assert.deepEqual(events.map(e => e[0]), ['recompileNeeded'])
+})
