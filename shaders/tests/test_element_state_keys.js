@@ -264,12 +264,45 @@ test('an emitter with _id: keys its particle state, and a host stateSize write r
     assert.equal(widthOf(pipeline, `xyz_${emitter}`), size)
 })
 
-test('two uses of a part keep their own state: an id in a part body names it within one use', () => {
-    const graph = compileGraph(program('part fb {\n  .feedback(_id: "loop")\n}\nnoise().use(fb, _id: "a").write(o0)\nnoise().use(fb, _id: "b").write(o1)'))
-    const selfTextures = [...graph.textures.keys()].filter(key => key.endsWith('__selfTex'))
-    assert.equal(selfTextures.length, 2, selfTextures.join(', '))
-    assert.ok(selfTextures.every(key => !key.includes('id_loop')), selfTextures.join(', '))
-    assert.equal(graph.elementKeys, undefined)
+test('two uses of a part keep their own state, keyed by the use path and the element id', () => {
+    const FB = 'part fb {\n  .feedback(_id: "loop")\n}\n'
+    const graph = compileGraph(program(`${FB}noise().use(fb, _id: "a").write(o0)\nnoise().use(fb, _id: "b").write(o1)`))
+    const selfTextures = [...graph.textures.keys()].filter(key => key.endsWith('__selfTex')).sort()
+    assert.deepEqual(selfTextures, [`${elementStateKey('a/loop', 'filter.feedback')}__selfTex`, `${elementStateKey('b/loop', 'filter.feedback')}__selfTex`])
+    assert.deepEqual(Object.keys(graph.elementKeys).sort(), ['a/loop', 'b/loop'])
+})
+
+test('a part used inside a part keys its state by every enclosing use, outermost first', () => {
+    const parts = 'part fb {\n  .feedback(_id: "loop")\n}\npart outer {\n  .invert().use(fb, _id: "inner")\n}\n'
+    const graph = compileGraph(program(`${parts}noise().use(outer, _id: "x").write(o0)`))
+    assert.deepEqual(Object.keys(graph.elementKeys), ['x/inner/loop'])
+    assert.equal(graph.elementKeys['x/inner/loop'].key, elementStateKey('x/inner/loop', 'filter.feedback'))
+})
+
+test('a use whose id repeats an earlier one keys its state by its own key name', () => {
+    const FB = 'part fb {\n  .feedback(_id: "loop")\n}\n'
+    const graph = compileGraph(program(`${FB}noise().use(fb, _id: "a").write(o0)\nnoise().use(fb, _id: "a").write(o1)`))
+    const ids = Object.keys(graph.elementKeys)
+    assert.equal(ids.length, 2, ids.join(', '))
+    assert.ok(ids.includes('a/loop'), ids.join(', '))
+})
+
+test('state in a part instance survives an insertion before its use, and a rename of the use moves it', () => {
+    const FB = 'part fb {\n  .feedback(_id: "loop")\n}\n'
+    const base = `${FB}noise().use(fb, _id: "a").write(o0)`
+    const pipeline = pipelineFor(program(base))
+    const renderer = rendererFor(pipeline)
+    const key = renderer.keyOf('a/loop', '_selfTex')
+    assert.equal(key, `${elementStateKey('a/loop', 'filter.feedback')}__selfTex`)
+    const record = pipeline.backend.textures.get(key)
+    recompile(pipeline, program(`${FB}solid(color: #ff0000).write(o2)\nnoise().invert().use(fb, _id: "a").write(o0)`))
+    assert.equal(renderer.keyOf('a/loop', '_selfTex'), key)
+    assert.equal(pipeline.backend.textures.get(key), record, 'the same texture holds the state')
+    recompile(pipeline, program(base.replace('_id: "a"', '_id: "b"')))
+    const to = renderer.keyOf('b/loop', '_selfTex')
+    pipeline.backend.copies.length = 0
+    assert.equal(renderer.moveState(key, to), true)
+    assert.deepEqual(pipeline.backend.copies, [[key, to]])
 })
 
 test('an overlay effect with _id: draws into its element-keyed texture', () => {

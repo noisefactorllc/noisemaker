@@ -318,6 +318,7 @@ type CompiledStep = {
   builtin?: boolean
   namespace?: object
   idDuplicate?: true  // its args._id repeats an earlier element's (S010); it keeps its position key
+  idScope?: string  // in a part body: the `/`-joined key names of the enclosing use sites
   rawKwargs?: Record<string, ParsedExpr>
   argSources?: Record<string, "array">
   leadingComments?: string[]
@@ -2418,7 +2419,10 @@ that state in place across a hot recompile. `CanvasRenderer.keyOf(elementId,
 name)` returns a key, or `null`; `CanvasRenderer.moveState(fromKey, toKey)`
 copies live state between two keys of one state under two ids, for a rename,
 and returns `false` when a key holds no state, names a size parameter, or names
-a 3D texture or one of another format. An element in a part body keeps its position key. `Pipeline.setUniform()` also reaches the
+a 3D texture or one of another format. Inside a part, the id in the key is the
+element's instance identity: the `/`-joined key names of its enclosing `use`
+sites and its own id (`id_left/pond@synth.reactionDiffusion`), which is also
+the `elementId` that `keyOf()` takes. `Pipeline.setUniform()` also reaches the
 id-scoped copy of an unscoped sizing name.
 
 `resolveDimension()` resolves `"screen"`, `"auto"`, `"input"` and

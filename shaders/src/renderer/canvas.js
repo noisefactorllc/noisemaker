@@ -999,7 +999,9 @@ export class CanvasRenderer {
      * element with an `_id:` keys its state textures and size parameters by
      * the id and its resolved op name; a host gets the keys here instead of
      * composing them.
-     * @param {string} elementId - The element's `_id:`
+     * @param {string} elementId - The element's `_id:`, or inside a part its
+     *   instance identity: the `/`-joined key names of the enclosing `use`
+     *   sites and its own id, such as `left/pond`
      * @param {string} name - A state texture or size parameter of its effect,
      *   such as `global_rd_state` or `zoom`
      * @returns {string|null} The key, or null when the current program has no

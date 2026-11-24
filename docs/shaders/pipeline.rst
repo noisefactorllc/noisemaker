@@ -467,13 +467,23 @@ Inserting, deleting or reordering other elements or chains therefore leaves
 the element's state in place across a recompile. A replacement effect under the
 same id has another op name, so it gets new state. Textures that several
 effects of a chain share, and the ``volumeSize`` that flows down a chain, keep
-their chain scope. An element without an ``_id:``, an element whose id
-repeats an earlier one (``S010``), and an element in a part body, whose id names
-it within one use of the part, keep their position keys as described above.
+their chain scope. An element without an ``_id:`` and an element whose id
+repeats an earlier one (``S010``) keep their position keys as described above.
+
+Inside a part body, an ``_id:`` names an element within one use of the part.
+Every enclosing ``use`` site then has an ``_id:`` too, and the element's id in
+its key is its instance identity: the key names of the enclosing ``use``
+sites, outermost first, and its own id, joined by ``/``. In
+``use(edges, _id: "left")``, the element ``_id: "pond"`` of the part keys its
+state as ``id_left/pond@synth.reactionDiffusion``, so each use of the part has
+its own state. A ``use`` whose id repeats an earlier one contributes its key
+name, which ends in ``'``, so it never takes another use's state.
 
 A host reads the keys from the renderer and does not compose them:
 
-* ``renderer.keyOf(elementId, name)`` returns the key of the element's state
+* ``renderer.keyOf(elementId, name)``, where ``elementId`` is the element's
+  id or, inside a part, its instance identity such as ``left/pond``, returns
+  the key of the element's state
   texture or size parameter ``name``, such as ``global_rd_state`` or ``zoom``,
   or ``null`` when the current program has no such element or the element no
   such state.

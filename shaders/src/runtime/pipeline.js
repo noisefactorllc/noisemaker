@@ -7,6 +7,7 @@ import { WebGL2Backend } from './backends/webgl2.js'
 import { WebGPUBackend } from './backends/webgpu.js'
 import { expandPalette } from './palette-expansion.js'
 import { getEffect } from './registry.js'
+import { ELEMENT_IDENTITY } from './expander.js'
 import { Effect } from './effect.js'
 import { CUBE_FACE_BASES } from '../renderer/cubeCamera.js'
 import { CanvasSink, SinkManager } from './sink.js'
@@ -15,7 +16,11 @@ import { DiagnosticCollector } from './backends/diagnostics.js'
 import { SRGB, configureWebGL2Canvas, configureWebGPUCanvas } from './color-output.js'
 
 // A uniform scoped to one element by its `_id:` (expander elementStateKey()).
-const ELEMENT_SCOPED = /_id_[A-Za-z][A-Za-z0-9_]*@[^@]+$/
+const ELEMENT_SCOPED = new RegExp(`_id_${ELEMENT_IDENTITY}@[^@]+$`)
+// An element's state key, with its identity and op captured.
+const ELEMENT_KEY = new RegExp(`^id_(${ELEMENT_IDENTITY})@(.+)$`)
+// A particle texture scoped to an emitter by its node or its `_id:`.
+const SCOPED_PARTICLE_TEXTURE = new RegExp(`^(xyz|vel|rgba|points_trail)_(node_\\d+|id_${ELEMENT_IDENTITY}@[^@]+)$`)
 
 /**
  * Oscillator evaluation functions.
@@ -2169,7 +2174,7 @@ export class Pipeline {
                     : keyed === `${element.key}_${name}` ? ['', `_${name}`] : [null, null]
                 if (prefix === null || !fromKey.startsWith(prefix) || !fromKey.endsWith(suffix)) return false
                 const fromElement = fromKey.slice(prefix.length, fromKey.length - suffix.length)
-                const id = fromElement.match(/^id_([A-Za-z][A-Za-z0-9_]*)@(.+)$/)
+                const id = fromElement.match(ELEMENT_KEY)
                 return Boolean(id) && id[2] === element.op && fromElement !== element.key
             }
         }
@@ -3024,7 +3029,7 @@ export class Pipeline {
             // Scoped particle textures: xyz_node_N, vel_node_N, rgba_node_N, points_trail_node_N,
             // or the same names keyed by an emitter's `_id:`. These are created when
             // multiple particle pipelines coexist in the same chain
-            if (/^(xyz|vel|rgba|points_trail)_(node_\d+|id_[A-Za-z][A-Za-z0-9_]*@[^@]+)$/.test(name)) {
+            if (SCOPED_PARTICLE_TEXTURE.test(name)) {
                 return true
             }
             return false

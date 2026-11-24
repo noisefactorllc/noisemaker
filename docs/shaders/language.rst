@@ -471,6 +471,21 @@ where it is written.
   base(_id: "left").write(o0)
   base(_id: "right").write(o1)
 
+* Inside a part body, ids are a namespace of their own for each use of the
+  part. An ``_id:`` there is an error unless every ``use`` of the part, and of
+  every part that uses it, carries its own ``_id:``. Each use then keeps its
+  own state for the element (see :ref:`element-state-keys`):
+
+.. code-block:: none
+
+  search synth, filter
+
+  part loop {
+      .feedback(_id: "fb")
+  }
+  noise().use(loop, _id: "left").write(o0)
+  noise().use(loop, _id: "right").write(o1)
+
 The unparser writes ``_id:`` back as the first keyword of its element. A program
 without ``_id:`` compiles and unparses as it did before.
 

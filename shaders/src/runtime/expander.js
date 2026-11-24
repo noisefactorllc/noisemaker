@@ -148,6 +148,23 @@ export function elementStateKey(id, op) {
     return `id_${id}@${op}`
 }
 
+/**
+ * The pattern of an element's instance identity, the `id` of elementStateKey():
+ * its `_id:`, or, inside a part, the `/`-joined key names of its enclosing
+ * `use` sites, outermost first, and its own `_id:`. A use's key name can end
+ * in `'` (an S010 duplicate), so no instance takes another's identity.
+ */
+export const ELEMENT_IDENTITY = "[A-Za-z][A-Za-z0-9_]*'*(?:/[A-Za-z][A-Za-z0-9_]*'*)*"
+
+/**
+ * The instance identity of a step with an `_id:` (ELEMENT_IDENTITY).
+ * @param {object} step - A compiled step whose args hold an `_id:`
+ * @returns {string}
+ */
+export function elementIdentity(step) {
+    return step.idScope ? `${step.idScope}/${step.args._id}` : step.args._id
+}
+
 export function expand(compilationResult, options = {}) {
     const shaderOverrides = options.shaderOverrides || {}
     const passes = []
@@ -424,14 +441,15 @@ export function expand(compilationResult, options = {}) {
             }
 
             const nodeId = `node_${step.temp}`
-            // An element with an `_id:` keys its own state by the id and its
-            // resolved op name (elementStateKey), in place of its chain and step
-            // position. An S010 duplicate keeps its position key, and so does an
-            // element in a part body, whose id names it within one use only.
-            const stateKey = typeof step.args?._id === 'string' && !step.idDuplicate && !step.idScope
-                ? elementStateKey(step.args._id, step.op) : null
+            // An element with an `_id:` keys its own state by its instance
+            // identity and its resolved op name (elementStateKey), in place of
+            // its chain and step position. Inside a part, the identity holds the
+            // key names of the enclosing `use` sites, so each use of the part
+            // has its own state. An S010 duplicate keeps its position key.
+            const identity = typeof step.args?._id === 'string' && !step.idDuplicate ? elementIdentity(step) : null
+            const stateKey = identity !== null ? elementStateKey(identity, step.op) : null
             const stateId = stateKey ?? nodeId
-            const elementState = stateKey ? (elementKeys[step.args._id] = { op: step.op, key: stateKey, state: {} }).state : null
+            const elementState = stateKey ? (elementKeys[identity] = { op: step.op, key: stateKey, state: {} }).state : null
             const recordState = (name, keyed) => { if (elementState && keyed.includes(stateKey)) elementState[name] = keyed }
             // Preserve legacy IDs for the first instance. Repeated private state
             // gets a node suffix; cooperating effects retain the shared chain scope.
