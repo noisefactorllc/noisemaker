@@ -194,6 +194,19 @@ export function validate(ast) {
     const render = ast.render ? ast.render.name : null
     let tempIndex = 0
 
+    // Element ids (`_id:`). Noisemaker 2 keys an element's state by its id;
+    // 1.x keys state by position, so an id has no effect here. It is kept in
+    // its step's args so that the unparser writes it back, and a program saved
+    // with ids keeps them. The value is kept when it is a string literal of
+    // letters, digits and '_' that starts with a letter, the form Noisemaker 2
+    // accepts; 1.x reports no diagnostic for an id and ignores any other value.
+    const ELEMENT_ID = /^[A-Za-z][A-Za-z0-9_]*$/
+    function keepElementId(idNode, args) {
+        if (idNode?.type === 'String' && idNode._varRef === undefined && ELEMENT_ID.test(idNode.value)) {
+            args._id = idNode.value
+        }
+    }
+
     const programSearchOrder = ast.namespace?.searchOrder
     if (!programSearchOrder || programSearchOrder.length === 0) {
         throw new Error("Missing required 'search' directive. Every program must start with 'search <namespace>, ...' to specify namespace search order.")
@@ -990,6 +1003,7 @@ export function validate(ast) {
                     if (original._skip === true) {
                         stepArgs._skip = true
                     }
+                    keepElementId(original._id, stepArgs)
                     const step = {
                         op: '_read',
                         args: stepArgs,
@@ -1036,6 +1050,7 @@ export function validate(ast) {
                     if (original._skip === true) {
                         stepArgs._skip = true
                     }
+                    keepElementId(original._id, stepArgs)
                     const step = {
                         op: '_read3d',
                         args: stepArgs,
@@ -1061,9 +1076,11 @@ export function validate(ast) {
                         continue
                     }
                     const idx = tempIndex++
+                    const writeArgs = { tex: surface }
+                    keepElementId(original._id, writeArgs)
                     const step = {
                         op: '_write',
-                        args: { tex: surface },
+                        args: writeArgs,
                         from: current,
                         temp: idx,
                         builtin: true
@@ -1097,9 +1114,11 @@ export function validate(ast) {
                         continue
                     }
                     const idx = tempIndex++
+                    const write3dArgs = { tex3d, geo }
+                    keepElementId(original._id, write3dArgs)
                     const step = {
                         op: '_write3d',
-                        args: { tex3d, geo },
+                        args: write3dArgs,
                         from: current,
                         temp: idx,
                         builtin: true
@@ -1782,6 +1801,12 @@ export function validate(ast) {
                         }
                         args[argKey] = value
                     }
+                }
+
+                // The element id (`_id:` meta-argument)
+                if (kw && kw._id !== undefined) {
+                    keepElementId(kw._id, args)
+                    seen.add('_id')
                 }
 
                 // Handle _skip meta-argument (skip this step in the pipeline)

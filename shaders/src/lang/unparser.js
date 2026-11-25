@@ -819,18 +819,21 @@ function formatValue(value, spec, options = {}, sourceForm) {
         // Handle Read node (pipeline built-in)
         if (value.type === 'Read') {
             const surfaceName = value.surface?.name || value.surface
-            return `read(${surfaceName})`
+            const id = elementIdValue(value._id)
+            return id !== undefined ? `read(_id: ${formatStringLiteral(id)}, surface: ${surfaceName})` : `read(${surfaceName})`
         }
         // Handle Read3D node (pipeline built-in)
         // 1 arg: read3d(vol0) - for param use
         // 2 args: read3d(vol0, geo0) - starter node
         if (value.type === 'Read3D') {
             const tex3dName = value.tex3d?.name || value.tex3d
+            const id = elementIdValue(value._id)
+            const idPart = id !== undefined ? `_id: ${formatStringLiteral(id)}, ` : ''
             if (value.geo) {
                 const geoName = value.geo?.name || value.geo
-                return `read3d(${tex3dName}, ${geoName})`
+                return id !== undefined ? `read3d(${idPart}tex3d: ${tex3dName}, geo: ${geoName})` : `read3d(${tex3dName}, ${geoName})`
             } else {
-                return `read3d(${tex3dName})`
+                return id !== undefined ? `read3d(${idPart}tex3d: ${tex3dName})` : `read3d(${tex3dName})`
             }
         }
         if (value.type === 'OutputRef') {
@@ -888,6 +891,31 @@ function formatValue(value, spec, options = {}, sourceForm) {
 }
 
 /**
+ * The `_id:` keyword a builtin step writes back, or null when it has none.
+ * An override that holds an `_id` key takes precedence over the step's, and a
+ * null or undefined one removes the id, as for an effect call.
+ * @param {object} step - Compiled builtin step
+ * @param {object} [override] - The step's overrides
+ * @returns {string|null}
+ */
+function builtinIdPart(step, override) {
+    const id = override && Object.hasOwn(override, '_id') ? override._id : step.args?._id
+    return typeof id === 'string' ? `_id: ${formatStringLiteral(id)}` : null
+}
+
+/**
+ * An element id as a string: a compiled step carries it as a string, and a
+ * `let` value or a parsed node as a String node.
+ * @param {*} value
+ * @returns {string|undefined}
+ */
+function elementIdValue(value) {
+    if (typeof value === 'string') return value
+    if (value && typeof value === 'object' && value.type === 'String' && typeof value.value === 'string') return value.value
+    return undefined
+}
+
+/**
  * Unparse a Call node
  * @param {object} call - Call AST node
  * @param {object} options - Unparse options (includes customFormatter, multilineKwargs)
@@ -902,9 +930,17 @@ function unparseCall(call, options = {}) {
     const parentIndent = ' '.repeat(Math.max(0, baseIndent))
     const childIndent = ' '.repeat(Math.max(0, baseIndent + 2))
 
+    // The element id goes first among the keywords
+    const elementId = elementIdValue(call.kwargs?._id)
+    if (elementId !== undefined) {
+        parts.push(`_id: ${formatStringLiteral(elementId)}`)
+    }
+
     // Handle kwargs (named arguments)
     if (call.kwargs && Object.keys(call.kwargs).length > 0) {
         for (const [key, value] of Object.entries(call.kwargs)) {
+            // An override of null or undefined removes the id
+            if (key === '_id' && (elementId !== undefined || value === null || value === undefined)) continue
             // Skip _skip: false
             if (key === '_skip' && value === false) continue
 
@@ -1318,10 +1354,12 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 const isSkipped = hasOverride
                     ? overrides[globalStepIndex]._skip === true
                     : step.args?._skip === true
-                // Use positional form when no _skip, keyword form when _skip is present
+                const idPart = builtinIdPart(step, overrides[globalStepIndex])
+                // Positional form with neither _skip nor _id, keyword form with
+                // either, so a call never mixes the two forms
                 let readCode
-                if (isSkipped) {
-                    readCode = `read(surface: ${texName}, _skip: true)`
+                if (isSkipped || idPart) {
+                    readCode = `read(${idPart ? `${idPart}, ` : ''}surface: ${texName}${isSkipped ? ', _skip: true' : ''})`
                 } else {
                     readCode = `read(${texName})`
                 }
@@ -1343,10 +1381,12 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 const isSkipped = hasOverride
                     ? overrides[globalStepIndex]._skip === true
                     : step.args?._skip === true
-                // Use positional form when no _skip, keyword form when _skip is present
+                const idPart = builtinIdPart(step, overrides[globalStepIndex])
+                // Positional form with neither _skip nor _id, keyword form with
+                // either, so a call never mixes the two forms
                 let read3dCode
-                if (isSkipped) {
-                    read3dCode = `read3d(tex3d: ${tex3d}, geo: ${geo}, _skip: true)`
+                if (isSkipped || idPart) {
+                    read3dCode = `read3d(${idPart ? `${idPart}, ` : ''}tex3d: ${tex3d}, geo: ${geo}${isSkipped ? ', _skip: true' : ''})`
                 } else {
                     read3dCode = `read3d(${tex3d}, ${geo})`
                 }
@@ -1363,7 +1403,8 @@ export function unparse(compiled, overrides = {}, options = {}) {
             // Handle builtin write operations (mid-chain writes)
             if (step.builtin && step.op === '_write') {
                 const texName = step.args?.tex?.name || step.args?.tex
-                currentChain.push(makeChainElement(`write(${texName})`))
+                const idPart = builtinIdPart(step, overrides[globalStepIndex])
+                currentChain.push(makeChainElement(`write(${texName}${idPart ? `, ${idPart}` : ''})`))
                 globalStepIndex++
                 continue
             }
@@ -1371,7 +1412,8 @@ export function unparse(compiled, overrides = {}, options = {}) {
             if (step.builtin && step.op === '_write3d') {
                 const tex3dName = step.args?.tex3d?.name || step.args?.tex3d
                 const geoName = step.args?.geo?.name || step.args?.geo
-                currentChain.push(makeChainElement(`write3d(${tex3dName}, ${geoName})`))
+                const idPart = builtinIdPart(step, overrides[globalStepIndex])
+                currentChain.push(makeChainElement(`write3d(${tex3dName}, ${geoName}${idPart ? `, ${idPart}` : ''})`))
                 globalStepIndex++
                 continue
             }
