@@ -1890,7 +1890,7 @@ type CompiledGraph = {
   sceneIR: SceneIR | null
   sceneVolumeAtlasScopes: Record<string, {surface: string, size: number}>
   mediaSteps: Array<{textureId: string, uniform: string, stepIndex: number, effect: string}> // per-step external texture bindings, one entry per distinct texture id in program order
-  gamut: 'p3' | null                 // the program's gamut directive; 'p3' skips the sRGB clamp on a Display P3 canvas, and media decode in Display P3
+  gamut: 'p3' | null                 // the program's gamut directive; 'p3' skips the sRGB clamp on a Display P3 canvas and in a display-p3 frame export, and media decode in Display P3
   compiledAt: number                 // Date.now(), milliseconds since epoch
 }
 
@@ -2924,6 +2924,7 @@ type PackedFrame = {
   height: number
   rowStride: number                // width * 4, with no row padding
   data: Uint8Array                 // top-down packed RGBA8 rows
+  colorSpace: "srgb" | "display-p3" // the descriptor's
 }
 
 type Sink = {
@@ -2953,6 +2954,13 @@ The generic sink boundary does not validate descriptors: `Pipeline.resize()`
 forwards its `width` and `height` arguments, and `SinkManager.configure()`
 stores and broadcasts the supplied value. When a `FrameExportQueue` uses the WebGL2 or WebGPU adapter, slot creation requires `width` and `height` to be positive safe integers.
 The format, color-space, alpha-mode, and fps predicates shown above must also hold.
+The adapters read surface values as straight alpha. An `srgb` descriptor
+delivers them clamped to 0 to 1; a `display-p3` descriptor converts them to
+Display P3 before the alpha mode (clamp to sRGB, decode the sRGB curve, the
+sRGB-to-P3 primaries matrix, encode, clamp to 0 to 1), and a program that
+declares `gamut p3` skips the clamp to sRGB, read frame by frame. The
+pipeline's own sink descriptor stays `srgb`, because sinks receive the
+extended sRGB surface texture.
 
 Sources: `shaders/src/runtime/sink.js`; `shaders/src/runtime/frame-export.js`;
 `shaders/src/index.js`.
@@ -3078,8 +3086,10 @@ pack buffer, and polls a fence with zero timeout. WebGPU resolves to
 canvas presentation), copies into 256-byte-aligned staging rows, maps
 asynchronously, and removes row padding before delivery. `straight` preserves
 RGBA, `opaque` forces alpha to one, and `premultiplied` multiplies RGB by
-alpha. `colorSpace` and `fps` are validated descriptor metadata. Neither backend
-adapter performs a color-space conversion or frame-rate throttle.
+alpha. `colorSpace` selects the frame's color space: `srgb` delivers the
+surface clamped to 0 to 1, and `display-p3` converts it to Display P3 before
+the alpha mode, as described above. `fps` is validated descriptor metadata;
+neither backend adapter throttles the frame rate.
 
 Each slot reuses one `PackedFrame` object and `Uint8Array`. A callback that
 retains a frame past later deliveries on the same slot must copy its data.

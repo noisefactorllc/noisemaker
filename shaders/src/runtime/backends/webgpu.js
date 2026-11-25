@@ -765,9 +765,9 @@ export class WebGPUBackend extends Backend {
         const flipY = options.flipY !== false
 
         // A program that declares `gamut p3` decodes its media in Display P3
-        // (mediaGamutOf, which the pipeline sets). Camera frames and a 2D
+        // (gamutOf, which the pipeline sets). Camera frames and a 2D
         // canvas whose context is srgb keep the default upload.
-        if (this.mediaGamutOf?.() === 'p3' && decodesInDisplayP3(source, options.context2d)) {
+        if (this.gamutOf?.() === 'p3' && decodesInDisplayP3(source, options.context2d)) {
             const p3Context2d = options.context2d?.canvas === source ? options.context2d : null
             const uploaded = this._uploadDisplayP3(id, source, width, height, flipY, p3Context2d)
             if (uploaded) return uploaded

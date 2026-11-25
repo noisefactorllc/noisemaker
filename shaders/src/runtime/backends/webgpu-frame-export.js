@@ -1,10 +1,14 @@
+import { EXPORT_DISPLAY_P3_WGSL } from '../display-p3-conversion.js'
+
 const ALPHA_MODES = Object.freeze([
     'straight',
     'opaque',
     'premultiplied'
 ])
 
-const RESOLVE_SHADER = `
+// The source binding, the fullscreen triangle and the source read, which both
+// resolve shaders share.
+const RESOLVE_SOURCE = `
 @group(0) @binding(0) var sourceTexture: texture_2d<f32>;
 
 struct VertexOutput {
@@ -29,7 +33,9 @@ fn loadColor(position: vec4<f32>) -> vec4<f32> {
     let sourceCoord = vec2<i32>(i32(position.x), i32(sourceSize.y) - 1 - i32(position.y));
     return textureLoad(sourceTexture, sourceCoord, 0);
 }
+`
 
+const RESOLVE_SHADER = `${RESOLVE_SOURCE}
 @fragment
 fn straight_main(input: VertexOutput) -> @location(0) vec4<f32> {
     return loadColor(input.position);
@@ -44,6 +50,35 @@ fn opaque_main(input: VertexOutput) -> @location(0) vec4<f32> {
 @fragment
 fn premultiplied_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let color = loadColor(input.position);
+    return vec4<f32>(color.rgb * color.a, color.a);
+}
+`
+
+// A display-p3 descriptor converts the straight surface value to Display P3
+// before the alpha mode: clamped to sRGB first, unless the program declares
+// `gamut p3` (the pipeline whose NM_CLAMP_TO_SRGB is false).
+const DISPLAY_P3_RESOLVE_SHADER = `
+override NM_CLAMP_TO_SRGB: bool = true;
+${EXPORT_DISPLAY_P3_WGSL}${RESOLVE_SOURCE}
+fn loadDisplayP3(position: vec4<f32>) -> vec4<f32> {
+    let color = loadColor(position);
+    return vec4<f32>(nmExportDisplayP3(color.rgb, NM_CLAMP_TO_SRGB), color.a);
+}
+
+@fragment
+fn straight_main(input: VertexOutput) -> @location(0) vec4<f32> {
+    return loadDisplayP3(input.position);
+}
+
+@fragment
+fn opaque_main(input: VertexOutput) -> @location(0) vec4<f32> {
+    let color = loadDisplayP3(input.position);
+    return vec4<f32>(color.rgb, 1.0);
+}
+
+@fragment
+fn premultiplied_main(input: VertexOutput) -> @location(0) vec4<f32> {
+    let color = loadDisplayP3(input.position);
     return vec4<f32>(color.rgb * color.a, color.a);
 }
 `
@@ -128,6 +163,7 @@ export class WebGPUFrameExportAdapter {
             index,
             width: descriptor.width,
             height: descriptor.height,
+            colorSpace: descriptor.colorSpace,
             alphaMode: descriptor.alphaMode,
             rowStride: layout.rowStride,
             bytesPerRow: layout.bytesPerRow,
@@ -137,7 +173,8 @@ export class WebGPUFrameExportAdapter {
                 width: descriptor.width,
                 height: descriptor.height,
                 rowStride: layout.rowStride,
-                data
+                data,
+                colorSpace: descriptor.colorSpace
             },
             resolveTexture: null,
             resolveView: null,
@@ -152,6 +189,7 @@ export class WebGPUFrameExportAdapter {
 
         try {
             this._ensureShared(constants)
+            if (slot.colorSpace === 'display-p3') this._ensureDisplayP3Pipelines(slot.alphaMode)
             slot.resolveTexture = this.device.createTexture({
                 size: {
                     width: slot.width,
@@ -228,7 +266,11 @@ export class WebGPUFrameExportAdapter {
                 storeOp: 'store'
             }]
         })
-        renderPass.setPipeline(this._shared.pipelines[slot.alphaMode])
+        // A display-p3 slot reads the current program's gamut directive, frame by frame.
+        const pipeline = slot.colorSpace === 'display-p3'
+            ? this._shared.displayP3[slot.alphaMode][this.backend.gamutOf?.() === 'p3' ? 'unclamped' : 'clamped']
+            : this._shared.pipelines[slot.alphaMode]
+        renderPass.setPipeline(pipeline)
         renderPass.setBindGroup(0, bindGroup)
         renderPass.draw(3, 1, 0, 0)
         renderPass.end()
@@ -418,7 +460,30 @@ export class WebGPUFrameExportAdapter {
                 primitive: { topology: 'triangle-list' }
             })
         }
-        this._shared = { bindGroupLayout, shaderModule, pipelineLayout, pipelines }
+        this._shared = { bindGroupLayout, shaderModule, pipelineLayout, pipelines, displayP3Module: null, displayP3: {} }
+    }
+
+    // The display-p3 pipelines of one alpha mode, clamped and unclamped, made
+    // with the first display-p3 slot that uses it.
+    _ensureDisplayP3Pipelines(alphaMode) {
+        const shared = this._shared
+        if (shared.displayP3[alphaMode]) return
+        shared.displayP3Module ??= this.device.createShaderModule({ code: DISPLAY_P3_RESOLVE_SHADER })
+        const pipeline = clampToSrgb => this.device.createRenderPipeline({
+            layout: shared.pipelineLayout,
+            vertex: {
+                module: shared.displayP3Module,
+                entryPoint: 'vs_main'
+            },
+            fragment: {
+                module: shared.displayP3Module,
+                entryPoint: `${alphaMode}_main`,
+                constants: { NM_CLAMP_TO_SRGB: clampToSrgb ? 1 : 0 },
+                targets: [{ format: 'rgba8unorm' }]
+            },
+            primitive: { topology: 'triangle-list' }
+        })
+        shared.displayP3[alphaMode] = { clamped: pipeline(true), unclamped: pipeline(false) }
     }
 
     _getBindGroup(source) {

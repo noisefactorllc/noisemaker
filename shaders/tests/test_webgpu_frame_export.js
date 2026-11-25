@@ -314,7 +314,8 @@ test('three slots allocate exact fixed resolve and aligned staging resources', (
             width: 65,
             height: 2,
             rowStride: 260,
-            data: slot.data
+            data: slot.data,
+            colorSpace: 'srgb'
         })
     }
 
@@ -643,4 +644,50 @@ test('backend factory returns FrameExportQueue with three slots and preserves th
     assert.equal(overrideQueue._slots.length, 2)
     assert.throws(() => backend.createFrameExportQueue({ slots: 1, gpuConstants: GPU }), RangeError)
     assert.throws(() => backend.createFrameExportQueue({ slots: 9, gpuConstants: GPU }), RangeError)
+})
+
+test('a display-p3 slot resolves through the Display P3 conversion in its own pipelines, and every frame names its color space', async () => {
+    const { device, backend, adapter } = makeHarness()
+    const srgb = adapter.createSlot(0, DESCRIPTOR)
+    const p3 = adapter.createSlot(1, { ...DESCRIPTOR, colorSpace: 'display-p3', alphaMode: 'premultiplied' })
+    const p3Again = adapter.createSlot(2, { ...DESCRIPTOR, colorSpace: 'display-p3', alphaMode: 'premultiplied' })
+
+    // The srgb module and pipelines are as before; display-p3 adds one module,
+    // and a clamped and an unclamped pipeline for each alpha mode it uses.
+    assert.equal(device.created.shaderModules.length, 2)
+    const [srgbCode, p3Code] = device.created.shaderModules.map(module => module.descriptor.code)
+    assert.doesNotMatch(srgbCode, /nmExportDisplayP3|NM_CLAMP_TO_SRGB/)
+    assert.match(p3Code, /override NM_CLAMP_TO_SRGB: bool = true;/)
+    assert.match(p3Code, /nmExportDisplayP3\(color\.rgb, NM_CLAMP_TO_SRGB\)/)
+    assert.match(p3Code, /fn premultiplied_main[\s\S]*color\.rgb \* color\.a/)
+    const p3Pipelines = device.created.renderPipelines.filter(pipeline => pipeline.descriptor.fragment.module === device.created.shaderModules[1])
+    assert.deepEqual(
+        p3Pipelines.map(pipeline => [pipeline.descriptor.fragment.entryPoint, pipeline.descriptor.fragment.constants]),
+        [['premultiplied_main', { NM_CLAMP_TO_SRGB: 1 }], ['premultiplied_main', { NM_CLAMP_TO_SRGB: 0 }]]
+    )
+    for (const pipeline of p3Pipelines) {
+        assert.equal(pipeline.descriptor.layout, device.created.pipelineLayouts[0])
+        assert.equal(pipeline.descriptor.fragment.targets[0].format, 'rgba8unorm')
+    }
+
+    assert.deepEqual([srgb, p3, p3Again].map(slot => slot.frame.colorSpace), ['srgb', 'display-p3', 'display-p3'])
+
+    const pipelineOf = async slot => {
+        device.calls.length = 0
+        adapter.begin(slot, 'source', 1)
+        const pipeline = callsNamed(device, 'setPipeline')[0][2]
+        await fulfillLastMap(slot)
+        assert.equal(adapter.poll(slot), true)
+        return { pipeline, frame: adapter.read(slot) }
+    }
+    const [clampedPipeline, unclampedPipeline] = p3Pipelines
+    assert.equal((await pipelineOf(srgb)).pipeline, device.created.renderPipelines[0])
+    const clamped = await pipelineOf(p3)
+    assert.deepEqual([clamped.pipeline, clamped.frame.colorSpace], [clampedPipeline, 'display-p3'])
+    // A program that declares `gamut p3` skips the clamp, frame by frame.
+    backend.gamutOf = () => 'p3'
+    assert.equal((await pipelineOf(p3Again)).pipeline, unclampedPipeline)
+    assert.equal((await pipelineOf(srgb)).pipeline, device.created.renderPipelines[0])
+    backend.gamutOf = () => null
+    assert.equal((await pipelineOf(p3)).pipeline, clampedPipeline)
 })

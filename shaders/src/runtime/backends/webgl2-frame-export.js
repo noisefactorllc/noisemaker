@@ -2,6 +2,7 @@ import {
     DEFAULT_VERTEX_SHADER,
     FULLSCREEN_TRIANGLE_VERTEX_COUNT
 } from '../default-shaders.js'
+import { EXPORT_DISPLAY_P3_GLSL } from '../display-p3-conversion.js'
 
 const ALPHA_MODE = Object.freeze({
     straight: 0,
@@ -24,6 +25,35 @@ void main() {
         sourceSize.y - 1 - int(gl_FragCoord.y)
     );
     vec4 color = texelFetch(u_texture, sourceCoord, 0);
+    if (u_alphaMode == 1) {
+        color.a = 1.0;
+    } else if (u_alphaMode == 2) {
+        color.rgb *= color.a;
+    }
+    fragColor = color;
+}
+`
+
+// A display-p3 descriptor converts the straight surface value to Display P3
+// before the alpha mode: clamped to sRGB first, unless the program declares
+// `gamut p3` (u_clampToSrgb false).
+const DISPLAY_P3_RESOLVE_FRAGMENT_SHADER = `#version 300 es
+precision highp float;
+precision highp int;
+
+uniform sampler2D u_texture;
+uniform int u_alphaMode;
+uniform bool u_clampToSrgb;
+out vec4 fragColor;
+${EXPORT_DISPLAY_P3_GLSL}
+void main() {
+    ivec2 sourceSize = textureSize(u_texture, 0);
+    ivec2 sourceCoord = ivec2(
+        int(gl_FragCoord.x),
+        sourceSize.y - 1 - int(gl_FragCoord.y)
+    );
+    vec4 color = texelFetch(u_texture, sourceCoord, 0);
+    color.rgb = nmExportDisplayP3(color.rgb, u_clampToSrgb);
     if (u_alphaMode == 1) {
         color.a = 1.0;
     } else if (u_alphaMode == 2) {
@@ -75,6 +105,7 @@ export class WebGL2FrameExportAdapter {
         this.backend = backend
         this.gl = backend.gl
         this._program = null
+        this._displayP3Program = null
         this._slotCount = 0
     }
 
@@ -85,6 +116,7 @@ export class WebGL2FrameExportAdapter {
             index,
             width: descriptor.width,
             height: descriptor.height,
+            colorSpace: descriptor.colorSpace,
             alphaMode: ALPHA_MODE[descriptor.alphaMode],
             texture: null,
             framebuffer: null,
@@ -100,11 +132,13 @@ export class WebGL2FrameExportAdapter {
             width: descriptor.width,
             height: descriptor.height,
             rowStride: descriptor.width * 4,
-            data: slot.data
+            data: slot.data,
+            colorSpace: descriptor.colorSpace
         }
 
         try {
-            this._ensureProgram()
+            if (slot.colorSpace === 'display-p3') this._ensureDisplayP3Program()
+            else this._ensureProgram()
 
             slot.texture = gl.createTexture()
             if (!slot.texture) throw new Error('Failed to create WebGL2 frame export resolve texture')
@@ -177,6 +211,8 @@ export class WebGL2FrameExportAdapter {
         }
 
         const gl = this.gl
+        const displayP3 = slot.colorSpace === 'display-p3'
+        const program = displayP3 ? this._displayP3Program : this._program
         slot.ready = false
         try {
             gl.bindFramebuffer(gl.FRAMEBUFFER, slot.framebuffer)
@@ -185,11 +221,13 @@ export class WebGL2FrameExportAdapter {
             gl.disable(gl.DEPTH_TEST)
             gl.disable(gl.SCISSOR_TEST)
             gl.disable(gl.CULL_FACE)
-            gl.useProgram(this._program.handle)
+            gl.useProgram(program.handle)
             gl.activeTexture(gl.TEXTURE0)
             gl.bindTexture(gl.TEXTURE_2D, source.handle)
-            gl.uniform1i(this._program.textureLocation, 0)
-            gl.uniform1i(this._program.alphaModeLocation, slot.alphaMode)
+            gl.uniform1i(program.textureLocation, 0)
+            gl.uniform1i(program.alphaModeLocation, slot.alphaMode)
+            // The current program's gamut directive, read frame by frame.
+            if (displayP3) gl.uniform1i(program.clampToSrgbLocation, this.backend.gamutOf?.() === 'p3' ? 0 : 1)
             gl.bindVertexArray(this.backend.fullscreenVAO)
             gl.drawArrays(gl.TRIANGLES, 0, FULLSCREEN_TRIANGLE_VERTEX_COUNT)
 
@@ -286,14 +324,24 @@ export class WebGL2FrameExportAdapter {
 
     _ensureProgram() {
         if (this._program) return
+        this._program = this._linkProgram(RESOLVE_FRAGMENT_SHADER)
+    }
 
+    _ensureDisplayP3Program() {
+        if (this._displayP3Program) return
+        const program = this._linkProgram(DISPLAY_P3_RESOLVE_FRAGMENT_SHADER)
+        program.clampToSrgbLocation = this.gl.getUniformLocation(program.handle, 'u_clampToSrgb')
+        this._displayP3Program = program
+    }
+
+    _linkProgram(fragmentSource) {
         const gl = this.gl
         let vertexShader = null
         let fragmentShader = null
         let handle = null
         try {
             vertexShader = this._compileShader(gl.VERTEX_SHADER, DEFAULT_VERTEX_SHADER)
-            fragmentShader = this._compileShader(gl.FRAGMENT_SHADER, RESOLVE_FRAGMENT_SHADER)
+            fragmentShader = this._compileShader(gl.FRAGMENT_SHADER, fragmentSource)
             handle = gl.createProgram()
             if (!handle) throw new Error('Failed to create WebGL2 frame export program')
             gl.attachShader(handle, vertexShader)
@@ -304,7 +352,7 @@ export class WebGL2FrameExportAdapter {
                 const message = gl.getProgramInfoLog(handle) || 'unknown link error'
                 throw new Error(`Failed to link WebGL2 frame export program: ${message}`)
             }
-            this._program = {
+            return {
                 handle,
                 textureLocation: gl.getUniformLocation(handle, 'u_texture'),
                 alphaModeLocation: gl.getUniformLocation(handle, 'u_alphaMode')
@@ -346,8 +394,10 @@ export class WebGL2FrameExportAdapter {
     }
 
     _destroyProgram() {
-        if (!this._program) return
-        this.gl.deleteProgram(this._program.handle)
+        for (const program of [this._program, this._displayP3Program]) {
+            if (program) this.gl.deleteProgram(program.handle)
+        }
         this._program = null
+        this._displayP3Program = null
     }
 }

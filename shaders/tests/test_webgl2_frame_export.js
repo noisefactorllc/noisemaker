@@ -406,3 +406,59 @@ test('backend factory returns a queue with three default slots and preserves bou
     assert.throws(() => backend.createFrameExportQueue({ slots: 1 }), RangeError)
     assert.throws(() => backend.createFrameExportQueue({ slots: 9 }), RangeError)
 })
+
+test('a display-p3 slot resolves through the Display P3 conversion in its own program, and every frame names its color space', () => {
+    const { gl, backend, adapter } = makeHarness()
+    const srgb = adapter.createSlot(0, DESCRIPTOR)
+    const p3 = adapter.createSlot(1, { ...DESCRIPTOR, colorSpace: 'display-p3', alphaMode: 'premultiplied' })
+    const p3Again = adapter.createSlot(2, { ...DESCRIPTOR, colorSpace: 'display-p3' })
+
+    // One program for srgb and one for display-p3, however many slots use them.
+    assert.equal(gl.created.program.length, 2)
+    const fragments = gl.shaderSources.filter(entry => entry.source.includes('out vec4 fragColor')).map(entry => entry.source)
+    assert.equal(fragments.length, 2)
+    const [srgbFragment, p3Fragment] = fragments
+    assert.doesNotMatch(srgbFragment, /nmExportDisplayP3|u_clampToSrgb/)
+    // The conversion runs on the straight value, before the alpha mode.
+    const conversion = p3Fragment.indexOf('color.rgb = nmExportDisplayP3(color.rgb, u_clampToSrgb)')
+    assert.ok(conversion > 0)
+    assert.ok(conversion < p3Fragment.indexOf('color.rgb *= color.a'))
+    assert.ok(conversion < p3Fragment.indexOf('color.a = 1.0'))
+    assert.match(p3Fragment, /uniform bool u_clampToSrgb;/)
+
+    assert.deepEqual([srgb, p3, p3Again].map(slot => slot.frame.colorSpace), ['srgb', 'display-p3', 'display-p3'])
+
+    const programOf = slot => {
+        gl.calls.length = 0
+        adapter.begin(slot, 'source', 1)
+        gl.waitStatus = gl.ALREADY_SIGNALED
+        adapter.poll(slot)
+        const frame = adapter.read(slot)
+        const clamp = callsNamed(gl, 'uniform1i').filter(call => call[1]?.name === 'u_clampToSrgb').map(call => call[2])
+        return { program: callsNamed(gl, 'useProgram')[0][1], clamp, frame }
+    }
+    const [srgbProgram, p3Program] = gl.created.program
+    // Without a gamut directive the conversion clamps to sRGB first.
+    assert.deepEqual(programOf(srgb).program, srgbProgram)
+    assert.deepEqual(programOf(srgb).clamp, [])
+    const clamped = programOf(p3)
+    assert.deepEqual([clamped.program, clamped.clamp, clamped.frame.colorSpace], [p3Program, [1], 'display-p3'])
+    // A program that declares `gamut p3` skips the clamp, frame by frame.
+    backend.gamutOf = () => 'p3'
+    assert.deepEqual(programOf(p3).clamp, [0])
+    assert.deepEqual(programOf(srgb).clamp, [])
+    backend.gamutOf = () => null
+    assert.deepEqual(programOf(p3Again).clamp, [1])
+
+    for (const slot of [srgb, p3, p3Again]) adapter.destroySlot(slot)
+    assert.deepEqual(gl.deleted.program, gl.created.program)
+})
+
+test('a display-p3 slot alone creates only the display-p3 program', () => {
+    const { gl, adapter } = makeHarness()
+    const slot = adapter.createSlot(0, { ...DESCRIPTOR, colorSpace: 'display-p3' })
+    assert.equal(gl.created.program.length, 1)
+    assert.match(gl.shaderSources.find(entry => entry.source.includes('out vec4 fragColor')).source, /nmExportDisplayP3/)
+    adapter.destroySlot(slot)
+    assert.deepEqual(gl.deleted.program, gl.created.program)
+})

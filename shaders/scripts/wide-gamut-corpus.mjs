@@ -12,6 +12,13 @@
  *       Records the surface pin of every pin case with pin-effect-pixels.mjs --out.
  *   node shaders/scripts/wide-gamut-corpus.mjs canvas [--only <id>]
  *       Records the srgb canvas bytes, after present, of every canvas case.
+ *   node shaders/scripts/wide-gamut-corpus.mjs frames [--only <id>] [--root <dir>]
+ *       Records the frames that frame export delivers with an srgb descriptor,
+ *       in each alpha mode, of every canvas case, to frame-bytes.json. --root
+ *       serves the renderer and the effects from another tree and records its
+ *       frames; the cases are read from this checkout. The tree holds
+ *       shaders/, demo/shaders/ and share/ at one commit, for example W's:
+ *       git archive <W> shaders demo/shaders share | tar -x -C <dir>
  *   node shaders/scripts/wide-gamut-corpus.mjs banding [--backend webgpu|webgl2] [--only <id>] [--frames <file>]
  *       Models the quantization of an 8-bit and a 16-bit float Display P3
  *       canvas, or drawing buffer, on the srgb frames of the canvas cases on
@@ -56,6 +63,7 @@ export const corpusDir = path.join(repoRoot, 'shaders/tests/fixtures/wide-gamut'
 export const casesDir = path.join(corpusDir, 'cases')
 export const pinsDir = path.join(corpusDir, 'pins')
 export const canvasFile = path.join(corpusDir, 'canvas-bytes.json')
+export const framesFile = path.join(corpusDir, 'frame-bytes.json')
 export const listFile = path.join(corpusDir, 'corpus.json')
 
 /** The resolution of every generated program case. */
@@ -180,26 +188,11 @@ export function canvasCases() {
 /** The backends a case runs on. */
 export const caseBackends = pinCase => pinCase.backends ?? ['webgl2', 'webgpu']
 
-// The page renders a case as the pin tool does, then reads the presented canvas:
-// WebGL2 by readPixels on the default framebuffer (premultiplied, bottom-up), and
-// WebGPU by toBlob, decoded in Node (unpremultiplied, top-down).
-// Under 'display-p3' the page reads the canvas copy instead (premultiplied
-// floats, top-down), and with stubP3 it reports a P3 display to the renderer,
-// for a browser whose display has none.
-function canvasPage(baseUrl, pinCase, preferWebGPU, { colorOutput = 'srgb', stubP3 = false } = {}) {
+// The page script that renders a case as the pin tool does: the renderer, its
+// effects, the program, and the case's texture and mesh inputs.
+function caseSetup(baseUrl, pinCase, preferWebGPU, colorOutput) {
     const [width, height] = pinCase.resolution
-    const stub = stubP3 ? `const p3Query = { media: '(color-gamut: p3)', matches: true, addEventListener() {}, removeEventListener() {} };
-const matchMediaOf = window.matchMedia.bind(window);
-window.matchMedia = (media) => media === '(color-gamut: p3)' ? p3Query : matchMediaOf(media);` : ''
-    return `<!doctype html>
-<link rel="icon" href="data:,">
-<canvas id="canvas" width="${width}" height="${height}"></canvas>
-<script type="module">
-import { CanvasRenderer } from '${baseUrl}/shaders/src/index.js';
-${stub}
-const canvas = document.getElementById('canvas');
-try {
-const renderer = new CanvasRenderer({ canvas, width: ${width}, height: ${height}, basePath: '${baseUrl}/shaders', preferWebGPU: ${preferWebGPU}, colorOutput: '${colorOutput}' });
+    return `const renderer = new CanvasRenderer({ canvas, width: ${width}, height: ${height}, basePath: '${baseUrl}/shaders', preferWebGPU: ${preferWebGPU}, colorOutput: '${colorOutput}' });
 await renderer.loadManifest();
 for (const definition of ${JSON.stringify(pinCase.userEffects ?? [])}) await renderer.registerPortableEffect(structuredClone(definition));
 await renderer.loadEffects(${JSON.stringify(pinCase.effects)});
@@ -225,7 +218,29 @@ for (const mesh of ${JSON.stringify(pinCase.meshInputs ?? [])}) {
     const loaded = await renderer.loadOBJFromURL('${baseUrl}/' + mesh.path, mesh.mesh);
     if (!loaded.success || !loaded.vertexCount) throw new Error('Mesh fixture did not load: ' + mesh.path + ' ' + (loaded.error || ''));
 }
-const backend = renderer.pipeline.backend.getName();
+`
+}
+
+// The page renders a case as the pin tool does, then reads the presented canvas:
+// WebGL2 by readPixels on the default framebuffer (premultiplied, bottom-up), and
+// WebGPU by toBlob, decoded in Node (unpremultiplied, top-down).
+// Under 'display-p3' the page reads the canvas copy instead (premultiplied
+// floats, top-down), and with stubP3 it reports a P3 display to the renderer,
+// for a browser whose display has none.
+function canvasPage(baseUrl, pinCase, preferWebGPU, { colorOutput = 'srgb', stubP3 = false } = {}) {
+    const [width, height] = pinCase.resolution
+    const stub = stubP3 ? `const p3Query = { media: '(color-gamut: p3)', matches: true, addEventListener() {}, removeEventListener() {} };
+const matchMediaOf = window.matchMedia.bind(window);
+window.matchMedia = (media) => media === '(color-gamut: p3)' ? p3Query : matchMediaOf(media);` : ''
+    return `<!doctype html>
+<link rel="icon" href="data:,">
+<canvas id="canvas" width="${width}" height="${height}"></canvas>
+<script type="module">
+import { CanvasRenderer } from '${baseUrl}/shaders/src/index.js';
+${stub}
+const canvas = document.getElementById('canvas');
+try {
+${caseSetup(baseUrl, pinCase, preferWebGPU, colorOutput)}const backend = renderer.pipeline.backend.getName();
 async function readCanvas() {
     if ('${colorOutput}' === 'display-p3') {
         if (renderer.colorOutput !== 'display-p3') throw new Error('The renderer did not take display-p3: ' + renderer.colorOutput);
@@ -282,6 +297,68 @@ window.canvasResult = { ...result, backend, gpu: info ? probe.getParameter(info.
 </script>`
 }
 
+// The page renders a case as canvasPage does, then reads the frame that frame
+// export delivers with an srgb descriptor, in each alpha mode, through a host
+// sink (renderer-output.rst), after the same two renders as the canvas read.
+export const FRAME_ALPHA_MODES = ['straight', 'opaque', 'premultiplied']
+function framesPage(baseUrl, pinCase, preferWebGPU) {
+    const [width, height] = pinCase.resolution
+    return `<!doctype html>
+<link rel="icon" href="data:,">
+<canvas id="canvas" width="${width}" height="${height}"></canvas>
+<script type="module">
+import { CanvasRenderer } from '${baseUrl}/shaders/src/index.js';
+const canvas = document.getElementById('canvas');
+try {
+${caseSetup(baseUrl, pinCase, preferWebGPU, 'srgb')}const backend = renderer.pipeline.backend.getName();
+const alphaModes = ${JSON.stringify(FRAME_ALPHA_MODES)};
+const errors = [];
+const queues = alphaModes.map(() => renderer.createFrameExportQueue({ slots: 2, onError: (error) => errors.push(String(error?.message ?? error)) }));
+let capture = false;
+let frames = {};
+renderer.addSink({
+    configure(descriptor) { queues.forEach((queue, i) => queue.configure({ ...descriptor, colorSpace: 'srgb', alphaMode: alphaModes[i] })); },
+    submit(textureId, timestamp) {
+        if (!capture) return true;
+        queues.forEach((queue, i) => queue.enqueue(textureId, timestamp, (frame) => { frames[alphaModes[i]] = Array.from(frame.data); }));
+        return true;
+    },
+    close(options) { queues.forEach((queue) => queue.close(options)); }
+});
+async function readFrames() {
+    await renderer.render(0);
+    frames = {};
+    capture = true;
+    await renderer.render(0);
+    capture = false;
+    const deadline = performance.now() + 10000;
+    while (Object.keys(frames).length < alphaModes.length && performance.now() < deadline) {
+        queues.forEach((queue) => queue.poll());
+        await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    if (errors.length) throw new Error('Frame export failed: ' + errors[0]);
+    if (Object.keys(frames).length < alphaModes.length) throw new Error('Frame export did not deliver every alpha mode');
+    return { method: 'frameExport', frames: { ...frames } };
+}
+// A case with settleMs is read once two consecutive readings agree, as the pin tool reads it.
+const settleMs = ${JSON.stringify(pinCase.settleMs || 0)};
+let result = await readFrames();
+let settled = settleMs === 0;
+const settleDeadline = Date.now() + settleMs;
+while (Date.now() < settleDeadline) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    const next = await readFrames();
+    if (JSON.stringify(next.frames) === JSON.stringify(result.frames)) { result = next; settled = true; break; }
+    result = next;
+}
+if (!settled) throw new Error('The frames did not settle within ' + settleMs + ' ms');
+const probe = document.createElement('canvas').getContext('webgl2');
+const info = probe?.getExtension('WEBGL_debug_renderer_info');
+window.canvasResult = { ...result, backend, gpu: info ? probe.getParameter(info.UNMASKED_RENDERER_WEBGL) : '' };
+} catch (error) { window.canvasResult = { error: String(error?.message ?? error) }; }
+</script>`
+}
+
 /** The frame record of a read-back: its size, what it holds, and its hash. */
 export function frameRecord(method, width, height, bytes) {
     let nonzeroRgbPixels = 0
@@ -296,15 +373,17 @@ export function frameRecord(method, width, height, bytes) {
 // Renders each case on each of its backends (or only `only`) in headless
 // Chromium, reads the presented canvas, and passes each frame to `visit`:
 // { caseFile, backend, method, width, height, bytes, gpu } or { caseFile, backend, error }.
-// `done` runs after the last backend of a case.
-async function forEachCanvasFrame(cases, { only = null, visit, done = () => {}, colorOutput = 'srgb', headed = false }) {
+// With `frames`, it reads frame export instead, and the frame carries
+// `frames`, the bytes of each alpha mode. `root` is the checkout the server
+// serves. `done` runs after the last backend of a case.
+async function forEachCanvasFrame(cases, { only = null, visit, done = () => {}, colorOutput = 'srgb', headed = false, frames = false, root = repoRoot }) {
     const { chromium } = await import('playwright')
     const { PNG } = await import('pngjs')
-    const effectsDir = path.join(repoRoot, 'shaders/effects')
+    const effectsDir = path.join(root, 'shaders/effects')
     process.env.SHADE_EFFECTS_DIR = effectsDir
-    process.env.SHADE_PROJECT_ROOT = repoRoot
+    process.env.SHADE_PROJECT_ROOT = root
     const { acquireServer, releaseServer } = await import('../../vendor/shade-mcp/harness/index.js')
-    const baseUrl = await acquireServer(undefined, repoRoot, effectsDir)
+    const baseUrl = await acquireServer(undefined, root, effectsDir)
     // Playwright launches Chromium with --force-color-profile=srgb, which would
     // make a headed browser report an sRGB display; a headed run keeps the
     // display's own profile.
@@ -321,12 +400,15 @@ async function forEachCanvasFrame(cases, { only = null, visit, done = () => {}, 
                     // WebGPU needs the page on the server's origin. A headed browser
                     // refuses to load an error response, so the page is a file that exists.
                     if (backend === 'webgpu') await page.goto(`${baseUrl}/shaders/effects/manifest.json`, { waitUntil: 'load' })
-                    await page.setContent(canvasPage(baseUrl, pinCase, backend === 'webgpu', { colorOutput, stubP3: colorOutput === 'display-p3' && !headed }), { waitUntil: 'load' })
+                    await page.setContent(frames
+                        ? framesPage(baseUrl, pinCase, backend === 'webgpu')
+                        : canvasPage(baseUrl, pinCase, backend === 'webgpu', { colorOutput, stubP3: colorOutput === 'display-p3' && !headed }), { waitUntil: 'load' })
                     await page.waitForFunction(() => window.canvasResult, null, { timeout: 60000 })
                     const result = await page.evaluate(() => window.canvasResult)
                     if (result.error) throw new Error(result.error)
                     if (result.backend.toLowerCase() !== backend) throw new Error(`expected ${backend}, got ${result.backend}`)
-                    if (result.method === 'canvasCopy') visit({ caseFile, backend, method: 'canvasCopy', width, height, floats: result.floats, gpu: result.gpu })
+                    if (result.method === 'frameExport') visit({ caseFile, backend, method: 'frameExport', width, height, frames: result.frames, gpu: result.gpu })
+                    else if (result.method === 'canvasCopy') visit({ caseFile, backend, method: 'canvasCopy', width, height, floats: result.floats, gpu: result.gpu })
                     else if (result.method === 'readPixels') visit({ caseFile, backend, method: 'readPixels', width, height, bytes: result.bytes, gpu: result.gpu })
                     else {
                         const png = PNG.sync.read(Buffer.from(result.png))
@@ -375,6 +457,45 @@ async function recordCanvas(cases) {
         existing.baselines[gpu] = Object.fromEntries(Object.entries(existing.baselines[gpu]).sort(([a], [b]) => a.localeCompare(b)))
     }
     writeJson(canvasFile, existing)
+    return failed
+}
+
+// The srgb frame export frames of each case, in each alpha mode, keyed like
+// canvas-bytes.json. At W they are recorded with --root; at a later commit a
+// recording that leaves the file unchanged shows the frames byte-identical.
+async function recordFrames(cases, { root = repoRoot } = {}) {
+    const existing = fs.existsSync(framesFile) ? readJson(framesFile) : { baselines: {} }
+    let failed = 0
+    let entry = {}
+    let gpu = ''
+    await forEachCanvasFrame(cases, {
+        frames: true,
+        root,
+        visit: frame => {
+            if (frame.error) entry[frame.backend] = { error: frame.error }
+            else {
+                gpu = frame.gpu
+                entry[frame.backend] = Object.fromEntries(FRAME_ALPHA_MODES.map(alphaMode =>
+                    [alphaMode, frameRecord(frame.method, frame.width, frame.height, frame.frames[alphaMode])]))
+            }
+        },
+        done: ({ caseFile, index }) => {
+            const ok = Object.values(entry).every(modes => !modes.error &&
+                FRAME_ALPHA_MODES.every(alphaMode => modes[alphaMode]?.sha256) && modes.straight.nonzeroRgbPixels > 0)
+            if (!ok) failed++
+            if (gpu) {
+                existing.baselines[gpu] ??= {}
+                existing.baselines[gpu][caseFile] = entry
+            }
+            console.log(`${index + 1}/${cases.length} ${ok ? 'ok' : 'FAIL'} ${caseFile}${ok ? '' : ` :: ${JSON.stringify(entry).slice(0, 300)}`}`)
+            entry = {}
+            gpu = ''
+        },
+    })
+    for (const gpu of Object.keys(existing.baselines)) {
+        existing.baselines[gpu] = Object.fromEntries(Object.entries(existing.baselines[gpu]).sort(([a], [b]) => a.localeCompare(b)))
+    }
+    writeJson(framesFile, existing)
     return failed
 }
 
@@ -879,8 +1000,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         const failed = await recordCanvas(todo)
         console.log(`canvas: ${todo.length - failed} recorded, ${failed} failed`)
         process.exitCode = failed ? 1 : 0
+    } else if (command === 'frames') {
+        const only = flag('--only')
+        const root = flag('--root') ? path.resolve(flag('--root')) : repoRoot
+        const todo = only ? canvasCases().filter(file => file.includes(only)) : canvasCases()
+        const failed = await recordFrames(todo, { root })
+        console.log(`frames: ${todo.length - failed} recorded, ${failed} failed${root === repoRoot ? '' : `, served from ${root}`}`)
+        process.exitCode = failed ? 1 : 0
     } else {
-        console.error('Usage: wide-gamut-corpus.mjs cases|pins|canvas|banding|p3check|p3photo|matrix|list')
+        console.error('Usage: wide-gamut-corpus.mjs cases|pins|canvas|frames|banding|p3check|p3photo|matrix|list')
         process.exit(2)
     }
 }

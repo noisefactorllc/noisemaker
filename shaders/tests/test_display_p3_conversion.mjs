@@ -4,8 +4,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-    DISPLAY_P3_GLSL, DISPLAY_P3_TO_SRGB, DISPLAY_P3_WGSL, SRGB_TO_DISPLAY_P3,
-    decodeSrgb, displayP3ToSrgb, encodeSrgb, presentDisplayP3,
+    DISPLAY_P3_GLSL, DISPLAY_P3_TO_SRGB, DISPLAY_P3_WGSL, EXPORT_DISPLAY_P3_GLSL, EXPORT_DISPLAY_P3_WGSL, SRGB_TO_DISPLAY_P3,
+    decodeSrgb, displayP3ToSrgb, encodeSrgb, exportDisplayP3, presentDisplayP3,
 } from '../src/runtime/display-p3-conversion.js'
 
 const close = (actual, expected, tolerance, message) => {
@@ -107,4 +107,27 @@ test('the media conversion carries the inverse matrix in GLSL and WGSL, column b
     // P3 red, decoded in Display P3 and converted, is outside sRGB.
     const red = displayP3ToSrgb([1, 0, 0])
     assert.ok(red[0] > 1 && red[1] < 0 && red[2] < 0)
+})
+
+test('the frame export conversion takes a straight color to Display P3, clamped to sRGB unless the program declares gamut p3', () => {
+    // sRGB red, and Display P3 red in extended sRGB clamped to sRGB red first.
+    close(exportDisplayP3([1, 0, 0]), [0.9175, 0.2003, 0.1386], 1e-4, 'sRGB red')
+    const p3Red = displayP3ToSrgb([1, 0, 0])
+    close(exportDisplayP3(p3Red), [0.9175, 0.2003, 0.1386], 1e-4, 'P3 red, clamped')
+    close(exportDisplayP3(p3Red, { clampToSrgb: false }), [1, 0, 0], 1e-4, 'P3 red, declared')
+    // A color inside sRGB is the same either way.
+    const orange = displayP3ToSrgb([0.8, 0.4, 0.2])
+    close(exportDisplayP3(orange), [0.8, 0.4, 0.2], 1e-6, 'orange')
+    close(exportDisplayP3(orange, { clampToSrgb: false }), [0.8, 0.4, 0.2], 1e-6, 'orange, declared')
+    // A color outside Display P3 is clamped to 0 to 1.
+    for (const c of exportDisplayP3([2, -1, 0.5], { clampToSrgb: false })) assert.ok(c >= 0 && c <= 1)
+})
+
+test('the frame export shaders share the present curves and carry nmExportDisplayP3', () => {
+    const shared = source => source.slice(0, source.indexOf('vec4 nmConvertDisplayP3') === -1 ? source.indexOf('fn nmConvertDisplayP3') : source.indexOf('vec4 nmConvertDisplayP3'))
+    assert.ok(EXPORT_DISPLAY_P3_GLSL.startsWith(shared(DISPLAY_P3_GLSL)))
+    assert.ok(EXPORT_DISPLAY_P3_WGSL.startsWith(shared(DISPLAY_P3_WGSL)))
+    assert.match(EXPORT_DISPLAY_P3_GLSL, /vec3 nmExportDisplayP3\(vec3 straight, bool clampToSrgb\)/)
+    assert.match(EXPORT_DISPLAY_P3_WGSL, /fn nmExportDisplayP3\(straight: vec3<f32>, clampToSrgb: bool\) -> vec3<f32>/)
+    assert.doesNotMatch(EXPORT_DISPLAY_P3_GLSL, /nmConvertDisplayP3/)
 })

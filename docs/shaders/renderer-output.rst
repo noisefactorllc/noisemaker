@@ -180,7 +180,8 @@ the same frame contract:
         width,
         height,
         rowStride: width * 4,
-        data: Uint8Array // top-down, tightly packed RGBA8
+        data: Uint8Array, // top-down, tightly packed RGBA8
+        colorSpace        // the descriptor's: 'srgb' or 'display-p3'
     }
 
 Each slot reuses its frame object and pixel array. Copy ``frame.data`` before a
@@ -188,8 +189,23 @@ later delivery on the same slot if the consumer needs to retain it.
 
 The export descriptor accepts ``straight``, ``opaque``, and ``premultiplied``
 alpha modes. ``straight`` preserves RGBA, ``opaque`` forces alpha to one, and
-``premultiplied`` multiplies RGB by alpha. The adapters validate ``colorSpace`` and ``fps`` as metadata. They do not
-convert colors or throttle the frame rate.
+``premultiplied`` multiplies RGB by alpha. The adapters read surface values as
+straight alpha.
+
+The descriptor's ``colorSpace`` selects the frame's color space:
+
+- ``srgb`` delivers the surface values clamped to 0 to 1.
+- ``display-p3`` converts each surface value to Display P3 before the alpha
+  mode: it clamps the color to sRGB, decodes the sRGB curve, converts the sRGB
+  primaries to the Display P3 primaries, and encodes the curve again, clamped
+  to 0 to 1. A program that declares ``gamut p3`` skips the clamp to sRGB, so
+  its colors outside sRGB reach the frame. The directive is read frame by
+  frame.
+
+The pipeline's own sink descriptor is ``srgb``: a sink receives the surface
+texture, whose values are extended sRGB. A sink that wants Display P3 frames
+configures its frame export queue with a ``display-p3`` descriptor. The
+adapters validate ``fps`` as metadata and do not throttle the frame rate.
 
 Frame export does not relax the pipeline rule against synchronous GPU readback
 inside an effect pass. It is a bounded asynchronous host-output path, serviced

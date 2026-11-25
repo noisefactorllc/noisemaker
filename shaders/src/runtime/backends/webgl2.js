@@ -750,10 +750,10 @@ ${DISPLAY_P3_GLSL}
         }
 
         // A program that declares `gamut p3` decodes its media in Display P3
-        // (mediaGamutOf, which the pipeline sets). Camera frames, a 2D canvas
+        // (gamutOf, which the pipeline sets). Camera frames, a 2D canvas
         // whose context is srgb, and a browser that cannot decode in Display
         // P3 keep the default upload.
-        if (this.mediaGamutOf?.() === 'p3' && decodesInDisplayP3(source, options.context2d) && this._canDecodeDisplayP3()) {
+        if (this.gamutOf?.() === 'p3' && decodesInDisplayP3(source, options.context2d) && this._canDecodeDisplayP3()) {
             return this._uploadDisplayP3(id, source, width, height, flipY)
         }
 

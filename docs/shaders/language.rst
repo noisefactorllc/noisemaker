@@ -336,8 +336,9 @@ it on its own line after ``search``. Its
 value is ``p3``. On a Display P3 canvas (the renderer's ``colorOutput:
 'display-p3'``), the present step then skips its sRGB clamp, so the program's
 colors outside sRGB reach the display. Its media also decode in Display P3, so
-a Display P3 photo keeps its colors outside sRGB. Every other program keeps the
-clamp and shows the colors it shows on an srgb canvas, and uploads media as
+a Display P3 photo keeps its colors outside sRGB, and a frame export with a
+``display-p3`` descriptor skips the sRGB clamp too. Every other program keeps
+the clamp and shows the colors it shows on an srgb canvas, and uploads media as
 before. A program has at most one ``gamut`` directive.
 
 .. code-block:: none

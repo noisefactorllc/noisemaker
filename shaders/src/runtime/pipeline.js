@@ -585,6 +585,9 @@ export class Pipeline {
         // virtualId -> storageId for pooled textures (rebuilt per recreateTextures)
         this._textureAliases = new Map()
         this.sinkManager = new SinkManager({ onError: reportSinkError })
+        // Sinks receive the surface texture, whose values are extended sRGB, so
+        // the descriptor stays srgb under any canvas output. A sink that wants
+        // Display P3 frames exports them with a display-p3 descriptor.
         this._sinkDescriptor = {
             width: 0,
             height: 0,
@@ -597,9 +600,11 @@ export class Pipeline {
             // The canvas presents with the current graph's gamut directive.
             this.sinkManager.add(new CanvasSink(backend, () => this.graph?.gamut ?? null))
         }
-        // Media uploads decode in Display P3 while the current graph declares `gamut p3`.
+        // The current graph's gamut directive. While it is `gamut p3`, media
+        // uploads decode in Display P3, and a display-p3 frame export skips the
+        // sRGB clamp.
         if (backend) {
-            backend.mediaGamutOf = () => this.graph?.gamut ?? null
+            backend.gamutOf = () => this.graph?.gamut ?? null
         }
         this._disposed = false
         // Queryable structured diagnostics for the historically-silent

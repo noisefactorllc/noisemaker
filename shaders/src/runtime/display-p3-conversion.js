@@ -120,12 +120,8 @@ const wgslFloat = glslFloat
 // GLSL and WGSL matrices take columns.
 const columns = SRGB_TO_DISPLAY_P3[0].map((_, column) => SRGB_TO_DISPLAY_P3.map(row => row[column]))
 
-/**
- * The conversion in GLSL ES 3.00: nmPresentDisplayP3(vec4) -> vec4, and
- * nmPresentDisplayP3Unclamped(vec4) -> vec4 for a program that declares
- * `gamut p3`.
- */
-export const DISPLAY_P3_GLSL = `
+// The matrix and the extended curves, in GLSL ES 3.00.
+const CURVES_GLSL = `
 const mat3 NM_SRGB_TO_DISPLAY_P3 = mat3(
     ${columns.map(column => column.map(glslFloat).join(', ')).join(',\n    ')});
 vec3 nmDecodeSrgb(vec3 v) {
@@ -140,7 +136,14 @@ vec3 nmEncodeSrgb(vec3 v) {
     vec3 hi = ${glslFloat(SCALE)} * pow(m, vec3(1.0 / ${glslFloat(GAMMA)})) - ${glslFloat(OFFSET)};
     return sign(v) * mix(hi, lo, lessThanEqual(m, vec3(${glslFloat(ENCODE_EDGE)})));
 }
-vec4 nmConvertDisplayP3(vec3 premultiplied, float alpha) {
+`
+
+/**
+ * The conversion in GLSL ES 3.00: nmPresentDisplayP3(vec4) -> vec4, and
+ * nmPresentDisplayP3Unclamped(vec4) -> vec4 for a program that declares
+ * `gamut p3`.
+ */
+export const DISPLAY_P3_GLSL = `${CURVES_GLSL}vec4 nmConvertDisplayP3(vec3 premultiplied, float alpha) {
     float a = clamp(alpha, 0.0, 1.0);
     if (a <= 0.0) return vec4(clamp(nmEncodeSrgb(NM_SRGB_TO_DISPLAY_P3 * nmDecodeSrgb(premultiplied)), 0.0, 1.0), 0.0);
     vec3 rgb = nmEncodeSrgb(NM_SRGB_TO_DISPLAY_P3 * nmDecodeSrgb(premultiplied / a));
@@ -154,12 +157,8 @@ vec4 nmPresentDisplayP3Unclamped(vec4 c) {
 }
 `
 
-/**
- * The conversion in WGSL: nmPresentDisplayP3(vec4f) -> vec4f, and
- * nmPresentDisplayP3Unclamped(vec4f) -> vec4f for a program that declares
- * `gamut p3`.
- */
-export const DISPLAY_P3_WGSL = `
+// The matrix and the extended curves, in WGSL.
+const CURVES_WGSL = `
 const NM_SRGB_TO_DISPLAY_P3 = mat3x3<f32>(
     ${columns.map(column => column.map(wgslFloat).join(', ')).join(',\n    ')});
 fn nmDecodeSrgb(v: vec3<f32>) -> vec3<f32> {
@@ -174,7 +173,14 @@ fn nmEncodeSrgb(v: vec3<f32>) -> vec3<f32> {
     let hi = ${wgslFloat(SCALE)} * pow(m, vec3<f32>(1.0 / ${wgslFloat(GAMMA)})) - vec3<f32>(${wgslFloat(OFFSET)});
     return sign(v) * select(hi, lo, m <= vec3<f32>(${wgslFloat(ENCODE_EDGE)}));
 }
-fn nmConvertDisplayP3(premultiplied: vec3<f32>, alpha: f32) -> vec4<f32> {
+`
+
+/**
+ * The conversion in WGSL: nmPresentDisplayP3(vec4f) -> vec4f, and
+ * nmPresentDisplayP3Unclamped(vec4f) -> vec4f for a program that declares
+ * `gamut p3`.
+ */
+export const DISPLAY_P3_WGSL = `${CURVES_WGSL}fn nmConvertDisplayP3(premultiplied: vec3<f32>, alpha: f32) -> vec4<f32> {
     let a = clamp(alpha, 0.0, 1.0);
     if (a <= 0.0) {
         let shown = nmEncodeSrgb(NM_SRGB_TO_DISPLAY_P3 * nmDecodeSrgb(premultiplied));
@@ -188,6 +194,42 @@ fn nmPresentDisplayP3(c: vec4<f32>) -> vec4<f32> {
 }
 fn nmPresentDisplayP3Unclamped(c: vec4<f32>) -> vec4<f32> {
     return nmConvertDisplayP3(c.rgb, c.a);
+}
+`
+
+/**
+ * The frame export conversion of one straight color, in JavaScript: steps 1,
+ * 3, 4 and 5 of the present conversion, then a clamp to 0 to 1. Frame export
+ * reads surface values as straight alpha, so nothing is unpremultiplied, and
+ * its alpha mode runs after the conversion.
+ * @param {number[]} rgb - Straight extended sRGB, as frame export reads a surface
+ * @param {object} [options]
+ * @param {boolean} [options.clampToSrgb=true] - false for a program that declares `gamut p3`
+ * @returns {number[]} Straight Display P3, 0 to 1
+ */
+export function exportDisplayP3(rgb, { clampToSrgb = true } = {}) {
+    const first = clampToSrgb ? clamp01 : c => c
+    return apply3(SRGB_TO_DISPLAY_P3, rgb.map(c => decodeSrgb(first(c)))).map(c => clamp01(encodeSrgb(c)))
+}
+
+/**
+ * The frame export conversion in GLSL ES 3.00: nmExportDisplayP3(vec3, bool)
+ * -> vec3, on a straight color. The bool is false for a program that declares
+ * `gamut p3`, which skips the sRGB clamp.
+ */
+export const EXPORT_DISPLAY_P3_GLSL = `${CURVES_GLSL}vec3 nmExportDisplayP3(vec3 straight, bool clampToSrgb) {
+    vec3 c = clampToSrgb ? clamp(straight, 0.0, 1.0) : straight;
+    return clamp(nmEncodeSrgb(NM_SRGB_TO_DISPLAY_P3 * nmDecodeSrgb(c)), 0.0, 1.0);
+}
+`
+
+/**
+ * The frame export conversion in WGSL: nmExportDisplayP3(vec3f, bool) ->
+ * vec3f, on a straight color, as in GLSL.
+ */
+export const EXPORT_DISPLAY_P3_WGSL = `${CURVES_WGSL}fn nmExportDisplayP3(straight: vec3<f32>, clampToSrgb: bool) -> vec3<f32> {
+    let c = select(straight, clamp(straight, vec3<f32>(0.0), vec3<f32>(1.0)), clampToSrgb);
+    return clamp(nmEncodeSrgb(NM_SRGB_TO_DISPLAY_P3 * nmDecodeSrgb(c)), vec3<f32>(0.0), vec3<f32>(1.0));
 }
 `
 

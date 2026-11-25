@@ -12,12 +12,12 @@ const GPU = Object.freeze({
     GPUShaderStage: Object.freeze({ FRAGMENT: 0x20 })
 })
 
-function descriptor(width, alphaMode = 'straight') {
+function descriptor(width, alphaMode = 'straight', colorSpace = 'srgb') {
     return {
         width,
         height: 2,
         format: 'rgba8unorm',
-        colorSpace: 'srgb',
+        colorSpace,
         alphaMode,
         fps: 60
     }
@@ -423,7 +423,8 @@ async function runPackedContract(driver, frameDescriptor) {
     assert.equal(errors.length, 0)
     for (let index = 0; index < callbacks.length; index++) {
         const { frame, timestamp, context } = callbacks[index]
-        assert.deepEqual(Object.keys(frame), ['width', 'height', 'rowStride', 'data'])
+        assert.deepEqual(Object.keys(frame), ['width', 'height', 'rowStride', 'data', 'colorSpace'])
+        assert.equal(frame.colorSpace, frameDescriptor.colorSpace)
         assert.equal(frame.width, frameDescriptor.width)
         assert.equal(frame.height, frameDescriptor.height)
         assert.equal(frame.rowStride, frameDescriptor.width * 4)
@@ -454,10 +455,12 @@ async function runPackedContract(driver, frameDescriptor) {
 
 for (const width of [64, 65]) {
     for (const alphaMode of ['straight', 'opaque', 'premultiplied']) {
-        for (const driver of DRIVERS) {
-            test(`${driver.name} packed contract: width ${width}, alpha ${alphaMode}`, async () => {
-                await runPackedContract(driver, descriptor(width, alphaMode))
-            })
+        for (const colorSpace of ['srgb', 'display-p3']) {
+            for (const driver of DRIVERS) {
+                test(`${driver.name} packed contract: width ${width}, alpha ${alphaMode}, ${colorSpace}`, async () => {
+                    await runPackedContract(driver, descriptor(width, alphaMode, colorSpace))
+                })
+            }
         }
     }
 }
