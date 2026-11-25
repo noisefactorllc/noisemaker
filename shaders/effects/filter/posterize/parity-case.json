@@ -1,0 +1,1 @@
+{"schemaVersion":1,"effects":["synth/noise","filter/posterize"],"dsl":"search synth, filter\nnoise(seed: 17, scaleX: 7, scaleY: 11).posterize(levels: 7, gamma: 1.6, antialias: false).write(o0)\nrender(o0)","surface":"o0","resolution":[64,64],"epsilon":0,"requireColorVariation":true}

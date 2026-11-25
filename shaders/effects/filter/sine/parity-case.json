@@ -1,0 +1,1 @@
+{"schemaVersion":1,"effects":["synth/testPattern","filter/sine"],"dsl":"search synth, filter\ntestPattern(pattern: gradient, gridSize: 9).sine(amount: 11.3, colorMode: mono).write(o0)\nrender(o0)","surface":"o0","resolution":[64,64],"epsilon":0,"requireColorVariation":true}

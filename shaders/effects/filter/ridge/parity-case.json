@@ -1,0 +1,1 @@
+{"schemaVersion":1,"effects":["synth/testPattern","filter/ridge"],"dsl":"search synth, filter\ntestPattern(pattern: colorGrid, gridSize: 8).ridge(level: 0.37).write(o0)\nrender(o0)","surface":"o0","resolution":[64,64],"epsilon":0,"requireColorVariation":true}

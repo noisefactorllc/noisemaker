@@ -1,0 +1,1 @@
+{"schemaVersion":1,"effects":["synth/noise","filter/threshold"],"dsl":"search synth, filter\nnoise(seed: 37, scaleX: 7, scaleY: 14).threshold(level: 0.58, sharpness: 0.24).write(o0)\nrender(o0)","surface":"o0","resolution":[64,64],"epsilon":0,"requireColorVariation":true}
