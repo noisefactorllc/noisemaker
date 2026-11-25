@@ -1097,7 +1097,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `f635c0808b555aa75c46786c2e4cd5b8620533a4` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-24
+- **Checkpoint:** noisemaker `5d5122e5065608942729c3f2c289304111d549d9` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-25
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -1181,6 +1181,17 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-25 — completed delivery pair: Noisemaker
+    `5d5122e5065608942729c3f2c289304111d549d9` and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Commit `6f6153d` published
+    the contract corrections. The candidate entry below records the audit,
+    the local checks, and the configured-pin session. Exact-source
+    [JavaScript 45572221201](https://github.com/noisefactorllc/noisemaker/actions/runs/45572221201)
+    and [Site 45572221353](https://github.com/noisefactorllc/noisemaker/actions/runs/45572221353)
+    passed at `6f6153d`. A full GET of `https://noisemaker.app/llms-full.txt`
+    returned HTTP 200 and exactly matched the committed file, SHA-256
+    `928fc43ca83da461e52a94d7fa695eb647da7ba4b003e1da2e36bf4e0aa01ae4`. The
+    checkpoint and contract snapshot now name this qualified pair.
   - 2026-11-25 — candidate pair: Noisemaker
     `5d5122e5065608942729c3f2c289304111d549d9` and Shade MCP
     `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Audited the Noisemaker range
