@@ -134,7 +134,14 @@ a call with its own ``seed:``                   ``pin``
   key, its elements named as a ``let`` names them, with ``<effect>_<n>`` by
   their place in the argument as the occurrence name. An effect passed as a
   value where a ``let`` is called draws in the scope it is written in:
-  ``<scope>/let:<name>[#k]/<op>@<name>/<param>/e:<op>/...``.
+  ``<scope>/let:<name>[#k]/<op>@<name>/<param>/e:<op>/...``. A ``use``
+  argument for a ``let`` that held no effect, such as ``let x = noise``, keys
+  under ``let:<name>`` the same way. A ``let`` whose chain calls another
+  ``let``'s name, such as ``let b = a(octaves: 2)``, keys that element under
+  its own name, with the occurrence name the other ``let`` gave it.
+* Inside an element with ``_seed:``, the effects passed to it as values keep
+  the restarted keys, ``<op>/<param>/e:<op>/...``, in any scope. A part
+  body numbers its ``if`` statements from 1 in each instance.
 * ``<scope>`` is the path of enclosing ``use`` sites (``use@<name>``),
   ``maybe`` blocks (``maybe_<n>``) and ``if`` branches (``if_<n>/b<k>``, where
   ``k`` is 0 for the ``if``, then each ``elif``, then the ``else``), empty at
