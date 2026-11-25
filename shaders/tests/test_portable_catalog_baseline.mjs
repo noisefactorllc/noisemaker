@@ -98,6 +98,10 @@ test('the catalog at HEAD is the baseline: IDs, export kinds, metadata and choic
     assert.deepEqual(compareCatalog(baseline, observed, context()), [])
 })
 
+// A render case's fields outside the pin case shape. Any other field is refused,
+// so that a misspelt timeline or midiMessages cannot pass as an untimed case.
+const RENDER_CASE_FIELDS = ['source', 'times', 'backends', 'comparison', 'warmup', 'orientation', 'withoutTarget', 'seeds', 'parameters', 'expectedAlpha', 'performance']
+
 test('every baseline ID has a render case, and every render case is a baseline ID', () => {
     const renderCases = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, RENDER_CASES_RELATIVE), 'utf8')).cases
     assert.deepEqual(Object.keys(renderCases).sort(), baseline.effectIds)
@@ -112,11 +116,12 @@ test('every baseline ID has a render case, and every render case is a baseline I
         assert.equal(renderCase.orientation, 'readback', id)
         assert.deepEqual(renderCase.warmup, { afterCompile: 1, beforeEachReading: 2 }, id)
         // The fields a render case shares with a parity case mean what they mean there.
-        assert.deepEqual(pinCaseErrors(renderCase, id), [], id)
+        assert.deepEqual(pinCaseErrors(renderCase, id, RENDER_CASE_FIELDS), [], id)
         for (const field of ['control', 'steps', 'midiNotes']) assert.equal(renderCase[field], undefined, `${id}: a render case has no ${field}`)
         assert.ok(renderCase.withoutTarget === null || typeof renderCase.withoutTarget === 'string', `${id}: withoutTarget is a program or null`)
         assert.equal(caseVariants(id, renderCase).problem, undefined, id)
     }
+    assert.deepEqual(pinCaseErrors({ ...renderCases['synth/roll'], timelines: { frames: [0, 1, 2] } }, 'synth/roll', RENDER_CASE_FIELDS), ['pin case has an unknown field timelines'])
     // A timed case with too few frames, or an input after its second frame, has no first-frames variant.
     const timed = { withoutTarget: null, timeline: { frames: [0, 1] } }
     assert.match(caseVariants('synth/roll', timed).problem, /at least three frames/)

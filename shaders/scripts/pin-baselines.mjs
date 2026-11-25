@@ -6,16 +6,24 @@ const PARITY_FIELDS = ['effects', 'dsl', 'surface', 'resolution', 'settleMs', 't
 /**
  * The problems of a pin case, checked as the attestation checks a parity case:
  * its parity-case fields go through validateParityCase, and its audio must be
- * "ramps" if it is set. A pin reads no control, so a timed case needs none.
+ * "ramps" if it is set. A pin reads no control, so a timed case needs none. As
+ * the validator refuses an unknown field, so that a misspelt timeline cannot
+ * record an untimed case, so does this, except the fields named in otherFields,
+ * which the file the case comes from defines. null leaves them to that file.
  * @param {object} pinCase - The case
  * @param {string} target - The effect ID the case renders. A pin case outside
  *   a cases file names none, and passes its last effect.
+ * @param {string[]|null} [otherFields] - The case's fields outside the pin case shape
  * @returns {string[]}
  */
-export function pinCaseErrors(pinCase, target) {
+export function pinCaseErrors(pinCase, target, otherFields = []) {
     const fields = Object.fromEntries(PARITY_FIELDS.filter((field) => pinCase?.[field] !== undefined).map((field) => [field, pinCase[field]]))
     const errors = validateParityCase({ schemaVersion: 1, epsilon: 0, requireColorVariation: true, ...fields }, target)
         .filter((error) => !(pinCase?.control === undefined && error.startsWith('parity case control ')))
+    if (otherFields) {
+        const known = new Set([...PARITY_FIELDS, 'audio', ...otherFields])
+        for (const key of Object.keys(pinCase || {})) if (!known.has(key)) errors.push(`pin case has an unknown field ${key}`)
+    }
     if (pinCase?.audio !== undefined && pinCase.audio !== 'ramps') errors.push(`pin case audio must be "ramps", not ${JSON.stringify(pinCase.audio)}`)
     return errors
 }
