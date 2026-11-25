@@ -39,22 +39,20 @@ const close = (actual, expected, message) => assert.ok(Math.abs(actual - expecte
 const tests = []
 const test = (name, fn) => tests.push({ name, fn })
 
-test('with 6 frames and no warm-up, frames 0 and 6 are compared, and frames 0 and 1 have a step of 0', async () => {
+test('with 6 frames and no warm-up, frames 0 and 6 are compared, and only the first frame has a step of 0', async () => {
     assert.deepEqual(seamFrames(6, 0), { phase0: 0, phase1: 6 })
     const { times, irregular } = await loop(6, 0)
     assert.deepEqual(times.length, 7)
     times.forEach((time, k) => close(time, [0, 1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6, 1][k], `time of frame ${k}`))
-    assert.deepEqual(irregular, [{ frame: 0, step: 0 }, { frame: 1, step: 0 }])
+    assert.deepEqual(irregular, [{ frame: 0, step: 0 }])
 })
 
-test('with 6 frames and one warm-up loop, frames 6 and 12 are compared, and frames 0, 1 and 7 step 0 and frame 6 steps 1/600', async () => {
+test('with 6 frames and one warm-up loop, frames 6 and 12 are compared, and the frame step stays regular through the wrap', async () => {
     assert.deepEqual(seamFrames(6, 1), { phase0: 6, phase1: 12 })
     const { times, irregular } = await loop(6, 1)
     assert.deepEqual(times.length, 13)
     times.forEach((time, k) => close(time, k === 12 ? 1 : (k % 6) / 6, `time of frame ${k}`))
-    assert.deepEqual(irregular.map(({ frame }) => frame), [0, 1, 6, 7])
-    assert.deepEqual(irregular.filter(({ frame }) => frame !== 6), [{ frame: 0, step: 0 }, { frame: 1, step: 0 }, { frame: 7, step: 0 }])
-    close(irregular.find(({ frame }) => frame === 6).step, 1 / 600, 'step of frame 6')
+    assert.deepEqual(irregular, [{ frame: 0, step: 0 }])
 })
 
 test('the last frame of a loop is at time 1, and no frame time is accumulated', () => {
