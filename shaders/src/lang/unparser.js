@@ -1049,15 +1049,7 @@ function formatLetBinding(expr, options) {
 // decision or an inherited seed, or the program has a seed directive.
 function programDraws(compiled) {
     // The validator's record, and a seed directive a host set afterwards.
-    if (compiled.draws === true || compiled.seed !== undefined) return true
-    if (compiled.draws === false) return false
-    // A copy of the compiled program loses the record, which is not
-    // enumerable; its steps still show their draws.
-    const visit = plans => (plans || []).some(plan => plan && (
-        (plan.chain || []).some(step => step.randomSources || step.inheritedSeeds) ||
-        visit(plan.then) || visit(plan.else) || visit(plan.body) ||
-        (plan.elif || []).some(branch => visit(branch.then))))
-    return visit(compiled.plans)
+    return compiled.draws === true || compiled.seed !== undefined
 }
 
 /**

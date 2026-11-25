@@ -418,8 +418,14 @@ test('a save by a let\'s name keeps a call-site hex colour, a pinned seed, and a
 test('a save leaves a let\'s own seed in the let, keeps let names for a copy, and writes a colour let', () => {
     const own = unparse(compile('search synth\nseed 1\nlet a = noise(seed: 5)\na().write(o0)'))
     assert.match(own, /\n\na\(\)\n/, own)
-    const drawn = compile('search synth\nlet a = noise(octaves: 5)\na(scaleY: rand(1, 10)).write(o0)')
-    assert.equal(unparse({ ...drawn }), unparse(drawn))
+    for (const src of [
+        'search synth\nlet a = noise(octaves: 5)\na(scaleY: rand(1, 10)).write(o0)',
+        'search synth\nlet a = noise()\na().write(o0)\nmaybe(0.01) {\n    noise(scaleY: rand(1, 10)).write(o1)\n}',
+        'search synth\nlet s = rand(1, 10)\nlet a = noise(octaves: 5)\na(scaleY: s).write(o0)'
+    ]) {
+        const drawn = compile(src)
+        assert.equal(unparse({ ...drawn }), unparse(drawn), src)
+    }
     const colour = compile('search synth, filter\nseed 1\nlet c = #804020\nnoise().tint(color: c).write(o0)')
     assert.deepEqual(errors(colour), [])
     const text = unparse(colour)

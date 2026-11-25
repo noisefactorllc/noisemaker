@@ -2927,7 +2927,9 @@ export function validate(ast) {
     if (ast.gamut) { result.gamut = ast.gamut.value }
     if (ast.parts) { result.parts = ast.parts }
     Object.defineProperty(result, 'letSources', { value: letSources, enumerable: false })
-    Object.defineProperty(result, 'draws', { value: draws, enumerable: false })
+    // Recorded only for a program that draws, so the compiled output of
+    // every other program is unchanged, and kept by a copy.
+    if (draws) result.draws = true
     if (ast.trailingComments) { result.trailingComments = ast.trailingComments }
     // The plans in source order. A let's `planIndex` points into this list,
     // so the unparser can keep statement order after hosts remove plans.
