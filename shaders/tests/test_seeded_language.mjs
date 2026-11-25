@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readdirSync } from 'node:fs'
 import test from 'node:test'
-import { CanvasRenderer, compile, registerStarterOps, unparse } from '../src/index.js'
+import { CanvasRenderer, compile, registerStarterOps, replaceEffect, unparse } from '../src/index.js'
 import { mergeIntoEnums } from '../src/lang/enums.js'
 import { PIN_KEY, chanceFrom, drawU32, pickIndex, randColorFrom, randFrom, randIntFrom } from '../src/lang/draws.js'
 import noise from '../effects/synth/noise/definition.js'
@@ -294,10 +294,14 @@ test('a save keeps the draws of every element from a let', () => {
         'let y = noise().blendMode()\nnoise().blendMode(tex: y).write(o0)\nnoise(scaleY: rand(1, 10)).write(o1)',
         'let b = blendMode()\nnoise().b(tex: noise(scaleY: rand(1, 10))).write(o0)',
         'let a = noise()\nlet b = a(octaves: 2)\na(scaleY: rand(1, 10)).write(o0)\nb(scaleY: rand(1, 10)).write(o1)',
+        'let a = noise(octaves: 5)\na(octaves: 2).write(o0)\na(scaleY: rand(1, 10)).write(o1)',
+        'let t = tint(alpha: 0.2)\nnoise().t(alpha: 0.5).write(o0)\nnoise(scaleY: rand(1, 10)).write(o1)',
+        'let b = blendMode(tex: noise())\nnoise().b().write(o0)\nnoise().b().write(o1)\nnoise(scaleY: rand(1, 10)).write(o2)',
+        'let t = tint(#804020)\nnoise().t().write(o0)\nnoise(scaleY: rand(1, 10)).write(o1)',
         'part p {\n    let x = noise\n    x(scaleY: rand(1, 10)).write(o0)\n}\nuse(p, x: noise())',
         'part p {\n    let x = noise()\n    x(scaleY: rand(1, 10)).write(o0)\n}\nuse(p)\nuse(p)'
     ]) {
-        const src = `search synth, mixer\nseed 1\n${body}`
+        const src = `search synth, mixer, filter\nseed 1\n${body}`
         const first = compile(src)
         assert.deepEqual(errors(first), [], body)
         const text = unparse(first)
@@ -364,6 +368,30 @@ test('a let counts the effect values its positionals bind, past a hex colour tha
     const inline = lastNoise('noise().splatTex(#804020, noise(), r: 0.5).write(o0)')
     assert.equal(inline, randFrom(drawU32(1, 'synth.noise@noise_3/scaleY'), 1, 10))
     assert.equal(lastNoise('let c = splatTex(#804020, noise(), r: 0.5)\nnoise().c().write(o0)'), inline)
+})
+
+test('a save by a let\'s name keeps edits, replacements and maybe-only draws', () => {
+    // An edit back to the effect default is written where the let is called.
+    const edited = compile('search synth\nseed 1\nlet a = noise(octaves: 5)\na().write(o0)')
+    const step = edited.plans[0].chain[0]
+    const DEFAULT = noise.globals.octaves.default
+    const text = unparse(edited, { 0: { ...step.args, octaves: DEFAULT } })
+    assert.match(text, new RegExp(`a\\(octaves: ${DEFAULT}\\)`), text)
+    assert.equal(args(compile(text)).octaves, DEFAULT)
+    // A replaced effect is written by its own name.
+    const replaced = replaceEffect(compile('search synth\nseed 1\nlet a = noise(octaves: 2)\na().write(o0)'), 0, 'sacredGeometry')
+    assert.ok(replaced.success, replaced.error)
+    assert.match(unparse(replaced.program), /\nsacredGeometry\(/)
+    // A program whose only draws are a maybe decision keeps its let names.
+    const maybeOnly = unparse(compile('search synth\nlet a = noise()\na().write(o0)\nmaybe(0.01) {\n    noise(scaleY: rand(1, 10)).write(o1)\n}'))
+    assert.match(maybeOnly, /\n\na\(\)\n/, maybeOnly)
+})
+
+test('the ifs after a part use are numbered in their own naming body', () => {
+    const c = compile('search synth\nseed 1\npart p {\n    if (true) {\n        noise().write(o0)\n    }\n}\nuse(p)\nif (true) {\n    noise(scaleY: rand(1, 10)).write(o1)\n}')
+    assert.deepEqual(errors(c), [])
+    const last = allSteps(c.plans).filter(step => step.op === 'synth.noise').at(-1)
+    assert.equal(last.args.scaleY, randFrom(drawU32(1, 'if_1/b0/synth.noise@noise_1/scaleY'), 1, 10))
 })
 
 test('a call-level seed draws under the constant key', () => {

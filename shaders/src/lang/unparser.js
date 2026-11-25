@@ -933,6 +933,8 @@ function unparseCall(call, options = {}) {
     // Let declarations retain parser nodes. The host's value formatter works
     // on compiled parameters, so write the binding's expressions as DSL here.
     const formatArgument = (value, spec, sourceForm) => {
+        // A hex colour written as a positional argument in a let's call.
+        if (value?.type === 'Color' && Array.isArray(value.value)) return formatColorLiteral(value.value)
         if (options.letArguments && value?.type) {
             if (value.type === 'Color') return formatColorLiteral(value.value)
             return formatLetExpr(value, options)
@@ -984,7 +986,9 @@ function unparseCall(call, options = {}) {
             // program with a seed directive, where leaving it out would make
             // the effect inherit the program seed.
             const keepAuthoredSeed = call.authoredSeeds?.includes(key)
-            if (defaultSpec && defaultSpec.default !== undefined && !keepAuthoredSeed) {
+            // A call of a let's name keeps each argument it writes: the let
+            // would supply its own value otherwise.
+            if (defaultSpec && defaultSpec.default !== undefined && !keepAuthoredSeed && !call.keepKeys?.has(key)) {
                 const formattedValue = formatArgument(value, spec, sourceForm)
                 const formattedDefault = formatValue(defaultSpec.default, spec, options)
 
@@ -1044,6 +1048,7 @@ function formatLetBinding(expr, options) {
 // Whether a compiled program draws: a seed directive, a random let, or a step
 // with a random call or an inherited seed, at any depth.
 function programDraws(compiled) {
+    if (compiled.draws !== undefined) return compiled.draws
     if (compiled.seed !== undefined || compiled.letSources?.size > 0) return true
     const visit = plans => (plans || []).some(plan => plan && (
         (plan.chain || []).some(step => step.randomSources || step.inheritedSeeds) ||
@@ -1669,7 +1674,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
             }
             // A call of a let's name is written by that name. An `_id:` the
             // let holds stays in the let.
-            const asLetCall = step.letCall && options.keepLetNames && options.visibleLets?.has(step.letCall)
+            const asLetCall = step.letCall && step.op === step.letCallOp && options.keepLetNames && options.visibleLets?.has(step.letCall)
             if (asLetCall) callName = step.letCall
 
             const call = {
@@ -1695,6 +1700,8 @@ export function unparse(compiled, overrides = {}, options = {}) {
                     // Skip _skip: false (only include when true)
                     if (key === '_skip' && value !== true) continue
                     if (key === '_id' && asLetCall && step.letCallIdFromLet) continue
+                    // The let supplies what is not written where it is called.
+                    if (asLetCall && !key.startsWith('_') && !step.letCallKeys.includes(key)) continue
 
                     // Handle surface references
                     if (value && typeof value === 'object' && value.kind && value.kind !== 'temp') {
@@ -1727,7 +1734,14 @@ export function unparse(compiled, overrides = {}, options = {}) {
             // When we have an effect definition, only include keys defined in globals
             // This prevents internal tracking values or stale values from leaking to DSL
             // Exception: internal _ prefixed args like _skip are always allowed
+            if (asLetCall) call.keepKeys = new Set(step.letCallKeys)
             for (const [key, value] of Object.entries(stepOverrides)) {
+                // A call of a let's name writes an override only where it
+                // changes the value, and keeps it even at the default.
+                if (asLetCall && !key.startsWith('_') && !step.letCallKeys.includes(key)) {
+                    if (formatValue(value) === formatValue(step.args?.[key])) continue
+                    call.keepKeys.add(key)
+                }
                 // An override that changes a drawn value replaces its random
                 // call; one that repeats the drawn value keeps the call.
                 if (call.randomSources?.[key] && formatValue(value) !== formatValue(step.args?.[key])) {

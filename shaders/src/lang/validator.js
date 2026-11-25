@@ -432,7 +432,11 @@ export function validate(ast) {
         return Object.keys(def.choices)
     }
 
+    // Whether the program draws anything: a random call, a maybe decision
+    // or an inherited seed. A save keeps let names in a program that draws.
+    let draws = hasSeedDirective
     function randomContext(key, seed = scopeSeed(), absolute = false) {
+        draws = true
         return {
             seed,
             key: absolute ? key : joinKey(...keyScope, key),
@@ -646,6 +650,7 @@ export function validate(ast) {
             if (p) pushDiag('S012', node, 'maybe(p): the probability must be a number between 0 and 1')
             return false
         }
+        draws = true
         return chanceFrom(drawU32(scopeSeed(), joinKey(...keyScope, maybeKey, 'decide')), p.value)
     }
 
@@ -792,6 +797,8 @@ export function validate(ast) {
                 copyLetMarks(val, merged)
                 // The let's name, so a save can write the call as written.
                 Object.defineProperty(merged, 'letCallName', { value: call.name })
+                // The arguments written where the let is called.
+                Object.defineProperty(merged, 'letCallSite', { value: [...callArgs, ...Object.values(call.kwargs || {})] })
                 // The let's call, applied where the let's name is called: its
                 // element is written in the let (see substitute()).
                 Object.defineProperty(merged, 'heldByLet', { value: true })
@@ -2648,6 +2655,7 @@ export function validate(ast) {
                     const key = restartsKeys || absoluteKey
                         ? joinKey(elementKey, def.name, 'inherit')
                         : joinKey(...keyScope, elementKey, def.name, 'inherit')
+                    draws = true
                     args[def.name] = randIntFrom(drawU32(callSeed, key), Math.ceil(def.min), Math.floor(def.max))
                     inheritedSeeds = inheritedSeeds || {}
                     inheritedSeeds[def.name] = true
@@ -2730,6 +2738,11 @@ export function validate(ast) {
                 const letCallName = call.letCallName ?? original.letCallName
                 if (letCallName) {
                     Object.defineProperty(step, 'letCall', { value: letCallName })
+                    Object.defineProperty(step, 'letCallOp', { value: opName })
+                    // The parameters written where the let is called; the let
+                    // supplies the others.
+                    const site = new Set(call.letCallSite ?? original.letCallSite ?? [])
+                    Object.defineProperty(step, 'letCallKeys', { value: bindings.filter(b => b.node !== undefined && site.has(b.node)).map(b => b.def.name) })
                     if (call.kwargs?._id?._letIdOrigin !== undefined) Object.defineProperty(step, 'letCallIdFromLet', { value: true })
                 }
                 if (!heldByLet) {
@@ -2911,6 +2924,7 @@ export function validate(ast) {
     if (ast.gamut) { result.gamut = ast.gamut.value }
     if (ast.parts) { result.parts = ast.parts }
     Object.defineProperty(result, 'letSources', { value: letSources, enumerable: false })
+    Object.defineProperty(result, 'draws', { value: draws, enumerable: false })
     if (ast.trailingComments) { result.trailingComments = ast.trailingComments }
     // The plans in source order. A let's `planIndex` points into this list,
     // so the unparser can keep statement order after hosts remove plans.
