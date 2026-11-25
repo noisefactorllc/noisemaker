@@ -1113,6 +1113,77 @@ export function validate(ast) {
         if (Array.isArray(searchOrder)) for (const ns of searchOrder) candidates.push(`${ns}.${call.name}`)
         return candidates.find(name => ops[name]) ?? null
     }
+    // Bind a call's arguments to its op's parameters, as the compiler does:
+    // each parameter's keyword or positional node, unsubstituted, or the
+    // component of a positional hex colour that splats over r, g and b.
+    function bindArguments(call, specArgs, kw) {
+        // Positional arguments are consumed in source order against the
+        // slots a keyword has not already filled. `call.args` holds only
+        // the positionals (the parser routes keywords into `kw`), so it
+        // must be walked with its own cursor rather than indexed by slot
+        // — otherwise the first keyword shifts every later positional
+        // and the trailing one falls off the end.
+        const positionals = call.args || []
+        let posCursor = 0
+        // A call not written in the mixed form binds each positional
+        // to the slot at its own index instead: a call with no
+        // keyword, or one whose keywords and positionals met through
+        // a `let`. There a positional whose slot a keyword holds binds
+        // to nothing.
+        const byIndex = !kw || !!call.positionalsByIndex
+        const colorSplatLimit = call.positionalsByIndex?.colorSplatLimit ?? Infinity
+        // Members a positional hex colour has claimed but not yet
+        // reached, by parameter name.
+        let splatValues = null
+        const bound = []
+        for (let i = 0; i < specArgs.length; i++) {
+            const def = specArgs[i]
+            if (byIndex) posCursor = i
+            const fromKeyword = kw && kw[def.name] !== undefined
+            // A single positional hex colour claims a whole r/g/b
+            // triple, and a keyword overrides its own member of it.
+            // Detected at the 'r' slot whether or not a keyword has
+            // filled that slot: gating the detection on `!fromKeyword`
+            // stood the splat down for `tint(#804020, r: 0.25)`, so the
+            // Color fell into the 'g' float slot, defaulted g AND b and
+            // reported a bogus S002 about 'g'.
+            //
+            // In a call bound by index the colour stands in the places
+            // of r, g and b, so the next slot takes the fourth
+            // positional.
+            if (posCursor < colorSplatLimit && def.type !== 'color' && def.name === 'r' &&
+                specArgs[i + 1]?.name === 'g' && specArgs[i + 2]?.name === 'b') {
+                const positional = substitute(positionals[posCursor])
+                if (positional && positional.type === 'Color') {
+                    posCursor++
+                    const [r, g, b] = positional.value
+                    splatValues = {
+                        [def.name]: r,
+                        [specArgs[i + 1].name]: g,
+                        [specArgs[i + 2].name]: b
+                    }
+                }
+            }
+            // A splatted colour supplies this slot: take the component
+            // rather than consuming a positional for it.
+            if (!fromKeyword && splatValues && splatValues[def.name] !== undefined) {
+                bound.push({ def, splat: splatValues[def.name] })
+                continue
+            }
+            let node
+            if (fromKeyword) {
+                node = kw[def.name]
+            } else if (posCursor < positionals.length) {
+                node = positionals[posCursor]
+                posCursor++
+            }
+            bound.push({ def, node })
+        }
+        // How many positionals the parameters took, for the check of extra
+        // positionals.
+        bound.consumed = byIndex ? specArgs.length : posCursor
+        return bound
+    }
     // The values of a call that the compiler builds as elements of their
     // own: effects and chains bound to the call's surface parameters.
     function effectValuesOf(call) {
@@ -1120,18 +1191,9 @@ export function validate(ast) {
         const specArgs = opName ? ops[opName].args || [] : []
         const kw = call.kwargs ? {...call.kwargs} : null
         if (kw && opName) resolveParamAliases(opName, kw)
-        const byIndex = !kw || call.positionalsByIndex === true
-        const values = []
-        let cursor = 0
-        for (let i = 0; i < specArgs.length; i++) {
-            const def = specArgs[i]
-            if (byIndex) cursor = i
-            let value
-            if (kw && kw[def.name] !== undefined) value = kw[def.name]
-            else if (call.args && cursor < call.args.length) value = call.args[cursor++]
-            if (def.type === 'surface' && isEffectValue(value)) values.push(value)
-        }
-        return values
+        return bindArguments(call, specArgs, kw)
+            .filter(({ def, node }) => def.type === 'surface' && isEffectValue(node))
+            .map(({ node }) => node)
     }
     function isEffectValue(value) {
         if (!value || (value.type !== 'Chain' && value.type !== 'Call')) return false
@@ -2062,65 +2124,15 @@ export function validate(ast) {
                 }
                 const seen = new Set()
                 const specArgs = spec.args || []
-                // Positional arguments are consumed in source order against the
-                // slots a keyword has not already filled. `call.args` holds only
-                // the positionals (the parser routes keywords into `kw`), so it
-                // must be walked with its own cursor rather than indexed by slot
-                // — otherwise the first keyword shifts every later positional
-                // and the trailing one falls off the end.
-                let posCursor = 0
-                // A call not written in the mixed form binds each positional
-                // to the slot at its own index instead: a call with no
-                // keyword, or one whose keywords and positionals met through
-                // a `let`. There a positional whose slot a keyword holds binds
-                // to nothing.
-                const byIndex = !kw || !!call.positionalsByIndex
-                const colorSplatLimit = call.positionalsByIndex?.colorSplatLimit ?? Infinity
-                // Members a positional hex colour has claimed but not yet
-                // reached, by parameter name. See the splat branch below.
-                let splatValues = null
-                for (let i = 0; i < specArgs.length; i++) {
-                    const def = specArgs[i]
-                    if (byIndex) posCursor = i
-                    const fromKeyword = kw && kw[def.name] !== undefined
-                    // A single positional hex colour claims a whole r/g/b
-                    // triple, and a keyword overrides its own member of it.
-                    // Detected at the 'r' slot whether or not a keyword has
-                    // filled that slot: gating the detection on `!fromKeyword`
-                    // stood the splat down for `tint(#804020, r: 0.25)`, so the
-                    // Color fell into the 'g' float slot, defaulted g AND b and
-                    // reported a bogus S002 about 'g'.
-                    //
-                    // In a call bound by index the colour stands in the places
-                    // of r, g and b, so the next slot takes the fourth
-                    // positional.
-                    if (posCursor < colorSplatLimit && def.type !== 'color' && def.name === 'r' &&
-                        specArgs[i + 1]?.name === 'g' && specArgs[i + 2]?.name === 'b') {
-                        const positional = substitute(call.args[posCursor])
-                        if (positional && positional.type === 'Color') {
-                            posCursor++
-                            const [r, g, b] = positional.value
-                            splatValues = {
-                                [def.name]: r,
-                                [specArgs[i + 1].name]: g,
-                                [specArgs[i + 2].name]: b
-                            }
-                        }
-                    }
-                    // A splatted colour supplies this slot: take the component
-                    // rather than consuming a positional for it.
-                    if (!fromKeyword && splatValues && splatValues[def.name] !== undefined) {
-                        args[def.name] = splatValues[def.name]
+                const bindings = bindArguments(call, specArgs, kw)
+                for (const binding of bindings) {
+                    const def = binding.def
+                    // A splatted colour supplies this slot.
+                    if (binding.splat !== undefined) {
+                        args[def.name] = binding.splat
                         continue
                     }
-                    let node
-                    if (fromKeyword) {
-                        node = kw[def.name]
-                    } else if (posCursor < call.args.length) {
-                        node = call.args[posCursor]
-                        posCursor++
-                    }
-                    node = substitute(node)
+                    let node = substitute(binding.node)
                     const argKey = def.name
                     if (kw && kw[def.name] !== undefined) seen.add(def.name)
                     if (node?.type === 'Chain' && node.chain.some(entry => entry.type !== 'Call')) {
@@ -2672,9 +2684,8 @@ export function validate(ast) {
                 // Positionals left over after every slot is filled correspond to
                 // no parameter, so they would bind to nothing. On 2.x that is an
                 // error: a program that passes them does not compile.
-                if (byIndex) posCursor = specArgs.length
-                if (posCursor < call.args.length) {
-                    const extra = call.args[posCursor]
+                if (bindings.consumed < call.args.length) {
+                    const extra = call.args[bindings.consumed]
                     pushDiag('S009', extra || call, `Too many positional arguments for ${call.name}(): '${call.name}' takes ${specArgs.length}`)
                 }
                 const hook = typeof call.name === 'string' ? validatorHooks[call.name] : null

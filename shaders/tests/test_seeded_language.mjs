@@ -8,6 +8,7 @@ import noise from '../effects/synth/noise/definition.js'
 import sacredGeometry from '../effects/synth/sacredGeometry/definition.js'
 import tint from '../effects/filter/tint/definition.js'
 import blendMode from '../effects/mixer/blendMode/definition.js'
+import { Effect } from '../src/runtime/effect.js'
 
 const renderer = new CanvasRenderer()
 for (const [namespace, name, instance] of [['synth', 'Noise', noise], ['synth', 'SacredGeometry', sacredGeometry], ['filter', 'Tint', tint], ['mixer', 'BlendMode', blendMode]]) {
@@ -345,6 +346,24 @@ test('a _seed: element and a _seed: part repeat their draws in any scope', () =>
     assert.equal(parts.length, 2)
     assert.deepEqual(parts[1], parts[0])
     assert.equal(parts[0][0], randFrom(drawU32(5, 'part:p/if_1/b0/synth.noise@noise_1/scaleY'), 1, 10))
+})
+
+test('a let counts the effect values its positionals bind, past a hex colour that splats over r, g and b', () => {
+    const float = { type: 'float', default: 0, min: 0, max: 1 }
+    const splat = new Effect({
+        name: 'SplatTex', namespace: 'filter', func: 'splatTex',
+        globals: { r: { ...float, uniform: 'r' }, g: { ...float, uniform: 'g' }, b: { ...float, uniform: 'b' }, tex: { type: 'surface', default: 'none', uniform: 'tex' } },
+        passes: [{ name: 'main', program: 'splat', inputs: { inputTex: 'inputTex', tex: 'tex' }, outputs: { color: 'outputTex' } }]
+    })
+    renderer.registerEffectWithRuntime({ namespace: 'filter', name: 'SplatTex', instance: splat })
+    const lastNoise = body => {
+        const c = compile(`search synth, mixer, filter\nseed 1\n${body}\nnoise(scaleY: rand(1, 10)).write(o3)`)
+        assert.deepEqual(errors(c), [], body)
+        return args(c, c.plans.length - 1).scaleY
+    }
+    const inline = lastNoise('noise().splatTex(#804020, noise(), r: 0.5).write(o0)')
+    assert.equal(inline, randFrom(drawU32(1, 'synth.noise@noise_3/scaleY'), 1, 10))
+    assert.equal(lastNoise('let c = splatTex(#804020, noise(), r: 0.5)\nnoise().c().write(o0)'), inline)
 })
 
 test('a call-level seed draws under the constant key', () => {
