@@ -37,6 +37,7 @@ import { stdEnums } from '../lang/std_enums.js'
 import { MidiState, AudioState, MidiInputManager, AudioInputManager, ExternalInputManager } from '../runtime/external-input.js'
 import { expandPalette } from '../runtime/palette-expansion.js'
 import { SCENE_COLOR_TEXTURE } from '../rendering/scene-compiler.js'
+import { normalizePortableDefinition } from '../portable/definition.js'
 
 let sceneModules = null
 async function loadSceneModules() {
@@ -2375,6 +2376,15 @@ export class CanvasRenderer {
         const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value)
         const fail = message => { throw new Error(`Portable effect: ${message}`) }
         if (!isRecord(definition)) fail('expected a definition object')
+        // A version 2 package (with the format marker) is read into the runtime
+        // form here, before any registry changes. A package without the marker
+        // is returned as it is, and the checks below apply as before.
+        const normalized = normalizePortableDefinition(definition, { loadedShaders: true })
+        if (normalized.diagnostics.length > 0) {
+            fail(normalized.diagnostics.map(entry => entry.code === 'invalid-declaration' || !entry.path
+                ? entry.message : `${entry.message} (${entry.path})`).join('; '))
+        }
+        definition = normalized.definition
         const { namespace, passes, shaders, globals, starter } = definition
         const func = definition.func ?? definition.name
         if (typeof func !== 'string' || !isValidIdentifier(func)) fail('func must be a DSL identifier')

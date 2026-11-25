@@ -1,0 +1,395 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:noisemaker:portable-effect:2",
+  "title": "Noisemaker Portable effect package, version 2",
+  "description": "Generated from shaders/src/portable/grammar.js by shaders/scripts/generate-portable-schema.mjs. Do not edit.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "noisemaker-portable-effect"
+    },
+    "version": {
+      "const": 2
+    },
+    "name": {
+      "type": "string"
+    },
+    "namespace": {
+      "type": "string"
+    },
+    "func": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "description": {
+      "type": "string"
+    },
+    "feature": {},
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "globals": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/parameter"
+      }
+    },
+    "passes": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/pass"
+      }
+    },
+    "textures": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/texture"
+      }
+    },
+    "textures3d": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/texture"
+      }
+    },
+    "uniformLayout": {},
+    "uniformLayouts": {},
+    "openCategories": {},
+    "defaultProgram": {
+      "type": "string"
+    },
+    "hidden": {
+      "type": "boolean"
+    },
+    "deprecatedBy": {},
+    "externalTexture": {},
+    "externalMesh": {},
+    "builtinMeshes": {},
+    "outputTex3d": {},
+    "outputGeo": {},
+    "starter": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "version",
+    "passes"
+  ],
+  "anyOf": [
+    {
+      "required": [
+        "func"
+      ]
+    },
+    {
+      "required": [
+        "name"
+      ]
+    }
+  ],
+  "$defs": {
+    "ui": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "control": {
+          "anyOf": [
+            {
+              "enum": [
+                "slider",
+                "checkbox",
+                "dropdown",
+                "color",
+                "button",
+                "vector3",
+                "vec3"
+              ]
+            },
+            {
+              "const": false
+            }
+          ]
+        },
+        "category": {
+          "type": "string"
+        },
+        "hidden": {
+          "type": "boolean"
+        },
+        "hint": {
+          "type": "string"
+        },
+        "format": {},
+        "buttonLabel": {},
+        "enabledBy": {},
+        "multiline": {
+          "type": "boolean"
+        },
+        "resetOnChange": {}
+      },
+      "additionalProperties": false
+    },
+    "parameter": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": [
+            "float",
+            "int",
+            "boolean",
+            "vec2",
+            "vec3",
+            "vec4",
+            "mat3",
+            "color",
+            "surface",
+            "volume",
+            "geometry",
+            "member",
+            "palette",
+            "button",
+            "string"
+          ]
+        },
+        "default": {},
+        "uniform": {
+          "type": "string"
+        },
+        "define": {},
+        "choices": {
+          "type": "object"
+        },
+        "enum": {
+          "type": "string"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          ]
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          ]
+        },
+        "step": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          ]
+        },
+        "zero": {},
+        "randMin": {},
+        "randMax": {},
+        "randChance": {},
+        "randChoices": {},
+        "colorModeUniform": {},
+        "inheritsSeed": {
+          "type": "boolean"
+        },
+        "ui": {
+          "$ref": "#/$defs/ui"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ]
+    },
+    "pass": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "program": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "enum": [
+            "render",
+            "compute"
+          ]
+        },
+        "entryPoint": {},
+        "drawMode": {
+          "enum": [
+            "points",
+            "triangles",
+            "billboards"
+          ]
+        },
+        "drawBuffers": {},
+        "count": {},
+        "countUniform": {},
+        "repeat": {},
+        "blend": {},
+        "workgroups": {},
+        "storageBuffers": {},
+        "storageTextures": {},
+        "viewport": {},
+        "conditions": {},
+        "defines": {},
+        "uniforms": {},
+        "inputs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "outputs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "clear": {},
+        "samplerTypes": {
+          "type": "object",
+          "additionalProperties": {
+            "enum": [
+              "default",
+              "nearest",
+              "repeat",
+              "mipmap"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "program"
+      ]
+    },
+    "texture": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "$ref": "#/$defs/dimension"
+        },
+        "height": {
+          "$ref": "#/$defs/dimension"
+        },
+        "depth": {
+          "$ref": "#/$defs/dimension"
+        },
+        "format": {
+          "enum": [
+            "rgba16f",
+            "rgba16float",
+            "rgba8",
+            "rgba8unorm",
+            "rgba32f",
+            "rgba32float",
+            "r8",
+            "r8unorm",
+            "r16f",
+            "r16float",
+            "r32f",
+            "r32float"
+          ]
+        },
+        "is3D": {
+          "type": "boolean"
+        },
+        "filter": {
+          "enum": [
+            "nearest",
+            "linear"
+          ]
+        },
+        "mipmaps": {
+          "type": "boolean"
+        },
+        "persistent": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "dimension": {
+      "anyOf": [
+        {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        {
+          "enum": [
+            "screen",
+            "auto",
+            "input",
+            "resolution"
+          ]
+        },
+        {
+          "type": "string",
+          "pattern": "^[0-9]+(\\.[0-9]+)?%$"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "param": {
+              "type": "string",
+              "minLength": 1
+            },
+            "power": {
+              "type": "number"
+            },
+            "multiply": {
+              "type": "number"
+            },
+            "default": {},
+            "paramDefault": {},
+            "screenDivide": {},
+            "scale": {},
+            "clamp": {},
+            "inputOverride": {},
+            "inherit": {}
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}
