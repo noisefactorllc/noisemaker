@@ -72,8 +72,8 @@ if (!casePath || (!outPath && !checkPath)) {
 const caseFile = JSON.parse(fs.readFileSync(casePath, 'utf8'))
 const pinCase = entry === null ? caseFile : caseFile?.cases?.[entry]
 if (!pinCase) throw new Error(`${casePath} has no case ${entry}`)
-// A cases file defines its entries' other fields; a pin case file has none.
-const caseErrors = pinCaseErrors(pinCase, entry ?? pinCase.effects?.at(-1), entry === null ? [] : null)
+// The file the case comes from defines its other fields.
+const caseErrors = pinCaseErrors(pinCase, entry ?? pinCase.effects?.at(-1))
 if (caseErrors.length) throw new Error(`pin case is not valid: ${caseErrors.join('; ')}`)
 const timelinePlan = pinCase.timeline ? {
     loopSeconds: pinCase.timeline.loopSeconds ?? TIMELINE_DEFAULT_LOOP_SECONDS,

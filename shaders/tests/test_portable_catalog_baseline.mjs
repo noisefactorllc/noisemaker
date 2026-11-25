@@ -98,7 +98,7 @@ test('the catalog at HEAD is the baseline: IDs, export kinds, metadata and choic
     assert.deepEqual(compareCatalog(baseline, observed, context()), [])
 })
 
-// A render case's fields outside the pin case shape. Any other field is refused,
+// Every field of a render case outside the pin case shape. Any other is refused,
 // so that a misspelt timeline or midiMessages cannot pass as an untimed case.
 const RENDER_CASE_FIELDS = ['source', 'times', 'backends', 'comparison', 'warmup', 'orientation', 'withoutTarget', 'seeds', 'parameters', 'expectedAlpha', 'performance']
 
