@@ -7,6 +7,7 @@ import { compile, unparse, formatValue } from '../src/lang/index.js';
 import { registerOp } from '../src/lang/ops.js';
 import { registerStarterOps } from '../src/lang/validator.js';
 import { CanvasRenderer } from '../src/renderer/canvas.js';
+import { ProgramState } from '../../demo/shaders/lib/program-state.js';
 import { mergeIntoEnums } from '../src/lang/enums.js';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -365,6 +366,92 @@ const scaleXPerChain = compiled => compiled.plans.map(plan => {
 });
 const valuesPerChain = compiled => JSON.stringify(compiled.plans.map(plan => plan.chain?.map(step => [step.op, step.args])),
     (key, value) => typeof value === 'function' ? '<fn>' : value);
+
+for (const [kind, keyword, head = 'scene()'] of [
+    ['call', 'tex: noise(octaves: 3)'],
+    ['chain', 'tex: noise(octaves: 3).invert()'],
+    ['positional call', 'noise(octaves: 3)'],
+    ['call containing an oscillator', 'tex: noise(scaleX: osc())'],
+    ['call beside an oscillator', 'tex: noise(octaves: 3), mix: osc()'],
+    ['call after a scene color', 'tex: noise(octaves: 3)', 'scene(background: #123456)'],
+    ['call containing a function', 'tex: noise(scaleX: () => 10)'],
+    ['call containing a color', 'tex: scene(background: #123456)'],
+    ['name', 'mix: amount']
+]) {
+    test(`let chain preserves a ${kind} keyword value through compile/unparse`, () => {
+        const src = `search synth, filter, mixer
+let amount = 0.25
+let layer = ${head}.blendMode(${keyword})
+noise().blendMode(tex: layer).write(o0)
+render(o0)`;
+        const original = compile(src);
+        assertNoErrors(original, 'The original program must compile');
+        const output = unparse(original);
+        const again = compile(output);
+        assertNoErrors(again, `The saved program must compile:\n${output}`);
+
+        // Ignore source locations and the original keyword spelling retained on plan steps.
+        const semanticValue = value => JSON.stringify(value, (key, item) =>
+            key === 'loc' || key === 'rawKwargs' ? undefined : item);
+        assertEqual(semanticValue(again.vars[1].expr), semanticValue(original.vars[1].expr),
+            'The let must retain the keyword expression even when its use is inlined');
+        assertEqual(semanticValue(again.plans), semanticValue(original.plans),
+            'The saved program must produce the same plans');
+    });
+}
+
+test('ordinary let arguments keep the host formatter', () => {
+    const source = 'search synth\nlet n = noise(octaves: 3)\nn().write(o0)';
+    const compiled = compile(source);
+    assertNoErrors(compiled, 'The let binding must compile');
+    const saved = unparse(compiled, {}, {
+        customFormatter: value => value?.type === 'Number' ? value.value.toFixed(1) : undefined
+    });
+    assertIncludes(saved, 'let n = noise(octaves: 3.0)', 'The host formats an ordinary literal');
+});
+
+test('ProgramState saves an edit to one use of a let-bound producer', () => {
+    const source = `search synth, mixer
+let layer = scene().blendMode(tex: noise(octaves: 3))
+noise().blendMode(layer).write(o0)
+noise().blendMode(tex: layer).write(o1)
+render(o1)`;
+    const state = new ProgramState({ renderer: { currentDsl: source } });
+    state.fromDsl(source);
+    const first = compile(state.toDsl());
+    assertNoErrors(first, 'The unedited state must save as valid DSL');
+    const keys = compiled => JSON.stringify(compiled.plans.map(plan =>
+        plan.chain.map(({ occurrence, keyName }) => [occurrence, keyName])));
+    assertEqual(keys(first), keys(compile(source)), 'Positional and keyword uses retain the original element names');
+    assertEqual(state.getValue('step_2', 'octaves'), 3, 'The first producer has the bound value');
+    state.setValue('step_2', 'octaves', 4);
+    const edited = compile(state.toDsl());
+    assertNoErrors(edited, 'The edited state must save as valid DSL');
+    assertEqual(edited.plans[0].chain[2].args.octaves, 4, 'The edit reaches the first producer');
+    assertEqual(edited.plans[1].chain[2].args.octaves, 3, 'The second producer keeps the original value');
+});
+
+test('A let used through another positional surface binding retains equivalent plans', () => {
+    const source = `search synth, mixer
+let child = scene().blendMode(tex: noise(octaves: 3))
+let layer = scene().blendMode(child)
+noise().blendMode(layer).write(o0)`;
+    const original = compile(source);
+    assertNoErrors(original, 'The original program must compile');
+    const saved = compile(unparse(original));
+    assertNoErrors(saved, 'The saved program must compile');
+    const plans = compiled => JSON.stringify(compiled.plans, (key, value) =>
+        key === 'loc' || key === 'rawKwargs' ? undefined : value);
+    assertEqual(plans(saved), plans(original), 'Nested bindings must preserve the producer identities');
+});
+
+test('Surface lets with literal arguments keep their existing inline output', () => {
+    for (const argument of ['mode: 1', '1']) {
+        const source = `search synth, filter, mixer\nlet layer = scene().invert(${argument})\nnoise().blendMode(tex: layer).write(o0)`;
+        const output = unparse(compile(source));
+        assertIncludes(output, '.blendMode(tex: scene()\n  .invert(mode: 1))', 'Unaffected producers keep their source form');
+    }
+});
 
 test('A chain that reads a variable before its let gets S003 with a location', () => {
     const compiled = compile('search synth\nnoise(scaleX: x).write(o0)\nlet x = 20\nrender(o0)');

@@ -593,6 +593,16 @@ export function validate(ast) {
         return false
     }
 
+    // A let used by name is already substituted here, including when used
+    // positionally. A name that resolved to a literal carries its source tag.
+    function hasEffectExpressionArgument(node) {
+        if (node?.type === 'Chain') return node.chain.some(hasEffectExpressionArgument)
+        if (node?.type !== 'Call') return false
+        const isExpression = value => value?._varRef ||
+            value?.type === 'Call' || value?.type === 'Chain' || value?.type === 'Ident'
+        return node.args.some(isExpression) || Object.values(node.kwargs || {}).some(isExpression)
+    }
+
     function resolveEnum(path) {
         if (!Array.isArray(path) || path.length === 0) return undefined
         let [head, ...rest] = path
@@ -2022,6 +2032,10 @@ export function validate(ast) {
                             if (def.default) {
                                 surf = toSurface({ type: 'Ident', name: def.default }) || { kind: 'pipeline', name: def.default }
                             }
+                        }
+                        if (surf?.kind === 'temp' && node._varRef && hasEffectExpressionArgument(node)) {
+                            // Keep the source name beside the runtime temp, including for positional arguments.
+                            Object.defineProperty(surf, 'sourceLet', { value: node._varRef })
                         }
                         args[argKey] = surf
                     } else if (node && node.type === 'Call' && node.args?.length === (node.name === 'vec2' ? 2 : 4) && (

@@ -930,6 +930,16 @@ function unparseCall(call, options = {}) {
     const parentIndent = ' '.repeat(Math.max(0, baseIndent))
     const childIndent = ' '.repeat(Math.max(0, baseIndent + 2))
 
+    // Let declarations retain parser nodes. The host's value formatter works
+    // on compiled parameters, so write the binding's expressions as DSL here.
+    const formatArgument = (value, spec, sourceForm) => {
+        if (options.letArguments && value?.type) {
+            if (value.type === 'Color') return formatColorLiteral(value.value)
+            return formatLetExpr(value, options)
+        }
+        return formatValue(value, spec, options, sourceForm)
+    }
+
     // The element id goes first among the keywords
     const elementId = elementIdValue(call.kwargs?._id)
     if (elementId !== undefined) {
@@ -975,7 +985,7 @@ function unparseCall(call, options = {}) {
             // the effect inherit the program seed.
             const keepAuthoredSeed = call.authoredSeeds?.includes(key)
             if (defaultSpec && defaultSpec.default !== undefined && !keepAuthoredSeed) {
-                const formattedValue = formatValue(value, spec, options, sourceForm)
+                const formattedValue = formatArgument(value, spec, sourceForm)
                 const formattedDefault = formatValue(defaultSpec.default, spec, options)
 
                 // For surface params, 'none' must always be explicit when set
@@ -987,14 +997,14 @@ function unparseCall(call, options = {}) {
                 }
             }
 
-            parts.push(`${key}: ${formatValue(value, spec, options, sourceForm)}`)
+            parts.push(`${key}: ${formatArgument(value, spec, sourceForm)}`)
         }
     }
 
     // Handle positional args
     if (call.args && call.args.length > 0) {
         for (const arg of call.args) {
-            parts.push(formatValue(arg, null, options))
+            parts.push(formatArgument(arg, null))
         }
     }
 
@@ -1019,6 +1029,16 @@ function unparseChain(chain, options = {}) {
     const parts = chain.map((call, idx) => unparseCall(call, { ...options, indent: idx === 0 ? 0 : 2 }))
     // Join with line break after closing paren, 2-space indent on next line
     return parts.join('\n  .')
+}
+
+// An effect expression in a binding needs the AST writer for the whole chain,
+// including sibling arguments. Keep ordinary bindings on the host formatter.
+function formatLetBinding(expr, options) {
+    const calls = expr?.type === 'Chain' ? expr.chain : [expr]
+    const isExpression = arg => arg?.type === 'Call' || arg?.type === 'Chain' || arg?.type === 'Ident'
+    const hasExpression = calls.some(call => call?.type === 'Call' &&
+        (call.args?.some(isExpression) || Object.values(call.kwargs || {}).some(isExpression)))
+    return formatLetExpr(expr, hasExpression ? { ...options, letArguments: true } : options)
 }
 
 /**
@@ -1307,7 +1327,7 @@ function unparseControlFlow(plan, searchNamespaces, options) {
         text = value ? `return ${formatLetExpr(value, options)}` : 'return'
     } else if (plan.type === 'VarAssign') {
         // A `let` inside a block body
-        text = `let ${plan.name} = ${formatLetExpr(plan.expr, options)}`
+        text = `let ${plan.name} = ${formatLetBinding(plan.expr, options)}`
     } else {
         return null
     }
@@ -1326,7 +1346,8 @@ function unparseControlFlow(plan, searchNamespaces, options) {
  */
 export function unparse(compiled, overrides = {}, options = {}) {
     // Ensure enum definitions are available for formatting
-    options = options.enums ? options : { ...options, enums: stdEnums }
+    const visibleLets = new Set(options.visibleLets)
+    options = { ...options, enums: options.enums || stdEnums, visibleLets }
     const lines = []
     const getEffectDef = options.getEffectDef || null
     const searchNamespaces = compiled.searchNamespaces || []
@@ -1380,7 +1401,8 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 lines.push(formatSourceStatement({ ...v, leadingComments: [] }, options))
                 continue
             }
-            const exprStr = formatLetExpr(v.expr, options)
+            const exprStr = formatLetBinding(v.expr, options)
+            visibleLets.add(v.name)
             lines.push(`let ${v.name} = ${exprStr}`)
         }
         // Blank line separator after a let block that comes before a plan
@@ -1403,6 +1425,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
             continue
         }
         if (!plan.chain) {
+            if (plan.type === 'VarAssign') visibleLets.add(plan.name)
             const statement = unparseControlFlow(plan, searchNamespaces, options)
             if (statement !== null) {
                 lines.push(statement)
@@ -1430,7 +1453,11 @@ export function unparse(compiled, overrides = {}, options = {}) {
             }
         }
         const inlineTemps = new Set()
+        const tempLetNames = new Map()
         for (const { step, override } of stepsByTemp.values()) {
+            for (const value of Object.values(step.args || {})) {
+                if (value?.kind === 'temp' && visibleLets.has(value.sourceLet)) tempLetNames.set(value.index, value.sourceLet)
+            }
             for (const value of [...Object.values(step.args || {}), ...Object.values(override)]) {
                 if (value?.kind === 'temp') collectDependencies(value.index, inlineTemps)
             }
@@ -1447,8 +1474,19 @@ export function unparse(compiled, overrides = {}, options = {}) {
                     nestedOverrides[chain.length] = entry.override
                     chain.push(entry.step)
                 }
-                inlineCode.set(index, unparse({ searchNamespaces, plans: [{ chain }] }, nestedOverrides,
-                    { ...options, multilineKwargs: false, omitSearchDirective: true }))
+                const letName = tempLetNames.get(index)
+                const nestedProgram = { searchNamespaces, plans: [{ chain }] }
+                const nestedOptions = { ...options, multilineKwargs: false, omitSearchDirective: true }
+                const hasOverrides = chain.some((_, i) => Object.keys(nestedOverrides[i]).length > 0)
+                if (letName && !hasOverrides) {
+                    inlineCode.set(index, letName)
+                } else {
+                    const text = unparse(nestedProgram, nestedOverrides, nestedOptions)
+                    // ProgramState supplies every parameter. Keep an unchanged use
+                    // named, and inline only when edits change this producer.
+                    const unchanged = letName && text === unparse(nestedProgram, {}, nestedOptions)
+                    inlineCode.set(index, unchanged ? letName : text)
+                }
             }
             return inlineCode.get(index)
         } }
