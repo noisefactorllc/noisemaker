@@ -270,6 +270,19 @@ test('a value written where a let is called, and an _id: on an outer let in a us
     assert.equal(step.args.scaleY, randFrom(drawU32(1, 'use@u/outer/let:a/synth.noise@left/scaleY'), 1, 10))
 })
 
+test('a let that holds a read, use, subchain or maybe chain reports a diagnostic, not a crash', () => {
+    for (const body of [
+        'let a = read(o1).tint()\nnoise().blendMode(tex: a).write(o0)',
+        'part q {\n    .tint()\n}\nlet a = noise().use(q)\nnoise().blendMode(tex: a).write(o0)',
+        'let a = noise().subchain(name: "s") {\n    .tint()\n}\nnoise().blendMode(tex: a).write(o0)',
+        'let a = noise().maybe(0.5) {\n    .tint()\n}\nnoise().blendMode(tex: a).write(o0)',
+        'let a = noise().maybe(0.5) {\n    .tint()\n}\na().write(o0)'
+    ]) {
+        const c = compile(`search synth, mixer, filter\nseed 1\n${body}`)
+        assert.ok(codes(c).includes('S001'), `${body}: ${codes(c).join(',')}`)
+    }
+})
+
 test('a call-level seed draws under the constant key', () => {
     const c = compile('search synth\nseed 1\nnoise(scaleY: rand(1, 10, seed: 3150442103)).write(o0)')
     assert.deepEqual(errors(c), [])
