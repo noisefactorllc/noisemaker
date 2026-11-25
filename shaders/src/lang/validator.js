@@ -869,10 +869,10 @@ export function validate(ast) {
                 if (c.loc) mappedCall.loc = c.loc
                 if (c.positionalsByIndex) mappedCall.positionalsByIndex = true
                 if (c.letApplied) mappedCall.letApplied = true
-                // Not enumerable, so the compiled output is unchanged.
-                if (resolving.length > 0) Object.defineProperty(mappedCall, 'fromLet', { value: true })
-                // A call that comes from a let keeps the mark when it is
-                // substituted again, as an argument value is.
+                // A call that comes from a let: its element is written in the
+                // let. Not enumerable, so the compiled output is unchanged. The
+                // mark stays when the call is substituted again, as an argument
+                // value is.
                 if (resolving.length > 0 || c.heldByLet) Object.defineProperty(mappedCall, 'heldByLet', { value: true })
                 if (c.kwargs) {
                     const kw = {}
@@ -890,8 +890,7 @@ export function validate(ast) {
             if (node.positionalsByIndex) mappedCall.positionalsByIndex = true
             if (node.letApplied) mappedCall.letApplied = true
             // A call held by a let: its element is written in the let. Not
-            // enumerable, and, unlike `fromLet`, read by nothing that counts.
-            // The mark stays when the call is substituted again.
+            // enumerable. The mark stays when the call is substituted again.
             if (resolving.length > 0 || node.heldByLet) Object.defineProperty(mappedCall, 'heldByLet', { value: true })
             if (node.kwargs) {
                 const kw = {}
@@ -1009,6 +1008,34 @@ export function validate(ast) {
         for (const value of Object.values(node)) dropMarks(value)
     }
 
+    // Count the elements written in a let's expression, in source order:
+    // the calls of its chain, and the effects passed as values to them, at
+    // any depth. A call of another let's name is that let's element, counted
+    // at that let, but the values written in the call are counted here. A
+    // call of a name that aliases an effect is that effect's element.
+    function countLetElements(node) {
+        if (!node || typeof node !== 'object') return
+        for (const c of node.type === 'Chain' ? node.chain : [node]) {
+            if (!c || c.type !== 'Call' || !c.name) continue
+            let name = c.name
+            while (symbols.has(name) && symbols.get(name)?.type === 'Ident') name = symbols.get(name).name
+            if (!symbols.has(name)) nextOccurrence(name)
+            for (const value of [...(c.args || []), ...Object.values(c.kwargs || {})]) {
+                if (isEffectValue(value)) countLetElements(value)
+            }
+        }
+    }
+    // A value that is an effect, compiled as an element of its own.
+    function isEffectValue(value) {
+        if (!value || (value.type !== 'Chain' && value.type !== 'Call')) return false
+        if (callToSurface(value)) return false
+        const head = value.type === 'Chain' ? value.chain[0] : value
+        if (!head || head.type !== 'Call' || !head.name || /^vec[234]$/.test(head.name)) return false
+        if (symbols.has(head.name)) return true
+        if (head.namespace?.resolved && ops[`${head.namespace.resolved}.${head.name}`]) return true
+        return canResolveOpName(head.name)
+    }
+
     function declareVar(v) {
         recordLetCalls(v.expr)
         let expr = substitute(clone(v.expr), [v.name])
@@ -1016,11 +1043,9 @@ export function validate(ast) {
             if (callsHaveRandom(expr)) {
                 pushDiag('S013', v, `Random calls in an effect held by a let are not supported yet: '${v.name}'`)
             }
-            // The elements of a chain held by a let are written here, so they
-            // are counted here, once, and not where the let is used.
-            for (const c of expr.type === 'Chain' ? expr.chain : [expr]) {
-                if (c && c.type === 'Call' && c.name) nextOccurrence(c.name)
-            }
+            // The elements written in a let are counted here, once, and not
+            // where the let is used.
+            countLetElements(v.expr)
         } else if (containsRandom(expr)) {
             const scopeKey = `${keyScope.join('/')}|${v.name}`
             const k = (letDeclarations.get(scopeKey) || 0) + 1
@@ -1746,8 +1771,13 @@ export function validate(ast) {
                 }
                 // The element's key for its draws: its occurrence name, or,
                 // for an effect passed as a value, the key of that value.
-                const occurrence = original.fromLet ? call.name : nextOccurrence(call.name)
-                const keyName = original.fromLet ? occurrence : keyNameFor(occurrence, call.kwargs?._id, original)
+                // An element that comes from a let is written in the let, at
+                // any depth, or is the let's call applied where the let's name
+                // is called. It was counted at the let (see declareVar).
+                const heldByLet = original.heldByLet || call.heldByLet ||
+                    letCallPositions.has(sourcePosition(original.loc))
+                const occurrence = heldByLet ? call.name : nextOccurrence(call.name)
+                const keyName = heldByLet ? occurrence : keyNameFor(occurrence, call.kwargs?._id, original)
                 if (call.kwargs?._id !== undefined && usePath.some(u => !u.hasId)) {
                     pushDiag('S001', original, "an _id: inside a part needs an _id: on every use of that part")
                 }
@@ -2437,11 +2467,7 @@ export function validate(ast) {
                 const step = {op: opName, args, from: fromInput, temp: idx}
                 // The element's names, for a host that names it: its occurrence
                 // name, its key name and, in a part body, its use path. A step
-                // whose element comes from a let has none: its element is
-                // written in the let, at any depth, or is the let's call applied
-                // where the let's name is called.
-                const heldByLet = original.heldByLet || call.heldByLet ||
-                    letCallPositions.has(sourcePosition(original.loc))
+                // whose element comes from a let has none.
                 if (!heldByLet) {
                     step.occurrence = occurrence
                     step.keyName = keyName

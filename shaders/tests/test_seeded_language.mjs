@@ -7,9 +7,10 @@ import { PIN_KEY, chanceFrom, drawU32, pickIndex, randColorFrom, randFrom, randI
 import noise from '../effects/synth/noise/definition.js'
 import sacredGeometry from '../effects/synth/sacredGeometry/definition.js'
 import tint from '../effects/filter/tint/definition.js'
+import blendMode from '../effects/mixer/blendMode/definition.js'
 
 const renderer = new CanvasRenderer()
-for (const [namespace, name, instance] of [['synth', 'Noise', noise], ['synth', 'SacredGeometry', sacredGeometry], ['filter', 'Tint', tint]]) {
+for (const [namespace, name, instance] of [['synth', 'Noise', noise], ['synth', 'SacredGeometry', sacredGeometry], ['filter', 'Tint', tint], ['mixer', 'BlendMode', blendMode]]) {
     const choices = renderer.registerEffectWithRuntime({ namespace, name, instance })
     if (choices && Object.keys(choices).length > 0) await mergeIntoEnums(choices)
 }
@@ -122,6 +123,38 @@ test('elements are named by occurrence, and adding a draw changes no other draw'
     assert.equal(args(before, 1).scaleY, randFrom(drawU32(2, 'synth.noise@noise_2/scaleY'), 1, 10))
     const after = compile('search synth\nseed 2\nnoise(octaves: randInt(1, 4)).write(o0)\nnoise(scaleY: rand(1, 10)).write(o1)')
     assert.equal(args(after, 1).scaleY, args(before, 1).scaleY)
+})
+
+// The occurrence name the last noise() of a program draws its scaleY under.
+const lastNoiseKey = (body) => {
+    const c = compile(`search synth, mixer\nseed 1\n${body}\nnoise(scaleY: rand(1, 10)).write(o3)`)
+    assert.deepEqual(errors(c), [], body)
+    const drawn = args(c, c.plans.length - 1).scaleY
+    for (let n = 1; n <= 6; n++) {
+        if (drawn === randFrom(drawU32(1, `synth.noise@noise_${n}/scaleY`), 1, 10)) return `noise_${n}`
+    }
+    assert.fail(`no occurrence name gives ${drawn} for:\n${body}`)
+}
+
+test('an element held by a let is counted once, at the let, however the let holds it', () => {
+    assert.equal(lastNoiseKey('noise().write(o0)'), 'noise_2')
+    // One call, read by calling the let's name or as a value.
+    assert.equal(lastNoiseKey('let y = noise()\ny().write(o0)\ny().write(o1)'), 'noise_2')
+    assert.equal(lastNoiseKey('let y = noise()\nnoise().blendMode(tex: y).write(o0)'), 'noise_3')
+    // A chain of calls.
+    assert.equal(lastNoiseKey('let y = noise().blendMode()\nnoise().blendMode(tex: y).write(o0)'), 'noise_3')
+    // A let built from another let, and from a name that aliases an effect.
+    assert.equal(lastNoiseKey('let y = noise()\nlet z = y().blendMode()\nnoise().blendMode(tex: z).write(o0)'), 'noise_3')
+    assert.equal(lastNoiseKey('let y = noise()\nlet z = y\nnoise().blendMode(tex: z).write(o0)'), 'noise_3')
+    assert.equal(lastNoiseKey('let f = noise\nlet z = f().blendMode()\nnoise().blendMode(tex: z).write(o0)'), 'noise_3')
+})
+
+test('an effect passed as a value inside a let is counted once, at the let', () => {
+    assert.equal(lastNoiseKey('noise().blendMode(tex: noise()).write(o0)'), 'noise_3')
+    assert.equal(lastNoiseKey('let c = noise().blendMode(tex: noise())\nnoise().blendMode(tex: c).write(o0)\nnoise().blendMode(tex: c).write(o1)'), 'noise_5')
+    assert.equal(lastNoiseKey('let c = blendMode(tex: noise())\nnoise().c().write(o0)\nnoise().c().write(o1)'), 'noise_4')
+    // An effect written where the let is called is counted there.
+    assert.equal(lastNoiseKey('let b = blendMode()\nnoise().b(tex: noise()).write(o0)'), 'noise_3')
 })
 
 test('a call-level seed draws under the constant key', () => {

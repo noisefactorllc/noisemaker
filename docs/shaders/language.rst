@@ -381,6 +381,12 @@ changes no other draw. A ``let`` draws once, and every use of it shares the
 value. A call with its own ``seed:`` argument draws the same value whatever
 the program seed.
 
+An element draws under its occurrence name: its effect and its place among
+that effect's elements in source order, such as ``noise_2``. An effect
+written in a ``let``, in its chain or passed as a value inside it, takes its
+place where the ``let`` is written, once, however many times the ``let`` is
+used.
+
 With a ``seed`` directive, an effect whose ``seed`` parameter is not set
 takes a seed drawn from the program seed, different for each effect. The
 drawn seed is not written into the source; an explicit ``seed:`` wins. A
