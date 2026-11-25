@@ -30,7 +30,12 @@
  *       with the srgb canvas (compareP3Frame), and prints the summary. Without
  *       --headed, the browser is headless and the page reports a P3 display to
  *       the renderer. --frames also writes the result of each frame to <file>.
- *       --check fails when the summary exceeds ROUND_TRIP_BOUNDS.
+ *       The display-p3 pass then renders the reference programs
+ *       (P3_REFERENCE_CASES), whose colors are known in Display P3, and checks
+ *       their canvas copy and their read-back in Display P3 (checkReference).
+ *       --only also selects the reference programs by id.
+ *       --check fails when the summary exceeds ROUND_TRIP_BOUNDS, or when a
+ *       reference program fails its check.
  *   node shaders/scripts/wide-gamut-corpus.mjs p3photo
  *       Writes the Display P3 PNG fixture, display-p3-photo.png: P3 red, P3
  *       green, P3 blue, P3 middle gray and an orange inside sRGB whose P3 and
@@ -54,7 +59,7 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { extractEffectNamesFromDsl } from '../../demo/shaders/lib/demo-ui.js'
-import { DISPLAY_P3_TO_SRGB, SRGB_TO_DISPLAY_P3, decodeSrgb, displayP3ToSrgb, encodeSrgb } from '../src/runtime/display-p3-conversion.js'
+import { DISPLAY_P3_TO_SRGB, SRGB_TO_DISPLAY_P3, decodeSrgb, displayP3ToSrgb, encodeSrgb, presentDisplayP3 } from '../src/runtime/display-p3-conversion.js'
 import { matchesTargetEffectPass } from '../../scripts/lib/shader-parity-attestation.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -214,7 +219,17 @@ for (const texture of ${JSON.stringify(pinCase.textureInputs ?? [])}) {
         if (uploaded?.width !== texture.width || uploaded?.height !== texture.height) throw new Error('Texture fixture upload dimensions differ');
     }
 }
-for (const mesh of ${JSON.stringify(pinCase.meshInputs ?? [])}) {
+${pinCase.mediaImages ? `for (const [index, file] of ${JSON.stringify(pinCase.mediaImages)}.entries()) {
+    const image = new Image();
+    // A WebGL2 page has an opaque origin, which a CORS request sends as
+    // Origin: null; the server allows it, so the image stays untainted.
+    image.crossOrigin = 'anonymous';
+    image.src = '${baseUrl}/' + file;
+    await image.decode();
+    const uploaded = renderer.updateTextureFromSource(renderer.getMediaSteps()[index].textureId, image, { flipY: false });
+    if (uploaded?.width !== image.naturalWidth || uploaded?.height !== image.naturalHeight) throw new Error('Media image did not upload: ' + file);
+}
+` : ''}for (const mesh of ${JSON.stringify(pinCase.meshInputs ?? [])}) {
     const loaded = await renderer.loadOBJFromURL('${baseUrl}/' + mesh.path, mesh.mesh);
     if (!loaded.success || !loaded.vertexCount) throw new Error('Mesh fixture did not load: ' + mesh.path + ' ' + (loaded.error || ''));
 }
@@ -262,7 +277,15 @@ async function readCanvas() {
                 return s * (e === 0 ? f * 2 ** -24 : e === 31 ? (f ? NaN : Infinity) : (1 + f / 1024) * 2 ** (e - 15));
             })
             : Array.from(new Float32Array(frame.data.buffer, frame.data.byteOffset, frame.data.byteLength / 4));
-        return { method: 'canvasCopy', format: frame.format, floats };
+${pinCase.displaySpace ? `        // The canvas read back in Display P3, as a display shows it: through a
+        // Display P3 2D canvas (WebGPU by toBlob, which drawImage needs).
+        const space = document.createElement('canvas').getContext('2d', { colorSpace: 'display-p3', willReadFrequently: true });
+        space.canvas.width = ${width};
+        space.canvas.height = ${height};
+        if (backend === 'WebGL2') space.drawImage(canvas, 0, 0);
+        else space.drawImage(await createImageBitmap(await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))), 0, 0);
+        const displaySpace = Array.from(space.getImageData(0, 0, ${width}, ${height}, { colorSpace: 'display-p3' }).data);
+        return { method: 'canvasCopy', format: frame.format, floats, displaySpace };` : `        return { method: 'canvasCopy', format: frame.format, floats };`}
     }
     await renderer.render(0);
     await renderer.render(0);
@@ -391,8 +414,9 @@ async function forEachCanvasFrame(cases, { only = null, visit, done = () => {}, 
         process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=vulkan'],
         ...(headed ? { ignoreDefaultArgs: ['--force-color-profile=srgb'] } : {}) })
     try {
-        for (const [index, caseFile] of cases.entries()) {
-            const pinCase = readJson(path.join(repoRoot, caseFile))
+        for (const [index, entry] of cases.entries()) {
+            const caseFile = typeof entry === 'string' ? entry : entry.id
+            const pinCase = typeof entry === 'string' ? readJson(path.join(repoRoot, entry)) : entry
             const [width, height] = pinCase.resolution
             for (const backend of caseBackends(pinCase).filter(name => !only || name === only)) {
                 const page = await browser.newPage({ viewport: { width, height } })
@@ -408,7 +432,7 @@ async function forEachCanvasFrame(cases, { only = null, visit, done = () => {}, 
                     if (result.error) throw new Error(result.error)
                     if (result.backend.toLowerCase() !== backend) throw new Error(`expected ${backend}, got ${result.backend}`)
                     if (result.method === 'frameExport') visit({ caseFile, backend, method: 'frameExport', width, height, frames: result.frames, gpu: result.gpu })
-                    else if (result.method === 'canvasCopy') visit({ caseFile, backend, method: 'canvasCopy', width, height, floats: result.floats, gpu: result.gpu })
+                    else if (result.method === 'canvasCopy') visit({ caseFile, backend, method: 'canvasCopy', width, height, floats: result.floats, displaySpace: result.displaySpace, gpu: result.gpu })
                     else if (result.method === 'readPixels') visit({ caseFile, backend, method: 'readPixels', width, height, bytes: result.bytes, gpu: result.gpu })
                     else {
                         const png = PNG.sync.read(Buffer.from(result.png))
@@ -634,19 +658,116 @@ export function roundTripExcesses(summary) {
     return excesses
 }
 
-/** Every canvas case under srgb and under display-p3 on one backend, compared (compareP3Frame). */
-async function measureP3(cases, backend, { headed = false } = {}) {
+/**
+ * Programs whose colors are known in Display P3, which p3check renders in its
+ * display-p3 pass after the canvas cases: Display P3 red in a program that
+ * declares `gamut p3`, the same program without the directive (sRGB red), and
+ * the Display P3 photo read by media() in a declared program. `expected` holds
+ * one Display P3 color for the whole frame, or one per column.
+ */
+export const P3_REFERENCE_CASES = Object.freeze([
+    {
+        id: 'reference/p3-red',
+        dsl: 'search synth\ngamut p3\nsolid(color: [1.0930, -0.2267, -0.1501], alpha: 1).write(o0)\nrender(o0)',
+        effects: ['synth/solid'], resolution: [8, 4], displaySpace: true, outsideSrgb: true,
+        expected: [[1, 0, 0]],
+    },
+    {
+        id: 'reference/p3-red-undeclared',
+        dsl: 'search synth\nsolid(color: [1.0930, -0.2267, -0.1501], alpha: 1).write(o0)\nrender(o0)',
+        effects: ['synth/solid'], resolution: [8, 4], displaySpace: true, outsideSrgb: false,
+        expected: [presentDisplayP3([1, 0, 0, 1]).slice(0, 3)],
+    },
+    {
+        id: 'reference/p3-photo',
+        dsl: 'search synth\ngamut p3\nmedia(imageSize: [5, 1]).write(o0)\nrender(o0)',
+        effects: ['synth/media'], resolution: [5, 1], displaySpace: true, outsideSrgb: true,
+        mediaImages: ['shaders/tests/fixtures/wide-gamut/display-p3-photo.png'],
+        expected: [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0.5, 0.5, 0.5], [0.8, 0.4, 0.2]],
+    },
+])
+
+/**
+ * The largest canvas copy error, in 0 to 1, and display-space error, in 8-bit
+ * steps, a reference program passes with, in color and in alpha. Every
+ * reference program is opaque.
+ */
+export const REFERENCE_BOUNDS = Object.freeze({ canvasCopy: 0.01, displaySpace: 1 })
+
+/**
+ * Checks one reference program's display-p3 frame: each pixel of the canvas
+ * copy (premultiplied Display P3), unpremultiplied, and of the display-space
+ * read (8-bit Display P3), against its expected Display P3 color and alpha 1;
+ * and whether the frame, converted back to sRGB, lies outside sRGB.
+ * @returns {{ id: string, ok: boolean, canvasCopyMaxError: number, displaySpaceMaxError: number, outsideSrgb: boolean }}
+ */
+export function checkReference(reference, { floats, displaySpace, width, height }) {
+    let canvasCopyMaxError = 0
+    let displaySpaceMaxError = displaySpace ? 0 : Infinity
+    let outsideSrgb = false
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const i = (y * width + x) * 4
+            const expected = reference.expected[reference.expected.length === 1 ? 0 : x]
+            const alpha = floats[i + 3]
+            const rgb = [0, 1, 2].map(c => (alpha > 0 ? floats[i + c] / alpha : floats[i + c]))
+            const errors = [...rgb.map((v, c) => Math.abs(v - expected[c])), Math.abs(alpha - 1)]
+            for (const error of errors) canvasCopyMaxError = Math.max(canvasCopyMaxError, Number.isFinite(error) ? error : Infinity)
+            if (displaySpace) {
+                for (let c = 0; c < 4; c++) {
+                    const error = Math.abs(displaySpace[i + c] - (c < 3 ? expected[c] : 1) * 255)
+                    displaySpaceMaxError = Math.max(displaySpaceMaxError, Number.isFinite(error) ? error : Infinity)
+                }
+            }
+            if (displayP3ToSrgb(rgb).some(v => v < -0.01 || v > 1.01)) outsideSrgb = true
+        }
+    }
+    const ok = canvasCopyMaxError <= REFERENCE_BOUNDS.canvasCopy && displaySpaceMaxError <= REFERENCE_BOUNDS.displaySpace &&
+        outsideSrgb === reference.outsideSrgb
+    return { id: reference.id, ok, canvasCopyMaxError, displaySpaceMaxError, outsideSrgb }
+}
+
+/** One line for each reference program of a summary that failed its check, or did not render. */
+export function referenceFailures(summary) {
+    const checked = new Map((summary.references ?? []).map(result => [result.id, result]))
+    return (summary.referenceIds ?? []).flatMap(id => {
+        const result = checked.get(id)
+        if (!result) return [`Reference program did not render: ${id}`]
+        return result.ok ? [] : [`Reference program failed: ${id} (canvas copy ${result.canvasCopyMaxError}, display space ${result.displaySpaceMaxError}, outside sRGB ${result.outsideSrgb})`]
+    })
+}
+
+/**
+ * Every canvas case under srgb and under display-p3 on one backend, compared
+ * (compareP3Frame), then each reference program under display-p3, checked
+ * (checkReference).
+ */
+async function measureP3(cases, backend, { headed = false, references = P3_REFERENCE_CASES } = {}) {
     const srgbFrames = new Map()
     let failed = 0
+    let referenceErrors = 0
     const fail = frame => { failed++; console.log(`FAIL ${frame.caseFile} :: ${frame.error}`) }
     await forEachCanvasFrame(cases, { only: backend, visit: frame => (frame.error ? fail(frame) : srgbFrames.set(frame.caseFile, frame)) })
     const frames = []
-    await forEachCanvasFrame(cases, {
+    const referenceResults = []
+    const referenceById = new Map(references.map(reference => [reference.id, reference]))
+    await forEachCanvasFrame([...cases, ...references], {
         only: backend,
         colorOutput: 'display-p3',
         headed,
         visit: frame => {
+            if (frame.error && referenceById.has(frame.caseFile)) {
+                // referenceFailures reports it; it is not a round-trip failure.
+                referenceErrors++
+                return console.log(`FAIL ${frame.caseFile} :: ${frame.error}`)
+            }
             if (frame.error) return fail(frame)
+            if (referenceById.has(frame.caseFile)) {
+                const result = checkReference(referenceById.get(frame.caseFile), frame)
+                referenceResults.push(result)
+                console.log(`${result.ok ? 'ok' : 'FAIL'} ${result.id} :: canvas copy ${result.canvasCopyMaxError.toFixed(4)}, display space ${result.displaySpaceMaxError.toFixed(2)}, outside sRGB ${result.outsideSrgb}`)
+                return
+            }
             const reference = srgbFrames.get(frame.caseFile)
             if (!reference) return
             frames.push({ case: frame.caseFile, ...compareP3Frame({ srgb: reference.bytes, p3: frame.floats, backend, width: frame.width, height: frame.height }) })
@@ -668,6 +789,9 @@ async function measureP3(cases, backend, { headed = false } = {}) {
             frames: frames.filter(frame => frame.overAlpha.pixels > 0).length },
         zeroAlpha: { pixels: frames.reduce((total, frame) => total + frame.zeroAlpha.pixels, 0), maxError: Math.max(0, ...frames.map(frame => frame.zeroAlpha.maxError)),
             frames: frames.filter(frame => frame.zeroAlpha.pixels > 0).length },
+        referenceIds: references.map(reference => reference.id),
+        references: referenceResults,
+        referenceErrors,
     }
     return { summary, frames }
 }
@@ -971,12 +1095,18 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         const backend = flag('--backend') ?? 'webgpu'
         if (backend !== 'webgpu' && backend !== 'webgl2') throw new Error('p3check takes --backend webgpu or webgl2')
         const todo = only ? canvasCases().filter(file => file.includes(only)) : canvasCases()
-        const { summary, frames } = await measureP3(todo, backend, { headed: process.argv.includes('--headed') })
+        const references = P3_REFERENCE_CASES.filter(reference => !only || reference.id.includes(only))
+        const { summary, frames } = await measureP3(todo, backend, { headed: process.argv.includes('--headed'), references })
         if (flag('--frames')) writeJson(path.resolve(flag('--frames')), frames)
         console.log(JSON.stringify(summary, null, 2))
-        const excesses = process.argv.includes('--check') ? roundTripExcesses(summary) : []
+        // A run of the reference programs alone has no canvas case to bound; a
+        // run that selects nothing fails on its empty summary.
+        const check = process.argv.includes('--check')
+        const excesses = check && (todo.length || !references.length) ? roundTripExcesses(summary) : []
         for (const excess of excesses) console.log(`Round-trip bound exceeded: ${excess}`)
-        process.exitCode = summary.failed || excesses.length ? 1 : 0
+        const failures = check ? referenceFailures(summary) : []
+        for (const failure of failures) console.log(failure)
+        process.exitCode = summary.failed || summary.referenceErrors || excesses.length || failures.length ? 1 : 0
     } else if (command === 'p3photo') {
         const { chromium } = await import('playwright')
         const browser = await chromium.launch({ headless: true })

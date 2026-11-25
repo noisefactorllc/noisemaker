@@ -199,3 +199,58 @@ test('roundTripExcesses names each frozen round-trip bound a summary exceeds, an
     }
     assert.deepEqual(ROUND_TRIP_BOUNDS.webgl2, { opaque: 1, translucent: 1, translucentPremultiplied: 1, overAlpha: 1, zeroAlpha: 1, alpha: 0 })
 })
+
+test('checkReference passes the Display P3 frame of a reference program, and refuses a clamped or a wrong one', async () => {
+    const { P3_REFERENCE_CASES, checkReference } = await import('../scripts/wide-gamut-corpus.mjs')
+    const red = P3_REFERENCE_CASES.find(reference => reference.id === 'reference/p3-red')
+    const frameOf = (rgb, alpha = 1) => {
+        const floats = [], displaySpace = []
+        for (let i = 0; i < 4; i++) {
+            floats.push(...rgb.map(c => c * alpha), alpha)
+            displaySpace.push(...rgb.map(c => Math.round(c * 255)), Math.round(alpha * 255))
+        }
+        return { floats, displaySpace, width: 2, height: 2 }
+    }
+    const passed = checkReference(red, frameOf([1, 0, 0]))
+    assert.deepEqual([passed.ok, passed.outsideSrgb], [true, true])
+    // A translucent frame fails, in the canvas copy and in the display-space read.
+    const translucentCopy = frameOf([1, 0, 0], 0.5)
+    for (let i = 3; i < translucentCopy.displaySpace.length; i += 4) translucentCopy.displaySpace[i] = 255
+    const copyResult = checkReference(red, translucentCopy)
+    assert.equal(copyResult.ok, false)
+    assert.ok(Math.abs(copyResult.canvasCopyMaxError - 0.5) < 1e-9, 'the canvas copy alpha is checked')
+    assert.equal(copyResult.displaySpaceMaxError, 0)
+    const translucentRead = frameOf([1, 0, 0])
+    for (let i = 3; i < translucentRead.displaySpace.length; i += 4) translucentRead.displaySpace[i] = 128
+    assert.equal(checkReference(red, translucentRead).ok, false)
+    // sRGB red in Display P3 is inside sRGB: the declared program was clamped.
+    const clamped = checkReference(red, frameOf([0.9175, 0.2003, 0.1386]))
+    assert.deepEqual([clamped.ok, clamped.outsideSrgb], [false, false])
+    const undeclared = P3_REFERENCE_CASES.find(reference => reference.id === 'reference/p3-red-undeclared')
+    assert.equal(checkReference(undeclared, frameOf(undeclared.expected[0])).ok, true)
+    assert.equal(checkReference(undeclared, frameOf([1, 0, 0])).ok, false)
+    // A display-space read off by more than one step, or missing, fails.
+    const off = frameOf([1, 0, 0])
+    off.displaySpace[1] = 3
+    assert.equal(checkReference(red, off).ok, false)
+    assert.equal(checkReference(red, { ...frameOf([1, 0, 0]), displaySpace: undefined }).ok, false)
+    // A NaN in the canvas copy fails.
+    const nan = frameOf([1, 0, 0])
+    nan.floats[0] = NaN
+    assert.equal(checkReference(red, nan).ok, false)
+})
+
+test('the photo reference expects the Display P3 color of each column, and referenceFailures names a failed or a missing program', async () => {
+    const { P3_REFERENCE_CASES, checkReference, referenceFailures } = await import('../scripts/wide-gamut-corpus.mjs')
+    const photo = P3_REFERENCE_CASES.find(reference => reference.id === 'reference/p3-photo')
+    const floats = photo.expected.flatMap(rgb => [...rgb, 1])
+    const displaySpace = photo.expected.flatMap(rgb => [...rgb.map(c => Math.round(c * 255)), 255])
+    assert.equal(checkReference(photo, { floats, displaySpace, width: 5, height: 1 }).ok, true)
+    assert.equal(checkReference(photo, { floats: [...floats.slice(4), ...floats.slice(0, 4)], displaySpace, width: 5, height: 1 }).ok, false)
+    const ids = P3_REFERENCE_CASES.map(reference => reference.id)
+    const ok = id => ({ id, ok: true, canvasCopyMaxError: 0, displaySpaceMaxError: 0, outsideSrgb: true })
+    assert.deepEqual(referenceFailures({ referenceIds: ids, references: ids.map(ok) }), [])
+    assert.equal(referenceFailures({ referenceIds: ids, references: ids.slice(1).map(ok) }).length, 1)
+    assert.match(referenceFailures({ referenceIds: ids, references: ids.map(id => ({ ...ok(id), ok: id !== ids[0] })) })[0], /failed: reference\/p3-red /)
+})
+
