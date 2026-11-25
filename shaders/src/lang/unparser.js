@@ -1049,7 +1049,15 @@ function formatLetBinding(expr, options) {
 // decision or an inherited seed, or the program has a seed directive.
 function programDraws(compiled) {
     // The validator's record, and a seed directive a host set afterwards.
-    return compiled.draws === true || compiled.seed !== undefined
+    if (compiled.draws === true || compiled.seed !== undefined) return true
+    if (compiled.draws === false) return false
+    // A copy of the compiled program loses the record, which is not
+    // enumerable; its steps still show their draws.
+    const visit = plans => (plans || []).some(plan => plan && (
+        (plan.chain || []).some(step => step.randomSources || step.inheritedSeeds) ||
+        visit(plan.then) || visit(plan.else) || visit(plan.body) ||
+        (plan.elif || []).some(branch => visit(branch.then))))
+    return visit(compiled.plans)
 }
 
 /**
@@ -1091,6 +1099,8 @@ function formatLetExpr(expr, options = {}) {
             const text = formatLetExpr(expr.arg, options)
             return expr.arg?.type === 'Binary' && !expr.arg._varRef ? `-(${text})` : `-${text}`
         }
+        case 'Color':
+            return Array.isArray(expr.value) ? formatColorLiteral(expr.value) : formatValue(expr, null, options)
         case 'Number':
             return formatLosslessNumber(expr.value)
         case 'String':
@@ -1672,8 +1682,9 @@ export function unparse(compiled, overrides = {}, options = {}) {
             const asLetCall = step.letCall && step.op === step.letCallOp && options.keepLetNames && options.visibleLets?.has(step.letCall)
             if (asLetCall) callName = step.letCall
             // What a call of a let's name writes: the parameters written where
-            // it is called, and a seed pinned on it.
-            const letCallKeys = new Set(asLetCall ? [...step.letCallKeys, ...(step.authoredSeeds || [])] : [])
+            // it is called, and a seed pinned on it. A seed written in the let
+            // stays in the let.
+            const letCallKeys = new Set(asLetCall ? [...step.letCallKeys, ...(step.pinnedSeeds || [])] : [])
 
             const call = {
                 name: callName,

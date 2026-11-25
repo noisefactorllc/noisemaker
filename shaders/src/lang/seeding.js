@@ -130,6 +130,8 @@ export function pinParameter(compiled, stepIndex, param) {
         if (!step.inheritedSeeds?.[param]) return false
         delete step.inheritedSeeds[param]
         step.authoredSeeds = [...(step.authoredSeeds || []), param]
+        // Pinned here, on this element: a save writes it where a let is called.
+        step.pinnedSeeds = [...(step.pinnedSeeds || []), param]
         return true
     }
     for (const { origin } of pairs) {

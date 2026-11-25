@@ -415,6 +415,18 @@ test('a save by a let\'s name keeps a call-site hex colour, a pinned seed, and a
     assert.match(unparse(seeded), /\n\na\(\)\n  \.write\(o0\)/)
 })
 
+test('a save leaves a let\'s own seed in the let, keeps let names for a copy, and writes a colour let', () => {
+    const own = unparse(compile('search synth\nseed 1\nlet a = noise(seed: 5)\na().write(o0)'))
+    assert.match(own, /\n\na\(\)\n/, own)
+    const drawn = compile('search synth\nlet a = noise(octaves: 5)\na(scaleY: rand(1, 10)).write(o0)')
+    assert.equal(unparse({ ...drawn }), unparse(drawn))
+    const colour = compile('search synth, filter\nseed 1\nlet c = #804020\nnoise().tint(color: c).write(o0)')
+    assert.deepEqual(errors(colour), [])
+    const text = unparse(colour)
+    assert.doesNotMatch(text, /object Object/)
+    assert.deepEqual(errors(compile(text)), [], text)
+})
+
 test('a call-level seed draws under the constant key', () => {
     const c = compile('search synth\nseed 1\nnoise(scaleY: rand(1, 10, seed: 3150442103)).write(o0)')
     assert.deepEqual(errors(c), [])
