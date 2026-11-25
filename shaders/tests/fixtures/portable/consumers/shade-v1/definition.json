@@ -1,0 +1,19 @@
+{
+  "name": "shadeWave",
+  "namespace": "user",
+  "func": "shadeWave",
+  "description": "Synthetic fixture effect",
+  "globals": {
+    "speed": {
+      "type": "float",
+      "default": 1,
+      "uniform": "speed",
+      "min": 0,
+      "max": 4,
+      "ui": {
+        "label": "speed",
+        "control": "slider"
+      }
+    }
+  }
+}

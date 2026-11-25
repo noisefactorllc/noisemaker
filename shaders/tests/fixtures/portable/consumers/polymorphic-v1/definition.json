@@ -1,0 +1,33 @@
+{
+  "name": "Polymorphic Wave",
+  "func": "polymorphicWave",
+  "namespace": "user",
+  "description": "Synthetic fixture effect",
+  "tags": [
+    "user"
+  ],
+  "globals": {
+    "speed": {
+      "type": "float",
+      "default": 1,
+      "min": 0,
+      "max": 4,
+      "uniform": "speed",
+      "ui": {
+        "label": "speed",
+        "control": "slider"
+      }
+    }
+  },
+  "passes": [
+    {
+      "name": "main",
+      "program": "polymorphicWave",
+      "inputs": {},
+      "outputs": {
+        "color": "outputTex"
+      }
+    }
+  ],
+  "starter": true
+}

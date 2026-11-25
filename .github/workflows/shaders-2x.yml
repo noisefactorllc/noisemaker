@@ -86,6 +86,11 @@ jobs:
     - name: Run renderer sink and frame export tests
       run: npm run test:shaders:runtime
 
+    # The catalog baseline and the consumer contracts of the Portable
+    # migration. They need neither a GPU nor a built bundle.
+    - name: Run the Portable migration baseline tests
+      run: npm run test:shaders:portable
+
     - name: Install Playwright browsers
       run: npx playwright install chromium
 
