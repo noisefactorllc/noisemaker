@@ -1195,9 +1195,9 @@ work, verify it, then update the checkpoint and append a log line.
     per `deployment-meta.json`. The checkpoint and contract snapshot now
     name this qualified pair. Shade's browser smoke test ran on this pair
     against the built Shade `0d5042b` source and passed all 14 checks,
-    including a genuine WebGPU render. The parity verb failed at its
-    browser page again on a second attempt: this container's software-GL
-    browser cannot hold that adapter page. The recorded `renderEffectFrame`
+    including a genuine WebGPU render. The parity verb's first attempt
+    lost its adapter page (`OperationError`); the retry ran it and matched
+    the recorded transcript (`maxDiff` 0). The recorded `renderEffectFrame`
     metrics and the five other transcript matches cover that session.
   - 2026-11-25 — candidate pair: Noisemaker
     `24250c8c69610017b1413ccb9dc29a627663a790` and Shade MCP
@@ -1232,8 +1232,10 @@ work, verify it, then update the checkpoint and append a log line.
     metrics), `testUniformResponsiveness` (identical uniform deltas),
     `testNoPassthrough` (`skipped` as recorded), and `benchmarkEffectFPS`
     matched the recorded transcript field for field. `testPixelParity`
-    could not run in this container: the software-GL browser lost its
-    adapter page (`OperationError`). The browser smoke test on the pair is
+    first lost its adapter page (`OperationError`); the retry ran it and
+    matched the recorded transcript (`maxDiff` 0). The two `runDslProgram`
+    calls returned engine errors; both verified against current source as
+    current behavior, not defects. The browser smoke test on the pair is
     also not yet run. Pending: the browser smoke test, exact-source CI, and
     live readback. The completed checkpoint stays unchanged until those
     pass.
