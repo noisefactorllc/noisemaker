@@ -373,7 +373,7 @@ fn fragmentMain(input: VertexOutput) -> FragmentOutput {
     let uv = ((fragCoord + u.tileOffset) - 0.5 * fullRes) / fullRes.y;
     
     // Camera setup - fixed position, volume rotates
-    // Scale camera position from 0-1 UI range to world coords
+    // Scale camera position from the -1 to 1 UI range to world coords
     let ro = u.cameraPosition * 3.5;
     
     // Camera looks at origin; handle case when at origin

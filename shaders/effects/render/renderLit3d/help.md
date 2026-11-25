@@ -11,7 +11,7 @@ Universal 3D volume raymarcher with advanced lighting controls
 | threshold | float | 0.5 | 0-1 | Surface threshold |
 | invert | boolean | false | - | Invert threshold |
 | orbitSpeed | int | 1 | -5 to 5 | Volume rotation speed |
-| cameraPosition | vec3 | 0,0.1425,1.0 | -1 to 1 | Camera position (scaled 5x, 0,0,0 = center) |
+| cameraPosition | vec3 | 0,0.1425,1.0 | -1 to 1 | Camera position (scaled 3.5x, 0,0,0 = center) |
 | bgColor | color | 0,0,0 | - | Background color |
 | bgAlpha | float | 1 | 0-1 | Background alpha |
 
