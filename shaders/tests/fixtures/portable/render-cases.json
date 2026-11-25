@@ -6566,10 +6566,10 @@
       "performance": {
         "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
         "webgl2": {
-          "budgetMs": 4.05
+          "budgetMs": 3
         },
         "webgpu": {
-          "budgetMs": 3.6
+          "budgetMs": 3
         }
       },
       "timeline": {
@@ -9550,7 +9550,7 @@
           "budgetMs": 3
         },
         "webgpu": {
-          "budgetMs": 3
+          "budgetMs": 2.4
         }
       },
       "timeline": {
@@ -9628,7 +9628,7 @@
           "budgetMs": 3
         },
         "webgpu": {
-          "budgetMs": 2.85
+          "budgetMs": 2.7
         }
       },
       "timeline": {
@@ -11809,7 +11809,9 @@
       "withoutTarget": null,
       "seeds": [],
       "parameters": [
-        {}
+        {
+          "speed": 2
+        }
       ],
       "expectedAlpha": {
         "webgl2": [
@@ -11827,7 +11829,7 @@
           "budgetMs": 2
         },
         "webgpu": {
-          "budgetMs": 2.1
+          "budgetMs": 2
         }
       },
       "timeline": {

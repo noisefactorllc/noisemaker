@@ -10,25 +10,25 @@
         "surface": "global_o0_write",
         "width": 64,
         "height": 256,
-        "nonzeroRgbPixels": 20,
-        "uniqueColors": 3,
+        "nonzeroRgbPixels": 115,
+        "uniqueColors": 27,
         "alpha": [
           255,
           255
         ],
-        "sha256": "42898c87058b947957c2a80c997703a9eff5abb35092baec139b670aa9d5cbdc"
+        "sha256": "9ee1b1235e9198f3009e6fb0cd5407dca1280773dce4484a696a04cc4101699b"
       },
       "webgpu": {
         "surface": "global_o0_write",
         "width": 64,
         "height": 256,
-        "nonzeroRgbPixels": 12,
-        "uniqueColors": 3,
+        "nonzeroRgbPixels": 69,
+        "uniqueColors": 27,
         "alpha": [
           255,
           255
         ],
-        "sha256": "6c0f52ae2f662c08e00ceef4933b0b8ab54155e54b96fef2152c36074f28a835"
+        "sha256": "95cb783ca97dbeda1116aed6edf21a9358adaaea2c15efbec00dee16245e48eb"
       }
     }
   }

@@ -7,28 +7,28 @@
   "baselines": {
     "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
       "webgl2": {
-        "surface": "global_o0_write",
+        "surface": "global_o0_read",
         "width": 64,
         "height": 64,
         "nonzeroRgbPixels": 4096,
-        "uniqueColors": 4094,
+        "uniqueColors": 4095,
         "alpha": [
           255,
           255
         ],
-        "sha256": "8fcc603f683e15a81ff6991590143bf85456f701ecca33ac5c612b661e304d86"
+        "sha256": "0ef7c89b91c2ed33e32be8034e2eba02953ef377e2338d811cc1196c3e27f8e3"
       },
       "webgpu": {
-        "surface": "global_o0_write",
+        "surface": "global_o0_read",
         "width": 64,
         "height": 64,
         "nonzeroRgbPixels": 4096,
-        "uniqueColors": 4094,
+        "uniqueColors": 4095,
         "alpha": [
           255,
           255
         ],
-        "sha256": "af51cc50a31e568a78a5f8e46f66880203b724050e0efe30ceab082dfa49a482"
+        "sha256": "902a77cc6969677786f918db12f248dfbff25d0e01680cd250d19b3e1dc96d11"
       }
     }
   }
