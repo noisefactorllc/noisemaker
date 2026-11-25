@@ -1166,6 +1166,8 @@ export class ProgramState extends Emitter {
         if (!this._renderer?.pipeline?.graph?.passes) return
 
         const pipeline = this._renderer.pipeline
+        // An edit: a paused render after it steps a simulation once.
+        pipeline.markEdit?.()
 
         // Track whether any chain-scoped param changed so we know to re-resolve
         // texture dimensions (e.g. screenDivide:'zoom' → zoom_chain_N).

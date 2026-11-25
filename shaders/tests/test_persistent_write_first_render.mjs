@@ -57,7 +57,10 @@ void main() { fragColor = texture(source, vec2(0.5)); }`
             const counts = []
             try {
                 await pipeline.init(8, 8)
-                for (const time of [0, 0.016, 0.032, 0.048]) {
+                // global_memory is simulation state (read before a definite
+                // write), so each render is one grid step of the fixed-step
+                // clock (1 / 600 of a 10-second loop) and `frame` counts steps.
+                for (const time of [0, 1 / 600, 2 / 600, 3 / 600]) {
                     pipeline.render(time)
                     counts.push(pipeline.lastPassCount)
                     pixels.push(Array.from(backend.readPixels('result').data.slice(0, 4)))
@@ -80,8 +83,14 @@ void main() { fragColor = texture(source, vec2(0.5)); }`
         }
     }
     assert.deepEqual(frames.ordinary.pixels[0], expected, 'control must begin with a visible write')
-    assert.deepEqual(frames.ordinary.pixels[2], [0, 0, 0, 0],
-        'control must expose the skipped-write regression without persistence')
+    // Under the fixed-step clock a surface that no pass wrote keeps its
+    // bindings, so even without `persistent` the skipped producer leaves the
+    // last write readable; the end-of-frame swap no longer exposes the other
+    // buffer for a graph with simulation state. `persistent` still keeps the
+    // contents across a resize, which test_simulation_steps.js checks.
+    for (const [index, pixel] of frames.ordinary.pixels.entries()) {
+        assert.deepEqual(pixel, expected, `control frame ${index} must keep the last write`)
+    }
     assert.deepEqual(errors, [], 'browser must not report errors')
     console.log('WebGL2 write-first persistent memory retains RGBA across three skipped producer frames')
 } finally {

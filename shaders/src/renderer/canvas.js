@@ -992,6 +992,8 @@ export class CanvasRenderer {
     setLoopDuration(duration) {
         this._loopDuration = duration
         this._loopStartTime = performance.now() // Reset loop
+        // The simulation clock's steps per loop; the state is kept.
+        this._pipeline?.setLoopDuration?.(duration)
     }
 
     /**
@@ -1295,6 +1297,7 @@ export class CanvasRenderer {
         }
         if (this._isRunning) return
         this._isRunning = true
+        this._pipeline?.setLoopRunning?.(true)
         this._lastFrameTime = performance.now()
         this._animationFrameId = requestAnimationFrame(this._boundRenderLoop)
     }
@@ -1304,6 +1307,7 @@ export class CanvasRenderer {
      */
     stop() {
         this._isRunning = false
+        this._pipeline?.setLoopRunning?.(false)
         if (this._animationFrameId !== null) {
             cancelAnimationFrame(this._animationFrameId)
             this._animationFrameId = null
@@ -1336,13 +1340,29 @@ export class CanvasRenderer {
         // the pipeline past a microtask. render() is synchronous for 2D
         // programs and hosts call it that way — set a uniform, render, read
         // the canvas back — so the readback would see the previous frame.
+        // A scene program with simulation state advances the simulation
+        // first, so the scene samples this render's state, then draws.
+        const pipeline = this._pipeline
+        const simulationScene = this._isScene && pipeline?.hasSimulation && !this._isContextLost
+        if (simulationScene) {
+            try {
+                pipeline.advance(normalizedTime)
+                pipeline.endSceneSplit()
+            } catch (err) {
+                console.error('Render error:', err)
+                if (this._onError) this._onError(err)
+                return
+            }
+        }
+
         if (this._isScene) {
             await this._renderScene(normalizedTime * this._loopDuration * 1000, normalizedTime)
         }
 
         if (this._pipeline && !this._isContextLost) {
             try {
-                this._pipeline.render(normalizedTime)
+                if (simulationScene && this._pipeline === pipeline) this._pipeline.draw()
+                else this._pipeline.render(normalizedTime)
                 this._lastPassCount = this._pipeline.lastPassCount
                 this._frameCount++
             } catch (err) {
@@ -1450,7 +1470,13 @@ export class CanvasRenderer {
         const base = this._isScene
             ? fromTime ?? this._sceneStepTime ?? this.lastTime
             : (fromTime === undefined ? this.lastTime : fromTime)
-        const time = (base + 1 / (60 * this._loopDuration)) % 1
+        // A program with simulation state steps exactly one grid step of the
+        // fixed-step clock, from `base`, the last time stepped or queued. After
+        // a change of loop duration the clock first seeks there, so the step runs.
+        if (this._pipeline.hasSimulation && this._pipeline.clock?.seekPending) this._pipeline.syncTime(base)
+        const time = this._pipeline.hasSimulation
+            ? this._pipeline.nextStepTime(base)
+            : (base + 1 / (60 * this._loopDuration)) % 1
         if (this._isScene) {
             const pipeline = this._pipeline
             this._sceneStepTime = time
@@ -1506,7 +1532,23 @@ export class CanvasRenderer {
         // and awaiting anyway moves every draw out of the rAF callback and into
         // a microtask after it.
         const deferRender = this._pipeline && this._pipeline.shouldDeferRender?.()
+        // A scene program with simulation state advances the simulation before
+        // the scene render, so the scene samples this render's state.
+        const pipeline = this._pipeline
+        const simulationScene = !deferRender && this._isScene && pipeline?.hasSimulation
+        let advanced = false
         if (!deferRender && this._isScene && !this._sceneRenderPending) {
+            if (simulationScene) {
+                try {
+                    pipeline.advance(normalizedTime)
+                    pipeline.endSceneSplit()
+                    advanced = true
+                } catch (err) {
+                    console.error('Render loop error:', err)
+                    if (this._onError) this._onError(err)
+                    return
+                }
+            }
             await this._renderScene(time, normalizedTime)
             // Teardown can land while the scene render is in flight.
             if (!this._isRunning) return
@@ -1519,7 +1561,12 @@ export class CanvasRenderer {
         } else if (this._pipeline) {
             try {
                 const renderStart = performance.now()
-                this._pipeline.render(normalizedTime)
+                if (simulationScene && this._pipeline === pipeline) {
+                    if (!advanced) pipeline.advance(normalizedTime)
+                    pipeline.draw()
+                } else {
+                    this._pipeline.render(normalizedTime)
+                }
                 const renderEnd = performance.now()
 
                 // Track frame time for jitter measurement
@@ -1799,6 +1846,8 @@ export class CanvasRenderer {
                 return null
             }
             this._pipeline = initialPipeline
+            this._pipeline.setLoopDuration?.(this._loopDuration)
+            this._pipeline.setLoopRunning?.(this._isRunning)
             this._watchDeviceLoss(initialPipeline)
             // Apply external input state to new pipeline
             if (this._midiState) {
@@ -1848,6 +1897,8 @@ export class CanvasRenderer {
                         return null
                     }
                     this._pipeline = replacementPipeline
+                    this._pipeline.setLoopDuration?.(this._loopDuration)
+                    this._pipeline.setLoopRunning?.(this._isRunning)
                     this._watchDeviceLoss(replacementPipeline)
                     // Scene bindings read midi()/audio() through
                     // pipeline.externalState. Dropped here, every one of them
@@ -3328,6 +3379,8 @@ export class CanvasRenderer {
         if (!this._pipeline || !effect || !effect.instance) {
             return
         }
+        // An edit: a paused render after it steps a simulation once.
+        this._pipeline.markEdit?.()
 
         if (!this._uniformBindings.size) {
             this.buildUniformBindings(effect)
@@ -3411,6 +3464,8 @@ export class CanvasRenderer {
         if (!this._pipeline || !this._pipeline.graph || !Array.isArray(this._pipeline.graph.passes)) {
             return
         }
+        // An edit: a paused render after it steps a simulation once.
+        this._pipeline.markEdit?.()
 
         // Track whether any pass updated a chain-scoped param so we know to
         // re-resolve dependent texture dimensions (e.g. screenDivide:'zoom').

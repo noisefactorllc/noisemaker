@@ -59,7 +59,9 @@ try {
                 for (const [dsl, frames] of phases) {
                     await fresh.compile(dsl)
                     fresh.stop()
-                    for (let i = 0; i < frames; i++) fresh.render(frame++ / 60)
+                    // One step of the fixed-step clock a frame (1 / 600 of a
+                    // 10-second loop). A recompile is a start of the clock.
+                    for (let i = 0; i < frames; i++) fresh.render(frame++ / 600)
                     await fresh.pipeline.backend.waitForIdle?.()
                     const pass = fresh.pipeline.graph.passes.find(p => p.effectFunc === effect && p.outputs?.outRGBA)
                     const surface = fresh.pipeline.surfaces.get(pass.outputs.outRGBA.slice(7))

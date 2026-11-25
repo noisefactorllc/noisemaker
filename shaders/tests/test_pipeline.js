@@ -574,9 +574,11 @@ test('Pipeline - Repeat Pass Binding Sequence (self-seeding, persists across fra
 
     const frame1LastWrite = f1iter1.surfaceBindings.rd_state.write
 
-    // Frame 2
+    // Frame 2, one simulation step later: global_rd_state is state, so the
+    // pass runs once per grid step of the fixed-step clock (1 / 600 of a
+    // 10-second loop).
     backend.passes = []
-    pipeline.render(0.016)
+    pipeline.render(1 / 600)
 
     if (backend.passes.length !== 2) {
         throw new Error(`Expected 2 executed pass iterations in frame 2, got ${backend.passes.length}`)
@@ -595,6 +597,8 @@ test('Pipeline - Repeat Pass Binding Sequence (self-seeding, persists across fra
     }
 })
 
+// The next three graphs hold state, so each render is one grid step of the
+// fixed-step clock (1 / 600 of a 10-second loop), and `frame` counts steps.
 test('Pipeline - Custom feedback surface survives a skipped pass', async () => {
     const backend = new MockBackend()
     const graph = {
@@ -618,12 +622,12 @@ test('Pipeline - Custom feedback surface survives a skipped pass', async () => {
     const firstWrite = backend.passes[0].surfaceBindings.memory.write
 
     backend.passes = []
-    pipeline.render(0.016)
+    pipeline.render(1 / 600)
     if (backend.passes.length !== 0) {
         throw new Error('Feedback pass should be skipped on frame 1')
     }
 
-    pipeline.render(0.032)
+    pipeline.render(2 / 600)
     const resumedRead = backend.passes[0].surfaceBindings.memory.read
     if (resumedRead !== firstWrite) {
         throw new Error(`Expected resumed feedback to read ${firstWrite}, got ${resumedRead}`)
@@ -652,7 +656,7 @@ test('Pipeline - Write-first persistent surface survives consecutive skipped pas
     pipeline.render(0)
     const firstWrite = backend.passes[0].surfaceBindings.memory.write
 
-    for (const time of [0.016, 0.032, 0.048]) {
+    for (const time of [1 / 600, 2 / 600, 3 / 600]) {
         backend.passes = []
         pipeline.render(time)
         if (backend.passes.length !== 1 || backend.passes[0].passId !== 'show_memory') {
@@ -688,12 +692,12 @@ test('Pipeline - Storage-only feedback surface survives a skipped pass', async (
     const firstWrite = backend.passes[0].surfaceBindings.storage_memory.write
 
     backend.passes = []
-    pipeline.render(0.016)
+    pipeline.render(1 / 600)
     if (backend.passes.length !== 0) {
         throw new Error('Storage feedback pass should be skipped on frame 1')
     }
 
-    pipeline.render(0.032)
+    pipeline.render(2 / 600)
     const resumedRead = backend.passes[0].surfaceBindings.storage_memory.read
     if (resumedRead !== firstWrite) {
         throw new Error(`Expected resumed storage feedback to read ${firstWrite}, got ${resumedRead}`)

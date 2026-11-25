@@ -3030,7 +3030,9 @@ mode is active, WebGPU is unavailable (`preferWebGPU` is ignored and
 `switchBackend('wgsl')` keeps WebGL2), `start()` renders the current frame
 without an animation loop, and `stepFrame(fromTime?)` renders the next frame:
 time advances by `1 / (60 * loopDuration)` from `fromTime` or the last rendered
-time, wrapping at 1, and simulations take one step. `stepFrame()` also renders
+time, wrapping at 1, and simulations take one step. For a program with
+simulation state, the next frame is the next step of the fixed-step clock, at
+`1 / round(60 * loopDuration)` past the last step. `stepFrame()` also renders
 on a GPU while the loop is stopped, and returns null while it runs. A harness
 that captures from the running loop keeps `'off'`.
 Sources: `shaders/src/renderer/software-rendering.js`;

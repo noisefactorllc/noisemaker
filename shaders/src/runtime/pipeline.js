@@ -14,6 +14,8 @@ import { CanvasSink, SinkManager } from './sink.js'
 import { preflightEffect, mrtFormatBytes } from './preflight.js'
 import { DiagnosticCollector } from './backends/diagnostics.js'
 import { SRGB, configureWebGL2Canvas, configureWebGPUCanvas } from './color-output.js'
+import { SimulationClock } from './simulation-clock.js'
+import { SCENE_COLOR_TEXTURE } from '../rendering/scene-compiler.js'
 
 // A uniform scoped to one element by its `_id:` (expander elementStateKey()).
 const ELEMENT_SCOPED = new RegExp(`_id_${ELEMENT_IDENTITY}@[^@]+$`)
@@ -625,6 +627,13 @@ export class Pipeline {
         this.frameReadTextures = new Map()
         this.frameWriteTextures = new Map()
         this.animationDuration = 10  // Default animation loop duration in seconds
+        // The fixed-step simulation clock (simulation-clock.js). A graph with
+        // state runs its step passes once per grid step; see render().
+        this.clock = new SimulationClock(this.animationDuration)
+        // The graph's step and draw passes (analyzeSimulation()), or null.
+        this._simulation = null
+        // Whether the host's animation loop is running (for the edit mark).
+        this._loopRunning = false
         // Pre-allocate frame state object to avoid per-frame allocation
         this._frameState = {
             frameIndex: 0,
@@ -744,7 +753,77 @@ export class Pipeline {
      * @param {number} seconds - Animation loop duration in seconds
      */
     setAnimationDuration(seconds) {
+        this.setLoopDuration(seconds)
+    }
+
+    /**
+     * Set the loop duration. It sets the simulation clock's steps per loop,
+     * round(60 * seconds); the state is kept.
+     * @param {number} seconds - Loop duration in seconds
+     */
+    setLoopDuration(seconds) {
         this.animationDuration = seconds
+        this.clock.setLoopDuration(seconds)
+    }
+
+    /**
+     * Whether the graph has simulation state, and so step passes.
+     * @returns {boolean}
+     */
+    get hasSimulation() {
+        return this._simulation?.stepPasses.size > 0
+    }
+
+    /**
+     * Tell the pipeline whether the host's animation loop runs. It clears a
+     * pending edit mark, so an edit made before never steps a later render.
+     * @param {boolean} running
+     */
+    setLoopRunning(running) {
+        this._loopRunning = running === true
+        this.clock.clearEdit()
+    }
+
+    /**
+     * Mark an edit. The next render runs one simulation step when the loop
+     * is stopped and no step is due, so a paused edit shows its effect. The
+     * next render clears the mark whether or not it uses it.
+     */
+    markEdit() {
+        this.clock.markEdit()
+    }
+
+    /**
+     * The loop time of the next simulation grid step, wrapped to [0, 1).
+     * @param {number} [fromTime=this.lastTime]
+     * @returns {number}
+     */
+    nextStepTime(fromTime = this.lastTime) {
+        return this.clock.nextStepTime(fromTime)
+    }
+
+    /**
+     * Clear all simulation state to zero, the contents of a new texture, and
+     * make the next render a start: it anchors the clock at its own time and
+     * runs one step, which sees the current uniforms.
+     * @param {number} [time] - The loop time of the next render, kept as lastTime
+     */
+    resetSimulation(time) {
+        const simulation = this._simulation
+        if (simulation && this.backend?.clearTexture) {
+            for (const key of simulation.clearKeys) {
+                const surfaceName = key.startsWith('global:') ? key.slice('global:'.length) : null
+                if (surfaceName) {
+                    const surface = this.surfaces.get(surfaceName)
+                    if (surface?.read) this.backend.clearTexture(surface.read)
+                    if (surface?.write) this.backend.clearTexture(surface.write)
+                } else if (this.backend.textures?.has?.(key)) {
+                    this.backend.clearTexture(key)
+                }
+            }
+        }
+        this.clock.reset()
+        if (typeof time === 'number') this.lastTime = time
     }
 
     /**
@@ -845,6 +924,8 @@ export class Pipeline {
         this._sinkDescriptor.height = height
         this.sinkManager.configure(this._sinkDescriptor)
 
+        const before = this.simulationTextureRecords()
+
         // Create/recreate global surfaces
         this.createSurfaces()
         this.refreshMipTargets()
@@ -855,6 +936,45 @@ export class Pipeline {
         this.recreateTextures(defaultUniforms)
         this.initAsyncEffects()
         this.initLifecycleEffects()
+
+        // A simulation texture recreated without its contents makes the next
+        // render a start, so its state is seeded at once.
+        if (this.simulationTexturesRecreated(before)) this.clock.reset()
+    }
+
+    /**
+     * The backend texture records of the current simulation textures, by id.
+     * @returns {Map<string, object>}
+     */
+    simulationTextureRecords() {
+        const records = new Map()
+        for (const key of this._simulation?.clearKeys || []) {
+            const ids = key.startsWith('global:')
+                ? [`global_${key.slice('global:'.length)}_read`, `global_${key.slice('global:'.length)}_write`]
+                : [key]
+            for (const id of ids) {
+                const record = this.backend?.textures?.get?.(id)
+                if (record) records.set(id, record)
+            }
+        }
+        return records
+    }
+
+    /**
+     * Whether a simulation texture recorded before a resize was recreated
+     * without keeping its contents. A persistent texture keeps them.
+     * @param {Map<string, object>} before - simulationTextureRecords() before
+     * @returns {boolean}
+     */
+    simulationTexturesRecreated(before) {
+        for (const [id, record] of before) {
+            if (this.backend?.textures?.get?.(id) === record) continue
+            const surfaceName = this.parseGlobalName(id.replace(/_(read|write)$/, ''))
+            const spec = this.graph?.textures?.get?.(surfaceName ? `global_${surfaceName}` : id)
+            if (spec?.persistent === true) continue
+            return true
+        }
+        return false
     }
 
     /**
@@ -1523,6 +1643,13 @@ export class Pipeline {
         this._feedbackSurfaces = new Set(
             [...readBeforeWriteSurfaces].filter(name => writtenSurfaces.has(name)))
 
+        // The step and draw passes of the simulation clock. A new graph (a
+        // compile or a recompile) is a start.
+        if (this._simulation?.graph !== this.graph) {
+            this._simulation = this.analyzeSimulation()
+            this.clock.reset()
+        }
+
         // Check if any pass references midiNoteGrid texture
         this._needsMidiNoteGrid = false
         if (this.graph && this.graph.passes) {
@@ -1671,6 +1798,169 @@ export class Pipeline {
     }
 
     /**
+     * The texture key of a pass input or output: `global:<name>` for a global
+     * surface, the texture id otherwise, and null for a static mesh texture.
+     * @param {string} texId
+     * @returns {string|null}
+     */
+    simulationTextureKey(texId) {
+        if (typeof texId !== 'string') return null
+        const globalName = this.parseGlobalName(texId)
+        if (globalName) return /^mesh\d+_(positions|normals|uvs)$/.test(globalName) ? null : `global:${globalName}`
+        return texId
+    }
+
+    /**
+     * Whether a pass's viewport covers each texture it writes: it starts at 0, 0
+     * and resolves to the texture's own size. A volume generator writes its
+     * whole atlas through such a viewport, so the write is a full one.
+     * @param {object} pass
+     * @param {object} uniforms - Default uniforms for parameter-sized dimensions
+     * @returns {boolean}
+     */
+    viewportCoversOutputs(pass, uniforms) {
+        const viewport = pass.viewport
+        if (!viewport || typeof viewport !== 'object') return false
+        if ((viewport.x ?? 0) !== 0 || (viewport.y ?? 0) !== 0) return false
+        const widthSpec = viewport.width ?? viewport.w
+        const heightSpec = viewport.height ?? viewport.h
+        if (widthSpec === undefined || heightSpec === undefined) return false
+        const scoped = { ...uniforms, ...(pass.uniforms || {}) }
+        const width = this.resolveDimension(widthSpec, this.width, scoped)
+        const height = this.resolveDimension(heightSpec, this.height, scoped)
+        const outputs = Object.values(pass.outputs || pass.storageTextures || {})
+        return outputs.length > 0 && outputs.every(id => {
+            const spec = this.graph?.textures?.get?.(id)
+            if (!spec) return false
+            return this.resolveDimension(spec.width, this.width, uniforms) === width &&
+                this.resolveDimension(spec.height, this.height, uniforms) === height
+        })
+    }
+
+    /**
+     * Find the simulation state of the current graph.
+     *
+     * A state texture is a texture that a pass reads before any pass
+     * definitely writes it in the frame, and that the frame writes: it holds
+     * a previous frame's value. A write under runIf or skipIf is not definite,
+     * and a write that blends, uses a drawMode, or uses a viewport without a
+     * clear also reads its destination.
+     *
+     * The step set is the smallest set of passes that holds each pass that
+     * writes a state texture, each pass that reads a state texture before it
+     * is definitely written, each in-frame producer of a member, and each
+     * pass that writes a texture a later member writes (so the order of
+     * writes is kept). Step passes run once per simulation step; every other
+     * pass is a draw pass and runs once per render.
+     * @returns {{graph: object, stepPasses: Set<number>, stateKeys: Set<string>, heldTextures: Set<string>, clearKeys: Set<string>, sceneDrawPasses: Set<number>}}
+     */
+    analyzeSimulation() {
+        const passes = this.graph?.passes || []
+        const reads = []
+        const writes = []
+        const definite = []
+        const uniforms = this.collectDefaultUniforms()
+        for (const pass of passes) {
+            const outputs = [...new Set(Object.values(pass.outputs || pass.storageTextures || {})
+                .map(id => this.simulationTextureKey(id)).filter(Boolean))]
+            const inputs = new Set(Object.values(pass.inputs || {}).map(id => this.simulationTextureKey(id)).filter(Boolean))
+            const partialViewport = pass.viewport && !pass.clear && !this.viewportCoversOutputs(pass, uniforms)
+            const partial = Boolean(pass.drawMode || pass.blend || partialViewport)
+            if (partial) for (const key of outputs) inputs.add(key)
+            reads.push(inputs)
+            writes.push(outputs)
+            definite.push(!pass.conditions && !partial)
+        }
+
+        const definitelyWritten = new Set()
+        const written = new Set()
+        const readBeforeWrite = new Map() // key -> readers before a definite write
+        for (let i = 0; i < passes.length; i++) {
+            for (const key of reads[i]) {
+                if (definitelyWritten.has(key)) continue
+                if (!readBeforeWrite.has(key)) readBeforeWrite.set(key, [])
+                readBeforeWrite.get(key).push(i)
+            }
+            for (const key of writes[i]) {
+                written.add(key)
+                if (definite[i]) definitelyWritten.add(key)
+            }
+        }
+        const stateKeys = new Set([...readBeforeWrite.keys()].filter(key => written.has(key)))
+
+        const stepPasses = new Set()
+        for (let i = 0; i < passes.length; i++) {
+            if (writes[i].some(key => stateKeys.has(key))) stepPasses.add(i)
+        }
+        for (const key of stateKeys) for (const reader of readBeforeWrite.get(key)) stepPasses.add(reader)
+
+        // Close the set under in-frame producers, under earlier writers of a
+        // texture a member writes, and under earlier readers of a texture a
+        // member writes later: step passes run before draw passes, so each of
+        // those would otherwise see another write than in graph order.
+        let changed = stepPasses.size > 0
+        while (changed) {
+            changed = false
+            for (const member of [...stepPasses]) {
+                for (let j = 0; j < member; j++) {
+                    if (stepPasses.has(j)) continue
+                    const produces = writes[j].some(key => reads[member].has(key))
+                    const writesSame = writes[j].some(key => writes[member].includes(key))
+                    const readsLaterWrite = writes[member].some(key => reads[j].has(key))
+                    if (produces || writesSame || readsLaterWrite) {
+                        stepPasses.add(j)
+                        changed = true
+                    }
+                }
+            }
+        }
+
+        // A step pass that samples a mipmapped texture would need its mips per
+        // step; they regenerate once a render. No shipped effect does this.
+        for (const i of stepPasses) {
+            for (const id of Object.values(passes[i].inputs || {})) {
+                if (this.graph?.textures?.get?.(id)?.mipmaps === true) {
+                    throw new Error(`Pass ${passes[i].id} is a simulation step that samples the mipmapped texture ${id}; its mips regenerate once a render, not once a step`)
+                }
+            }
+        }
+
+        // The textures step passes write stay as the last step left them,
+        // so they are never pooled; resetSimulation() clears them.
+        const heldTextures = new Set()
+        const clearKeys = new Set(stateKeys)
+        for (const i of stepPasses) {
+            for (const id of Object.values(passes[i].outputs || passes[i].storageTextures || {})) {
+                const key = this.simulationTextureKey(id)
+                if (!key) continue
+                clearKeys.add(key)
+                if (!key.startsWith('global:')) heldTextures.add(key)
+            }
+        }
+
+        // For a scene program, the draw passes that depend on the scene image,
+        // directly or through an in-frame producer, run after the scene render,
+        // and so does each later draw pass that writes a texture one of them
+        // read or wrote, which keeps the order of reads and writes.
+        const sceneDrawPasses = new Set()
+        const sceneDependent = new Set()
+        const sceneRead = new Set()
+        for (let i = 0; i < passes.length; i++) {
+            if (stepPasses.has(i)) continue
+            const dependsOnScene = Object.values(passes[i].inputs || {}).includes(SCENE_COLOR_TEXTURE) ||
+                [...reads[i]].some(key => sceneDependent.has(key)) ||
+                writes[i].some(key => sceneDependent.has(key) || sceneRead.has(key))
+            if (dependsOnScene) {
+                sceneDrawPasses.add(i)
+                for (const key of writes[i]) sceneDependent.add(key)
+                for (const key of reads[i]) sceneRead.add(key)
+            }
+        }
+
+        return { graph: this.graph, stepPasses, stateKeys, heldTextures, clearKeys, sceneDrawPasses }
+    }
+
+    /**
      * Check if a dimension spec is dynamic (screen-relative, percentage, or parameter-based)
      * Fixed numeric values return false; everything else returns true.
      * @param {number|string|object} spec - Dimension specification
@@ -1698,6 +1988,18 @@ export class Pipeline {
      * @param {object} [uniforms] - Current uniform values for parameter-based sizing
      */
     recreateTextures(uniforms = {}) {
+        // A simulation texture recreated without its contents (for example a
+        // stateSize change) makes the next render a start, so it is seeded at once.
+        const before = this.simulationTextureRecords()
+        this.recreateGraphTextures(uniforms)
+        if (this.simulationTexturesRecreated(before)) this.clock.reset()
+    }
+
+    /**
+     * Create or resize the graph's textures for the current size and uniforms.
+     * @param {object} [uniforms]
+     */
+    recreateGraphTextures(uniforms = {}) {
         if (!this.graph || !this.graph.textures) return
 
         // Rebuild the pooling plan from the analyzer's allocation map. Must run
@@ -1886,6 +2188,8 @@ export class Pipeline {
             if (!physicalId || !textures.has(texId)) continue
             // Global surfaces are double-buffered and never pooled
             if (texId.startsWith('global')) continue
+            // A texture a simulation step writes holds its value between steps.
+            if (this._simulation?.heldTextures.has(texId)) continue
             if (firstTouchIsWrite.get(texId) === false) continue
             if (selfSampled.has(texId)) continue
             if (partiallyWritten.has(texId)) continue
@@ -2087,6 +2391,17 @@ export class Pipeline {
      * @returns {Promise<Array<{width:number,height:number,data:Uint8Array}>>} reused buffer — copy if retaining
      */
     async renderCubemap({ size = 512, outputSurface = 'o0', time = 0, yieldBetweenFaces = false, onFace = null } = {}) {
+        // The faces of a capture share one simulation state: a render with no
+        // due step runs only draw passes. A cube-rendering pass that is itself
+        // a simulation step would hold face 0 for all six faces.
+        const passes = this.graph?.passes || []
+        for (const i of this._simulation?.stepPasses || []) {
+            if (passes[i]?.uniforms && Object.hasOwn(passes[i].uniforms, 'cubeBasis')) {
+                throw new Error(`renderCubemap: the cube-rendering pass ${passes[i].id} is a simulation step (it feeds simulation state), so its six faces cannot differ`)
+            }
+        }
+        // A capture is not an edit: a pending edit mark never steps a face.
+        this.clock.clearEdit()
         const prevW = this.width, prevH = this.height
         if (this.width !== size || this.height !== size) this.resize(size, size)
         if (!this._cubeFaces) this._cubeFaces = new Array(6)
@@ -2600,6 +2915,8 @@ export class Pipeline {
      */
     syncTime(time) {
         this.lastTime = time
+        // A seek: the clock moves without stepping, and the state is kept.
+        this.clock.seek(time)
     }
 
     /**
@@ -2612,6 +2929,14 @@ export class Pipeline {
         // This prevents ERR_PROGRAM_NOT_FOUND errors when the graph has been
         // updated but programs haven't finished compiling yet
         if (this.isCompiling) {
+            return
+        }
+
+        // A graph with simulation state runs on the fixed-step clock. A graph
+        // without it renders exactly as before the clock.
+        if (this.hasSimulation) {
+            this.advance(time)
+            this.draw(presentationTimestamp)
             return
         }
 
@@ -2650,57 +2975,7 @@ export class Pipeline {
         if (this.graph && this.graph.passes) {
             try {
                 for (let i = 0; i < this.graph.passes.length; i++) {
-                    const originalPass = this.graph.passes[i]
-                    // Resolve authored viewport specs before the
-                    // oscillator proxy is built so the proxy can carry the
-                    // cached resolved box; re-resolve after uniform
-                    // resolution so param-driven viewports track the
-                    // frame's uniform values.
-                    if (originalPass.viewport !== undefined) {
-                        this.resolvePassViewport(originalPass)
-                    }
-                    let pass = this.resolvePassUniforms(originalPass, time)
-                    if (originalPass.viewport !== undefined) {
-                        this.resolvePassViewport(pass, originalPass)
-                    }
-                    // Bind onUpdate-returned uniforms. Fallback
-                    // semantics: a returned uniform binds only when the pass
-                    // does not already resolve that key, so authored and
-                    // step-provided values keep priority. Rare: only effects
-                    // with an onUpdate hook that returned uniforms contribute.
-                    if (this._hasRuntimeUniforms && pass.effectKey !== undefined) {
-                        const runtimeUniforms = this._runtimeUniforms.get(pass.effectKey)
-                        if (runtimeUniforms) {
-                            pass = this._withRuntimeUniforms(pass, runtimeUniforms)
-                        }
-                    }
-                    // Check pass conditions
-                    if (this.shouldSkipPass(pass)) {
-                        continue
-                    }
-
-                    // Determine iteration count (repeat N times per frame)
-                    const repeatCount = this.resolveRepeatCount(pass)
-
-                    for (let iter = 0; iter < repeatCount; iter++) {
-                        // Execute pass
-                        try {
-                            const state = this.getFrameState()
-                            this.backend.executePass(pass, state)
-                            passCount++
-                            this.updateFrameSurfaceBindings(pass, state)
-                        } catch (err) {
-                            console.error(`[Pipeline.render] ERROR executing pass ${pass.id}: ${err.detail || err.message || JSON.stringify(err)}`)
-                            throw err
-                        }
-
-                        // Adopt this iteration's frame-local ping-pong bindings into
-                        // the cross-frame surface record (frame-local maps remain
-                        // the source of truth -- see adoptIterationBindings() doc).
-                        if (repeatCount > 1) {
-                            this.adoptIterationBindings(pass)
-                        }
-                    }
+                    passCount += this.executeGraphPass(this.graph.passes[i], time)
                 }
             } catch (loopErr) {
                 console.error(`[Pipeline.render] LOOP ERROR: ${loopErr.detail || loopErr.message || JSON.stringify(loopErr)}`)
@@ -2717,8 +2992,92 @@ export class Pipeline {
         // End frame
         this.backend.endFrame()
 
-        // Present the render surface to screen
-        // Use explicit render() directive or the last surface written to
+        this.presentRenderSurface(presentationTimestamp)
+
+        // Swap double buffers for global surfaces
+        this.swapBuffers()
+
+        // Store pass count for this frame
+        this.lastPassCount = passCount
+
+        this.frameIndex++
+    }
+
+    /**
+     * Run one graph pass at a loop time: resolve its uniforms and viewport,
+     * apply its conditions and repeat count, and execute it.
+     * @param {object} originalPass - A pass of the graph
+     * @param {number} time - Loop time for the pass's uniforms
+     * @param {Set<string>} [writtenSurfaces] - Collects the global surfaces it writes
+     * @returns {number} The number of pass executions
+     */
+    executeGraphPass(originalPass, time, writtenSurfaces) {
+        // Resolve authored viewport specs before the
+        // oscillator proxy is built so the proxy can carry the
+        // cached resolved box; re-resolve after uniform
+        // resolution so param-driven viewports track the
+        // frame's uniform values.
+        if (originalPass.viewport !== undefined) {
+            this.resolvePassViewport(originalPass)
+        }
+        let pass = this.resolvePassUniforms(originalPass, time)
+        if (originalPass.viewport !== undefined) {
+            this.resolvePassViewport(pass, originalPass)
+        }
+        // Bind onUpdate-returned uniforms. Fallback
+        // semantics: a returned uniform binds only when the pass
+        // does not already resolve that key, so authored and
+        // step-provided values keep priority. Rare: only effects
+        // with an onUpdate hook that returned uniforms contribute.
+        if (this._hasRuntimeUniforms && pass.effectKey !== undefined) {
+            const runtimeUniforms = this._runtimeUniforms.get(pass.effectKey)
+            if (runtimeUniforms) {
+                pass = this._withRuntimeUniforms(pass, runtimeUniforms)
+            }
+        }
+        // Check pass conditions
+        if (this.shouldSkipPass(pass)) {
+            return 0
+        }
+
+        // Determine iteration count (repeat N times per frame)
+        const repeatCount = this.resolveRepeatCount(pass)
+
+        let count = 0
+        for (let iter = 0; iter < repeatCount; iter++) {
+            // Execute pass
+            try {
+                const state = this.getFrameState()
+                this.backend.executePass(pass, state)
+                count++
+                this.updateFrameSurfaceBindings(pass, state)
+            } catch (err) {
+                console.error(`[Pipeline.render] ERROR executing pass ${pass.id}: ${err.detail || err.message || JSON.stringify(err)}`)
+                throw err
+            }
+
+            // Adopt this iteration's frame-local ping-pong bindings into
+            // the cross-frame surface record (frame-local maps remain
+            // the source of truth -- see adoptIterationBindings() doc).
+            if (repeatCount > 1) {
+                this.adoptIterationBindings(pass)
+            }
+        }
+        if (writtenSurfaces && count > 0) {
+            for (const id of Object.values(pass.outputs || pass.storageTextures || {})) {
+                const name = this.parseGlobalName(id)
+                if (name) writtenSurfaces.add(name)
+            }
+        }
+        return count
+    }
+
+    /**
+     * Submit the render surface to the sinks: the canvas and frame export.
+     * Uses the explicit render() directive's surface.
+     * @param {number} [presentationTimestamp]
+     */
+    presentRenderSurface(presentationTimestamp) {
         const renderSurfaceName = this.graph?.renderSurface
         if (renderSurfaceName) {
             const renderSurface = this.surfaces.get(renderSurfaceName)
@@ -2732,14 +3091,157 @@ export class Pipeline {
                 this.sinkManager.submit(presentId, presentationTimestamp)
             }
         }
+    }
 
-        // Swap double buffers for global surfaces
-        this.swapBuffers()
+    /**
+     * Advance the simulation to loop time `time`: run each due grid step's
+     * step passes, at the step's time, with deltaTime = 1 / N and frame = the
+     * steps since the last start. Then run the draw passes that do not depend
+     * on a scene image. The frame stays open for draw().
+     *
+     * A host that renders a scene between them calls advance(), then
+     * endSceneSplit() and its scene render, then draw(). render() calls
+     * advance() and draw().
+     * @param {number} time - Loop time in [0, 1)
+     */
+    advance(time) {
+        if (this.isCompiling) return
+        const simulation = this._simulation
+        const result = this.clock.advance(time, { stopped: !this._loopRunning })
+        this.lastTime = time
+        this.lastClockResult = result
 
-        // Store pass count for this frame
-        this.lastPassCount = passCount
+        // Once a render: the global uniforms (and the MIDI note grid) and the
+        // lifecycle hooks, at the render time.
+        this.updateGlobalUniforms(time, result.deltaTime)
+        this._invokeUpdateHooks(time, result.deltaTime)
 
+        this.frameReadTextures.clear()
+        this.frameWriteTextures.clear()
+        for (const [name, surface] of this.surfaces.entries()) {
+            this.frameReadTextures.set(name, surface.read)
+            this.frameWriteTextures.set(name, surface.write)
+        }
+        this._writtenSurfaces = new Set()
+        this._passCount = 0
+        this._advancedGraph = this.graph
+        this._frameOpen = true
+        this.backend.beginFrame(this.getFrameState())
+
+        const passes = this.graph?.passes || []
+        const g = this.globalUniforms
+        const stepSize = this.clock.stepSize
+        const firstFrame = this.clock.stepsSinceStart - result.steps.length
+        try {
+            result.steps.forEach((step, index) => {
+                const stepTime = this.clock.stepTime(step)
+                g.time = stepTime
+                g.deltaTime = stepSize
+                g.frame = firstFrame + index
+                for (let i = 0; i < passes.length; i++) {
+                    if (!simulation.stepPasses.has(i)) continue
+                    this._passCount += this.executeGraphPass(passes[i], stepTime, this._writtenSurfaces)
+                }
+            })
+            // Draw passes see the render time and the time since the previous render.
+            g.time = time
+            g.deltaTime = result.deltaTime
+            g.frame = this.frameIndex
+            for (let i = 0; i < passes.length; i++) {
+                if (simulation.stepPasses.has(i) || simulation.sceneDrawPasses.has(i)) continue
+                this._passCount += this.executeGraphPass(passes[i], time, this._writtenSurfaces)
+            }
+        } catch (loopErr) {
+            console.error(`[Pipeline.render] LOOP ERROR: ${loopErr.detail || loopErr.message || JSON.stringify(loopErr)}`)
+            this.backend.endFrame()
+            this._frameOpen = false
+            throw loopErr
+        }
+    }
+
+    /**
+     * Close the frame that advance() opened and publish the surfaces it wrote,
+     * so a scene render that samples pipeline surfaces reads this render's
+     * state. draw() then opens a new frame for the draw passes that depend on
+     * the scene image.
+     */
+    endSceneSplit() {
+        if (!this._frameOpen) return
+        this.backend.endFrame()
+        this._frameOpen = false
+        this.publishWrittenSurfaces()
+    }
+
+    /**
+     * Run the draw passes that depend on a scene image, close the frame,
+     * present, and publish the surfaces this render wrote.
+     * @param {number} [presentationTimestamp]
+     */
+    draw(presentationTimestamp) {
+        if (this.isCompiling || !this._writtenSurfaces) return
+        // A recompile between advance() and draw(), for example during a scene
+        // render, replaced the graph: render the new graph whole at this time.
+        if (this.graph !== this._advancedGraph) {
+            if (this._frameOpen) {
+                this.backend.endFrame()
+                this._frameOpen = false
+            }
+            this._writtenSurfaces = null
+            this.render(this.lastTime, presentationTimestamp)
+            return
+        }
+        const simulation = this._simulation
+        const passes = this.graph?.passes || []
+        if (simulation.sceneDrawPasses.size > 0) {
+            if (!this._frameOpen) {
+                this.backend.beginFrame(this.getFrameState())
+                this._frameOpen = true
+            }
+            try {
+                for (const i of simulation.sceneDrawPasses) {
+                    this._passCount += this.executeGraphPass(passes[i], this.lastTime, this._writtenSurfaces)
+                }
+            } catch (loopErr) {
+                console.error(`[Pipeline.render] LOOP ERROR: ${loopErr.detail || loopErr.message || JSON.stringify(loopErr)}`)
+                this.backend.endFrame()
+                this._frameOpen = false
+                throw loopErr
+            }
+        }
+        if (!this._frameOpen) {
+            this.backend.beginFrame(this.getFrameState())
+            this._frameOpen = true
+        }
+        if (this._mipTargets.length > 0 && typeof this.backend.generateMipmaps === 'function') {
+            this.backend.generateMipmaps(this._mipTargets)
+        }
+        this.backend.endFrame()
+        this._frameOpen = false
+
+        this.presentRenderSurface(presentationTimestamp)
+        this.publishWrittenSurfaces()
+        for (const surface of this.surfaces.values()) surface.currentFrame = this.frameIndex
+
+        this.lastPassCount = this._passCount
+        this._writtenSurfaces = null
         this.frameIndex++
+    }
+
+    /**
+     * After a simulation render, a surface that a pass wrote takes the
+     * frame's final bindings, so its read buffer is its last write; a surface
+     * that no pass wrote keeps its bindings.
+     */
+    publishWrittenSurfaces() {
+        for (const name of this._writtenSurfaces || []) {
+            const surface = this.surfaces.get(name)
+            const finalRead = this.frameReadTextures.get(name)
+            const finalWrite = this.frameWriteTextures.get(name)
+            if (surface && finalRead && finalWrite) {
+                surface.read = finalRead
+                surface.write = finalWrite
+            }
+        }
     }
 
     /**

@@ -194,7 +194,10 @@ read3d(vol1, geo1).renderLandscape3d(bgColor: #ffffff).write(o0)
 read3d(vol0, geo0).write3d(vol1, geo1)
 heightmap3d(heightTex: read(o1), tex: read(o2), volumeSize: x16, heightScale: 1).write3d(vol0, geo0)
 render(o0)`, { o1: height, o2: texel })
-        await page.evaluate(() => { for (let i = 0; i < 5; i++) renderer.render(0) })
+        // The readers read surfaces that later chains write, so this program
+        // holds simulation state: each relay hop is one step of the fixed-step
+        // clock, and renders at one time do not step. Five grid steps settle it.
+        await page.evaluate(() => { for (let i = 0; i < 5; i++) renderer.render(i / 600) })
         assertPixelsEqual(PNG.sync.read(await page.locator('canvas').screenshot()).data, screenshot.data, 'previous-frame readers and volume relays must preserve the same voxel layout')
 
         await compile(dsl, { o1: { width: 1, height: 1, data: [0, 0, 0, 255] }, o2: texel })
