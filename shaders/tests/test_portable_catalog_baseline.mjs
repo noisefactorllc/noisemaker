@@ -20,6 +20,8 @@ import { pathToFileURL } from 'node:url'
 import { before, test } from 'node:test'
 
 import { CanvasRenderer } from '../src/index.js'
+import { timelineTimes } from '../../scripts/lib/shader-parity-attestation.mjs'
+import { pinCaseErrors } from '../scripts/pin-baselines.mjs'
 import {
     BASELINE_RELATIVE,
     REPO_ROOT,
@@ -30,7 +32,10 @@ import {
     loadCatalog,
     manifestEffectIds,
     PERF_POLICY,
+    caseVariants,
     describeCase,
+    programErrors,
+    runsTarget,
     perfBudget,
     pinPath,
     pinTargets,
@@ -100,14 +105,23 @@ test('every baseline ID has a render case, and every render case is a baseline I
         assert.ok(renderCase.effects.includes(id), `${id}: its case renders it`)
         assert.match(renderCase.surface, /^o[0-7]$/, `${id}: it reads a user surface`)
         assert.ok(renderCase.dsl.includes(`.write(${renderCase.surface})`), `${id}: its program writes the surface it reads`)
-        assert.deepEqual(renderCase.times, [0], id)
+        assert.deepEqual(renderCase.times, renderCase.timeline ? timelineTimes(renderCase.timeline) : [0], id)
         assert.deepEqual(renderCase.backends, ['webgl2', 'webgpu'], id)
         assert.equal(renderCase.comparison, 'exact', id)
         assert.ok(['parity-case', 'authored'].includes(renderCase.source), id)
         assert.equal(renderCase.orientation, 'readback', id)
-        assert.deepEqual(renderCase.warmup, renderCase.steps ? { afterCompile: 1, steps: renderCase.steps } : { afterCompile: 1, beforeEachReading: 2 }, id)
-        assert.ok(renderCase.control === null || (typeof renderCase.control === 'string' && !renderCase.control.includes(`.${id.split('/')[1]}(`)), `${id}: its control, if any, leaves the target out`)
+        assert.deepEqual(renderCase.warmup, { afterCompile: 1, beforeEachReading: 2 }, id)
+        // The fields a render case shares with a parity case mean what they mean there.
+        assert.deepEqual(pinCaseErrors(renderCase, id), [], id)
+        for (const field of ['control', 'steps', 'midiNotes']) assert.equal(renderCase[field], undefined, `${id}: a render case has no ${field}`)
+        assert.ok(renderCase.withoutTarget === null || typeof renderCase.withoutTarget === 'string', `${id}: withoutTarget is a program or null`)
+        assert.equal(caseVariants(id, renderCase).problem, undefined, id)
     }
+    // A timed case with too few frames, or an input after its second frame, has no first-frames variant.
+    const timed = { withoutTarget: null, timeline: { frames: [0, 1] } }
+    assert.match(caseVariants('synth/roll', timed).problem, /at least three frames/)
+    assert.match(caseVariants('synth/roll', { ...timed, timeline: { frames: [0, 1, 2] }, midiMessages: [{ afterFrame: 2, data: [0x90, 60, 100] }] }).problem, /after its second frame/)
+    assert.deepEqual(Object.keys(caseVariants('synth/roll', { ...timed, timeline: { frames: [0, 1, 2] }, audio: 'ramps' }).variants).sort(), ['firstFrames', 'withoutInputs'])
     // A missing case fails the pin run before any render.
     const dropped = baseline.effectIds[3]
     const { [dropped]: _gone, ...rest } = renderCases
@@ -128,6 +142,10 @@ test('each render case records what its program sets, its expected alpha and its
     for (const [id, renderCase] of Object.entries(doc.cases)) {
         // The seeds (defaults included) and the target's arguments are those of the compiled program.
         assert.deepEqual({ seeds: renderCase.seeds, parameters: renderCase.parameters }, await describeCase(REPO_ROOT, id, renderCase), id)
+        if (renderCase.withoutTarget) {
+            assert.deepEqual(await programErrors(REPO_ROOT, renderCase.withoutTarget), [], `${id}: its withoutTarget program compiles`)
+            assert.equal(await runsTarget(REPO_ROOT, id, renderCase.withoutTarget), false, `${id}: its withoutTarget program leaves the target out`)
+        }
         const pin = JSON.parse(fs.readFileSync(pinPath(REPO_ROOT, id), 'utf8'))
         assert.equal(pin.case, `${RENDER_CASES_RELATIVE}#${id}`, id)
         assert.deepEqual(pin.resolution, renderCase.resolution, id)

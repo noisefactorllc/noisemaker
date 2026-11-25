@@ -3,11 +3,13 @@
   "policy": {
     "comparison": "exact: each backend renders the case and its frame must equal, byte for byte, the pin that backend recorded for this GPU",
     "orientation": "readback: each backend is compared with its own readback, in its own row order; a pin never compares the two backends",
-    "time": "time 0 with the loop stopped, where a stateful effect runs one simulation step; a case with steps then advances that many frames with stepFrame(); settleMs waits until two readings agree",
-    "warmup": "one render(0) after compile; then two render(0) before each reading, or the case's steps",
-    "control": "the case's program without its target: its frame must differ from the case's on both backends; null where the target makes the frame",
+    "time": "a case without a timeline renders at time 0 with the loop stopped, where a stateful effect runs one simulation step. A case with a timeline renders its frames on the fixed-step clock as a timed parity case does (scripts/attest-shader-parity.mjs), and is read at its last frame. times lists the loop time of each frame. settleMs waits until two readings agree",
+    "warmup": "one render at the first time after compile, then each later frame of the timeline, then two renders at the last time before each reading",
+    "withoutTarget": "the case's program without its target, or a hand-written program for the loop markers, which run only as a pair; null where the target makes the frame. It is not a parity case's control, which keeps the target",
+    "gates": "a record requires each variant of a case to give a different frame on both backends: its withoutTarget program, the case without its midiMessages and audio if it has them, and a timed case cut to its first two frames",
+    "audio": "the one field outside the parity case shape: \"ramps\" fills the waveform and the spectrum with the cross-backend agreement harness's ramps",
     "source": "where the case's context came from when it was written: a copy of the effect's parity case, or authored for this render context",
-    "recorded": "seeds and parameters are read from the compiled program, expectedAlpha from the pin, and the budgets by performancePolicy, by the record modes of scripts/audit-portable-migration.mjs"
+    "recorded": "seeds and parameters are read from the compiled program, times from the timeline, expectedAlpha from the pin, and the budgets by performancePolicy, by the record modes of scripts/audit-portable-migration.mjs"
   },
   "cases": {
     "classicNoisedeck/bitEffects": {
@@ -34,7 +36,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "classicNoisedeck.bitEffects",
@@ -90,7 +92,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "classicNoisedeck.caustic",
@@ -144,7 +146,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "classicNoisedeck.cellNoise",
@@ -201,7 +203,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, classicNoisedeck\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, classicNoisedeck\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -261,7 +263,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, classicNoisedeck\n\nnoise(seed: 1, speed: 0).write(o1)\nnoise(seed: 7, speed: 0).write(o2)\nread(o1).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, classicNoisedeck\n\nnoise(seed: 1, speed: 0).write(o1)\nnoise(seed: 7, speed: 0).write(o2)\nread(o1).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -334,7 +336,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, classicNoisedeck\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, classicNoisedeck\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -394,7 +396,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, classicNoisedeck\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\ngradient(seed: 1).write(o1)\nrender(o1)",
+      "withoutTarget": "search synth, classicNoisedeck\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\ngradient(seed: 1).write(o1)\nrender(o1)",
       "seeds": [
         [
           "synth.noise",
@@ -456,7 +458,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search classicNoisedeck\n\nnoise(seed: 1).write(o0)\nrender(o0)",
+      "withoutTarget": "search classicNoisedeck\n\nnoise(seed: 1).write(o0)\nrender(o0)",
       "seeds": [
         [
           "classicNoisedeck.noise",
@@ -517,7 +519,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {
@@ -570,7 +572,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search classicNoisedeck\nnoise(seed: 1).write(o0)\nrender(o0)",
+      "withoutTarget": "search classicNoisedeck\nnoise(seed: 1).write(o0)\nrender(o0)",
       "seeds": [
         [
           "classicNoisedeck.noise",
@@ -634,7 +636,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, classicNoisedeck\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, classicNoisedeck\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -696,7 +698,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, classicNoisedeck\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, classicNoisedeck\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -752,7 +754,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "classicNoisedeck.moodscape",
@@ -806,7 +808,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "classicNoisedeck.noise",
@@ -865,7 +867,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "classicNoisedeck.noise3d",
@@ -922,7 +924,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, classicNoisedeck\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, classicNoisedeck\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -978,7 +980,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, classicNoisedeck\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\ngradient(seed: 1).write(o1)\nrender(o1)",
+      "withoutTarget": "search synth, classicNoisedeck\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\ngradient(seed: 1).write(o1)\nrender(o1)",
       "seeds": [
         [
           "synth.noise",
@@ -1046,7 +1048,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "classicNoisedeck.shapes",
@@ -1103,7 +1105,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {
@@ -1158,7 +1160,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, classicNoisedeck\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, classicNoisedeck\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -1219,7 +1221,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, mixer, filter\n\ntestPattern(pattern: colorBars).alphaMask(tex: solid(color: #808080), maskMode: true).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, mixer, filter\n\ntestPattern(pattern: colorBars).alphaMask(tex: solid(color: #808080), maskMode: true).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -1273,7 +1275,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -1328,7 +1330,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -1383,7 +1385,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -1435,7 +1437,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -1490,7 +1492,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -1549,7 +1551,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: uvMap).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: uvMap).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -1603,7 +1605,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -1660,7 +1662,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorBars)\n  \n  .write(o0)\n\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorBars)\n  \n  .write(o0)\n\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -1714,7 +1716,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
       "seeds": [
         [
           "filter.clouds",
@@ -1773,7 +1775,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: uvMap).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: uvMap).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -1838,7 +1840,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -1893,7 +1895,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -1952,7 +1954,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: uvMap).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: uvMap).write(o0)\nrender(o0)",
       "seeds": [
         [
           "filter.craquelure",
@@ -2009,7 +2011,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -2068,7 +2070,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
       "seeds": [
         [
           "filter.degauss",
@@ -2123,7 +2125,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -2178,7 +2180,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorGrid, gridSize: 7).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorGrid, gridSize: 7).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -2231,7 +2233,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -2286,7 +2288,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorGrid, gridSize: 7).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorGrid, gridSize: 7).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -2340,7 +2342,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorGrid, gridSize: 7).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorGrid, gridSize: 7).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -2394,7 +2396,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorGrid, gridSize: 7).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorGrid, gridSize: 7).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -2449,7 +2451,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -2505,7 +2507,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
       "seeds": [
         [
           "filter.fibers",
@@ -2564,7 +2566,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -2620,7 +2622,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search filter, synth\n\npattern(type: stripes, scale: 10, rotation: 30, smoothness: 0.001, bgColor: #666666).write(o0)\nrender(o0)",
+      "withoutTarget": "search filter, synth\n\npattern(type: stripes, scale: 10, rotation: 30, smoothness: 0.001, bgColor: #666666).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {}
@@ -2670,7 +2672,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -2726,7 +2728,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -2789,7 +2791,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, mixer, filter\n\ntestPattern(pattern: colorBars).alphaMask(tex: solid(color: #808080), maskMode: true).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, mixer, filter\n\ntestPattern(pattern: colorBars).alphaMask(tex: solid(color: #808080), maskMode: true).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -2846,7 +2848,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -2903,7 +2905,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, speed: 0).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, speed: 0).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -2962,7 +2964,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -3020,7 +3022,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -3079,7 +3081,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorGrid, gridSize: 7).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorGrid, gridSize: 7).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -3131,7 +3133,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -3188,7 +3190,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, mixer, filter\n\ntestPattern(pattern: colorBars).alphaMask(tex: solid(color: #808080), maskMode: true).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, mixer, filter\n\ntestPattern(pattern: colorBars).alphaMask(tex: solid(color: #808080), maskMode: true).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -3240,7 +3242,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorGrid, gridSize: 8).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorGrid, gridSize: 8).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -3292,7 +3294,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -3351,7 +3353,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -3406,7 +3408,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -3468,7 +3470,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search filter, synth\n\nnoise(ridges: true)\n\n.write(o0)",
+      "withoutTarget": "search filter, synth\n\nnoise(ridges: true)\n\n.write(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -3525,7 +3527,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -3584,7 +3586,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, type: constant, scaleX: 1, scaleY: 1).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, type: constant, scaleX: 1, scaleY: 1).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -3642,7 +3644,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, type: constant, scaleX: 30, scaleY: 30).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, type: constant, scaleX: 30, scaleY: 30).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -3701,7 +3703,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -3764,7 +3766,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -3822,7 +3824,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search filter, synth\n\nnoise(seed: 1).write(o0)\nrender(o0)",
+      "withoutTarget": "search filter, synth\n\nnoise(seed: 1).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -3878,7 +3880,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search filter, synth\n\npattern(type: dots, smoothness: 0.2, fgColor: #c08060, bgColor: #304050).write(o0)\nrender(o0)",
+      "withoutTarget": "search filter, synth\n\npattern(type: dots, smoothness: 0.2, fgColor: #c08060, bgColor: #304050).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {}
@@ -3928,7 +3930,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, ridges: true).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, ridges: true).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -3992,7 +3994,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -4055,7 +4057,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
       "seeds": [
         [
           "filter.osd",
@@ -4110,7 +4112,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -4165,7 +4167,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -4221,7 +4223,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 2, ridges: true, colorMode: mono).write(o1)\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 2, ridges: true, colorMode: mono).write(o1)\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -4284,7 +4286,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -4343,7 +4345,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -4401,7 +4403,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -4453,7 +4455,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nperlin(scale: 75, octaves: 2)\n  \n  .write(o0)\n\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nperlin(scale: 75, octaves: 2)\n  \n  .write(o0)\n\nrender(o0)",
       "seeds": [
         [
           "synth.perlin",
@@ -4511,7 +4513,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -4568,7 +4570,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -4630,7 +4632,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -4685,7 +4687,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -4740,7 +4742,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -4799,7 +4801,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search filter, synth\n\nnoise(ridges: true).write(o0)\nrender(o0)",
+      "withoutTarget": "search filter, synth\n\nnoise(ridges: true).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -4856,7 +4858,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -4911,7 +4913,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -4969,7 +4971,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -5024,7 +5026,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -5081,7 +5083,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -5138,7 +5140,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -5195,7 +5197,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: uvMap).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: uvMap).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -5252,7 +5254,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search filter, synth\n\nnoise(seed: 1).write(o0)\nrender(o0)",
+      "withoutTarget": "search filter, synth\n\nnoise(seed: 1).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -5310,7 +5312,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: uvMap).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: uvMap).write(o0)\nrender(o0)",
       "seeds": [
         [
           "filter.scatter",
@@ -5369,7 +5371,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
       "seeds": [
         [
           "filter.scratches",
@@ -5415,7 +5417,17 @@
         64
       ],
       "times": [
-        0
+        0,
+        0.0016666666666666668,
+        0.0033333333333333335,
+        0.005,
+        0.006666666666666667,
+        0.008333333333333333,
+        0.01,
+        0.011666666666666667,
+        0.013333333333333334,
+        0.015,
+        0.016666666666666666
       ],
       "backends": [
         "webgl2",
@@ -5424,10 +5436,10 @@
       "comparison": "exact",
       "warmup": {
         "afterCompile": 1,
-        "steps": 10
+        "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
       "performance": {
         "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
         "webgl2": {
@@ -5437,7 +5449,6 @@
           "budgetMs": 2
         }
       },
-      "steps": 10,
       "seeds": [],
       "parameters": [
         {
@@ -5453,6 +5464,21 @@
         "webgpu": [
           255,
           255
+        ]
+      },
+      "timeline": {
+        "frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
         ]
       }
     },
@@ -5481,7 +5507,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -5540,7 +5566,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search filter, synth\n\npattern(type: dots, smoothness: 0.04, rotation: 15).write(o0)\nrender(o0)",
+      "withoutTarget": "search filter, synth\n\npattern(type: dots, smoothness: 0.04, rotation: 15).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -5592,7 +5618,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search filter, synth\n\nnoise(ridges: true, colorMode: mono)\n\n.write(o0)",
+      "withoutTarget": "search filter, synth\n\nnoise(ridges: true, colorMode: mono)\n\n.write(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -5647,7 +5673,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -5705,7 +5731,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -5758,7 +5784,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search filter, synth\n\npattern(type: stripes, scale: 5, rotation: 88, smoothness: 0.001, bgColor: #808080).write(o0)\nrender(o0)",
+      "withoutTarget": "search filter, synth\n\npattern(type: stripes, scale: 5, rotation: 88, smoothness: 0.001, bgColor: #808080).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -5811,7 +5837,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -5869,7 +5895,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -5926,7 +5952,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -5981,7 +6007,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -6050,7 +6076,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -6104,7 +6130,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -6157,7 +6183,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search filter, synth\n\nsolid(color: #101820).write(o0)\nrender(o0)",
+      "withoutTarget": "search filter, synth\n\nsolid(color: #101820).write(o0)\nrender(o0)",
       "seeds": [
         [
           "filter.spookyTicker",
@@ -6212,7 +6238,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -6270,7 +6296,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -6328,7 +6354,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: uvMap).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: uvMap).write(o0)\nrender(o0)",
       "seeds": [
         [
           "filter.stipple",
@@ -6386,7 +6412,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
       "seeds": [
         [
           "filter.strayHair",
@@ -6444,7 +6470,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -6490,20 +6516,30 @@
         64
       ],
       "times": [
-        0
+        0,
+        0.0016666666666666668,
+        0.0033333333333333335,
+        0.005,
+        0.006666666666666667,
+        0.008333333333333333,
+        0.01,
+        0.011666666666666667,
+        0.013333333333333334,
+        0.015,
+        0.016666666666666666,
+        0.018333333333333333
       ],
       "backends": [
         "webgl2",
         "webgpu"
       ],
       "comparison": "exact",
-      "steps": 12,
       "warmup": {
         "afterCompile": 1,
-        "steps": 12
+        "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -6535,6 +6571,22 @@
         "webgpu": {
           "budgetMs": 3.6
         }
+      },
+      "timeline": {
+        "frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ]
       }
     },
     "filter/tetraColorArray": {
@@ -6562,7 +6614,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -6631,7 +6683,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -6763,7 +6815,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1).write(o0)\nrender(o0)",
       "performance": {
         "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
         "webgl2": {
@@ -6821,7 +6873,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, speed: 0).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, speed: 0).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -6876,7 +6928,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -6934,7 +6986,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -6991,7 +7043,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, mixer, filter\n\ntestPattern(pattern: colorBars).alphaMask(tex: solid(color: #808080), maskMode: true).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, mixer, filter\n\ntestPattern(pattern: colorBars).alphaMask(tex: solid(color: #808080), maskMode: true).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -7050,7 +7102,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -7103,7 +7155,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -7159,7 +7211,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search filter, synth\n\nnoise(scaleX: 20, scaleY: 20, octaves: 4).write(o0)\nrender(o0)",
+      "withoutTarget": "search filter, synth\n\nnoise(scaleX: 20, scaleY: 20, octaves: 4).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -7214,7 +7266,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -7269,7 +7321,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -7324,7 +7376,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -7383,7 +7435,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -7442,7 +7494,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -7494,7 +7546,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\ntestPattern(pattern: colorGrid, gridSize: 7).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\ntestPattern(pattern: colorGrid, gridSize: 7).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -7536,7 +7588,17 @@
         64
       ],
       "times": [
-        0
+        0,
+        0.0016666666666666668,
+        0.0033333333333333335,
+        0.005,
+        0.006666666666666667,
+        0.008333333333333333,
+        0.01,
+        0.011666666666666667,
+        0.013333333333333334,
+        0.015,
+        0.016666666666666666
       ],
       "backends": [
         "webgl2",
@@ -7545,10 +7607,10 @@
       "comparison": "exact",
       "warmup": {
         "afterCompile": 1,
-        "steps": 10
+        "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, speed: 0).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, speed: 0).write(o0)\nrender(o0)",
       "performance": {
         "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
         "webgl2": {
@@ -7558,7 +7620,6 @@
           "budgetMs": 2
         }
       },
-      "steps": 10,
       "seeds": [
         [
           "synth.noise",
@@ -7578,6 +7639,21 @@
         "webgpu": [
           255,
           255
+        ]
+      },
+      "timeline": {
+        "frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
         ]
       }
     },
@@ -7606,7 +7682,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -7664,7 +7740,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -7720,7 +7796,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth3d, filter3d, render\n\nnoise3d(seed: 1).render3d().write(o0)\nrender(o0)",
+      "withoutTarget": "search synth3d, filter3d, render\n\nnoise3d(seed: 1).render3d().write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth3d.noise3d",
@@ -7776,7 +7852,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth3d, filter3d, render\nnoise3d(volumeSize: x16).render3d().write(o0)\nrender(o0)",
+      "withoutTarget": "search synth3d, filter3d, render\nnoise3d(volumeSize: x16).render3d().write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth3d.noise3d",
@@ -7832,7 +7908,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, mixer\n\ntestPattern(pattern: colorBars).write(o1)\nread(o1).write(o2)\nsolid(color: #804020, alpha: 0.5).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, mixer\n\ntestPattern(pattern: colorBars).write(o1)\nread(o1).write(o2)\nsolid(color: #804020, alpha: 0.5).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -7904,7 +7980,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, mixer\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, mixer\ntestPattern(pattern: colorBars).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -7960,7 +8036,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, mixer\n\ntestPattern(pattern: colorBars).write(o1)\nsolid(color: #804020, alpha: 0.5).write(o2)\nread(o1).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, mixer\n\ntestPattern(pattern: colorBars).write(o1)\nsolid(color: #804020, alpha: 0.5).write(o2)\nread(o1).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -8015,7 +8091,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, mixer\ngradient(seed: 2).write(o1)\nnoise(seed: 1).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, mixer\ngradient(seed: 2).write(o1)\nnoise(seed: 1).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.gradient",
@@ -8081,7 +8157,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search mixer, synth\n\nnoise(ridges: true, colorMode: mono)\n.write(o0)\n\nnoise(ridges: true)\n\n.write(o1)",
+      "withoutTarget": "search mixer, synth\n\nnoise(ridges: true, colorMode: mono)\n.write(o0)\n\nnoise(ridges: true)\n\n.write(o1)",
       "seeds": [
         [
           "synth.noise",
@@ -8145,7 +8221,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth.noise",
@@ -8210,7 +8286,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, mixer\n\ntestPattern(pattern: colorGrid, gridSize: 7).write(o1)\nnoise(seed: 1, ridges: true).write(o2)\nread(o1).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, mixer\n\ntestPattern(pattern: colorGrid, gridSize: 7).write(o1)\nnoise(seed: 1, ridges: true).write(o2)\nread(o1).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -8271,7 +8347,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, mixer\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\ngradient(seed: 1).write(o1)\nrender(o1)",
+      "withoutTarget": "search synth, mixer\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\ngradient(seed: 1).write(o1)\nrender(o1)",
       "seeds": [
         [
           "synth.noise",
@@ -8334,7 +8410,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth.noise",
@@ -8396,7 +8472,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, mixer\n\nnoise(seed: 1, ridges: true, colorMode: mono).write(o0)\nnoise(seed: 2, ridges: true).write(o1)\nrender(o1)",
+      "withoutTarget": "search synth, mixer\n\nnoise(seed: 1, ridges: true, colorMode: mono).write(o0)\nnoise(seed: 2, ridges: true).write(o1)\nrender(o1)",
       "seeds": [
         [
           "synth.noise",
@@ -8457,7 +8533,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, mixer\n\nnoise(seed: 1, scaleX: 100, scaleY: 100).write(o0)\nnoise(seed: 2, ridges: true, colorMode: mono).write(o1)\nrender(o1)",
+      "withoutTarget": "search synth, mixer\n\nnoise(seed: 1, scaleX: 100, scaleY: 100).write(o0)\nnoise(seed: 2, ridges: true, colorMode: mono).write(o1)\nrender(o1)",
       "seeds": [
         [
           "synth.noise",
@@ -8519,7 +8595,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, mixer\n\ntestPattern(pattern: colorBars).write(o1)\ntestPattern(pattern: gradient).write(o2)\nread(o1).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, mixer\n\ntestPattern(pattern: colorBars).write(o1)\ntestPattern(pattern: gradient).write(o2)\nread(o1).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -8574,7 +8650,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, mixer\n\ntestPattern(pattern: colorBars).write(o1)\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o2)\nread(o1).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, mixer\n\ntestPattern(pattern: colorBars).write(o1)\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o2)\nread(o1).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -8636,7 +8712,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, mixer\n\ntestPattern(pattern: colorBars).write(o1)\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o2)\nread(o1).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, mixer\n\ntestPattern(pattern: colorBars).write(o1)\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o2)\nread(o1).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -8698,7 +8774,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, mixer\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\ngradient(seed: 1).write(o1)\nrender(o1)",
+      "withoutTarget": "search synth, mixer\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\ngradient(seed: 1).write(o1)\nrender(o1)",
       "seeds": [
         [
           "synth.noise",
@@ -8761,7 +8837,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, points, render\n\nnoise(seed: 1, speed: 0).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, points, render\n\nnoise(seed: 1, speed: 0).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -8822,7 +8898,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, points, render\n\nnoise(seed: 1, speed: 0).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, points, render\n\nnoise(seed: 1, speed: 0).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -8883,7 +8959,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, points, render\n\nnoise(seed: 1).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, points, render\n\nnoise(seed: 1).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -8944,7 +9020,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, points, render\n\nnoise(seed: 1).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, points, render\n\nnoise(seed: 1).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -9005,7 +9081,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, points, render\n\nnoise(seed: 1).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, points, render\n\nnoise(seed: 1).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -9067,7 +9143,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, points, render\ntestPattern(pattern: gradient).write(o1)\ntestPattern(pattern: colorBars).write(o2)\nsolid().pointsEmit(stateSize: x64).pointsBillboardRender(viewMode: perspective, rotateX: 0.55, posY: -12, posZ: 10, pointSize: 2, density: 100, intensity: 0, inputIntensity: 0, sizeDistance: 160, brightnessDistance: 200, aperture: 0.5, focalDistance: 80).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, points, render\ntestPattern(pattern: gradient).write(o1)\ntestPattern(pattern: colorBars).write(o2)\nsolid().pointsEmit(stateSize: x64).pointsBillboardRender(viewMode: perspective, rotateX: 0.55, posY: -12, posZ: 10, pointSize: 2, density: 100, intensity: 0, inputIntensity: 0, sizeDistance: 160, brightnessDistance: 200, aperture: 0.5, focalDistance: 80).write(o0)\nrender(o0)",
       "seeds": [
         [
           "render.pointsEmit",
@@ -9133,7 +9209,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, points, render\n\nnoise(seed: 1).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, points, render\n\nnoise(seed: 1).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -9194,7 +9270,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, points, render\n\nnoise(seed: 1).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, points, render\n\nnoise(seed: 1).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -9255,7 +9331,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, points, render\n\nnoise(seed: 1).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, points, render\n\nnoise(seed: 1).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -9316,7 +9392,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, points, render\n\nnoise(seed: 1).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, points, render\n\nnoise(seed: 1).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -9377,7 +9453,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, points, render\n\nnoise(seed: 1, speed: 0).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, points, render\n\nnoise(seed: 1, speed: 0).pointsEmit(stateSize: x64).pointsRender().write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -9426,20 +9502,27 @@
         64
       ],
       "times": [
-        0
+        0,
+        0.0016666666666666668,
+        0.0033333333333333335,
+        0.005,
+        0.006666666666666667,
+        0.008333333333333333,
+        0.01,
+        0.011666666666666667,
+        0.013333333333333334
       ],
       "backends": [
         "webgl2",
         "webgpu"
       ],
       "comparison": "exact",
-      "steps": 8,
       "warmup": {
         "afterCompile": 1,
-        "steps": 8
+        "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).blur().write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).blur().write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -9469,6 +9552,19 @@
         "webgpu": {
           "budgetMs": 3
         }
+      },
+      "timeline": {
+        "frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ]
       }
     },
     "render/loopEnd": {
@@ -9486,20 +9582,27 @@
         64
       ],
       "times": [
-        0
+        0,
+        0.0016666666666666668,
+        0.0033333333333333335,
+        0.005,
+        0.006666666666666667,
+        0.008333333333333333,
+        0.01,
+        0.011666666666666667,
+        0.013333333333333334
       ],
       "backends": [
         "webgl2",
         "webgpu"
       ],
       "comparison": "exact",
-      "steps": 8,
       "warmup": {
         "afterCompile": 1,
-        "steps": 8
+        "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).blur().write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, filter\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).blur().write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -9527,6 +9630,19 @@
         "webgpu": {
           "budgetMs": 2.85
         }
+      },
+      "timeline": {
+        "frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ]
       }
     },
     "render/meshLoader": {
@@ -9560,7 +9676,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {}
@@ -9617,7 +9733,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search render\n\nmeshLoader().write(o0)\nrender(o0)",
+      "withoutTarget": "search render\n\nmeshLoader().write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -9676,7 +9792,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, points, render\ntestPattern(pattern: gradient).write(o1)\ntestPattern(pattern: colorBars).write(o2)\nsolid().pointsEmit(stateSize: x64).heightGrid(heightTex: read(o1), diffuseTex: read(o2), gridScale: 80, heightScale: 25).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, points, render\ntestPattern(pattern: gradient).write(o1)\ntestPattern(pattern: colorBars).write(o2)\nsolid().pointsEmit(stateSize: x64).heightGrid(heightTex: read(o1), diffuseTex: read(o2), gridScale: 80, heightScale: 25).write(o0)\nrender(o0)",
       "seeds": [
         [
           "render.pointsEmit",
@@ -9752,7 +9868,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, render\n\nnoise(seed: 1, speed: 0).pointsRender().write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, render\n\nnoise(seed: 1, speed: 0).pointsRender().write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth.noise",
@@ -9816,7 +9932,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, points, render\ntestPattern(pattern: gradient).write(o1)\ntestPattern(pattern: colorBars).write(o2)\nsolid().pointsEmit(stateSize: x64).heightGrid(heightTex: read(o1), diffuseTex: read(o2), gridScale: 64, heightScale: 18).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, points, render\ntestPattern(pattern: gradient).write(o1)\ntestPattern(pattern: colorBars).write(o2)\nsolid().pointsEmit(stateSize: x64).heightGrid(heightTex: read(o1), diffuseTex: read(o2), gridScale: 64, heightScale: 18).write(o0)\nrender(o0)",
       "seeds": [
         [
           "render.pointsEmit",
@@ -9881,7 +9997,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth3d, render\n\nnoise3d(volumeSize: x32).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth3d, render\n\nnoise3d(volumeSize: x32).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth3d.noise3d",
@@ -9938,7 +10054,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth3d, render\n\nnoise3d(scale: 4)\n  \n  .write(o0)\n\nrender(o0)",
+      "withoutTarget": "search synth3d, render\n\nnoise3d(scale: 4)\n  \n  .write(o0)\n\nrender(o0)",
       "seeds": [
         [
           "synth3d.noise3d",
@@ -9996,7 +10112,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth3d, render\n\nnoise3d(scale: 4)\n  \n  .write(o0)\n\nrender(o0)",
+      "withoutTarget": "search synth3d, render\n\nnoise3d(scale: 4)\n  \n  .write(o0)\n\nrender(o0)",
       "seeds": [
         [
           "synth3d.noise3d",
@@ -10052,7 +10168,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth, synth3d, render\nheightmap3d(heightTex: testPattern(pattern: gradient), tex: testPattern(pattern: colorBars), volumeSize: x32, heightScale: 0.6, baseHeight: 0.1).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth, synth3d, render\nheightmap3d(heightTex: testPattern(pattern: gradient), tex: testPattern(pattern: colorBars), volumeSize: x32, heightScale: 0.6, baseHeight: 0.1).write(o0)\nrender(o0)",
       "seeds": [],
       "parameters": [
         {
@@ -10109,7 +10225,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": "search synth3d, render\n\nnoise3d(volumeSize: x32).write(o0)\nrender(o0)",
+      "withoutTarget": "search synth3d, render\n\nnoise3d(volumeSize: x32).write(o0)\nrender(o0)",
       "seeds": [
         [
           "synth3d.noise3d",
@@ -10166,7 +10282,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth.bitwise",
@@ -10227,7 +10343,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth.cell",
@@ -10281,7 +10397,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth.cellularAutomata",
@@ -10337,7 +10453,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth.curl",
@@ -10391,7 +10507,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth.gabor",
@@ -10447,7 +10563,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth.gradient",
@@ -10504,7 +10620,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {
@@ -10556,7 +10672,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {
@@ -10624,7 +10740,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {
@@ -10749,7 +10865,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {
@@ -10804,7 +10920,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth.mnca",
@@ -10860,7 +10976,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {}
@@ -10910,7 +11026,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth.noise",
@@ -10974,7 +11090,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {
@@ -11025,7 +11141,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth.noise",
@@ -11081,7 +11197,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth.osc2d",
@@ -11138,7 +11254,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {}
@@ -11187,7 +11303,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth.perlin",
@@ -11243,7 +11359,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {}
@@ -11293,7 +11409,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth.noise",
@@ -11354,7 +11470,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {
@@ -11651,39 +11767,46 @@
       "effects": [
         "synth/roll"
       ],
-      "dsl": "search synth\n\nroll().write(o0)\nrender(o0)",
+      "dsl": "search synth\n\nroll(speed: 2).write(o0)\nrender(o0)",
       "surface": "o0",
       "resolution": [
         64,
         256
       ],
-      "midiNotes": [
-        {
-          "channel": 1,
-          "note": 48,
-          "velocity": 110
-        },
-        {
-          "channel": 3,
-          "note": 67,
-          "velocity": 75
-        }
-      ],
       "times": [
-        0
+        0,
+        0.016666666666666666,
+        0.03333333333333333,
+        0.05,
+        0.06666666666666667,
+        0.08333333333333333,
+        0.1,
+        0.11666666666666667,
+        0.13333333333333333,
+        0.15,
+        0.16666666666666666,
+        0.18333333333333332,
+        0.2,
+        0.21666666666666667,
+        0.23333333333333334,
+        0.25,
+        0.26666666666666666,
+        0.2833333333333333,
+        0.3,
+        0.31666666666666665,
+        0.3333333333333333
       ],
       "backends": [
         "webgl2",
         "webgpu"
       ],
       "comparison": "exact",
-      "steps": 30,
       "warmup": {
         "afterCompile": 1,
-        "steps": 30
+        "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {}
@@ -11706,7 +11829,51 @@
         "webgpu": {
           "budgetMs": 2.1
         }
-      }
+      },
+      "timeline": {
+        "loopSeconds": 1,
+        "frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20
+        ]
+      },
+      "midiMessages": [
+        {
+          "afterFrame": 0,
+          "data": [
+            144,
+            48,
+            110
+          ]
+        },
+        {
+          "afterFrame": 0,
+          "data": [
+            146,
+            67,
+            75
+          ]
+        }
+      ]
     },
     "synth/sacredGeometry": {
       "source": "authored",
@@ -11732,7 +11899,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {
@@ -11798,7 +11965,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {
@@ -11849,7 +12016,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth.shape",
@@ -11910,7 +12077,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {
@@ -11967,7 +12134,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {
@@ -12018,7 +12185,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth.subdivide",
@@ -12072,7 +12239,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {
@@ -12124,7 +12291,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth3d.cell3d",
@@ -12181,7 +12348,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth3d.cellularAutomata3d",
@@ -12241,7 +12408,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth3d.flythrough3d",
@@ -12299,7 +12466,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {
@@ -12352,7 +12519,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {
@@ -12414,7 +12581,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth3d.noise3d",
@@ -12471,7 +12638,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [
         [
           "synth3d.reactionDiffusion3d",
@@ -12530,7 +12697,7 @@
         "beforeEachReading": 2
       },
       "orientation": "readback",
-      "control": null,
+      "withoutTarget": null,
       "seeds": [],
       "parameters": [
         {

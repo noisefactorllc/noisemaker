@@ -1,3 +1,25 @@
+import { validateParityCase } from '../../scripts/lib/shader-parity-attestation.mjs'
+
+// The fields a pin case shares with a parity case, which mean what they mean there.
+const PARITY_FIELDS = ['effects', 'dsl', 'surface', 'resolution', 'settleMs', 'tiles', 'textureInputs', 'meshInputs', 'timeline', 'control', 'midiMessages']
+
+/**
+ * The problems of a pin case, checked as the attestation checks a parity case:
+ * its parity-case fields go through validateParityCase, and its audio must be
+ * "ramps" if it is set. A pin reads no control, so a timed case needs none.
+ * @param {object} pinCase - The case
+ * @param {string} target - The effect ID the case renders. A pin case outside
+ *   a cases file names none, and passes its last effect.
+ * @returns {string[]}
+ */
+export function pinCaseErrors(pinCase, target) {
+    const fields = Object.fromEntries(PARITY_FIELDS.filter((field) => pinCase?.[field] !== undefined).map((field) => [field, pinCase[field]]))
+    const errors = validateParityCase({ schemaVersion: 1, epsilon: 0, requireColorVariation: true, ...fields }, target)
+        .filter((error) => !(pinCase?.control === undefined && error.startsWith('parity case control ')))
+    if (pinCase?.audio !== undefined && pinCase.audio !== 'ramps') errors.push(`pin case audio must be "ramps", not ${JSON.stringify(pinCase.audio)}`)
+    return errors
+}
+
 /**
  * Pin baselines, keyed by GPU.
  *

@@ -28,7 +28,7 @@
  */
 
 import { execFileSync, spawnSync } from 'node:child_process'
-import { matchesTargetEffectPass } from './lib/shader-parity-attestation.mjs'
+import { matchesTargetEffectPass, timelineTimes, TIMELINE_DEFAULT_LOOP_SECONDS } from './lib/shader-parity-attestation.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -915,6 +915,49 @@ export async function describeCase(repo, id, renderCase) {
     return { seeds, parameters }
 }
 
+/** Whether a program, compiled as the renderer compiles it, runs the effect `id`. */
+export async function runsTarget(repo, id, dsl) {
+    const { compile } = await prepareCompiler(repo)
+    const target = id.replace('/', '.')
+    return (compile(dsl).plans || []).some(plan => plan.chain.some(step => step.op === target))
+}
+
+/**
+ * The variants of a render case that a record renders, each of which must
+ * give a different frame from the case on both backends, so that the case
+ * shows what it is meant to show:
+ *   - withoutTarget: the case's program without its target, which drops the
+ *     target's own texture fixtures (without the target they bind to
+ *     nothing); none when withoutTarget is null, for a target that makes the
+ *     frame;
+ *   - withoutInputs: a case with midiMessages or audio, without them, so the
+ *     inputs reach the frame;
+ *   - firstFrames: a timed case cut to its first two frames, so its timeline
+ *     changes the frame. It keeps every input, so each input must arrive by
+ *     the second frame, and a timed case holds at least three frames.
+ * It returns the variants, or the problem that keeps one from being built.
+ */
+export function caseVariants(id, renderCase) {
+    if (renderCase.withoutTarget === undefined) return { problem: 'it declares no withoutTarget (its program without the target, or null)' }
+    const variants = {}
+    if (renderCase.withoutTarget !== null) {
+        variants.withoutTarget = { ...renderCase, dsl: renderCase.withoutTarget, textureInputs: (renderCase.textureInputs || []).filter(texture => texture.effect !== id) }
+    }
+    if (renderCase.midiMessages || renderCase.audio) {
+        const { midiMessages, audio, ...rest } = renderCase
+        variants.withoutInputs = rest
+    }
+    if (renderCase.timeline) {
+        const frames = renderCase.timeline.frames
+        if (frames.length < 3) return { problem: 'a timed render case needs at least three frames, so that its first two can differ from it' }
+        const kept = frames.slice(0, 2)
+        const late = [...(renderCase.textureInputs || []), ...(renderCase.midiMessages || [])].filter(input => !kept.includes(input.afterFrame ?? frames[0]))
+        if (late.length) return { problem: 'an input of this timed case arrives after its second frame, so its first two frames cannot be compared with it' }
+        variants.firstFrames = { ...renderCase, timeline: { ...renderCase.timeline, frames: kept } }
+    }
+    return { variants }
+}
+
 /** The diagnostics of errors in a program, compiled as the renderer compiles it. */
 export async function programErrors(repo, dsl) {
     const { compile } = await prepareCompiler(repo)
@@ -943,11 +986,11 @@ function sameFrames(a, b) {
  *
  * A record writes each pin to a temporary file, renders the case a second time
  * and checks it against that file, and only then moves it into place. It
- * refuses a software rasterizer. It renders the case's control (its program
- * without the target, or null for a case whose target makes the frame) and
- * requires a different frame on both backends. Then it writes what the case
- * observes into render-cases.json: its seeds and parameters from the compiled
- * program, and its expected alpha from the pin.
+ * refuses a software rasterizer. It renders the case's variants (see
+ * caseVariants) and requires each to give a different frame on both
+ * backends. Then it writes what the case observes into render-cases.json: its
+ * seeds and parameters from the compiled program, its times from its
+ * timeline, and its expected alpha from the pin.
  */
 export async function pins(repo, { mode, listed, log = () => {} }) {
     const casesFile = path.join(repo, RENDER_CASES_RELATIVE)
@@ -983,21 +1026,24 @@ export async function pins(repo, { mode, listed, log = () => {} }) {
             if (!gpu || !pinFile.baselines?.[gpu]) { fail('the pin tool did not name the GPU it recorded'); continue }
             if (SOFTWARE_GPU.test(gpu)) { fail(`its GPU is a software rasterizer: ${gpu}`); continue }
             const frames = pinFile.baselines[gpu]
-            if (renderCase.control === undefined) { fail('it declares no control (a program without the target, or null)'); continue }
-            if (renderCase.control !== null) {
-                const controlFile = path.join(scratch, `${id.replace('/', '__')}.control.json`)
-                // The control drops the target's own texture fixtures: without the target they bind to nothing.
-                const controlCase = { ...renderCase, dsl: renderCase.control, textureInputs: (renderCase.textureInputs || []).filter(texture => texture.effect !== id) }
-                writeJson(controlFile, { cases: { [id]: controlCase } })
-                const controlPin = path.join(scratch, `${id.replace('/', '__')}.control.pin.json`)
-                const control = runPinTool(repo, controlFile, id, '--out', controlPin, ['--allow-blank'])
-                if (!control.ok) { fail(`its control does not render: ${control.detail}`); continue }
-                const controlFrames = readJson(controlPin).baselines[control.gpu]
-                if (sameFrames(frames, controlFrames)) { fail('its frame equals its control\'s, so the case does not show its target'); continue }
+            const { variants, problem } = caseVariants(id, renderCase)
+            if (problem) { fail(problem); continue }
+            if (variants.withoutTarget && await runsTarget(repo, id, variants.withoutTarget.dsl)) { fail('its withoutTarget program runs the target'); continue }
+            let refused = null
+            for (const [name, variant] of Object.entries(variants)) {
+                const stem = path.join(scratch, `${id.replace('/', '__')}.${name}`)
+                writeJson(`${stem}.json`, { cases: { [id]: variant } })
+                const result = runPinTool(repo, `${stem}.json`, id, '--out', `${stem}.pin.json`, ['--allow-blank'])
+                if (!result.ok) { refused = `its ${name} variant does not render: ${result.detail}`; break }
+                if (sameFrames(frames, readJson(`${stem}.pin.json`).baselines[result.gpu])) { refused = `its frame equals its ${name} variant's on a backend, so the case does not show what that variant takes away`; break }
             }
+            if (refused) { fail(refused); continue }
             fs.mkdirSync(path.dirname(file), { recursive: true })
             fs.renameSync(temporary, file)
-            Object.assign(renderCase, described, { expectedAlpha: { webgl2: frames.webgl2.alpha, webgpu: frames.webgpu.alpha } })
+            Object.assign(renderCase, described, {
+                times: renderCase.timeline ? timelineTimes(renderCase.timeline) : [0],
+                expectedAlpha: { webgl2: frames.webgl2.alpha, webgpu: frames.webgpu.alpha },
+            })
             rendered.push(id)
             log(`ok ${id}`)
         }
@@ -1015,7 +1061,9 @@ export async function pins(repo, { mode, listed, log = () => {} }) {
 // a backend may not exceed its budget, which is this factor times the largest
 // median of the recording's rounds, and never less than the floor. A frame is
 // one stepFrame() of the stopped loop: one simulation step for a stateful
-// effect. The round medians are evidence, so only the budgets are stored.
+// effect. A timed case runs at its timeline's loop duration, and every input of
+// a case is applied after its first render. The round medians are evidence, so
+// only the budgets are stored.
 export const PERF_POLICY = Object.freeze({ warmupFrames: 10, measuredFrames: 30, rounds: 3, frame: 'stepFrame', budgetFactor: 3, budgetFloorMs: 2 })
 
 /** A case's budget from its recorded round medians, by the frozen policy. */
@@ -1031,7 +1079,7 @@ function median(values) {
 }
 
 /** Runs inside a page: one case on one backend, set up as the pin tool sets it up, then timed frame by frame. */
-async function perfInPage({ baseUrl, pinCase, preferWebGPU, policy, matchesSource }) {
+async function perfInPage({ baseUrl, pinCase, preferWebGPU, policy, matchesSource, loopSeconds }) {
     const matchesTargetEffectPass = new Function(`return ${matchesSource}`)()
     const canvas = document.createElement('canvas')
     canvas.width = pinCase.resolution[0]
@@ -1041,16 +1089,17 @@ async function perfInPage({ baseUrl, pinCase, preferWebGPU, policy, matchesSourc
     const renderer = new CanvasRenderer({ canvas, width: canvas.width, height: canvas.height, basePath: `${baseUrl}/shaders`, preferWebGPU })
     await renderer.loadManifest()
     await renderer.loadEffects(pinCase.effects)
+    if (loopSeconds) renderer.setLoopDuration(loopSeconds)
     if (pinCase.audio === 'ramps') {
         const audio = renderer.setAudioState()
         audio.waveform.set(Float32Array.from({ length: 128 }, (_, i) => i / 127))
         audio.spectrum.set(Float32Array.from({ length: 128 }, (_, i) => (127 - i) / 127))
     }
-    if (pinCase.midiNotes?.length) {
-        const midi = renderer.setMidiState()
-        pinCase.midiNotes.forEach((held, index) => midi.channels[held.channel].noteOn(held.note, held.velocity, { time: 0, order: index + 1 }))
-    }
+    const midi = pinCase.midiMessages?.length ? renderer.setMidiState() : null
     await renderer.compile(pinCase.dsl)
+    // stepFrame() returns before a scene program's queued render runs, so a
+    // timed frame would not hold the frame's work.
+    if (renderer.isScene) throw new Error('perf times stepFrame(), which does not wait for a scene program, so it refuses one')
     renderer.stop()
     await renderer.render(0)
     for (const texture of pinCase.textureInputs || []) {
@@ -1060,8 +1109,11 @@ async function perfInPage({ baseUrl, pinCase, preferWebGPU, policy, matchesSourc
         source.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(texture.data), texture.width, texture.height), 0, 0)
         const passes = renderer.pipeline.graph.passes.filter(pass => matchesTargetEffectPass(pass, texture.effect))
         if (!passes.length) throw new Error(`Texture fixture has no executing effect: ${texture.effect}`)
-        for (const pass of passes) renderer.updateTextureFromSource(pass.inputs?.[texture.uniform], source, { flipY: false })
+        const bound = passes.filter(pass => typeof pass.inputs?.[texture.uniform] === 'string')
+        if (!bound.length) throw new Error(`Texture fixture uniform is not bound: ${texture.uniform}`)
+        for (const pass of bound) renderer.updateTextureFromSource(pass.inputs[texture.uniform], source, { flipY: false })
     }
+    for (const message of pinCase.midiMessages || []) midi.handleMessage(new Uint8Array(message.data))
     for (const mesh of pinCase.meshInputs || []) {
         const loaded = await renderer.loadOBJFromURL(`${baseUrl}/${mesh.path}`, mesh.mesh)
         if (!loaded.success) throw new Error(`Mesh fixture did not load: ${mesh.path}`)
@@ -1131,7 +1183,7 @@ export async function perf(repo, { mode, listed, replace = false, log = () => {}
                     page.on('pageerror', error => errors.push(error.message))
                     try {
                         await page.goto(`${baseUrl}/shaders/effects/manifest.json`)
-                        const run = await page.evaluate(perfInPage, { baseUrl, pinCase, preferWebGPU, policy: PERF_POLICY, matchesSource: matchesTargetEffectPass.toString() })
+                        const run = await page.evaluate(perfInPage, { baseUrl, pinCase, preferWebGPU, policy: PERF_POLICY, matchesSource: matchesTargetEffectPass.toString(), loopSeconds: pinCase.timeline ? pinCase.timeline.loopSeconds ?? TIMELINE_DEFAULT_LOOP_SECONDS : null })
                         if (run.backend.toLowerCase() !== name) throw new Error(`expected ${name}, ran ${run.backend}`)
                         if (errors.length) throw new Error(`page errors: ${errors.join('; ')}`)
                         if (!run.gpu || SOFTWARE_GPU.test(run.gpu)) throw new Error(`not a qualified GPU: ${run.gpu || 'unidentified'}`)

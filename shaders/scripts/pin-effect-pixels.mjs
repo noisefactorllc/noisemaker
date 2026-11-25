@@ -21,20 +21,21 @@
  * the Portable migration's render cases are stored, and the pin names it
  * <file>#<id>.
  *
- * The case file reuses the parity-case.json shape (effects / dsl / surface /
- * resolution) so one file can serve both tools. A case's textureInputs,
- * meshInputs and settleMs are honoured as the attestation tool honours them, so
- * a pin renders what that case's attestation renders. A case's tiles are not:
- * a pin compares the untiled frame. A case's midiNotes ({ channel, note,
- * velocity }) are held before the program compiles, as the cross-backend
- * agreement harness holds its notes, for an effect that draws MIDI input. A
- * case's audio, "ramps", fills the waveform and the spectrum with that
- * harness's ramps. A case's steps advances the stopped loop that many frames
- * with the renderer's own stepFrame() before the frame is read, for an effect
- * whose output depends on earlier frames; it excludes settleMs.
+ * The case file reuses the parity-case.json shape so one file can serve both
+ * tools. Its effects, dsl, surface, resolution, settleMs, textureInputs,
+ * meshInputs, timeline and midiMessages mean what they mean in a parity case
+ * (see scripts/attest-shader-parity.mjs): the pin tool checks them with the
+ * attestation's own validateParityCase, and renders them as the recorder
+ * renders them, so a pin renders what that case's attestation renders. A timed
+ * case renders its frames in order on the fixed-step clock, applies each
+ * frame's inputs after it, and is read at its last frame. A case's tiles are
+ * not honoured: a pin compares the untiled frame. A pin reads no control, so a
+ * timed case needs none here. One field is the pin tool's own: audio,
+ * "ramps", fills the waveform and the spectrum with the cross-backend
+ * agreement harness's ramps, for an effect that draws audio input.
  *
- * --allow-blank accepts a frame with no lit pixel, as a control render may
- * have, instead of failing it.
+ * --allow-blank accepts a frame with no lit pixel, as a render of a case with
+ * its target or its inputs taken away may have, instead of failing it.
  *
  * A baseline file holds one entry for each GPU it was recorded on (see
  * pin-baselines.mjs). --out records this machine's entry and keeps the others;
@@ -46,8 +47,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
-import { matchesTargetEffectPass } from '../../scripts/lib/shader-parity-attestation.mjs'
-import { baselineForGpu, withGpuBaseline } from './pin-baselines.mjs'
+import { matchesTargetEffectPass, timelineTimes, TIMELINE_DEFAULT_LOOP_SECONDS } from '../../scripts/lib/shader-parity-attestation.mjs'
+import { baselineForGpu, pinCaseErrors, withGpuBaseline } from './pin-baselines.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..', '..')
@@ -71,11 +72,13 @@ if (!casePath || (!outPath && !checkPath)) {
 const caseFile = JSON.parse(fs.readFileSync(casePath, 'utf8'))
 const pinCase = entry === null ? caseFile : caseFile?.cases?.[entry]
 if (!pinCase) throw new Error(`${casePath} has no case ${entry}`)
-if (pinCase.steps && pinCase.settleMs) throw new Error('a pin case takes steps or settleMs, not both')
-if (pinCase.audio !== undefined && pinCase.audio !== 'ramps') throw new Error(`unknown audio fixture ${pinCase.audio}`)
-for (const field of ['effects', 'dsl', 'surface', 'resolution']) {
-    if (pinCase[field] == null) throw new Error(`pin case is missing "${field}"`)
-}
+const caseErrors = pinCaseErrors(pinCase, entry ?? pinCase.effects?.at(-1))
+if (caseErrors.length) throw new Error(`pin case is not valid: ${caseErrors.join('; ')}`)
+const timelinePlan = pinCase.timeline ? {
+    loopSeconds: pinCase.timeline.loopSeconds ?? TIMELINE_DEFAULT_LOOP_SECONDS,
+    frames: pinCase.timeline.frames,
+    times: timelineTimes(pinCase.timeline),
+} : null
 const [width, height] = pinCase.resolution
 
 async function renderBackend(browser, baseUrl, preferWebGPU) {
@@ -103,55 +106,69 @@ const renderer = new CanvasRenderer({
     basePath: '${baseUrl}/shaders',
     preferWebGPU: ${preferWebGPU}
 });
+const timeline = ${JSON.stringify(timelinePlan)};
+const frames = timeline ? timeline.frames : [0];
+const times = timeline ? timeline.times : [0];
+const textureInputs = ${JSON.stringify(pinCase.textureInputs || [])};
+const midiMessages = ${JSON.stringify(pinCase.midiMessages || [])};
 await renderer.loadManifest();
 await renderer.loadEffects(${JSON.stringify(pinCase.effects)});
+if (timeline) renderer.setLoopDuration(timeline.loopSeconds);
 if (${JSON.stringify(pinCase.audio || null)} === 'ramps') {
     const audio = renderer.setAudioState();
     audio.waveform.set(Float32Array.from({ length: 128 }, (_, i) => i / 127));
     audio.spectrum.set(Float32Array.from({ length: 128 }, (_, i) => (127 - i) / 127));
 }
-const midiNotes = ${JSON.stringify(pinCase.midiNotes || [])};
-if (midiNotes.length) {
-    const midi = renderer.setMidiState();
-    midiNotes.forEach((held, index) => midi.channels[held.channel].noteOn(held.note, held.velocity, { time: 0, order: index + 1 }));
-}
+// Note activity goes through the engine's own MIDI state, as the recorder sends it.
+const midi = midiMessages.length ? renderer.setMidiState() : null;
 await renderer.compile(${JSON.stringify(pinCase.dsl)});
 renderer.stop();
-// A scene program renders asynchronously, so every render is awaited.
-await renderer.render(0);
 const matchesTargetEffectPass = ${matchesTargetEffectPass.toString()};
-for (const texture of ${JSON.stringify(pinCase.textureInputs || [])}) {
+function uploadTexture(texture) {
     const source = document.createElement('canvas');
     source.width = texture.width;
     source.height = texture.height;
     source.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(texture.data), texture.width, texture.height), 0, 0);
     const passes = renderer.pipeline.graph.passes.filter((pass) => matchesTargetEffectPass(pass, texture.effect));
     if (!passes.length) throw new Error('Texture fixture has no executing effect: ' + texture.effect);
-    for (const pass of passes) {
-        const textureId = pass.inputs?.[texture.uniform];
-        if (typeof textureId !== 'string') throw new Error('Texture fixture uniform is not bound: ' + texture.uniform);
-        const uploaded = renderer.updateTextureFromSource(textureId, source, { flipY: false });
+    // As the recorder does: only the effect's passes that bind the uniform take the fixture.
+    const bound = passes.filter((pass) => typeof pass.inputs?.[texture.uniform] === 'string');
+    if (!bound.length) throw new Error('Texture fixture uniform is not bound: ' + texture.uniform);
+    for (const pass of bound) {
+        const uploaded = renderer.updateTextureFromSource(pass.inputs[texture.uniform], source, { flipY: false });
         if (uploaded?.width !== texture.width || uploaded?.height !== texture.height) {
             throw new Error('Texture fixture upload dimensions differ');
         }
     }
 }
+function applyInputs(frame) {
+    for (const texture of textureInputs) {
+        if ((texture.afterFrame ?? frames[0]) === frame) uploadTexture(texture);
+    }
+    for (const message of midiMessages) {
+        if (message.afterFrame === frame) midi.handleMessage(new Uint8Array(message.data));
+    }
+}
+// A scene program renders asynchronously, so every render is awaited.
+await renderer.render(times[0]);
+applyInputs(frames[0]);
 for (const mesh of ${JSON.stringify(pinCase.meshInputs || [])}) {
     const loaded = await renderer.loadOBJFromURL('${baseUrl}/' + mesh.path, mesh.mesh);
     if (!loaded.success || !loaded.vertexCount) throw new Error('Mesh fixture did not load: ' + mesh.path + ' ' + (loaded.error || ''));
 }
+for (let index = 1; index < frames.length; index++) {
+    await renderer.render(times[index]);
+    applyInputs(frames[index]);
+}
+// The capture renders again at the last time, which on the fixed-step clock
+// runs no simulation step.
+const captureTime = times.at(-1);
 const settleMs = ${JSON.stringify(pinCase.settleMs || 0)};
 const surface = renderer.pipeline.surfaces.get(${JSON.stringify(pinCase.surface)});
 const candidates = [surface?.read, surface?.write].filter(Boolean);
-const steps = ${JSON.stringify(pinCase.steps || 0)};
-for (let i = 0; i < steps; i++) await renderer.stepFrame();
 async function readBest() {
-    // A stepped case is read where its steps left it: another render(0) would
-    // send the clock back to time 0.
-    if (steps === 0) {
-        await renderer.render(0);
-        await renderer.render(0);
-    }
+    await renderer.render(captureTime);
+    await renderer.render(captureTime);
     await renderer.pipeline.backend.device?.queue?.onSubmittedWorkDone?.();
     let capture = null;
     for (const id of candidates) {
