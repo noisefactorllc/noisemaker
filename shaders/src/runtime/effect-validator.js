@@ -17,76 +17,27 @@ import { Effect } from './effect.js'
 import { VALID_TAGS } from './tags.js'
 import { stdEnums } from '../lang/std_enums.js'
 import { FEATURES } from '../stability.js'
+import * as grammar from '../portable/grammar.js'
 
-const GLOBAL_TYPES = [
-    'float', 'int', 'boolean', 'vec2', 'vec3', 'vec4', 'mat3',
-    'color', 'surface', 'volume', 'geometry', 'member', 'palette', 'button',
-    'string'
-]
+// The declaration grammar is shared with the Portable normalizer, the
+// generated schema and the documentation tests (shaders/src/portable/grammar.js).
+const {
+    GLOBAL_TYPES, UI_CONTROLS, UI_KEYS, ENABLED_BY_OPS, GLOBAL_SPEC_KEYS, PASS_KEYS,
+    SAMPLER_TYPES, TEXTURE_SPEC_KEYS, TEXTURE_FILTERS, CONDITION_CONTAINER_KEYS,
+    DIM_KEYWORDS, FORMATS, DRAW_MODES, PASS_TYPES,
+} = grammar
 
-const UI_CONTROLS = ['slider', 'checkbox', 'dropdown', 'color', 'button', 'vector3', 'vec3']
+const LAYOUT_ENTRY_KEYS = new Set(grammar.LAYOUT_ENTRY_KEYS)
 
-const UI_KEYS = ['label', 'control', 'category', 'hidden', 'hint', 'format', 'buttonLabel', 'enabledBy', 'multiline', 'resetOnChange']
+const BYTE_LAYOUT_KEYS = new Set(grammar.BYTE_LAYOUT_KEYS)
 
-const ENABLED_BY_OPS = ['eq', 'neq', 'lt', 'gt', 'gte', 'lte', 'in', 'notIn']
+const DIM_SPEC_KEYS = new Set(grammar.DIM_SPEC_KEYS)
 
-const GLOBAL_SPEC_KEYS = [
-    'type', 'default', 'uniform', 'define', 'choices', 'enum',
-    'min', 'max', 'step', 'zero', 'randMin', 'randMax', 'randChance', 'randChoices',
-    'colorModeUniform', 'inheritsSeed', 'ui'
-]
+const TOP_LEVEL_KEYS = new Set(grammar.TOP_LEVEL_KEYS)
 
-const PASS_KEYS = [
-    'name', 'program', 'type', 'entryPoint', 'drawMode', 'drawBuffers',
-    'count', 'countUniform', 'repeat', 'blend', 'workgroups',
-    'storageBuffers', 'storageTextures', 'viewport', 'conditions',
-    'defines', 'uniforms', 'inputs', 'outputs', 'clear', 'samplerTypes'
-]
+const PIPELINE_INPUTS = new Set(grammar.PIPELINE_INPUTS)
 
-// Sampler names the WebGPU backend creates; pass.samplerTypes picks one per
-// sampled input. WebGL2 ignores the field.
-const SAMPLER_TYPES = ['default', 'nearest', 'repeat', 'mipmap']
-
-const TEXTURE_SPEC_KEYS = ['width', 'height', 'depth', 'format', 'is3D', 'filter', 'mipmaps', 'persistent']
-
-// Filtering policies are authorable on 3D textures only. 2D surfaces keep
-// the engine-wide nearest filtering for backend parity.
-const TEXTURE_FILTERS = ['nearest', 'linear']
-
-const CONDITION_CONTAINER_KEYS = ['runIf', 'skipIf']
-
-const DIM_KEYWORDS = ['screen', 'auto', 'input', 'resolution']
-
-// Formats both backends resolve, in their two spellings.
-const FORMATS = [
-    'rgba16f', 'rgba16float', 'rgba8', 'rgba8unorm', 'rgba32f', 'rgba32float',
-    'r8', 'r8unorm', 'r16f', 'r16float', 'r32f', 'r32float'
-]
-
-const DRAW_MODES = ['points', 'triangles', 'billboards']
-
-const PASS_TYPES = ['render', 'compute']
-
-const LAYOUT_ENTRY_KEYS = new Set(['name', 'slot', 'components'])
-
-const BYTE_LAYOUT_KEYS = new Set(['name', 'offset', 'size', 'type'])
-
-const DIM_SPEC_KEYS = new Set(['param', 'power', 'multiply', 'default', 'paramDefault', 'screenDivide', 'scale', 'clamp', 'inputOverride', 'inherit'])
-
-const TOP_LEVEL_KEYS = new Set([
-    'name', 'namespace', 'func', 'description', 'feature', 'tags', 'globals', 'passes',
-    'textures', 'textures3d', 'shaders', 'uniformLayout', 'uniformLayouts',
-    'paramAliases', 'openCategories', 'defaultProgram', 'hidden', 'deprecatedBy',
-    'externalTexture', 'externalMesh', 'builtinMeshes', 'outputTex3d', 'outputGeo',
-    'state', 'uniforms', 'onInit', 'onUpdate', 'onDestroy', 'asyncInit'
-])
-
-const PIPELINE_INPUTS = new Set([
-    'inputTex', 'inputTex3d', 'inputGeo', 'inputXyz', 'inputVel', 'inputRgba',
-    'noise', 'midiNoteGrid', 'feedback', 'selfTex', 'outputTex', 'none'
-])
-
-const PIPELINE_OUTPUTS = new Set(['outputTex', 'outputTex3d', 'outputXyz', 'outputVel', 'outputRgba'])
+const PIPELINE_OUTPUTS = new Set(grammar.PIPELINE_OUTPUTS)
 
 const PERCENT_PATTERN = /^[\d.]+$/
 
