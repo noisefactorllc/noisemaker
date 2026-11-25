@@ -556,6 +556,10 @@ export function validate(ast) {
         // two uses under one `_seed:` draw alike.
         const savedLets = letDeclarations
         letDeclarations = new Map()
+        // A part body is its own naming body: its `if` statements are
+        // numbered from 1 in each instance.
+        const savedIfCount = ifCount
+        ifCount = 0
         const savedNaming = namingBody
         namingBody = newNamingBody(decl.body)
         usePath.push({ name: useKey.slice('use@'.length), hasId: use.kwargs?._id !== undefined })
@@ -612,6 +616,7 @@ export function validate(ast) {
             occurrenceCounts = savedCounts
             partScopes.pop()
             letDeclarations = savedLets
+            ifCount = savedIfCount
             namingBody = savedNaming
             usePath.pop()
             if (ownSeed !== null) {
@@ -2003,9 +2008,12 @@ export function validate(ast) {
                 const callSeed = elementSeed ?? scopeSeed()
                 const restartsKeys = elementSeed !== null
                 // A key that already carries its scope: an element of a let,
-                // or a value inside one.
-                const absoluteKey = !restartsKeys && (letKey !== undefined ||
-                    (heldByLet && valueKeys.length > 0 && valueAbsolute[valueAbsolute.length - 1]))
+                // a value written inside one, or a value inside an element
+                // with `_seed:`, whose keys restart there.
+                const parentAbsolute = valueKeys.length > 0 ? valueAbsolute[valueAbsolute.length - 1] : false
+                const absoluteKey = !restartsKeys && (letKey !== undefined || parentAbsolute === 'seed' ||
+                    (heldByLet && parentAbsolute === 'let'))
+                const absoluteKind = restartsKeys || parentAbsolute === 'seed' ? 'seed' : absoluteKey ? 'let' : false
                 const elementKey = restartsKeys
                     ? opName
                     : letKey !== undefined
@@ -2181,7 +2189,7 @@ export function validate(ast) {
                         surf = inlineSurface
                     } else if (node && node.type === 'Chain') {
                         valueKeys.push(joinKey(writtenInLet(node) ? elementKey : elementKeyHere, argKey))
-                        valueAbsolute.push(absoluteKey && writtenInLet(node))
+                        valueAbsolute.push(absoluteKind === 'seed' ? 'seed' : writtenInLet(node) && absoluteKind)
                         seedScopes.push(callSeed)
                         seedScopeOwn.push(restartsKeys || inOwnSeed())
                         let idx
@@ -2198,7 +2206,7 @@ export function validate(ast) {
                         }
                     } else if (node && node.type === 'Call') {
                         valueKeys.push(joinKey(writtenInLet(node) ? elementKey : elementKeyHere, argKey))
-                        valueAbsolute.push(absoluteKey && writtenInLet(node))
+                        valueAbsolute.push(absoluteKind === 'seed' ? 'seed' : writtenInLet(node) && absoluteKind)
                         seedScopes.push(callSeed)
                         seedScopeOwn.push(restartsKeys || inOwnSeed())
                         let idx

@@ -335,6 +335,18 @@ test('use arguments for alias and value lets, and a let built from a let call, d
     assert.equal(args(derived, 1).scaleY, randFrom(drawU32(1, 'let:b/synth.noise@noise_1/scaleY'), 1, 10))
 })
 
+test('a _seed: element and a _seed: part repeat their draws in any scope', () => {
+    const element = 'noise().blendMode(_seed: 5, tex: noise(scaleY: rand(1, 10))).write(o0)'
+    const top = noiseDraws(`search synth, mixer\nseed 1\n${element}`)
+    const branch = noiseDraws(`search synth, mixer\nseed 1\nif (true) {\n    ${element}\n}`)
+    assert.deepEqual(branch.at(-1), top.at(-1))
+    assert.equal(top.at(-1)[0], randFrom(drawU32(5, 'mixer.blendMode/tex/e:synth.noise/scaleY'), 1, 10))
+    const parts = noiseDraws('search synth\npart p {\n    if (true) {\n        noise(scaleY: rand(1, 10)).write(o0)\n    }\n}\nuse(p, _seed: 5)\nuse(p, _seed: 5)')
+    assert.equal(parts.length, 2)
+    assert.deepEqual(parts[1], parts[0])
+    assert.equal(parts[0][0], randFrom(drawU32(5, 'part:p/if_1/b0/synth.noise@noise_1/scaleY'), 1, 10))
+})
+
 test('a call-level seed draws under the constant key', () => {
     const c = compile('search synth\nseed 1\nnoise(scaleY: rand(1, 10, seed: 3150442103)).write(o0)')
     assert.deepEqual(errors(c), [])
