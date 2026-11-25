@@ -96,6 +96,8 @@ for (const effectId of effectIds) {
             resolution: parityCase.resolution,
             epsilon: parityCase.epsilon,
             requireColorVariation: parityCase.requireColorVariation === true,
+            timeline: parityCase.timeline,
+            control: parityCase.control,
         })
         const definitionUrl = pathToFileURL(path.join(dir, 'definition.js'))
         definitionUrl.searchParams.set('paritySource', sourceHash)

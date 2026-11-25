@@ -14,6 +14,8 @@ import {
     isReadbackPerformanceWarning,
     matchesTargetEffectPass,
     PARITY_ATTESTATION_SCHEMA_VERSION,
+    TIMELINE_DEFAULT_LOOP_SECONDS,
+    timelineTimes,
     validateFrameEvidence,
     validateParityCase,
 } from './lib/shader-parity-attestation.mjs'
@@ -58,7 +60,20 @@ const tilePlan = parityCase.tiles ? {
     }),
 } : null
 
-async function renderBackend(browser, baseUrl, preferWebGPU) {
+// A timed case steps the engine through its frames on the fixed-step clock, in
+// order. After each frame it uploads the texture inputs and sends the MIDI
+// messages stated for that frame, and it captures at its last frame. An untimed
+// case is one frame at time 0: it uploads after that render, as before.
+const timelinePlan = parityCase.timeline ? {
+    loopSeconds: parityCase.timeline.loopSeconds ?? TIMELINE_DEFAULT_LOOP_SECONDS,
+    frames: parityCase.timeline.frames,
+    times: timelineTimes(parityCase.timeline),
+} : null
+
+// A control render may leave the target out (a producer replaced by an empty
+// input), so it returns the target pass count for the caller to judge. The
+// case itself must execute the target.
+async function renderBackend(browser, baseUrl, preferWebGPU, { dsl = parityCase.dsl, control = false } = {}) {
     const [width, height] = tilePlan ? parityCase.tiles.size : resolution
     const page = await browser.newPage({ viewport: { width, height } })
     const consoleMessages = []
@@ -85,38 +100,75 @@ const renderer = new CanvasRenderer({
     basePath: '${baseUrl}/shaders',
     preferWebGPU: ${preferWebGPU}
 });
+const timeline = ${JSON.stringify(timelinePlan)};
+const frames = timeline ? timeline.frames : [0];
+const times = timeline ? timeline.times : [0];
+const textureInputs = ${JSON.stringify(parityCase.textureInputs || [])};
+const midiMessages = ${JSON.stringify(parityCase.midiMessages || [])};
 await renderer.loadManifest();
 await renderer.loadEffects(${JSON.stringify(parityCase.effects)});
-await renderer.compile(${JSON.stringify(parityCase.dsl)});
+if (timeline) renderer.setLoopDuration(timeline.loopSeconds);
+// Note activity goes through the engine's own MIDI state, which the pipeline
+// packs into its note grid texture before each frame.
+const midi = midiMessages.length ? renderer.setMidiState() : null;
+await renderer.compile(${JSON.stringify(dsl)});
 renderer.stop();
-renderer.render(0);
 const matchesTargetEffectPass = ${matchesTargetEffectPass.toString()};
-for (const texture of ${JSON.stringify(parityCase.textureInputs || [])}) {
+function uploadTexture(texture) {
     const source = document.createElement('canvas');
     source.width = texture.width;
     source.height = texture.height;
     source.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(texture.data), texture.width, texture.height), 0, 0);
     const passes = renderer.pipeline.graph.passes.filter((pass) => matchesTargetEffectPass(pass, texture.effect));
     if (!passes.length) throw new Error('Texture fixture has no executing effect: ' + texture.effect);
-    for (const pass of passes) {
-        const textureId = pass.inputs?.[texture.uniform];
-        if (typeof textureId !== 'string') throw new Error('Texture fixture uniform is not bound: ' + texture.uniform);
+    // Only the target's passes that bind the fixture's uniform take it: a
+    // pass of the same effect that binds other inputs, such as a history
+    // shift, is left as it is.
+    const bound = passes.filter((pass) => typeof pass.inputs?.[texture.uniform] === 'string');
+    if (!bound.length) throw new Error('Texture fixture uniform is not bound: ' + texture.uniform);
+    for (const pass of bound) {
+        const textureId = pass.inputs[texture.uniform];
         const uploaded = renderer.updateTextureFromSource(textureId, source, { flipY: false });
         if (uploaded?.width !== texture.width || uploaded?.height !== texture.height) {
             throw new Error('Texture fixture upload dimensions differ');
         }
     }
 }
+function applyInputs(frame) {
+    for (const texture of textureInputs) {
+        if ((texture.afterFrame ?? frames[0]) === frame) uploadTexture(texture);
+    }
+    for (const message of midiMessages) {
+        if (message.afterFrame === frame) midi.handleMessage(new Uint8Array(message.data));
+    }
+}
+// A scene program renders asynchronously, so a timed case awaits each frame
+// before its inputs. An untimed case renders as it did before.
+if (timeline) await renderer.render(times[0]); else renderer.render(times[0]);
+applyInputs(frames[0]);
 for (const mesh of ${JSON.stringify(parityCase.meshInputs || [])}) {
     const loaded = await renderer.loadOBJFromURL('${baseUrl}/' + mesh.path, mesh.mesh);
     if (!loaded.success || !loaded.vertexCount) throw new Error('Mesh fixture did not load: ' + mesh.path + ' ' + (loaded.error || ''));
 }
+for (let index = 1; index < frames.length; index++) {
+    await renderer.render(times[index]);
+    applyInputs(frames[index]);
+}
+// A capture renders again at the case's last time. On the fixed-step clock a
+// render at the same time runs no simulation step, so the captured state is
+// the last frame's.
+const captureTime = times.at(-1);
 const settleMs = ${JSON.stringify(parityCase.settleMs || 0)};
 const surface = renderer.pipeline.surfaces.get(${JSON.stringify(parityCase.surface || 'o0')});
 const candidates = [surface?.read, surface?.write].filter(Boolean);
 async function readBest() {
-    renderer.render(0);
-    renderer.render(0);
+    if (timeline) {
+        await renderer.render(captureTime);
+        await renderer.render(captureTime);
+    } else {
+        renderer.render(captureTime);
+        renderer.render(captureTime);
+    }
     await renderer.pipeline.backend.device?.queue?.onSubmittedWorkDone?.();
     let capture = null;
     for (const id of candidates) {
@@ -220,7 +272,7 @@ window.parityResult = {
         const result = await page.evaluate(() => window.parityResult)
         const expectedBackend = preferWebGPU ? 'WebGPU' : 'WebGL2'
         assert.equal(result.backend, expectedBackend, `expected ${expectedBackend}, got ${result.backend}`)
-        assert.ok(result.targetPassCount > 0, `${expectedBackend} graph did not execute ${effectId}`)
+        if (!control) assert.ok(result.targetPassCount > 0, `${expectedBackend} graph did not execute ${effectId}`)
         assert.ok(result.capture, `${expectedBackend} produced no readable output`)
         if ((parityCase.settleMs || 0) > 0) {
             assert.ok(result.settled, `${expectedBackend} capture did not settle within ${parityCase.settleMs} ms`)
@@ -285,6 +337,32 @@ try {
         throw new Error(`PIXEL PARITY FAILED: ${JSON.stringify({ ...parity, samples })}`)
     }
 
+    // A case with a control must show that its target matters: the control,
+    // the case with the target's contribution disabled (its time-dependence, or
+    // a producer's output), must render a different frame on each backend, with
+    // the same timeline and inputs. Identical frames fail, as an empty frame does.
+    let control = null
+    if (parityCase.control !== undefined) {
+        const differs = {}
+        const targetPasses = {}
+        for (const [backend, preferWebGPU, capture] of [['webgl2', false, webgl], ['webgpu', true, webgpu]]) {
+            const result = await renderBackend(browser, baseUrl, preferWebGPU, { dsl: parityCase.control, control: true })
+            const frame = result.capture
+            differs[backend] = !(frame.width === capture.width && frame.height === capture.height &&
+                frame.data.length === capture.data.length && frame.data.every((value, index) => value === capture.data[index]))
+            targetPasses[backend] = result.targetPassCount
+        }
+        // A timed control disables the target's time-dependence, so it must
+        // still run the target; only a producer's control may replace it.
+        if (timelinePlan && (targetPasses.webgl2 < 1 || targetPasses.webgpu < 1)) {
+            throw new Error(`CONTROL GATE FAILED: a timed case control must run ${effectId} (target passes ${JSON.stringify(targetPasses)})`)
+        }
+        if (!differs.webgl2 || !differs.webgpu) {
+            throw new Error(`CONTROL GATE FAILED: the control renders the same frame as the case (${JSON.stringify(differs)}); the case does not show that ${effectId} contributes to the frame`)
+        }
+        control = { differs, targetPasses }
+    }
+
     assert.equal(computeParitySourceHash(repoRoot, parityCase), initialSourceHash, 'Shader sources changed during attestation')
     assert.equal(computeFileHash(casePath), initialCaseHash, 'Parity case changed during attestation')
 
@@ -297,6 +375,8 @@ try {
         frames,
         execution,
         parity,
+        ...(timelinePlan ? { timeline: { frames: timelinePlan.frames, loopSeconds: timelinePlan.loopSeconds } } : {}),
+        ...(control ? { control } : {}),
     }
 
     if (shouldWrite) {

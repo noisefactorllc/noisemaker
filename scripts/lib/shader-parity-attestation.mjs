@@ -2,6 +2,8 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { jumpLimit, stepsPerLoop } from '../../shaders/src/runtime/simulation-clock.js'
+
 export const PARITY_ATTESTATION_SCHEMA_VERSION = 1
 
 export function isReadbackPerformanceWarning(type, message) {
@@ -169,8 +171,31 @@ export function registeredParityEffectIds(repoRoot) {
     return [...new Set(effectIds)].sort()
 }
 
+const CASE_KEYS = new Set(['schemaVersion', 'effects', 'dsl', 'surface', 'resolution', 'epsilon',
+    'requireColorVariation', 'settleMs', 'tiles', 'textureInputs', 'meshInputs', 'timeline', 'control', 'midiMessages'])
+const TEXTURE_INPUT_KEYS = new Set(['effect', 'uniform', 'width', 'height', 'data', 'afterFrame'])
+const MESH_INPUT_KEYS = new Set(['mesh', 'path'])
+const MIDI_MESSAGE_KEYS = new Set(['afterFrame', 'data'])
+
+// A misspelt field must not silently change what a case records: a misspelt
+// timeline would record an untimed case, and a misspelt afterFrame would
+// upload after the first frame.
+function unknownKeys(value, known, where) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return []
+    return Object.keys(value).filter((key) => !known.has(key)).map((key) => `${where} has an unknown field ${key}`)
+}
+
 export function validateParityCase(parityCase, effectId) {
-    const errors = []
+    const errors = [...unknownKeys(parityCase, CASE_KEYS, 'parity case')]
+    for (const texture of Array.isArray(parityCase?.textureInputs) ? parityCase.textureInputs : []) {
+        errors.push(...unknownKeys(texture, TEXTURE_INPUT_KEYS, 'parity case texture input'))
+    }
+    for (const mesh of Array.isArray(parityCase?.meshInputs) ? parityCase.meshInputs : []) {
+        errors.push(...unknownKeys(mesh, MESH_INPUT_KEYS, 'parity case mesh input'))
+    }
+    for (const message of Array.isArray(parityCase?.midiMessages) ? parityCase.midiMessages : []) {
+        errors.push(...unknownKeys(message, MIDI_MESSAGE_KEYS, 'parity case MIDI message'))
+    }
     if (parityCase?.schemaVersion !== 1) errors.push('parity case schemaVersion must equal 1')
     if (!Array.isArray(parityCase?.effects) || parityCase.effects.length === 0) {
         errors.push('parity case effects must be a non-empty array')
@@ -244,7 +269,106 @@ export function validateParityCase(parityCase, effectId) {
             errors.push('parity case tiles renderScale must be a positive number')
         }
     }
+    if (parityCase?.timeline !== undefined) errors.push(...validateTimeline(parityCase.timeline))
+    errors.push(...validateScheduledInputs(parityCase))
+    if (parityCase?.control !== undefined || parityCase?.timeline !== undefined) {
+        errors.push(...validateControl(parityCase))
+    }
     return errors
+}
+
+export const TIMELINE_DEFAULT_LOOP_SECONDS = 10
+const TIMELINE_KEYS = new Set(['frames', 'loopSeconds'])
+
+function timelineLoopSeconds(timeline) {
+    return timeline.loopSeconds ?? TIMELINE_DEFAULT_LOOP_SECONDS
+}
+
+// A timed case renders its frames in order on the fixed-step clock: frame k of a
+// loop of N steps renders at the normalized time k / N, and runs every grid step
+// after the previous frame, so the frames need not be consecutive.
+export function timelineTimes(timeline) {
+    const steps = stepsPerLoop(timelineLoopSeconds(timeline))
+    return timeline.frames.map((frame) => frame / steps)
+}
+
+function validateTimeline(timeline) {
+    const errors = []
+    if (!timeline || typeof timeline !== 'object' || Array.isArray(timeline)) {
+        return ['parity case timeline must be an object']
+    }
+    for (const key of Object.keys(timeline)) {
+        if (!TIMELINE_KEYS.has(key)) errors.push(`parity case timeline has an unknown field ${key}`)
+    }
+    const loopSeconds = timeline.loopSeconds
+    if (loopSeconds !== undefined && (typeof loopSeconds !== 'number' || !Number.isFinite(loopSeconds) ||
+        loopSeconds <= 0 || loopSeconds > 600)) {
+        errors.push('parity case timeline loopSeconds must be a number above 0 and at most 600')
+        return errors
+    }
+    const frames = timeline.frames
+    const steps = stepsPerLoop(timelineLoopSeconds(timeline))
+    // A render due more steps than the clock's jump limit re-anchors the clock
+    // instead of stepping it, so no gap between frames may exceed the limit.
+    const limit = jumpLimit(steps)
+    if (!Array.isArray(frames) || frames.length < 2 || frames[0] !== 0 ||
+        !frames.every((frame, index) => integerInRange(frame, 0, steps - 1) &&
+            (index === 0 || (frame > frames[index - 1] && frame - frames[index - 1] <= limit)))) {
+        errors.push(`parity case timeline frames must start at 0 and step strictly upward on the grid of ${steps} steps, at most ${limit} steps apart`)
+    }
+    return errors
+}
+
+// A timed case schedules each texture upload and MIDI message after one of its
+// frames. An untimed case uploads after its only render, as before.
+function validateScheduledInputs(parityCase) {
+    const errors = []
+    const frames = Array.isArray(parityCase?.timeline?.frames) ? parityCase.timeline.frames : null
+    for (const texture of Array.isArray(parityCase?.textureInputs) ? parityCase.textureInputs : []) {
+        if (texture?.afterFrame === undefined) continue
+        if (!frames || !frames.includes(texture.afterFrame)) {
+            errors.push('parity case texture input afterFrame must be one of the timeline frames')
+        }
+    }
+    if (parityCase?.midiMessages === undefined) return errors
+    if (!frames) return [...errors, 'parity case MIDI messages need a timeline']
+    if (!Array.isArray(parityCase.midiMessages) || parityCase.midiMessages.length === 0) {
+        return [...errors, 'parity case MIDI messages must be a non-empty array']
+    }
+    for (const message of parityCase.midiMessages) {
+        if (!message || !frames.includes(message.afterFrame) || !isHandledMidiMessage(message.data)) {
+            errors.push('parity case MIDI message must give afterFrame, one of the timeline frames, and a message the engine handles: ' +
+                'a note off, note on, polyphonic pressure, control change or pitch bend of three bytes, a channel pressure of two, or a clock of one')
+        }
+    }
+    return errors
+}
+
+// The messages MidiState.handleMessage acts on (shaders/src/runtime/external-input.js).
+// It ignores others, so a case that states them would claim activity that never
+// reaches the note grid.
+const MIDI_THREE_BYTE_TYPES = new Set([0x80, 0x90, 0xa0, 0xb0, 0xe0])
+function isHandledMidiMessage(data) {
+    if (!Array.isArray(data) || data.length === 0 || !data.every((value) => integerInRange(value, 0, 255))) return false
+    const [status, ...rest] = data
+    if (!rest.every((value) => value <= 127)) return false
+    if (status === 0xf8) return data.length === 1
+    const type = status & 0xf0
+    if (MIDI_THREE_BYTE_TYPES.has(type)) return data.length === 3
+    if (type === 0xd0) return data.length === 2
+    return false
+}
+
+// A control is the case with its target's contribution disabled: its time-
+// dependence for a timed case, or its output for a producer observed through a
+// consumer. The recorder fails unless the control renders a different frame.
+function validateControl(parityCase) {
+    const control = parityCase.control
+    if (typeof control !== 'string' || control.trim().length === 0 ||
+        control.trim() === String(parityCase.dsl ?? '').trim()) {
+        return ['parity case control must be a DSL that differs from the case: the case with its target\'s contribution disabled (a timed case needs one)']
+    }
+    return []
 }
 
 function stripWgslComments(source) {
@@ -418,5 +542,47 @@ export function validateParityAttestation(attestation, expected) {
     if (parity.meanDiff !== 0) errors.push('attestation mean channel difference must be zero')
     if (parity.mismatchCount !== 0) errors.push('attestation mismatch count must be zero')
     if (parity.mismatchPercent !== 0) errors.push('attestation mismatch percent must be zero')
+    errors.push(...validateTimelineEvidence(attestation.timeline, expected.timeline))
+    errors.push(...validateControlEvidence(attestation.control, expected.control, expected.timeline))
+    return errors
+}
+
+// A timed case's attestation records the frames it rendered. A case without a
+// timeline carries no such block, so its attestation keeps its earlier form.
+function validateTimelineEvidence(evidence, timeline) {
+    if (timeline === undefined) {
+        return evidence === undefined ? [] : ['an untimed parity case carries no timeline evidence']
+    }
+    if (!evidence || typeof evidence !== 'object') return ['a timed parity case needs timeline evidence']
+    const errors = []
+    if (!Array.isArray(evidence.frames) || evidence.frames.length !== timeline.frames.length ||
+        evidence.frames.some((frame, index) => frame !== timeline.frames[index])) {
+        errors.push('timeline evidence frames must equal the case timeline frames')
+    }
+    if (evidence.loopSeconds !== timelineLoopSeconds(timeline)) {
+        errors.push('timeline evidence loopSeconds must equal the case timeline')
+    }
+    return errors
+}
+
+// A case with a control records that the control rendered a different frame on
+// each backend, and how many target passes the control ran. A timed case's
+// control disables the target's time-dependence, so it must still run the
+// target: another program that merely renders a different frame proves nothing.
+// A producer's control may replace the target.
+function validateControlEvidence(evidence, control, timeline) {
+    if (control === undefined) {
+        return evidence === undefined ? [] : ['a parity case without a control carries no control evidence']
+    }
+    const errors = []
+    if (evidence?.differs?.webgl2 !== true || evidence?.differs?.webgpu !== true) {
+        errors.push('control evidence must show the control renders a different frame from the case on WebGL2 and WebGPU')
+    }
+    const passes = evidence?.targetPasses
+    if (!integerInRange(passes?.webgl2, 0, Number.MAX_SAFE_INTEGER) || !integerInRange(passes?.webgpu, 0, Number.MAX_SAFE_INTEGER)) {
+        errors.push('control evidence must record the target passes the control ran on WebGL2 and WebGPU')
+    } else if (timeline !== undefined && (passes.webgl2 < 1 || passes.webgpu < 1)) {
+        errors.push('a timed case control must run the target on WebGL2 and WebGPU, with its time-dependence disabled')
+    }
     return errors
 }
