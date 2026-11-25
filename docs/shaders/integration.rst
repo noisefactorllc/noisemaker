@@ -847,12 +847,15 @@ After registration, the DSL parser accepts the new namespace in the ``search`` d
 
 Integrations sharing an engine instance must choose distinct namespace ids. The ``registerNamespace`` function throws an error on collision, making the conflict visible.
 
+.. _portable-registration:
+
 Registering Portable Effect Packages
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Portable Effects Format ships an effect as a plain ``definition.json``
 plus its GLSL and WGSL program sources — the same package the demo editor
-imports from a zip (see :doc:`../coding-agents`). Hosts that load effects
+imports from a zip (see :doc:`../coding-agents`). The format is specified in
+:ref:`portable-format`. Hosts that load effects
 programmatically register a loaded package through
 ``CanvasRenderer.registerPortableEffect()`` and then compile DSL that calls
 it, without touching the built-in effect catalogs.
@@ -876,7 +879,12 @@ afterwards.
 
 Registration belongs to the ``user`` namespace: the effect is reachable as
 ``user.<func>`` and ``user/<func>`` in ``search`` directives and effect
-lookups. Whether it may start a program follows the usual rule: an explicit
+lookups. A namespace is registration context, not a claim of privilege. This
+public call keeps its behavior: a definition with no ``namespace`` or with
+``user`` registers in ``user``. The built-in catalog registers its effects
+through an internal registration context, not through this call. A host that
+needs its own namespace registers it with ``registerNamespace()`` (Custom
+Namespaces above), whose collision rules and bare-name lookup are unchanged. Whether it may start a program follows the usual rule: an explicit
 ``starter`` value on the definition wins, and otherwise the effect is a
 starter when no pass consumes a pipeline input (``inputTex``,
 ``inputTex3d``, ``inputGeo``, ``inputXyz``, ``inputVel``, ``inputRgba``,
@@ -884,6 +892,11 @@ starter when no pass consumes a pipeline input (``inputTex``,
 ``user.<func>``. The definition's enum ``choices`` and uniform layout behave exactly
 as for built-in effects, and choices merge into the shared enum registry
 under the effect's own path.
+
+A definition with no ``format`` and ``version`` marker takes the legacy path
+of :ref:`portable-format-versions` unchanged. A definition that declares an
+explicit major version the core does not know is refused with the diagnostic
+code ``unsupported-version``, and nothing is registered.
 
 ``registerPortableEffect`` checks registration inputs and fails with a
 ``Portable effect: ...`` error before anything is registered:
@@ -893,8 +906,10 @@ under the effect's own path.
   (``o1``, ``s1``, ``vol2``, ...) and not a call that the parser handles
   itself (``osc``, ``midi``, ``audio``, ``read``, ``read3d``, ``from``).
   The namespace, when present, must be ``user``.
-- ``passes`` must be a nonempty array of passes that each name a program;
-  any supplied ``inputs``/``outputs`` mapping must map names to nonempty
+- ``passes`` names each pass and its program. In version 2 it is a
+  non-empty object keyed by pass name (:ref:`portable-format-versions`). In
+  the legacy form it is a non-empty array of passes. Either way, any
+  supplied ``inputs``/``outputs`` mapping must map names to non-empty
   texture references.
 - Every referenced program needs nonempty shader source. If any pass
   carries a GLSL (or WGSL) source, every pass must carry that language's
@@ -918,6 +933,70 @@ Effect registries are shared within a JavaScript realm, so registration:
 
 Hosts that verify a replacement effect should do so in a fresh realm, so
 the accepted effect set cannot change underneath them.
+
+Consumer contract
+"""""""""""""""""
+
+``registerPortableEffect`` performs the registration steps below. A consumer
+application that registers package data by other means MUST wrap it in an
+``Effect`` instance before it reaches ``registerEffect``. The runtime pipeline
+uses identity checks against ``Effect.prototype`` (for example
+``effectDef.asyncInit === Effect.prototype.asyncInit``) to decide which
+lifecycle hooks to run. A plain object literal fails those guards and causes
+runtime errors such as ``TypeError: t.asyncInit is not a function``.
+
+The pattern, for a legacy package:
+
+.. code-block:: javascript
+
+    import { CanvasRenderer, Effect, mergeIntoEnums, registerStarterOps } from './noisemaker/bundle.js'
+
+    const instance = new Effect({
+        name: effectData.name,
+        namespace: 'user',
+        func: effectData.func,
+        description: effectData.description,
+        tags: effectData.tags,
+        globals: effectData.globals,
+        passes: effectData.passes,
+        textures: effectData.textures,
+        outputTex3d: effectData.outputTex3d,
+        outputGeo: effectData.outputGeo,
+        uniformLayout: effectData.uniformLayout,
+        uniformLayouts: effectData.uniformLayouts,
+        defaultProgram: effectData.defaultProgram
+    })
+    instance.shaders = effectData.shaders  // attached after construction
+    const pipelineInputs = ['inputTex', 'inputTex3d', 'inputGeo', 'src',
+        'o0', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7']
+    instance.starter = effectData.starter ?? !(instance.passes || []).some(pass =>
+        Object.values(pass.inputs || {}).some(input => pipelineInputs.includes(input)))
+
+    const choices = CanvasRenderer.prototype.registerEffectWithRuntime({
+        namespace: 'user', name: instance.func, instance
+    })
+    if (choices && Object.keys(choices).length) await mergeIntoEnums(choices)
+    if (instance.starter) registerStarterOps([`user.${instance.func}`])
+
+The ``shaders`` object is attached after construction because the ``Effect``
+constructor does not accept it as configuration. It is runtime data that the
+pipeline reads directly from the registered instance. The input list in this
+example omits ``inputXyz``, ``inputVel`` and ``inputRgba``; the starter rule
+above, which ``registerPortableEffect`` applies, includes them.
+
+Use the runtime registration method to retain uniform names and sanitized
+choice names. A consumer that requires namespace-only registry entries also
+preserves any existing bare-name entry around this call, as Foundry does and
+as ``registerPortableEffect`` does.
+
+Preserve the same declarative fields when saving workspaces, importing shared
+effects, re-sharing them and exporting ZIPs. Preserve **both** shader
+languages, including WGSL-only packages. A consumer that discards the 3D
+metadata cannot run volume packages correctly. Register parameter choice enums
+before compiling; an explicit ``enum`` or ``enumPath`` takes precedence over a
+generated choice path. Keep effects in the ``user`` namespace. If ``starter``
+is omitted, infer it from pipeline input bindings, not from the effect's
+position in a sample program.
 
 Bundle Exports Reference
 -------------------------

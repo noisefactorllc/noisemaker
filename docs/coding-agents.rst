@@ -46,14 +46,13 @@ contains a definition, a fragment shader per backend, and optional documentation
    └── help.md             # optional, shown in the editor
 
 This is the **Portable Effects Format**, an open standard for sharing
-effects across Noise Factor applications. The
-`portable <https://github.com/noisefactorllc/portable>`_ repository is
-its canonical source: the
-`format specification <https://github.com/noisefactorllc/portable/blob/main/docs/FORMAT.md>`_,
-a `shader-writing guide
-<https://github.com/noisefactorllc/portable/blob/main/docs/SHADERS.md>`_,
-a working starter effect, and a standalone viewer with live parameter
-controls. To use the repository:
+effects across Noise Factor applications. Its specification is
+:ref:`portable-format`, with a generated JSON Schema. The guides cover
+:ref:`packages <portable-packages>`, :ref:`parameters <portable-parameters>`,
+:ref:`shaders <portable-shaders>` and :ref:`the DSL <portable-dsl>`. The
+`portable <https://github.com/noisefactorllc/portable>`_ repository holds
+a working starter effect and a standalone viewer with live parameter
+controls (:ref:`portable-viewer`). To use the repository:
 
 1. Clone it.
 2. Edit the effect directory.
@@ -241,9 +240,10 @@ Machine-readable references ship with the project:
 - The `language spec <https://docs.noisemaker.app/shaders/language/>`_,
   `pipeline spec <https://docs.noisemaker.app/shaders/pipeline/>`_, and
   `effect definition spec <https://docs.noisemaker.app/shaders/effects/>`_.
-- The `Portable Effects specification
-  <https://github.com/noisefactorllc/portable>`_ — format, shader
-  requirements, parameters, and a starter effect to work from.
+- The Portable Effects specification, :ref:`portable-format`: format,
+  shader requirements and parameters. The
+  `portable <https://github.com/noisefactorllc/portable>`_ repository has a
+  starter effect to work from.
 - Every effect carries a structured definition and an entry in the effect
   manifest, so the library is searchable by machine as well as by eye.
 

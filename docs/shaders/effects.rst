@@ -201,7 +201,7 @@ Tags are curated labels for additional categorization. An effect may have multip
 
 **Tag Validation:**
 
-Validation checks tags against the curated list in ``shaders/src/runtime/tags.js``. Development checks flag invalid tags. Use ``validateTags()`` to check tags programmatically:
+Validation checks tags against the curated list in ``shaders/src/runtime/tags.js``. Development checks flag invalid tags, and the definition validator reports a tag outside the list as an unknown tag. The built-in search offers only the listed tags as filter options. Portable packages (Section 8) use the same list. Use ``validateTags()`` to check tags programmatically:
 
 .. code-block:: javascript
 
@@ -613,7 +613,8 @@ error path.
 -------------------------------
 
 The ``Effect`` constructor accepts a configuration object. The list below describes common properties. Section 7 summarizes the remaining
-fields that the current constructor copies.
+fields that the current constructor copies. Section 8.3 gives the required
+fields of a Portable package, which differ from those of the constructor.
 
 **Required:**
 
@@ -692,171 +693,96 @@ fields that the current constructor copies.
 
 Effect definitions are validated at development and load time by
 ``validateEffectDefinition()`` in ``shaders/src/runtime/effect-validator.js``.
+A Portable package is checked by ``normalizePortableDefinition()``
+(Section 8), which reads the package's format and then calls this validator.
 The validator is a deterministic, side-effect-free function that returns an array of
 descriptive error strings (empty if valid) without throwing or mutating definitions.
 It validates the full definition grammar consumed across ``effect.js``, ``expander.js``,
 ``compiler.js``, and ``pipeline.js``.
 
-The following schema summarizes the consumed authoring shape. Regular expressions use
-``/.../`` form.
+The machine-readable form of the definition grammar is the generated JSON
+Schema below. ``shaders/scripts/generate-portable-schema.mjs`` writes it to
+``shaders/portable/portable-effect.schema.json`` from the shared declaration
+grammar. The schema covers the declarative fields that a Portable package
+(Section 8) can carry. A JavaScript definition (``definition.js``) can also
+carry the lifecycle functions of Section 5 (``onInit``, ``onUpdate``,
+``onDestroy``, ``asyncInit``); a package cannot.
 
-.. code-block:: javascript
+.. literalinclude:: ../../shaders/portable/portable-effect.schema.json
+   :language: json
 
-   // Deliberately abridged shape; validation is described above.
-   {
-     "type": "object",
-     "required": ["name", "passes"],
-     "properties": {
-       "name": { "type": "string", "description": "Non-empty display name; spaces are allowed" },
-       "namespace": { "type": "string", "description": "Logical namespace" },
-       "func": { "type": "string", "description": "DSL function name for this effect" },
-       "description": { "type": "string" },
-       "tags": { "type": "array", "items": { "type": "string" } },
-       "globals": { "type": "object", "additionalProperties": { "$ref": "#/definitions/uniformSpec" } },
-       "textures": { "type": "object", "additionalProperties": { "$ref": "#/definitions/textureSpec" } },
-       "passes": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/passSpec" } },
-       "outputTex3d": { "type": "string", "description": "Internal texture name to expose as 3D volume output" },
-       "outputGeo": { "type": "string", "description": "Internal texture name to expose as geometry buffer output" },
-       "uniformLayout": { "type": "object" },
-       "uniformLayouts": { "type": "object" },
-       "paramAliases": { "type": "object" },
-       "openCategories": { "type": "array", "items": { "type": "string" } },
-       "defaultProgram": { "type": "string" },
-       "hidden": { "type": "boolean" },
-       "deprecatedBy": { "type": "string" },
-       "onInit": { "type": "function" },
-       "onUpdate": { "type": "function" },
-       "onDestroy": { "type": "function" },
-       "asyncInit": { "type": "function" }
-     },
-     "definitions": {
-       "uniformSpec": {
-         "type": "object",
-         "required": ["type"],
-         "properties": {
-           "type": { "type": "string", "enum": ["boolean","color","float","geometry","int","mat3","member","palette","string","surface","vec2","vec3","vec4","volume"] },
-           "default": { "description": "Optional effect-defined default." },
-           "min": { "type": "number" },
-           "max": { "type": "number" },
-           "step": { "type": "number" },
-           "choices": {
-             "type": "object",
-             "additionalProperties": { "type": "integer" },
-             "description": "Map of label strings to integer values for dropdowns"
-           },
-           "enum": { "type": "string", "description": "Reference to a global enum key" },
-           "ui": {
-             "type": "object",
-             "properties": {
-               "label": { "type": "string" },
-               "control": { "type": ["string", "boolean"] },
-               "category": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]*$", "description": "UI grouping category (MUST be camelCase)" },
-               "hint": { "type": "string", "description": "Tooltip text for the control" },
-               "enabledBy": { 
-                 "oneOf": [
-                   { "type": "string", "description": "Parameter name for truthy check" },
-                   { "$ref": "#/definitions/enableCondition" }
-                 ],
-                 "description": "Condition that must be satisfied for this control to be enabled"
-               }
-             }
-           },
-           "requires": {
-             "type": "object",
-             "description": "Conditional visibility logic (e.g. show this uniform only if another uniform has a specific value)"
-           }
-         }
-       },
-       "dimensionSpec": {
-         "oneOf": [
-           {"type": "number"},
-           {"type": "string", "description": "screen, auto, input, resolution, or a percentage parsed with parseFloat (the string keywords all resolve to screen size)"},
-           {"type": "object", "required": ["scale"], "properties": {"scale": {"type":"number"}, "clamp": {"type":"object", "properties": {"min": {"type":"number"}, "max": {"type":"number"}}}}},
-           {"type": "object", "required": ["param"], "properties": {"param": {"type":"string"}, "paramDefault": {"type":"number"}, "default": {"type":"number"}, "multiply": {"type":"number"}, "power": {"type":"number"}, "inherit": {"type":"boolean"}}},
-           {"type": "object", "required": ["screenDivide"], "properties": {"screenDivide": {"type":"string"}, "default": {"type":"number"}}}
-         ]
-       },
-       "textureSpec": {
-         "type": "object",
-         "properties": {
-           "width": { "$ref": "#/definitions/dimensionSpec" },
-           "height": { "$ref": "#/definitions/dimensionSpec" },
-           "depth": { "$ref": "#/definitions/dimensionSpec" },
-           "format": { "type": "string" },
-           "mipmaps": { "type": "boolean", "description": "2D only: allocate a full mip chain and regenerate it from level-0 writes each frame" },
-           "persistent": { "type": "boolean", "description": "2D only: the pipeline resamples contents after an allocation-size change. Global surface specs also retain their final bindings across frames." },
-           "filter": { "type": "string", "enum": ["nearest", "linear"], "description": "3D (\"textures3d\") only: sampler filtering; unauthored 3D defaults are linear on both backends" }
-         },
-         "description": "User-defined textures. Width and height default to screen; format defaults to rgba16f. Unknown or misplaced policy fields are rejected with per-field diagnostics."
-       },
-       "enableCondition": {
-         "type": "object",
-         "description": "Conditional expression for enabledBy",
-         "properties": {
-           "param": { "type": "string", "description": "Parameter name to check" },
-           "eq": { "description": "Equal to value" },
-           "neq": { "description": "Not equal to value" },
-           "gt": { "type": "number", "description": "Greater than" },
-           "gte": { "type": "number", "description": "Greater than or equal" },
-           "lt": { "type": "number", "description": "Less than" },
-           "lte": { "type": "number", "description": "Less than or equal" },
-           "in": { "type": "array", "description": "Value is member of array" },
-           "notIn": { "type": "array", "description": "Value is not member of array" },
-           "or": { "type": "array", "items": { "$ref": "#/definitions/enableCondition" }, "description": "Any condition must be true" },
-           "and": { "type": "array", "items": { "$ref": "#/definitions/enableCondition" }, "description": "All conditions must be true" },
-           "not": { "$ref": "#/definitions/enableCondition", "description": "Invert condition" }
-         }
-       },
-       "passSpec": {
-         "type": "object",
-         "required": ["program"],
-         "properties": {
-           "name": { "type": "string", "description": "Pass label; preserved verbatim on expanded passes" },
-           "program": { "type": "string" },
-           "type": { "type": "string", "description": "Pass type label (e.g. render, compute). Backend shader-kind dispatch remains source-derived." },
-           "inputs": { "type": "object", "additionalProperties": {"type":"string"} },
-           "outputs": { "type": "object", "additionalProperties": {"type":"string"} },
-           "entryPoint": { "type": "string" },
-           "drawMode": { "type": "string" },
-           "drawBuffers": { "type": "integer", "minimum": 1 },
-           "count": { "type": ["integer", "string"] },
-           "countUniform": { "type": "string" },
-           "repeat": { "type": ["integer", "string"] },
-           "blend": {},
-           "clear": { "type": "boolean", "description": "Whether to clear output attachments before pass execution (WebGPU render-pass loadOp)" },
-           "samplerTypes": { "type": "object", "additionalProperties": { "type": "string", "enum": ["nearest", "linear"] }, "description": "Per-binding sampler filtering selection (WebGPU)" },
-           "viewport": {
-             "type": "object",
-             "properties": {
-               "x": { "type": "number" },
-               "y": { "type": "number" },
-               "w": { "type": "number" },
-               "h": { "type": "number" },
-               "width": { "$ref": "#/definitions/dimensionSpec" },
-               "height": { "$ref": "#/definitions/dimensionSpec" }
-             },
-             "description": "Per-pass viewport box. Dimension specifications resolve against current uniforms and screen dimensions per frame."
-           },
-           "conditions": {
-             "type": "object",
-             "properties": {
-               "runIf": { "type": "array" },
-               "skipIf": { "type": "array" }
-             },
-             "description": "Conditional execution predicates evaluated per frame before dispatch"
-           },
-           "uniforms": { 
-             "type": "object", 
-             "additionalProperties": { "type": "string" },
-             "description": "Shader uniform name to effect-global parameter name."
-           },
-           "workgroups": { "type": "array", "items": {"type":"integer","minimum":1}, "minItems":1, "maxItems":3 },
-           "storageBuffers": { "type": "object" },
-           "storageTextures": { "type": "object" }
-         }
-       }
-     }
-   }
+**Field notes:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Field
+     - Meaning
+   * - ``name``
+     - Non-empty display name. Spaces are allowed.
+   * - ``globals.<key>.type``
+     - One of ``boolean``, ``color``, ``float``, ``geometry``, ``int``,
+       ``mat3``, ``member``, ``palette``, ``string``, ``surface``, ``vec2``,
+       ``vec3``, ``vec4`` and ``volume``. See :ref:`shader-integration`,
+       Parameter Types.
+   * - ``globals.<key>.default``
+     - Optional in the grammar. The validator checks its type when it is
+       present. A package should declare one for every parameter.
+   * - ``globals.<key>.choices``
+     - Map of label strings to values for dropdowns.
+   * - ``globals.<key>.enum``
+     - Reference to a global enum key (Section 4).
+   * - ``globals.<key>.ui.category``
+     - UI grouping category. Write it in camelCase (Section 4b).
+   * - ``globals.<key>.ui.hint``
+     - Tooltip text for the control.
+   * - ``globals.<key>.ui.enabledBy``
+     - A parameter name for a truthy check, or a condition object
+       (Section 4c).
+   * - ``textures.<name>``
+     - User-defined textures. Width and height default to screen; format
+       defaults to ``rgba16f``. Unknown or misplaced policy fields are
+       rejected with per-field diagnostics.
+   * - ``textures.<name>.mipmaps``
+     - 2D only: allocate a full mip chain and regenerate it from level-0
+       writes each frame.
+   * - ``textures.<name>.persistent``
+     - 2D only: the pipeline resamples contents after an allocation-size
+       change. Global surface specs also retain their final bindings across
+       frames.
+   * - ``textures3d.<name>.filter``
+     - 3D only: ``nearest`` or ``linear`` sampler filtering. Unauthored 3D
+       defaults are linear on both backends.
+   * - ``outputTex3d``
+     - Internal texture name to expose as 3D volume output (Section 7.1).
+   * - ``outputGeo``
+     - Internal texture name to expose as geometry buffer output
+       (Section 7.1).
+   * - pass ``name``
+     - Pass label, preserved verbatim on expanded passes.
+   * - pass ``type``
+     - Pass type label, such as ``render`` or ``compute``. Backend
+       shader-kind dispatch remains source-derived.
+   * - pass ``drawBuffers``
+     - Integer, at least 1.
+   * - pass ``clear``
+     - Whether to clear output attachments before pass execution (WebGPU
+       render-pass ``loadOp``).
+   * - pass ``samplerTypes``
+     - Per-binding sampler selection on WebGPU: ``default``, ``nearest``,
+       ``repeat`` or ``mipmap``. WebGL2 ignores it.
+   * - pass ``viewport``
+     - Per-pass viewport box: ``x``, ``y``, ``w`` and ``h`` numbers, or
+       ``width`` and ``height`` dimension specifications that resolve against
+       current uniforms and screen dimensions per frame.
+   * - pass ``conditions``
+     - ``runIf`` and ``skipIf`` predicates, evaluated per frame before
+       dispatch.
+   * - pass ``uniforms``
+     - Shader uniform name to effect-global parameter name.
+   * - pass ``workgroups``
+     - Array of one to three positive integers.
 
 Section 7.3 describes how backends handle format names.
 
@@ -895,6 +821,20 @@ Effects that produce 3D volumes or geometry buffers declare the output at effect
      outputTex3d: "volumeCache",  // Expose volumeCache as 3D output
      outputGeo: "geoBuffer"       // Expose geoBuffer as geometry output
    });
+
+A pass can also bind ``outputTex3d`` directly as an output. Declaring an
+internal texture and naming it in the effect-level ``outputTex3d`` field is
+preferred, because the texture declaration sets the volume's dimensions.
+
+The effect-level fields also accept passthrough values. ``outputTex3d:
+"inputTex3d"`` retains the upstream volume, and ``outputGeo: "inputGeo"``
+passes the upstream geometry through; passthrough does not require an unused
+shader sampler. In a legacy Portable package (Section 8.2), ``null`` for
+either field means the field is absent.
+
+The meaning of ``inputGeo`` depends on the preceding stage. Geometry from a
+volume generator is an atlas; geometry from a volume renderer is a screen
+image (Section 8.6).
 
 7.2 Dimension Resolution Algorithm
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -973,3 +913,387 @@ negotiation or precision-downgrade policy.
 
 Unsupported resolved formats or usages fail when the backend creates or uses
 the texture. The resolver does not check device capabilities in advance.
+
+.. _portable-format:
+
+8. Portable Effect Packages
+---------------------------
+
+A Portable effect package carries an effect as data: a ``definition.json``
+file and its GLSL and WGSL program sources. Hosts register a loaded package
+with ``CanvasRenderer.registerPortableEffect()``
+(:ref:`portable-registration`). This section is the format specification. The
+guides explain it with examples:
+
+- :doc:`portable-packages`: definitions, passes, textures, volumes and
+  workspaces
+- :doc:`portable-parameters`: declaring ``globals``
+- :doc:`portable-shaders`: writing the GLSL and WGSL programs
+- :doc:`portable-dsl`: calling package effects from a program
+- :doc:`portable-viewer`: previewing a package during development
+
+8.1 Package Layout
+^^^^^^^^^^^^^^^^^^
+
+A package is a directory or ZIP archive:
+
+.. code-block:: text
+
+   effect-name/
+   ├── definition.json           # REQUIRED: Effect metadata
+   ├── glsl/                     # At least one of glsl/ or wgsl/ REQUIRED
+   │   ├── main.glsl             # Primary fragment shader
+   │   └── *.glsl                # Additional shaders (multi-pass)
+   ├── wgsl/                     # At least one of glsl/ or wgsl/ REQUIRED
+   │   ├── main.wgsl             # Primary fragment shader
+   │   └── *.wgsl                # Additional shaders (multi-pass)
+   └── help.md                   # OPTIONAL: Documentation
+
+- ``definition.json`` is required.
+- At least one of ``glsl/`` and ``wgsl/`` is required. An effect with only
+  one shader language runs only on the corresponding backend: GLSL on WebGL2,
+  WGSL on WebGPU. Provide both for use across Noise Factor applications.
+- ``help.md`` is optional documentation.
+
+A shader file's name, without its directory and extension, is its program
+name. A pass's ``program`` value ``blur`` names ``glsl/blur.glsl`` and
+``wgsl/blur.wgsl``. When a package provides both directories, every program
+needs a file in each, so that a backend never meets a missing shader in the
+middle of a pipeline.
+
+.. _portable-format-versions:
+
+8.2 Format Profiles
+^^^^^^^^^^^^^^^^^^^
+
+**Version 2.** A version 2 package declares its authoring profile with two
+top-level fields:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 30 50
+
+   * - Field
+     - Value
+     - Meaning
+   * - ``format``
+     - ``"noisemaker-portable-effect"``
+     - Marks the definition as a Portable effect package
+   * - ``version``
+     - ``2``
+     - Integer major version of the authoring profile
+
+In version 2, ``passes`` is an object keyed by pass name, not an array. Each
+key is a DSL identifier, and the passes run in declaration order. This shape
+makes every supported older core refuse a version 2 package loudly instead of
+rendering it without its version 2 features.
+
+**Legacy (version 1 and 1.1).** A package with no ``format`` and ``version``
+marker takes the legacy path unchanged. Its ``passes`` is an array, and the
+omissions that legacy loading historically accepted still load: ``name`` when
+``func`` is present, ``namespace``, and the pass fields other than
+``program`` (Section 8.4).
+
+**Unsupported versions.** A package that declares an explicit major version
+that the core does not know is refused with the diagnostic code
+``unsupported-version``, and nothing is registered.
+
+The multi-effect workspace envelope (:ref:`portable-workspace`) has its own
+version, independent of these profiles.
+
+8.3 Top-Level Fields
+^^^^^^^^^^^^^^^^^^^^
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 16 12 54
+
+   * - Field
+     - Type
+     - Default
+     - Description
+   * - ``format``
+     - string
+     -
+     - Version 2 marker (Section 8.2)
+   * - ``version``
+     - integer
+     -
+     - Version 2 marker (Section 8.2)
+   * - ``name``
+     - string
+     -
+     - Display name for the effect
+   * - ``func``
+     - string
+     -
+     - DSL function name: camelCase, no spaces
+   * - ``namespace``
+     - string
+     -
+     - Registration context (:ref:`portable-registration`)
+   * - ``description``
+     - string
+     - ``""``
+     - Human-readable description
+   * - ``starter``
+     - boolean
+     - inferred
+     - Whether the effect can start a chain. When it is omitted, it is
+       inferred from the passes' pipeline input bindings
+       (:ref:`portable-registration`).
+   * - ``tags``
+     - string[]
+     - ``[]``
+     - Categorization tags from the curated list (Section 2b)
+   * - ``globals``
+     - object
+     - ``{}``
+     - Parameter definitions (Section 8.5)
+   * - ``passes``
+     - object (version 2) or array (legacy)
+     -
+     - Rendering pass configuration (Section 8.4)
+   * - ``textures``
+     - object
+     - ``{}``
+     - Internal texture definitions (Section 7)
+   * - ``defaultProgram``
+     - string
+     -
+     - Example DSL program for this effect (Section 8.7)
+   * - ``outputTex3d``
+     - string or null
+     -
+     - Internal volume atlas exposed to the next effect, or ``inputTex3d``
+       for passthrough. In a legacy package ``null`` means absent.
+   * - ``outputGeo``
+     - string or null
+     -
+     - Internal geometry texture exposed to the next effect, or ``inputGeo``
+       for passthrough. In a legacy package ``null`` means absent.
+   * - ``uniformLayout``
+     - object or array
+     -
+     - Explicit WGSL uniform-buffer field layout, when the shader requires one
+   * - ``uniformLayouts``
+     - object
+     -
+     - Program name to WGSL uniform layout, for multi-pass shaders
+
+At least one of ``name`` and ``func`` must be present. When ``func`` is
+absent, ``name`` is the function name and must be a valid DSL identifier.
+Provide ``func`` explicitly.
+
+``starter: true`` marks an effect that generates imagery without input; these
+are the synths of Noisedeck. ``starter: false`` marks an effect that requires
+input from a previous effect in the chain. ``starter`` describes whether an
+effect can begin a chain, independently of whether it produces 2D images or
+3D volumes.
+
+8.4 Passes
+^^^^^^^^^^
+
+Each pass runs one program. In version 2, the pass name is the key:
+
+.. code-block:: json
+
+   {
+     "format": "noisemaker-portable-effect",
+     "version": 2,
+     "name": "Two Pass Blur",
+     "func": "twoPassBlur",
+     "textures": {
+       "tempTex": { "width": "100%", "height": "100%", "format": "rgba16f" }
+     },
+     "passes": {
+       "blur_h": {
+         "program": "blur",
+         "inputs": { "inputTex": "inputTex" },
+         "outputs": { "color": "tempTex" }
+       },
+       "blur_v": {
+         "program": "blur",
+         "inputs": { "inputTex": "tempTex" },
+         "outputs": { "color": "outputTex" }
+       }
+     }
+   }
+
+The legacy form carries the same passes as an array, each with a ``name``
+field:
+
+.. code-block:: json
+
+   "passes": [
+     {
+       "name": "blur_h",
+       "program": "blur",
+       "inputs": { "inputTex": "inputTex" },
+       "outputs": { "color": "tempTex" }
+     },
+     {
+       "name": "blur_v",
+       "program": "blur",
+       "inputs": { "inputTex": "tempTex" },
+       "outputs": { "color": "outputTex" }
+     }
+   ]
+
+The legacy documents allowed ``passes`` to be omitted, and the importing
+application then generated a single pass from the shader files.
+``registerPortableEffect`` requires passes, so a host that calls it supplies
+them.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 14 68
+
+   * - Property
+     - Type
+     - Description
+   * - ``program``
+     - string
+     - Required. Shader program name (Section 8.1).
+   * - ``name``
+     - string
+     - Legacy only: unique pass identifier. In version 2 the key is the name.
+       Legacy loading accepts a pass without a name.
+   * - ``inputs``
+     - object
+     - Sampler name to texture name. Each value is a nonempty texture
+       reference.
+   * - ``outputs``
+     - object
+     - Fragment output to texture name. Each value is a nonempty texture
+       reference.
+   * - ``viewport``
+     - object
+     - Pass width and height. Volume passes use the atlas dimensions
+       (Section 8.6).
+   * - ``drawBuffers``
+     - integer
+     - Number of color attachments for a multi-output pass
+   * - ``type``
+     - string
+     - ``render`` (default) or ``compute``. State updates use ``compute``;
+       the value labels the pass, and backend shader-kind dispatch remains
+       source-derived.
+
+Effects without input use ``"inputs": {}``. A filter binds its input
+explicitly, for example ``"inputs": { "inputTex": "inputTex" }``. Section 7.1
+lists the reserved texture names (``inputTex``, ``outputTex``,
+``inputTex3d``, ``inputGeo``, ``outputTex3d``). The other pass properties of
+Section 2 and the field notes of Section 7 apply to packages as well.
+
+.. _portable-format-parameters:
+
+8.5 Parameters
+^^^^^^^^^^^^^^
+
+Each key of ``globals`` is a parameter name that DSL programs use. Its
+``uniform`` field names the shader uniform and defaults to the key. The
+types, ``default``, ``min``, ``max``, ``step``, ``choices``, ``enum`` and
+``ui`` fields follow Sections 4 to 4d and the field notes of Section 7.
+
+- Declare a ``default`` for every package parameter. The validator does
+  not require one.
+- Write choice names as DSL identifiers: no leading digit, hyphen, space or
+  other special character. The DSL reaches a choice by its name, and the
+  engine also registers a sanitized form of a name that is not an identifier.
+- An explicit ``enum`` takes precedence over the choice path generated from
+  ``choices``. A version 2 package names it ``enum``; ``enumPath`` is an older
+  spelling that a definition does not carry.
+- ``ui.label`` defaults to the parameter key. ``ui.category`` groups
+  controls (Section 4b).
+- The runtime supplies the built-in uniforms ``resolution``, ``time``,
+  ``frame`` and ``aspect`` (:ref:`shader-pipeline`, Phase 3). Do not declare
+  them in ``globals``: the validator does not refuse them, but the runtime's
+  values replace them.
+
+8.6 Volume Textures and Geometry
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A 3D volume of size N is stored as an N × N² RGBA atlas. Voxel
+``(x, y, z)`` occupies texel ``(x, y + z * N)``. Read it with integer texel
+reads: this is data addressing, not image UV mapping. WGSL volume writers use
+native pixel coordinates without the screen-space Y flip that 2D image
+shaders use.
+
+A volume does not inherit the canvas resolution. Declare both the texture
+dimensions and the pass viewport, using parameter dimensions such as
+``{ "param": "volumeSize", "power": 2, "default": 4096 }`` (Section 7.2).
+
+- A volume **generator** writes an explicitly sized atlas and exposes it
+  through ``outputTex3d``. It can expose an atlas-sized geometry texture
+  through ``outputGeo``.
+- A volume **filter** reads ``inputTex3d``, writes an explicitly sized atlas
+  and exposes it through ``outputTex3d``. ``outputGeo: "inputGeo"`` keeps the
+  upstream geometry unchanged. The runtime inherits ``volumeSize`` from the
+  upstream generator. Consumers preserve missing defaults and do not write UI
+  defaults over that inherited value after compilation.
+- A volume **renderer** reads ``inputTex3d`` (and ``inputGeo`` when needed),
+  writes ``outputTex`` and exposes a screen-sized geometry target through
+  ``outputGeo``, with encoded normals in RGB and depth in A.
+  ``outputTex3d: "inputTex3d"`` retains the upstream volume.
+
+The built-in ``render3d`` and ``renderLit3d`` threshold the atlas's red
+channel and use RGB for color. Upstream volume geometry can separately carry
+density in A and encoded normals in RGB. A renderer that uses that
+independent density implements that interpretation explicitly; changing an
+RGB palette does not change the built-in renderers' threshold convention.
+
+Existing generators support cubic resolutions such as 16, 32, 64 and 128,
+subject to the device's maximum texture dimension. A wide rectangular world
+needs its own addressing and storage scheme; it is not a larger
+``volumeSize`` for the existing cubic filters. All textures remain RGBA. Do
+not allocate the user surfaces ``o0`` to ``o7`` as internal effect storage.
+
+8.7 Default Program
+^^^^^^^^^^^^^^^^^^^
+
+``defaultProgram`` is a complete DSL program that demonstrates the effect,
+including ``search user`` and every built-in namespace it uses. Applications
+use it as the initial program when they load the effect. A 3D filter or
+renderer needs an upstream volume in this program.
+
+8.8 Declarative Content
+^^^^^^^^^^^^^^^^^^^^^^^
+
+A package is data. It contains no function strings and no JavaScript modules,
+and none of its keys can reach object prototypes (``prototype`` and every own
+key of ``Object.prototype``). The lifecycle methods of Section 5 are not
+available to packages. ``paramAliases`` is retired.
+
+8.9 Validation
+^^^^^^^^^^^^^^
+
+A valid Portable effect package MUST have:
+
+1. A ``definition.json`` with at least ``name`` or ``func``
+2. At least one shader file in ``glsl/`` or ``wgsl/`` (or both)
+3. Program names in ``passes`` that match shader file names in each provided
+   directory
+4. A ``format`` and ``version`` marker that the core supports, or no marker
+   (Section 8.2)
+
+A valid Portable effect package SHOULD have:
+
+- Both ``glsl/`` and ``wgsl/`` shaders, for cross-backend interoperability
+- A meaningful ``description``
+- Appropriate ``tags`` for searchability
+- A ``starter`` value that matches the effect type
+- ``min`` and ``max`` ranges on parameters with sliders
+
+The generated schema in Section 7 is the machine-readable form of these
+rules.
+
+To check a package, pass it to ``normalizePortableDefinition()`` in
+``shaders/src/portable/definition.js``. It returns ``{ profile, definition,
+diagnostics }`` and never throws. Each diagnostic has a ``code``, a ``path``
+such as ``globals.speed.ui.control`` or ``passes.blur_h``, and a ``message``.
+An empty ``diagnostics`` list means the package is valid. The schema checks
+the same structure in an editor or on the command line, without loading
+Noisemaker. The runtime validator also checks what a schema cannot state,
+such as an ``enabledBy`` reference or a uniform layout that matches its
+globals.
