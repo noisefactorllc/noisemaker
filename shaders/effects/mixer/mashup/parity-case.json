@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "effects": [
+    "synth/testPattern",
+    "synth/solid",
+    "mixer/mashup"
+  ],
+  "dsl": "search synth, mixer\n\ntestPattern(pattern: gradient).write(o1)\nsolid(color: #c04020).write(o2)\nsolid(color: #2050e0).write(o3)\nmashup(source: read(o1), layers: 2, layer0_tex: read(o2), layer1_tex: read(o3), smoothness: 0.125).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ],
+  "epsilon": 0,
+  "requireColorVariation": true
+}

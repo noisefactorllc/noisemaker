@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "effects": [
+    "synth/testPattern",
+    "mixer/distortion"
+  ],
+  "dsl": "search synth, mixer\n\ntestPattern(pattern: gradient).write(o1)\ntestPattern(pattern: colorBars).distortion(tex: read(o1), mode: displace, mapSource: sourceB, intensity: 65, wrap: repeat).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ],
+  "epsilon": 0,
+  "requireColorVariation": true
+}

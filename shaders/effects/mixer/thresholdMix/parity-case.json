@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "effects": [
+    "synth/testPattern",
+    "synth/solid",
+    "mixer/thresholdMix"
+  ],
+  "dsl": "search synth, mixer\n\nsolid(color: #3050d0).write(o1)\ntestPattern(pattern: gradient).thresholdMix(tex: read(o1), mapSource: sourceA, threshold: 0.375, range: 0.125).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ],
+  "epsilon": 0,
+  "requireColorVariation": true
+}
