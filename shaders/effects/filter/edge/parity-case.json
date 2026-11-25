@@ -1,0 +1,1 @@
+{"schemaVersion":1,"effects":["synth/testPattern","filter/edge"],"dsl":"search synth, filter\ntestPattern(pattern: colorGrid, gridSize: 8).edge(kernel: contour, level: 42, contourSide: upper, channel: luminance, amount: 165, invert: on, threshold: 18, blend: overlay, mix: 72).write(o0)\nrender(o0)","surface":"o0","resolution":[64,64],"epsilon":0,"requireColorVariation":true}

@@ -1,0 +1,1 @@
+{"schemaVersion":1,"effects":["synth/testPattern","filter/relief"],"dsl":"search synth, filter\ntestPattern(pattern: colorGrid, gridSize: 8).relief(mode: notePaper, smoothness: 34, detail: 61, lightAngle: 112, balance: 46, graininess: 27, inkColor: #1c2533, paperColor: #eadfbf).write(o0)\nrender(o0)","surface":"o0","resolution":[64,64],"epsilon":0,"requireColorVariation":true}

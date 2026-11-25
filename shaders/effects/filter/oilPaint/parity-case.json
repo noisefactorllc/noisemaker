@@ -1,0 +1,1 @@
+{"schemaVersion":1,"effects":["synth/testPattern","filter/oilPaint"],"dsl":"search synth, filter\ntestPattern(pattern: colorGrid, gridSize: 8).oilPaint(mode: sponge, size: 4.5, detail: 68, texture: 37, seed: 19).write(o0)\nrender(o0)","surface":"o0","resolution":[64,64],"epsilon":0,"requireColorVariation":true}

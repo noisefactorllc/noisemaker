@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "filter/oilPaint",
+  "sourceHash": "97e87fca057dd43540296c8ebc6df02abfa10c4ccff19f83961b5152932672e4",
+  "caseHash": "26929e12a8c888a6130a259e0229c852f5060e15a356672a531d838326dd2655",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 3027
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 3027
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 2,
+    "webgpuTargetPasses": 2
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

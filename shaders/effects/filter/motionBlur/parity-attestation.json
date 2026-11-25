@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "effect": "filter/motionBlur",
+  "sourceHash": "9cc91c79bd7b4e9fca96c0c3e0b94213af41d0cae3005037275a550d637c60ec",
+  "caseHash": "0ba6bd40369a003a260f35eb1d90ba4af2dce1c8e116eca9ac28a7e2468072e7",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 244
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 244
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 2,
+    "webgpuTargetPasses": 2
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  },
+  "timeline": {
+    "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "loopSeconds": 10
+  },
+  "control": {
+    "differs": {
+      "webgl2": true,
+      "webgpu": true
+    },
+    "targetPasses": {
+      "webgl2": 2,
+      "webgpu": 2
+    }
+  }
+}

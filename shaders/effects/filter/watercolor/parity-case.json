@@ -1,0 +1,1 @@
+{"schemaVersion":1,"effects":["synth/testPattern","filter/watercolor"],"dsl":"search synth, filter\ntestPattern(pattern: colorGrid, gridSize: 8).watercolor(detail: 63, shadowIntensity: 47, paperTexture: 36).write(o0)\nrender(o0)","surface":"o0","resolution":[64,64],"epsilon":0,"requireColorVariation":true}
