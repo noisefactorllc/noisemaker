@@ -1,0 +1,1 @@
+{"schemaVersion":1,"effects":["synth/testPattern","filter/seamless"],"dsl":"search synth, filter\ntestPattern(pattern: colorGrid, gridSize: 8).seamless(blend: 0.35, repeat: 3, curve: sharp).write(o0)\nrender(o0)","surface":"o0","resolution":[64,64],"epsilon":0,"requireColorVariation":true}

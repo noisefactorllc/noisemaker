@@ -1,0 +1,1 @@
+{"schemaVersion":1,"effects":["synth/testPattern","filter/mosaicTiles"],"dsl":"search synth, filter\ntestPattern(pattern: colorGrid, gridSize: 8).mosaicTiles(mode: mosaic, tileSize: 12, groutWidth: 18, relief: 65, seed: 7).write(o0)\nrender(o0)","surface":"o0","resolution":[64,64],"epsilon":0,"requireColorVariation":true}

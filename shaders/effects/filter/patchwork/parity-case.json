@@ -1,0 +1,1 @@
+{"schemaVersion":1,"effects":["synth/testPattern","filter/patchwork"],"dsl":"search synth, filter\ntestPattern(pattern: colorGrid, gridSize: 8).patchwork(squareSize: 8, relief: 70, lightAngle: 120).write(o0)\nrender(o0)","surface":"o0","resolution":[64,64],"epsilon":0,"requireColorVariation":true}

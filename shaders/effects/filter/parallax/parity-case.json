@@ -1,0 +1,1 @@
+{"schemaVersion":1,"effects":["synth/testPattern","filter/parallax"],"dsl":"search synth, filter\ntestPattern(pattern: colorGrid, gridSize: 8).parallax(direction: vec3(0.7, -0.4, 1), pivot: 0.35).write(o0)\nrender(o0)","surface":"o0","resolution":[64,64],"epsilon":0,"requireColorVariation":true}

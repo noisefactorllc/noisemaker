@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "filter/mosaicTiles",
+  "sourceHash": "9c7aa838686ce99bcb0184a8d641ade41a6ab3a6b6c8d57ad338aaec6c30123e",
+  "caseHash": "c0698d598a8464501ea03b63ea046d3c14d28ea33ac4a23aa7b70de086bc914e",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 2280
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 2280
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}
