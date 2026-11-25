@@ -39,7 +39,7 @@ export function compileGraph(source, options = {}) {
     const sceneIR = compileScene(compilationResult)
 
     // Stage 2: Expand logical graph into render passes
-    const { passes, errors: expandErrors, programs, textureSpecs, renderSurface, mediaSteps, elementKeys } = expand(
+    const { passes, errors: expandErrors, programs, textureSpecs, renderSurface, mediaSteps, elementKeys, stepStateKeys } = expand(
         compilationResult,
         { shaderOverrides: options.shaderOverrides }
     )
@@ -86,6 +86,9 @@ export function compileGraph(source, options = {}) {
     // The state keys of the elements with an `_id:` (CanvasRenderer.keyOf());
     // a program without one carries none.
     if (Object.keys(elementKeys).length > 0) graph.elementKeys = elementKeys
+    // Each element's own state by step index, keyed or by position, for a
+    // host that names an element and moves its state (CanvasRenderer.stateKeysOf()).
+    graph.stepStateKeys = stepStateKeys
 
     return graph
 }
@@ -395,6 +398,9 @@ export function swapGraph(pipeline, newGraph) {
         // guard enforces is read off the graph, so the guard's warn-once memo
         // belongs to the graph being replaced: kept, it would silence every
         // later refusal of a value already refused under the old program.
+        // The replaced graph's per-step state stays readable for one compile:
+        // an element that gains an `_id:` takes its state from there.
+        pipeline.previousStepStateKeys = pipeline.graph?.stepStateKeys ?? null
         pipeline.graph = newGraph
         pipeline.resetSceneVolumeAtlasWarnings?.()
 

@@ -58,7 +58,7 @@ const STABLE_HOST_MEMBERS = new Set([
     'registerEffectWithRuntime', 'registerEffectsFromBundle', 'registerEffectsFromBundles', 'registerPortableEffect',
     'registerStarterOpForEffect', 'render', 'renderCubemap', 'resetCanvas', 'resetFrameTimeStats', 'resize',
     'resolveEnumValue', 'setAudioState', 'setLocale', 'setLoopDuration', 'setMidiState', 'setSeed', 'setTileRegion', 'setUniform',
-    'softwareRendering', 'start', 'stepFrame', 'stop', 'switchBackend', 'syncTime', 'updateTextureFromSource',
+    'softwareRendering', 'start', 'stateKeysOf', 'stepFrame', 'stop', 'switchBackend', 'syncTime', 'updateTextureFromSource',
     'useBundles'
 ])
 

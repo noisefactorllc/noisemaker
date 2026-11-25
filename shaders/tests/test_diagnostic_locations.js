@@ -60,7 +60,7 @@ test('valid source retains its compiled effect and builtin indexes', () => {
     const result = compile('search synth\n  diagProbe().write(o0)')
     assert.deepEqual(result.diagnostics, [])
     assert.deepEqual(result.plans[0].chain, [
-        { op: 'synth.diagProbe', args: {}, from: null, temp: 0 },
+        { op: 'synth.diagProbe', args: {}, from: null, temp: 0, occurrence: 'diagProbe_1', keyName: 'diagProbe_1' },
         { op: '_write', args: { tex: { kind: 'output', name: 'o0' } }, from: 0, temp: 1, builtin: true }
     ])
     assert.deepEqual(Object.keys(result).sort(), ['diagnostics', 'plans', 'render', 'searchNamespaces', 'vars'])
@@ -374,7 +374,7 @@ test('valid search directives retain namespace order, keyword namespaces, and co
     assert.deepEqual(result.searchNamespaces, ['render', 'synth', 'synth'])
     assert.deepEqual(result.diagnostics, [])
     assert.deepEqual(result.plans[0].chain, [
-        { op: 'synth.diagProbe', args: {}, from: null, temp: 0 },
+        { op: 'synth.diagProbe', args: {}, from: null, temp: 0, occurrence: 'diagProbe_1', keyName: 'diagProbe_1' },
         { op: '_write', args: { tex: { kind: 'output', name: 'o0' } }, from: 0, temp: 1, builtin: true }
     ])
     assert.deepEqual(Object.keys(result).sort(), ['diagnostics', 'plans', 'render', 'searchNamespaces', 'vars'])
@@ -479,7 +479,7 @@ test('valid output operations retain surface forms, render selection, and compil
     assert.deepEqual(result.diagnostics, [])
     assert.equal(result.render, 'o1')
     assert.deepEqual(result.plans[0].chain, [
-        { op: 'synth.diagProbe', args: {}, from: null, temp: 0 },
+        { op: 'synth.diagProbe', args: {}, from: null, temp: 0, occurrence: 'diagProbe_1', keyName: 'diagProbe_1' },
         { op: '_write', args: { tex: { kind: 'output', name: 'o1' } }, from: 0, temp: 1, builtin: true }
     ])
     assert.deepEqual(Object.keys(result).sort(), ['diagnostics', 'plans', 'render', 'searchNamespaces', 'vars'])
@@ -569,7 +569,7 @@ test('valid subchains preserve permissive arguments, defaults, body and compiled
         assert.deepEqual(result.plans[0].chain, [
             { op: '_read', args: { tex: { kind: 'output', name: 'o0' } }, from: null, temp: 0, builtin: true },
             { op: '_subchain_begin', args: { name, id }, from: 0, temp: 1, builtin: true },
-            { op: 'synth.diagFilter', args: {}, from: 1, temp: 2 },
+            { op: 'synth.diagFilter', args: {}, from: 1, temp: 2, occurrence: 'diagFilter_1', keyName: 'diagFilter_1' },
             { op: '_subchain_end', args: { name, id }, from: 2, temp: 3, builtin: true },
             { op: '_write', args: { tex: { kind: 'output', name: 'o1' } }, from: 3, temp: 4, builtin: true }
         ])
@@ -600,7 +600,7 @@ test('permissive subchain arguments keep their compiled shape and gain stable re
     assert.deepEqual(result.plans[0].chain, [
         { op: '_read', args: { tex: { kind: 'output', name: 'o0' } }, from: null, temp: 0, builtin: true },
         { op: '_subchain_begin', args: { name: 'b', id: 's' }, from: 0, temp: 1, builtin: true },
-        { op: 'synth.diagFilter', args: {}, from: 1, temp: 2 },
+        { op: 'synth.diagFilter', args: {}, from: 1, temp: 2, occurrence: 'diagFilter_1', keyName: 'diagFilter_1' },
         { op: '_subchain_end', args: { name: 'b', id: 's' }, from: 2, temp: 3, builtin: true },
         { op: '_write', args: { tex: { kind: 'output', name: 'o1' } }, from: 3, temp: 4, builtin: true }
     ])

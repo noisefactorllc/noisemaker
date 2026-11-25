@@ -173,6 +173,8 @@ export function expand(compilationResult, options = {}) {
     const textureSpecs = {} // nodeId_texName -> { width, height, format, is3D?, depth? }
     // id -> { op, key, state: { name: keyed name } } for each element keyed by its `_id:`
     const elementKeys = {}
+    // step index -> { op, state: { name: key } }: each element's own state, keyed or by position
+    const stepStateKeys = {}
     const textureMap = new Map() // logical_id -> virtual_texture_id
     const writtenVolumes = new Map() // exported volume -> source sizing uniform
     const readVolumes = new Map() // reader sizing scope -> volume and preceding writer
@@ -451,7 +453,13 @@ export function expand(compilationResult, options = {}) {
             const stateKey = identity !== null ? elementStateKey(identity, step.op) : null
             const stateId = stateKey ?? nodeId
             const elementState = stateKey ? (elementKeys[identity] = { op: step.op, key: stateKey, state: {} }).state : null
-            const recordState = (name, keyed) => { if (elementState && keyed.includes(stateKey)) elementState[name] = keyed }
+            // Each element's own state names, keyed or by position, for a host
+            // that moves an element's state as it names it (stateKeysOf()).
+            const ownState = (stepStateKeys[step.temp] = { op: step.op, state: {} }).state
+            const recordState = (name, keyed, own) => {
+                if (own) ownState[name] = keyed
+                if (elementState && keyed.includes(stateKey)) elementState[name] = keyed
+            }
             // Preserve legacy IDs for the first instance. Repeated private state
             // gets a node suffix; cooperating effects retain the shared chain scope.
             const instanceScopeId = stateKey ?? (seenEffects.has(effectDef) ? `${chainScopeId}_${nodeId}` : chainScopeId)
@@ -585,7 +593,10 @@ export function expand(compilationResult, options = {}) {
                         // Node-local texture - add node prefix
                         virtualTexId = `${stateId}_${texName}`
                     }
-                    recordState(texName, virtualTexId)
+                    // In a particle pipeline its creator owns a particle texture;
+                    // outside one, it is keyed as any other private global.
+                    recordState(texName, virtualTexId, !texName.startsWith('global_') ||
+                        (shouldScopeAsParticle ? Boolean(createsParticleTextures) : isPrivateGlobal(texName)))
 
                     // When scoping textures to a pipeline or chain, we must also scope
                     // any param references in width/height. Otherwise all pipelines/chains
@@ -627,7 +638,10 @@ export function expand(compilationResult, options = {}) {
                                         : stateKey && isPrivateTex && !dimSpec.inherit && !shouldScopeAsParticle
                                             ? `${originalParam}_${stateKey}`
                                             : chainSizeParam(`${originalParam}_${scopeSuffix}`, dimSpec.inherit)
-                                recordState(originalParam, scopedParam)
+                                const particleScoped = shouldScopeAsParticle ||
+                                    (originalParam === 'stateSize' && currentParticlePipelineId && !texName.startsWith('global_'))
+                                recordState(originalParam, scopedParam, !dimSpec.inherit && originalParam !== 'volumeSize' &&
+                                    (particleScoped ? Boolean(createsParticleTextures) : isPrivateTex))
                                 // Track this mapping so we can copy uniform values later.
                                 // An inherited dimension reads the scope's value and never
                                 // writes this effect's own value over it.
@@ -642,7 +656,7 @@ export function expand(compilationResult, options = {}) {
                                 const scopedParam = stateKey && isPrivateTex && !shouldScopeAsParticle
                                     ? `${originalParam}_${stateKey}`
                                     : chainSizeParam(`${originalParam}_${scopeSuffix}`, false)
-                                recordState(originalParam, scopedParam)
+                                recordState(originalParam, scopedParam, shouldScopeAsParticle ? Boolean(createsParticleTextures) : isPrivateTex)
                                 scopedParamMap.set(originalParam, scopedParam)
                                 return {
                                     ...dimSpec,
@@ -668,7 +682,7 @@ export function expand(compilationResult, options = {}) {
                     } else {
                         virtualTexId = `${stateId}_${texName}`
                     }
-                    recordState(texName, virtualTexId)
+                    recordState(texName, virtualTexId, !texName.startsWith('global_') || isPrivateGlobal(texName))
                     textureSpecs[virtualTexId] = { ...spec, is3D: true }
                 }
             }
@@ -1091,7 +1105,7 @@ export function expand(compilationResult, options = {}) {
                             // host's upload stays bound when other elements are edited.
                             // The texture will be created/updated via updateTextureFromSource()
                             const texId = stateKey ? `${stateKey}_${texRef}` : `${texRef}_step_${step.temp}`
-                            recordState(texRef, texId)
+                            recordState(texRef, texId, true)
                             pass.inputs[uniformName] = texId
                             // Record the binding so hosts can enumerate media
                             // texture ids via renderer.getMediaSteps().
@@ -1464,5 +1478,5 @@ export function expand(compilationResult, options = {}) {
         renderSurface = null
     }
 
-    return { passes, errors, programs, textureSpecs, renderSurface, mediaSteps, elementKeys }
+    return { passes, errors, programs, textureSpecs, renderSurface, mediaSteps, elementKeys, stepStateKeys }
 }

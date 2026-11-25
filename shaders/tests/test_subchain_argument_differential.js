@@ -11,8 +11,10 @@ import { registerStarterOps } from '../src/lang/validator.js'
 // exact public compile() results (and thrown errors) of the recorded source
 // revision for a generated subchain-argument corpus. Current code must match
 // the baseline on acceptance, thrown errors, plans, render, vars, and
-// searchNamespaces; the only permitted difference is added P008/P009/P010
-// subchain-argument reports.
+// searchNamespaces; the only permitted differences are added P008/P009/P010
+// subchain-argument reports, and the element names that each planned step
+// now records (`occurrence`, `keyName` and `usePath`, which
+// test_element_state_naming.mjs checks).
 const here = path.dirname(fileURLToPath(import.meta.url))
 const fixture = JSON.parse(fs.readFileSync(path.join(here, 'fixtures/subchain-argument-baseline.json'), 'utf8'))
 
@@ -31,8 +33,12 @@ for (const entry of fixture.corpus) {
         }
         assert.equal(threw, entry.threw, 'acceptance or legacy error must match the recorded baseline')
         if (entry.threw) { return }
+        const STEP_NAMES = new Set(['occurrence', 'keyName', 'usePath'])
+        // Only from a planned step: the object that holds an `op` and a `temp`.
         const key = r => JSON.stringify({
             plans: r.plans, render: r.render, vars: r.vars, searchNamespaces: r.searchNamespaces
+        }, function (field, value) {
+            return STEP_NAMES.has(field) && typeof this.op === 'string' && 'temp' in this ? undefined : value
         })
         assert.equal(key(result), JSON.stringify({
             plans: entry.result.plans, render: entry.result.render,

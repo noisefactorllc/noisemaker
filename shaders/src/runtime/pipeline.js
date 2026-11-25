@@ -576,6 +576,9 @@ function reverseRows(image) {
 export class Pipeline {
     constructor(graph, backend, options = {}) {
         this.graph = graph
+        // The per-step state of the graph that this one replaced (swapGraph()),
+        // for a move from a position key (isRenameOf()). A new pipeline has none.
+        this.previousStepStateKeys = null
         this.backend = backend
         // Opt-in consumption of the analyzer's physical allocation plan
         // (graph.allocations): pooled virtual textures share one backend
@@ -2134,16 +2137,18 @@ export class Pipeline {
      * Copy the live state under one element key into another, for a host
      * that renames an element (CanvasRenderer.moveState()). A key is a state
      * texture id that CanvasRenderer.keyOf() returns: both halves of a state
-     * surface (`global_…`) are copied, or one node-local texture. A host's
-     * upload to a media step is moved instead, from another key or from the
-     * step-numbered id of a step that gains an `_id:`. Nothing is stored
-     * outside the program text.
+     * surface (`global_…`) are copied, or one node-local texture. The from-key
+     * can also be the position key of that state in the program compiled just
+     * before this one (CanvasRenderer.stateKeysOf()), as for an element that
+     * gains an `_id:`. A host's upload to a media step is moved instead, from
+     * another key or from the step-numbered id of a step that gains an `_id:`.
+     * Nothing is stored outside the program text.
      * @param {string} fromKey - The key that holds the state
      * @param {string} toKey - The key that takes it
      * @returns {boolean} False when a key holds no state, the two keys are
-     *   not one state of one op under two element ids (or an upload's
-     *   step-numbered id and its key), a step still binds the upload, or a
-     *   texture is 3D or of another format
+     *   not one state of one op under two element ids (or that state's key in
+     *   the previous program, or an upload's step-numbered id and its key), a
+     *   step still binds the upload, or a texture is 3D or of another format
      */
     moveState(fromKey, toKey) {
         if (typeof fromKey !== 'string' || typeof toKey !== 'string' || fromKey === toKey) return false
@@ -2186,8 +2191,10 @@ export class Pipeline {
 
     /**
      * Whether `fromKey` is the state `toKey` names, under another element id
-     * of the same op. `toKey` is a state of an element of the current program
-     * (graph.elementKeys); its state name and op fix where the id stands.
+     * of the same op, or as an element of the same op held it in the program
+     * compiled just before this one. `toKey` is a state of an element of the
+     * current program (graph.elementKeys); its state name and op fix where
+     * the id stands.
      * @param {string} fromKey
      * @param {string} toKey
      * @returns {boolean}
@@ -2196,6 +2203,15 @@ export class Pipeline {
         for (const element of Object.values(this.graph?.elementKeys || {})) {
             for (const [name, keyed] of Object.entries(element.state)) {
                 if (keyed !== toKey) continue
+                // The same state of a step of the same op in the previous
+                // program, by its position key or its key under another id,
+                // unless the current program gives that key to another effect
+                // or another state: the texture then holds that state.
+                const previous = Object.values(this.previousStepStateKeys || {})
+                if (previous.some(step => step.op === element.op && step.state[name] === fromKey)) {
+                    return !this.isCurrentKey(fromKey) || Object.values(this.graph.stepStateKeys || {})
+                        .some(step => step.op === element.op && step.state[name] === fromKey)
+                }
                 const [prefix, suffix] = keyed === `${name}_${element.key}` ? [`${name}_`, '']
                     : keyed === `${element.key}_${name}` ? ['', `_${name}`] : [null, null]
                 if (prefix === null) return false
@@ -2211,6 +2227,18 @@ export class Pipeline {
             }
         }
         return false
+    }
+
+    /**
+     * Whether the current program uses a texture id: as a texture it
+     * allocates, or as a pass input or output.
+     * @param {string} key
+     * @returns {boolean}
+     */
+    isCurrentKey(key) {
+        if (this.graph?.textures?.has?.(key)) return true
+        return (this.graph?.passes || []).some(pass =>
+            Object.values(pass.inputs || {}).includes(key) || Object.values(pass.outputs || {}).includes(key))
     }
 
     /**

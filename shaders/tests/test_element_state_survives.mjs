@@ -2,8 +2,9 @@
 // An element with an `_id:` keeps its state across a recompile that inserts,
 // deletes or reorders other elements, on each backend. The state is read
 // through backend.readPixels before and after each edit, with no frame drawn
-// between them. A control without an `_id:` shows that the same edit moves
-// unnamed state to a new key.
+// between them. An element that gains an `_id:` takes its running state from
+// its position keys with stateKeysOf() and moveState(). A control without an
+// `_id:` shows that the same edit moves unnamed state to a new key.
 import assert from 'node:assert/strict'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -35,6 +36,9 @@ const EDITS = {
     'the chains are reordered': 'noise().blendMode(tex: reactionDiffusion(_id: "pond", zoom: x4)).feedback(_id: "loop").write(o0)\nperlin().write(o1)'
 }
 const CONTROL = 'reactionDiffusion(zoom: x4).write(o0)'
+// Steps 0 and 1 are reactionDiffusion and its write; 2 is noise and 3 feedback.
+const UNNAMED = 'reactionDiffusion(zoom: x4).write(o0)\nnoise().feedback().write(o1)'
+const NAMED = 'reactionDiffusion(_id: "rd", zoom: x4).write(o0)\nnoise().feedback(_id: "fb").write(o1)'
 const CONTROL_EDIT = `perlin().write(o1)\n${CONTROL}`
 
 async function installHarness(page, baseUrl, preferWebGPU) {
@@ -74,6 +78,7 @@ window.renderFrames = async (count) => {
     }
 };
 window.keyOf = (id, name) => renderer.keyOf(id, name);
+window.stateKeysOf = (stepIndex) => renderer.stateKeysOf(stepIndex);
 window.moveState = (from, to) => renderer.moveState(from, to);
 // A digest of the texture that holds a state key: both halves of a state
 // surface, or a node-local texture, read through backend.readPixels.
@@ -159,6 +164,30 @@ async function runBackend(browser, baseUrl, { preferWebGPU, expectedName }) {
             return Boolean(digests && digests.every((digest) => digest.nonzero > 0))
         }, overlay, { timeout: 30000, polling: 250 })
         console.log(`${expectedName}: the overlay is drawn into ${overlay}`)
+
+        // An element that gains an _id: takes its running state from the
+        // position keys that stateKeysOf() gave before the compile.
+        await compile(page, program(UNNAMED), expectedName)
+        await page.evaluate(() => window.renderFrames(12))
+        const positions = await page.evaluate(() => [window.stateKeysOf(0).global_rd_state, window.stateKeysOf(3)._selfTex])
+        assert.deepEqual(positions, ['global_rd_state_chain_0', 'node_3__selfTex'], `${expectedName}: stateKeysOf() gives the position keys`)
+        const running = await page.evaluate(async (stateKeys) => Promise.all(stateKeys.map((key) => window.readState(key))), positions)
+        running.forEach((digests, index) => {
+            assert.ok(digests && digests.every((digest) => digest.nonzero > 0), `${expectedName}: ${positions[index]} holds state before the element is named`)
+        })
+        await compile(page, program(NAMED), expectedName)
+        const named = await page.evaluate(() => [window.keyOf('rd', 'global_rd_state'), window.keyOf('fb', '_selfTex')])
+        assert.ok(named[0] && named[1], `${expectedName}: keyOf() names both states`)
+        const unmoved = await page.evaluate(async (stateKeys) => Promise.all(stateKeys.map((key) => window.readState(key))), named)
+        assert.notDeepEqual(unmoved, running, `${expectedName}: before the move, the keys do not hold the running state`)
+        for (let index = 0; index < named.length; index++) {
+            assert.equal(await page.evaluate(([a, b]) => window.moveState(a, b), [positions[index], named[index]]), true,
+                `${expectedName}: moveState() moves ${positions[index]} to ${named[index]}`)
+        }
+        const kept = await page.evaluate(async (stateKeys) => Promise.all(stateKeys.map((key) => window.readState(key))), named)
+        assert.deepEqual(kept, running, `${expectedName}: the named elements hold their running state`)
+        await page.evaluate(() => window.renderFrames(2))
+        console.log(`${expectedName}: the named elements kept their state from ${positions.join(' and ')}`)
 
         // The control: the same kind of edit moves unnamed state to a new key.
         await compile(page, program(CONTROL), expectedName)

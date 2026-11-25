@@ -1016,16 +1016,37 @@ export class CanvasRenderer {
     }
 
     /**
+     * The state keys of one step's element, for a host that gives the element
+     * an `_id:` and moves its state: read them before the compile that names
+     * it, then pass each to moveState() with the key keyOf() returns after
+     * it. An element without an `_id:` has its position keys here.
+     * @param {number} stepIndex - The step's index in the compiled program
+     *   (`step.temp`, as getMediaSteps() reports it)
+     * @returns {Object<string, string>|null} The element's own state textures,
+     *   size parameters and external texture, by name, or null when the
+     *   current program has no effect step at that index or the step there
+     *   is skipped
+     */
+    stateKeysOf(stepIndex) {
+        const keys = this._pipeline?.graph?.stepStateKeys
+        if (!keys || !Object.hasOwn(keys, stepIndex)) return null
+        return { ...keys[stepIndex].state }
+    }
+
+    /**
      * Move live state from one key to another in the running session, as the
      * rename of an element's `_id:` does: take both keys from keyOf(), the old
-     * one before the program changes. A host's upload to a media step moves
+     * one before the program changes. The old key can also be the position
+     * key that stateKeysOf() gave before the compile, for an element that
+     * gains an `_id:`. A host's upload to a media step moves
      * too, with its source for a decode in a later gamut, from another key or
      * from the step-numbered id of a step that gains an `_id:`. Nothing is
      * stored outside the program text.
      * @param {string} fromKey - The key that holds the state
      * @param {string} toKey - The key that takes it
      * @returns {boolean} False when the keys are not one state of one effect
-     *   under two ids (or an upload's step-numbered id and its key), a key
+     *   under two ids (or that state's key in the program compiled just
+     *   before, or an upload's step-numbered id and its key), a key
      *   holds no state or names a size parameter, a step still binds the
      *   upload, or a texture is 3D or of another format
      */

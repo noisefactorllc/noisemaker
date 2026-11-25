@@ -492,12 +492,24 @@ A host reads the keys from the renderer and does not compose them:
 * ``renderer.moveState(fromKey, toKey)`` copies the live state under one key
   into another in the running session, for a rename of an element's id. Both
   halves of a state surface move, or one node-local texture. The two keys name
-  one state of one effect under two ids. A host's upload to a media step moves
+  one state of one effect under two ids, or the old key is that state's
+  position key in the program compiled just before (see below). A host's
+  upload to a media step moves
   too, from another key or from the step-numbered id of a step that gains an
   ``_id:`` (see "Media Inputs" in the integration guide), but not while a step
   still binds it. It returns ``false`` otherwise, and when a key holds no state,
   names a size parameter, or names a 3D texture or a texture of another format
   than the other key's. Nothing is stored outside the program text.
+* ``renderer.stateKeysOf(stepIndex)`` returns the keys of one step's own state
+  by name: its own state textures, the size parameters of that state, and its
+  external texture. These are position keys for an element without an
+  ``_id:``. ``stepIndex`` is the step's ``temp``, as ``getMediaSteps()``
+  reports it. It returns ``null`` when the current program has no effect step
+  at that index, or the step there is skipped (``_skip: true``). State keyed by
+  the chain, such as a ``volumeSize`` that flows
+  down it, is no element's own and is not listed. An emitter lists the
+  particle textures it creates, as ``keyOf()`` keys them; the other effects of
+  its particle pipeline do not.
 
 A rename takes the old key before the program changes:
 
@@ -506,6 +518,18 @@ A rename takes the old key before the program changes:
    const from = renderer.keyOf('pond', 'global_rd_state')
    await renderer.compile(source.replace('_id: "pond"', '_id: "lake"'))
    renderer.moveState(from, renderer.keyOf('lake', 'global_rd_state'))
+
+An element that gains an ``_id:`` takes its state the same way, from the
+position keys that ``stateKeysOf()`` gives before the compile. ``moveState()``
+accepts such a key only from the program compiled just before the current one,
+only for the same state of a step of the same effect, and not while the
+current program gives that key to another effect or another state:
+
+.. code-block:: javascript
+
+   const from = renderer.stateKeysOf(0).global_rd_state  // global_rd_state_chain_0
+   await renderer.compile(source.replace('reactionDiffusion(', 'reactionDiffusion(_id: "pond", '))
+   renderer.moveState(from, renderer.keyOf('pond', 'global_rd_state'))
 
 8.1 Resize Behavior
 ^^^^^^^^^^^^^^^^^^^^

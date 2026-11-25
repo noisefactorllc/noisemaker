@@ -141,7 +141,19 @@ Since the AST already represents chains as flat arrays, the analyzer iterates se
 
 Each effect call becomes a planned step. Its ``from`` and ``temp`` fields
 represent data flow between operations before the expander lowers them to
-render passes.
+render passes. Its ``occurrence`` and ``keyName`` fields hold the element's
+occurrence name and key name (see "Names" in the seeded draws guide), and
+inside a part body ``usePath`` holds the key names of the enclosing ``use``
+sites, outermost first. A host that gives an element an ``_id:`` reads its
+names there. A step whose element comes from a ``let`` has none of these
+fields: its element is written in the ``let``. That covers a chain or a single
+call that the ``let`` holds, an element passed as a value inside it, the
+``let``'s call applied where its name is called (also when an alias ``let``
+renames the effect that call names), and an element written in a ``use``
+argument that replaces a part's ``let``, at any depth. A call of an alias
+``let`` (``let a = blur``, then ``a()``) is written where it is called, and so
+is a call of a part's ``let`` that a ``use`` argument replaces with an effect
+name (``use(p, h: blur)``).
 
 **Abridged planned step (defaulted arguments omitted):**
 
@@ -151,7 +163,9 @@ render passes.
      op: "synth.noise",
      args: { scaleX: 10 },
      from: null, // Generator has no input
-     temp: 0
+     temp: 0,
+     occurrence: "noise_1",
+     keyName: "noise_1"
    }
 
 ----

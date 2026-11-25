@@ -352,6 +352,16 @@ export function validate(ast) {
         return `${effectName}_${n}`
     }
     let ifCount = 0
+    // The source positions of the calls written in a `let`, at any depth:
+    // their elements are written in the let, so their steps record no names.
+    const letCallPositions = new Set()
+    const sourcePosition = loc => loc && `${loc.line}:${loc.col}`
+    function recordLetCalls(node) {
+        if (!node || typeof node !== 'object') return
+        if (Array.isArray(node)) { for (const item of node) recordLetCalls(item); return }
+        if (node.type === 'Call' && node.loc) letCallPositions.add(sourcePosition(node.loc))
+        for (const value of Object.values(node)) recordLetCalls(value)
+    }
     // Declarations of each `let` name in one key scope.
     const letDeclarations = new Map()
     // The key of the value an effect is passed into, while it compiles.
@@ -523,9 +533,13 @@ export function validate(ast) {
             body(item => {
                 // A part's top-level let, replaced by a use argument or not.
                 // A replaced let is still validated and drawn; its value is
-                // not used.
+                // not used. The argument takes the let's place, so its
+                // elements, at any depth, come from a let.
                 declareVar(item)
-                if (overrides.has(item.name)) symbols.set(item.name, overrides.get(item.name))
+                if (overrides.has(item.name)) {
+                    recordLetCalls(use.kwargs[item.name])
+                    symbols.set(item.name, overrides.get(item.name))
+                }
             })
         } finally {
             partStack.pop()
@@ -652,7 +666,11 @@ export function validate(ast) {
             if (selfNamed && expanding.at(-1) === call.name) return {...call, letApplied: true}
             // console.log('Found symbol:', val);
             if (val.type === 'Ident') {
-                return {...call, name: val.name}
+                // An alias. A call that comes from a let keeps the mark, which
+                // the copy does not carry.
+                const renamed = {...call, name: val.name}
+                if (call.heldByLet) Object.defineProperty(renamed, 'heldByLet', { value: true })
+                return renamed
             }
             if (val.type === 'Call') {
                 const mergedArgs = val.args ? val.args.slice() : []
@@ -681,6 +699,9 @@ export function validate(ast) {
                     merged.positionalsByIndex = true
                 }
                 if (val.letApplied || selfNamed) merged.letApplied = true
+                // The let's call, applied where the let's name is called: its
+                // element is written in the let (see substitute()).
+                Object.defineProperty(merged, 'heldByLet', { value: true })
                 // Carry a source position across the rebuild, preferring the
                 // call site over the binding. Without it every diagnostic about
                 // a `let`-aliased call reported "line 0 col 0".
@@ -850,6 +871,9 @@ export function validate(ast) {
                 if (c.letApplied) mappedCall.letApplied = true
                 // Not enumerable, so the compiled output is unchanged.
                 if (resolving.length > 0) Object.defineProperty(mappedCall, 'fromLet', { value: true })
+                // A call that comes from a let keeps the mark when it is
+                // substituted again, as an argument value is.
+                if (resolving.length > 0 || c.heldByLet) Object.defineProperty(mappedCall, 'heldByLet', { value: true })
                 if (c.kwargs) {
                     const kw = {}
                     for (const [k,v] of Object.entries(c.kwargs)) kw[k] = substitute(v, resolving)
@@ -865,6 +889,10 @@ export function validate(ast) {
             if (node.loc) mappedCall.loc = node.loc
             if (node.positionalsByIndex) mappedCall.positionalsByIndex = true
             if (node.letApplied) mappedCall.letApplied = true
+            // A call held by a let: its element is written in the let. Not
+            // enumerable, and, unlike `fromLet`, read by nothing that counts.
+            // The mark stays when the call is substituted again.
+            if (resolving.length > 0 || node.heldByLet) Object.defineProperty(mappedCall, 'heldByLet', { value: true })
             if (node.kwargs) {
                 const kw = {}
                 for (const [k,v] of Object.entries(node.kwargs)) kw[k] = substitute(v, resolving)
@@ -982,6 +1010,7 @@ export function validate(ast) {
     }
 
     function declareVar(v) {
+        recordLetCalls(v.expr)
         let expr = substitute(clone(v.expr), [v.name])
         if (expr && (expr.type === 'Chain' || expr.type === 'Call') && !(expr.type === 'Call' && /^vec[234]$/.test(expr.name))) {
             if (callsHaveRandom(expr)) {
@@ -2406,6 +2435,18 @@ export function validate(ast) {
                 const idx = tempIndex++
                 const namespaceSnapshot = buildNamespaceSnapshot(call.namespace)
                 const step = {op: opName, args, from: fromInput, temp: idx}
+                // The element's names, for a host that names it: its occurrence
+                // name, its key name and, in a part body, its use path. A step
+                // whose element comes from a let has none: its element is
+                // written in the let, at any depth, or is the let's call applied
+                // where the let's name is called.
+                const heldByLet = original.heldByLet || call.heldByLet ||
+                    letCallPositions.has(sourcePosition(original.loc))
+                if (!heldByLet) {
+                    step.occurrence = occurrence
+                    step.keyName = keyName
+                    if (usePath.length > 0) step.usePath = usePath.map(u => u.name)
+                }
                 if (namespaceSnapshot) { step.namespace = namespaceSnapshot }
                 if (original.leadingComments) { step.leadingComments = original.leadingComments }
                 // Preserve raw kwargs from original AST for automation UI extraction

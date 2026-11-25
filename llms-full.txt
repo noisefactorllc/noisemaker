@@ -319,6 +319,9 @@ type CompiledStep = {
   namespace?: object
   idDuplicate?: true  // its args._id repeats an earlier element's (S010); it keeps its position key
   idScope?: string  // in a part body: the `/`-joined key names of the enclosing use sites
+  occurrence?: string  // an effect step's occurrence name, `<effect>_<n>` in its naming body; none for an element from a let
+  keyName?: string  // an effect step's key name: its `_id:` unless an earlier element or use took it, else its occurrence name with `'` added while that name is taken; none for an element from a let
+  usePath?: string[]  // an effect step in a part body: the key names of the enclosing use sites, outermost first; none for an element from a let
   rawKwargs?: Record<string, ParsedExpr>
   argSources?: Record<string, "array">
   leadingComments?: string[]
@@ -1891,6 +1894,7 @@ type CompiledGraph = {
   sceneVolumeAtlasScopes: Record<string, {surface: string, size: number}>
   mediaSteps: Array<{textureId: string, uniform: string, stepIndex: number, effect: string}> // per-step external texture bindings, one entry per distinct texture id in program order
   gamut: 'p3' | null                 // the program's gamut directive; 'p3' skips the sRGB clamp on a Display P3 canvas and in a display-p3 frame export, and media decode in Display P3
+  stepStateKeys: Record<number, {op: string, state: Record<string, string>}> // each effect step's own state keys by name, by step index (CanvasRenderer.stateKeysOf())
   compiledAt: number                 // Date.now(), milliseconds since epoch
 }
 
@@ -2420,7 +2424,20 @@ that state in place across a hot recompile. `CanvasRenderer.keyOf(elementId,
 name)` returns a key, or `null`; `CanvasRenderer.moveState(fromKey, toKey)`
 copies live state between two keys of one state under two ids, for a rename,
 and returns `false` when a key holds no state, names a size parameter, or names
-a 3D texture or one of another format. Inside a part, the id in the key is the
+a 3D texture or one of another format. `CanvasRenderer.stateKeysOf(stepIndex)`
+returns one step's own state keys by name, position keys for an element
+without an `_id:`; `moveState()` also accepts such a key from the program
+compiled just before the current one, for the same state of a step of the same
+effect, unless the current program gives that key to another effect or another
+state, so an element that gains an `_id:` keeps its state. Each planned effect
+step records its `occurrence` name and `keyName`, and inside a part body its
+`usePath`; a step whose element comes from a `let` records none of them: a
+call written in a `let` or in a `use` argument that replaces a part's `let`, at
+any depth, or the `let`'s call applied where its name is called, also through
+an alias `let` that renames the effect it calls. A call of an alias `let`
+itself (`let a = blur`, then `a()`) is written where it is called, and so is a
+call of a part's `let` that a `use` argument replaces with an effect name
+(`use(p, h: blur)`). Inside a part, the id in the key is the
 element's instance identity: the `/`-joined key names of its enclosing `use`
 sites and its own id (`id_left/pond@synth.reactionDiffusion`), which is also
 the `elementId` that `keyOf()` takes. `Pipeline.setUniform()` also reaches the
