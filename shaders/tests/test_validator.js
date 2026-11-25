@@ -1,6 +1,6 @@
-import { lex } from '../src/lang/lexer.js'
-import { parse } from '../src/lang/parser.js'
-import { validate, registerStarterOps } from '../src/lang/validator.js'
+import assert from 'node:assert/strict'
+import { compile } from '../src/lang/index.js'
+import { registerStarterOps } from '../src/lang/validator.js'
 import { registerOp } from '../src/lang/ops.js'
 
 registerOp('synth.noise', {
@@ -32,9 +32,7 @@ let failed = 0
 function test(name, code, check) {
     try {
         console.log(`Running test: ${name}`)
-        const tokens = lex(code)
-        const ast = parse(tokens)
-        const result = validate(ast)
+        const result = compile(code)
         check(result)
         console.log(`PASS: ${name}`)
     } catch (e) {
@@ -390,6 +388,20 @@ function rgbOf(result) {
 const HEX = [0x80 / 255, 0x40 / 255, 0x20 / 255]
 const near = (a, b) => Math.abs(a - b) < 1e-9
 
+for (const [call, expected] of [
+    ['t()', HEX],
+    ['t(_skip: false)', HEX],
+    ['t(_id: "x")', HEX],
+    ['t(g: 0.25)', [HEX[0], 0.25, HEX[2]]]
+]) {
+    test(`a let-bound hex colour keeps its components in ${call}`,
+        `search synth\nlet t = rgbprobe(#804020)\nnoise().${call}.write(o0)`, (result) => {
+            assert.deepEqual(result.diagnostics, [])
+            const rgb = rgbOf(result)
+            assert.ok(rgb.every((value, i) => near(value, expected[i])), `Expected ${expected}, got ${rgb}`)
+        })
+}
+
 test('a positional hex colour splats across r/g/b',
     'search synth\nnoise().rgbprobe(#804020).write(o0)', (result) => {
         const [r, g, b] = rgbOf(result)
@@ -695,6 +707,11 @@ test('a let-bound hex colour stands in the places of r, g and b too',
         expectAfterColour(result, 0.7, 0.3)
     })
 
+test('a meta keyword preserves the indexes of positionals after a let-bound colour',
+    'search synth\nlet t = rgbaprobe(#804020, 0.5, 0.6, 0.7)\nnoise().t(_id: "x").write(o0)', (result) => {
+        expectAfterColour(result, 0.7, 0.8)
+    })
+
 test('a hex colour is one positional in a call that also has keywords',
     'search synth\nnoise().rgbaprobe(#804020, 0.5, x: 0.3).write(o0)', (result) => {
         expectAfterColour(result, 0.5, 0.3)
@@ -771,6 +788,24 @@ registerOp('filter.surfprobe', {
         { name: 'amount', type: 'float', default: 0.5 }
     ]
 })
+
+test('a read() chain as an argument reports the argument name at the value',
+    'search synth, filter\nnoise().write(o1)\nnoise().surfprobe(tex: read(o1).bloom()).write(o0)', (result) => {
+        assert.equal(result.diagnostics.length, 1)
+        const [error] = result.diagnostics
+        assert.match(error.code, /^S\d+$/)
+        assert.equal(error.severity, 'error')
+        assert.match(error.message, /\btex\b/)
+        assert.deepEqual(error.location, { line: 3, column: 24 })
+    })
+
+test('an effect chain as a surface argument binds the result of its last effect',
+    'search synth, filter\nnoise().surfprobe(tex: noise().bloom()).write(o0)', (result) => {
+        assert.deepEqual(result.diagnostics, [])
+        const chain = result.plans[0].chain
+        const bloom = chain.find(step => step.op === 'filter.bloom')
+        assert.deepEqual(argsOf(result, 'filter.surfprobe').tex, { kind: 'temp', index: bloom.temp })
+    })
 
 for (const [label, program] of [
     ['applied with no argument', 'let m = n(7, 8)\nm().write(o0)'],

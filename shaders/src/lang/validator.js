@@ -313,7 +313,15 @@ export function validate(ast) {
                 // that way, so the positionals bind by index (see the binding
                 // loop).
                 if (mergedKw && mergedArgs.length > 0 && !isWrittenMixed(val) && !isWrittenMixed(call)) {
-                    merged.positionalsByIndex = true
+                    // A stored colour still supplies r/g/b when later keywords
+                    // override it. Positionals added after a parameter keyword
+                    // bind only their indexed slot. Meta keywords bind no slot.
+                    const hasBoundKeyword = Object.keys(val.kwargs || {}).some(key => key !== '_skip' && key !== '_id')
+                    merged.positionalsByIndex = {
+                        colorSplatLimit: hasBoundKeyword
+                            ? val.positionalsByIndex?.colorSplatLimit ?? val.args.length
+                            : mergedArgs.length
+                    }
                 }
                 if (val.letApplied || selfNamed) merged.letApplied = true
                 // Carry a source position across the rebuild, preferring the
@@ -458,29 +466,13 @@ export function validate(ast) {
             return mapped
         }
         if (node.type === 'Chain') {
-            const mapped = node.chain.map(c => {
-                const mappedArgs = c.args.map(a => substitute(a, resolving))
-                let mappedCall = {type:'Call', name:c.name, args:mappedArgs}
-                // Carry the source location across the rebuild. Scene nodes are
-                // handed to the scene compiler as raw AST, and it reports errors
-                // from `loc`; without this every scene error says line 0 col 0.
-                if (c.loc) mappedCall.loc = c.loc
-                if (c.positionalsByIndex) mappedCall.positionalsByIndex = true
-                if (c.letApplied) mappedCall.letApplied = true
-                if (c.kwargs) {
-                    const kw = {}
-                    for (const [k,v] of Object.entries(c.kwargs)) kw[k] = substitute(v, resolving)
-                    mappedCall.kwargs = kw
-                }
-                return resolveCall(mappedCall)
-            })
-            return {type:'Chain', chain:mapped}
+            return {type:'Chain', chain:node.chain.map(entry => substitute(entry, resolving))}
         }
         if (node.type === 'Call') {
             const mappedArgs = node.args.map(a => substitute(a, resolving))
             let mappedCall = {type:'Call', name:node.name, args:mappedArgs}
             if (node.loc) mappedCall.loc = node.loc
-            if (node.positionalsByIndex) mappedCall.positionalsByIndex = true
+            if (node.positionalsByIndex) mappedCall.positionalsByIndex = node.positionalsByIndex
             if (node.letApplied) mappedCall.letApplied = true
             if (node.kwargs) {
                 const kw = {}
@@ -1311,7 +1303,8 @@ export function validate(ast) {
                 // keyword, or one whose keywords and positionals met through
                 // a `let`. There a positional whose slot a keyword holds binds
                 // to nothing.
-                const byIndex = !kw || call.positionalsByIndex === true
+                const byIndex = !kw || !!call.positionalsByIndex
+                const colorSplatLimit = call.positionalsByIndex?.colorSplatLimit ?? Infinity
                 // Members a positional hex colour has claimed but not yet
                 // reached, by parameter name. See the splat branch below.
                 let splatValues = null
@@ -1329,9 +1322,8 @@ export function validate(ast) {
                     //
                     // In a call bound by index the colour stands in the places
                     // of r, g and b, so the next slot takes the fourth
-                    // positional. Outside the mixed form the colour splats
-                    // only in a call with no keyword.
-                    if ((!kw || !byIndex) && def.type !== 'color' && def.name === 'r' &&
+                    // positional.
+                    if (posCursor < colorSplatLimit && def.type !== 'color' && def.name === 'r' &&
                         specArgs[i + 1]?.name === 'g' && specArgs[i + 2]?.name === 'b') {
                         const positional = substitute(call.args[posCursor])
                         if (positional && positional.type === 'Color') {
@@ -1360,6 +1352,11 @@ export function validate(ast) {
                     node = substitute(node)
                     const argKey = def.name
                     if (kw && kw[def.name] !== undefined) seen.add(def.name)
+                    if (node?.type === 'Chain' && node.chain.some(entry => entry.type !== 'Call')) {
+                        pushDiag('S001', node.chain[0], `Chain for argument '${def.name}' in ${call.name}() may contain only effect calls`)
+                        args[argKey] = null
+                        continue
+                    }
                     // Array literal — additive input form. Only fires when
                     // the source contains a literal `[…]`. Existing programs
                     // can never produce ArrayLiteral nodes (the lexer only
