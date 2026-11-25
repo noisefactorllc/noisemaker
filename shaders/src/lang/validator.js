@@ -395,6 +395,11 @@ export function validate(ast) {
     // The seeds of the enclosing `_seed:` scopes, innermost last.
     const seedScopes = []
     const scopeSeed = () => (seedScopes.length ? seedScopes[seedScopes.length - 1] : programSeed)
+    // Whether each seed scope is inside a `_seed:`, on an element or a use.
+    // A value pushes its element's seed scope too, and inherits only inside
+    // a `_seed:` or with a seed directive (decision H).
+    const seedScopeOwn = []
+    const inOwnSeed = () => seedScopeOwn.length > 0 && seedScopeOwn[seedScopeOwn.length - 1]
 
     function choicesFor(effect, param) {
         let candidates = []
@@ -540,7 +545,10 @@ export function validate(ast) {
         const savedScope = keyScope.splice(0)
         if (ownSeed !== null) keyScope.push(`part:${decl.name}`)
         else keyScope.push(...savedScope, useKey)
-        if (ownSeed !== null) seedScopes.push(ownSeed)
+        if (ownSeed !== null) {
+            seedScopes.push(ownSeed)
+            seedScopeOwn.push(true)
+        }
         partScopes.push(keyScope.join('/'))
         const savedCounts = occurrenceCounts
         occurrenceCounts = new Map()
@@ -602,7 +610,10 @@ export function validate(ast) {
             letDeclarations = savedLets
             namingBody = savedNaming
             usePath.pop()
-            if (ownSeed !== null) seedScopes.pop()
+            if (ownSeed !== null) {
+                seedScopes.pop()
+                seedScopeOwn.pop()
+            }
             keyScope.splice(0, keyScope.length, ...savedScope)
         }
     }
@@ -2001,7 +2012,7 @@ export function validate(ast) {
                     : joinKey(outerLet ? joinKey('outer', call._letScope, call._letKey) : call._letKey, `${opName}@${keyName}`)
                 // Whether unseeded effect seeds inherit here: with a seed
                 // directive, or inside a `_seed:` scope.
-                const inherits = hasSeedDirective || restartsKeys || seedScopes.length > 0
+                const inherits = hasSeedDirective || restartsKeys || inOwnSeed()
                 let randomSources = null
                 const authoredSeeds = []
                 const inheritable = []
@@ -2163,6 +2174,7 @@ export function validate(ast) {
                         valueKeys.push(joinKey(writtenInLet(node) ? elementKey : elementKeyHere, argKey))
                         valueAbsolute.push(absoluteKey && writtenInLet(node))
                         seedScopes.push(callSeed)
+                        seedScopeOwn.push(restartsKeys || inOwnSeed())
                         let idx
                         try {
                             idx = processChain(node.chain, null, {allowStarterless: true})
@@ -2170,6 +2182,7 @@ export function validate(ast) {
                             valueKeys.pop()
                             valueAbsolute.pop()
                             seedScopes.pop()
+                            seedScopeOwn.pop()
                         }
                         if (idx !== null && idx !== undefined) {
                             surf = {kind:'temp', index: idx}
@@ -2178,6 +2191,7 @@ export function validate(ast) {
                         valueKeys.push(joinKey(writtenInLet(node) ? elementKey : elementKeyHere, argKey))
                         valueAbsolute.push(absoluteKey && writtenInLet(node))
                         seedScopes.push(callSeed)
+                        seedScopeOwn.push(restartsKeys || inOwnSeed())
                         let idx
                         try {
                             idx = processChain([node], null, {allowStarterless: true})
@@ -2185,6 +2199,7 @@ export function validate(ast) {
                             valueKeys.pop()
                             valueAbsolute.pop()
                             seedScopes.pop()
+                            seedScopeOwn.pop()
                         }
                         if (idx !== null && idx !== undefined) {
                             surf = {kind:'temp', index: idx}

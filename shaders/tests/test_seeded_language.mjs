@@ -305,6 +305,22 @@ test('a save keeps the draws of every element from a let', () => {
     }
 })
 
+test('an effect passed as a value inherits a seed only with a seed directive or inside a _seed:', () => {
+    const valueSeeds = src => allSteps(compile(src).plans).filter(step => step.op === 'synth.noise').map(step => [step.args.seed, !!step.inheritedSeeds])
+    const DEFAULT = noise.globals.seed.default
+    assert.deepEqual(valueSeeds('search synth, mixer\nnoise().blendMode(tex: noise()).write(o0)'), [[DEFAULT, false], [DEFAULT, false]])
+    assert.ok(valueSeeds('search synth, mixer\nseed 1\nnoise().blendMode(tex: noise()).write(o0)').every(([, inherited]) => inherited))
+    assert.deepEqual(valueSeeds('search synth, mixer\nnoise().blendMode(_seed: 3, tex: noise()).write(o0)').map(([, inherited]) => inherited), [false, true])
+    assert.deepEqual(valueSeeds('search synth, mixer\npart p {\n    noise().blendMode(tex: noise()).write(o0)\n}\nuse(p, _seed: 3)').map(([, inherited]) => inherited), [true, true])
+})
+
+test('a save of a program that does not draw writes its lets as before', () => {
+    const c = compile('search synth, mixer\nlet a = noise()\na().write(o0)\nlet y = noise().blendMode()\nnoise().blendMode(tex: y).write(o1)')
+    const text = unparse(c)
+    assert.match(text, /\n\nnoise\(\)\n  \.write\(o0\)/)
+    assert.match(text, /\.blendMode\(tex: noise\(\)\n  \.blendMode\(\)\)/)
+})
+
 test('a call-level seed draws under the constant key', () => {
     const c = compile('search synth\nseed 1\nnoise(scaleY: rand(1, 10, seed: 3150442103)).write(o0)')
     assert.deepEqual(errors(c), [])
