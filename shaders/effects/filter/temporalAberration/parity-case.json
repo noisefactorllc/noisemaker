@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "effects": [
+    "synth/noise",
+    "filter/temporalAberration"
+  ],
+  "dsl": "search synth, filter\nnoise(seed: 1).temporalAberration(redDelay: 0, greenDelay: 4, blueDelay: 8).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ],
+  "epsilon": 0,
+  "requireColorVariation": true,
+  "timeline": {
+    "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ]
+  },
+  "control": "search synth, filter\nnoise(seed: 1).temporalAberration(redDelay: 0, greenDelay: 0, blueDelay: 0).write(o0)\nrender(o0)"
+}

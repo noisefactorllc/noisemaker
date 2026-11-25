@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "effect": "filter/temporalAberration",
+  "sourceHash": "d465a003ca2257801c7ff7f4ced09352b8f59d2e630d2b162304144f5672a651",
+  "caseHash": "af06d029ebccd1a9fdb640a559a6b510ef4abcfd3418b290e907a1eb51746504",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 4094
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 4094
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 9,
+    "webgpuTargetPasses": 9
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  },
+  "timeline": {
+    "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "loopSeconds": 10
+  },
+  "control": {
+    "differs": {
+      "webgl2": true,
+      "webgpu": true
+    },
+    "targetPasses": {
+      "webgl2": 9,
+      "webgpu": 9
+    }
+  }
+}
