@@ -9,6 +9,7 @@ import sacredGeometry from '../effects/synth/sacredGeometry/definition.js'
 import tint from '../effects/filter/tint/definition.js'
 import blendMode from '../effects/mixer/blendMode/definition.js'
 import { Effect } from '../src/runtime/effect.js'
+import { pinParameter, setProgramSeed } from '../src/lang/seeding.js'
 
 const renderer = new CanvasRenderer()
 for (const [namespace, name, instance] of [['synth', 'Noise', noise], ['synth', 'SacredGeometry', sacredGeometry], ['filter', 'Tint', tint], ['mixer', 'BlendMode', blendMode]]) {
@@ -392,6 +393,26 @@ test('the ifs after a part use are numbered in their own naming body', () => {
     assert.deepEqual(errors(c), [])
     const last = allSteps(c.plans).filter(step => step.op === 'synth.noise').at(-1)
     assert.equal(last.args.scaleY, randFrom(drawU32(1, 'if_1/b0/synth.noise@noise_1/scaleY'), 1, 10))
+})
+
+test('a save by a let\'s name keeps a call-site hex colour, a pinned seed, and a seed set by a host', () => {
+    // A hex colour written where the let is called splats over r, g and b.
+    for (const call of ['s(#804020)', 's(#804020, r: 0.25)']) {
+        const first = compile(`search synth, mixer, filter\nseed 1\nlet s = splatTex()\nnoise().${call}.write(o0)`)
+        assert.deepEqual(errors(first), [], call)
+        const text = unparse(first)
+        assert.deepEqual(allSteps(compile(text).plans).map(step => step.args), allSteps(first.plans).map(step => step.args), text)
+    }
+    // A pinned inherited seed is written where the let is called.
+    const pinned = compile('search synth\nseed 3\nlet a = noise(octaves: 5)\na().write(o0)')
+    const seed = pinned.plans[0].chain[0].args.seed
+    assert.ok(pinParameter(pinned, 0, 'seed'))
+    const pinnedText = unparse(pinned)
+    assert.match(pinnedText, new RegExp(`a\\(seed: ${seed}\\)`), pinnedText)
+    // A seed a host sets on a program that did not draw keeps the let names.
+    const seeded = compile('search synth\nlet a = noise(octaves: 5)\na().write(o0)\na().write(o1)')
+    setProgramSeed(seeded, 9)
+    assert.match(unparse(seeded), /\n\na\(\)\n  \.write\(o0\)/)
 })
 
 test('a call-level seed draws under the constant key', () => {

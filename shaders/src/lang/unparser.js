@@ -1045,16 +1045,11 @@ function formatLetBinding(expr, options) {
     return formatLetExpr(expr, hasExpression ? { ...options, letArguments: true } : options)
 }
 
-// Whether a compiled program draws: a seed directive, a random let, or a step
-// with a random call or an inherited seed, at any depth.
+// Whether a compiled program draws: the validator saw a random call, a maybe
+// decision or an inherited seed, or the program has a seed directive.
 function programDraws(compiled) {
-    if (compiled.draws !== undefined) return compiled.draws
-    if (compiled.seed !== undefined || compiled.letSources?.size > 0) return true
-    const visit = plans => (plans || []).some(plan => plan && (
-        (plan.chain || []).some(step => step.randomSources || step.inheritedSeeds) ||
-        visit(plan.then) || visit(plan.else) || visit(plan.body) ||
-        (plan.elif || []).some(branch => visit(branch.then))))
-    return visit(compiled.plans)
+    // The validator's record, and a seed directive a host set afterwards.
+    return compiled.draws === true || compiled.seed !== undefined
 }
 
 /**
@@ -1676,6 +1671,9 @@ export function unparse(compiled, overrides = {}, options = {}) {
             // let holds stays in the let.
             const asLetCall = step.letCall && step.op === step.letCallOp && options.keepLetNames && options.visibleLets?.has(step.letCall)
             if (asLetCall) callName = step.letCall
+            // What a call of a let's name writes: the parameters written where
+            // it is called, and a seed pinned on it.
+            const letCallKeys = new Set(asLetCall ? [...step.letCallKeys, ...(step.authoredSeeds || [])] : [])
 
             const call = {
                 name: callName,
@@ -1701,7 +1699,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
                     if (key === '_skip' && value !== true) continue
                     if (key === '_id' && asLetCall && step.letCallIdFromLet) continue
                     // The let supplies what is not written where it is called.
-                    if (asLetCall && !key.startsWith('_') && !step.letCallKeys.includes(key)) continue
+                    if (asLetCall && !key.startsWith('_') && !letCallKeys.has(key)) continue
 
                     // Handle surface references
                     if (value && typeof value === 'object' && value.kind && value.kind !== 'temp') {
@@ -1734,11 +1732,11 @@ export function unparse(compiled, overrides = {}, options = {}) {
             // When we have an effect definition, only include keys defined in globals
             // This prevents internal tracking values or stale values from leaking to DSL
             // Exception: internal _ prefixed args like _skip are always allowed
-            if (asLetCall) call.keepKeys = new Set(step.letCallKeys)
+            if (asLetCall) call.keepKeys = letCallKeys
             for (const [key, value] of Object.entries(stepOverrides)) {
                 // A call of a let's name writes an override only where it
                 // changes the value, and keeps it even at the default.
-                if (asLetCall && !key.startsWith('_') && !step.letCallKeys.includes(key)) {
+                if (asLetCall && !key.startsWith('_') && !letCallKeys.has(key)) {
                     if (formatValue(value) === formatValue(step.args?.[key])) continue
                     call.keepKeys.add(key)
                 }

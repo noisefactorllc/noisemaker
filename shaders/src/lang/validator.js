@@ -1142,6 +1142,7 @@ export function validate(ast) {
         // Members a positional hex colour has claimed but not yet
         // reached, by parameter name.
         let splatValues = null
+        let splatSource
         const bound = []
         for (let i = 0; i < specArgs.length; i++) {
             const def = specArgs[i]
@@ -1160,8 +1161,10 @@ export function validate(ast) {
             // positional.
             if (posCursor < colorSplatLimit && def.type !== 'color' && def.name === 'r' &&
                 specArgs[i + 1]?.name === 'g' && specArgs[i + 2]?.name === 'b') {
-                const positional = substitute(positionals[posCursor])
+                const source = positionals[posCursor]
+                const positional = substitute(source)
                 if (positional && positional.type === 'Color') {
+                    splatSource = source
                     posCursor++
                     const [r, g, b] = positional.value
                     splatValues = {
@@ -1174,7 +1177,7 @@ export function validate(ast) {
             // A splatted colour supplies this slot: take the component
             // rather than consuming a positional for it.
             if (!fromKeyword && splatValues && splatValues[def.name] !== undefined) {
-                bound.push({ def, splat: splatValues[def.name] })
+                bound.push({ def, splat: splatValues[def.name], node: splatSource })
                 continue
             }
             let node
