@@ -285,6 +285,40 @@ test('Pipeline - Global Uniforms', async () => {
     }
 })
 
+test('Pipeline - Frame deltas across normalized loop boundaries', async () => {
+    for (const duration of [30, 10]) {
+        const pipeline = new Pipeline({ passes: [], textures: new Map() }, new MockBackend())
+        await pipeline.init(8, 8)
+        pipeline.setAnimationDuration(duration)
+        const step = 1 / (60 * duration)
+        const frames = [
+            [1 - 2 * step, 0],
+            [1 - step, step],
+            [0, step],
+            [step, step],
+            [2 * step, step]
+        ]
+        for (const [time, expected] of frames) {
+            pipeline.render(time)
+            const actual = pipeline.globalUniforms.deltaTime
+            if (!(Math.abs(actual - expected) <= 1e-9)) {
+                throw new Error(`At time ${time} in a ${duration}s loop, expected deltaTime ${expected}, got ${actual}`)
+            }
+        }
+    }
+})
+
+test('Pipeline - Synchronized time is the reference for the next frame', async () => {
+    const pipeline = new Pipeline({ passes: [], textures: new Map() }, new MockBackend())
+    await pipeline.init(8, 8)
+    pipeline.syncTime(0)
+    pipeline.render(0.25)
+    if (pipeline.globalUniforms.deltaTime !== 0.25) throw new Error('Expected one quarter of a loop since syncTime(0)')
+    pipeline.syncTime(0.75)
+    pipeline.render(0.75)
+    if (pipeline.globalUniforms.deltaTime !== 0) throw new Error('A frame at the synchronized time must have zero deltaTime')
+})
+
 test('Pipeline - Dimension Resolution', async () => {
     const backend = new MockBackend()
     const graph = { passes: [], textures: new Map() }

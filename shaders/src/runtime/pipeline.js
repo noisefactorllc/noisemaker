@@ -618,6 +618,7 @@ export class Pipeline {
         this._warnedDimensionFallbacks = new Set()
         this.frameIndex = 0
         this.lastTime = 0
+        this._hasTimeReference = false
         this.surfaces = new Map()        // Global surfaces (o0-o7)
         this._mipTargets = []            // Texture ids whose mip chains regenerate each frame
         this.globalUniforms = {}
@@ -823,7 +824,7 @@ export class Pipeline {
             }
         }
         this.clock.reset()
-        if (typeof time === 'number') this.lastTime = time
+        if (typeof time === 'number') this._setTimeReference(time)
     }
 
     /**
@@ -2908,13 +2909,18 @@ export class Pipeline {
         return screenSize
     }
 
+    _setTimeReference(time) {
+        this.lastTime = time
+        this._hasTimeReference = true
+    }
+
     /**
      * Sync the internal time reference to a specific value.
      * Call this when pausing to ensure subsequent paused renders have deltaTime = 0.
      * @param {number} time - The normalized time value to sync to
      */
     syncTime(time) {
-        this.lastTime = time
+        this._setTimeReference(time)
         // A seek: the clock moves without stepping, and the state is kept.
         this.clock.seek(time)
     }
@@ -2940,14 +2946,10 @@ export class Pipeline {
             return
         }
 
-        // Handle deltaTime carefully - time is normalized 0-1 and wraps
-        // When time wraps from ~1 to ~0, use a small positive delta instead of negative
-        let deltaTime = this.lastTime > 0 ? time - this.lastTime : 0
-        if (deltaTime < 0) {
-            // Time wrapped around, use a reasonable small delta
-            deltaTime = 1.0 / 60.0 / 10.0  // Approximate one frame at 60fps normalized to 10s loop
-        }
-        this.lastTime = time
+        // Normalized time wraps once per loop.
+        let deltaTime = this._hasTimeReference ? time - this.lastTime : 0
+        if (deltaTime < 0) deltaTime += 1
+        this._setTimeReference(time)
 
         // Update global uniforms
         this.updateGlobalUniforms(time, deltaTime)
@@ -3108,7 +3110,7 @@ export class Pipeline {
         if (this.isCompiling) return
         const simulation = this._simulation
         const result = this.clock.advance(time, { stopped: !this._loopRunning })
-        this.lastTime = time
+        this._setTimeReference(time)
         this.lastClockResult = result
 
         // Once a render: the global uniforms (and the MIDI note grid) and the
