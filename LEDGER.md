@@ -1181,6 +1181,43 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-25 — candidate pair: Noisemaker
+    `5d5122e5065608942729c3f2c289304111d549d9` and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Audited the Noisemaker range
+    `847698510..5d5122e`. The observed delivered range `2537747..5d5122e`
+    holds both of its commits. `2537747` adds the loop-seam measurement tool
+    (`scripts/loop-seam.mjs`, `scripts/lib/loop-seam.mjs`, and tests). It is
+    additive and invalidates no contract statement. `5d5122e` keeps a chain
+    element's `_id:` on 1.x. The parser keeps it on effect calls, inline
+    starters, `read`, `read3d`, `write`, and `write3d`. The validator keeps an
+    id-form string literal in the step. The unparser writes it back first
+    among the keywords. The expander passes no `_id` uniform. Contract
+    corrections in `llms-full.txt`: the program grammar gains the optional
+    `,_id:` element on `write` and `write3d`, a statement covers the kept id
+    form, the id round-trip, and the unchanged compiled graph, and the
+    snapshot block names this pair. Shade range `1815133..0d5042b` changes
+    only `package.json` and `package-lock.json`, so the pin and the delivery
+    stay. Release `v0.5.4` still resolves to the pinned Shade source.
+    `.mcp.json` and `vendor/shade-mcp/` remain unchanged over the Noisemaker
+    range. Shade's parsers and knowledge carry no effect-call keyword
+    statements, so the `_id:` change needs no Shade reconciliation. Verified:
+    the `NM_CHANGED_FILES` selection of `node scripts/run-js-tests.js
+    --skip-parity` (4 modules, exit 0), `npm run lint` (exit 0),
+    `shaders/tests/test_element_ids.mjs` (14 tests, exit 0),
+    `shaders/tests/test_loop_seam_steps.js` (exit 0), the worked-example
+    `compileGraph()` pass array reproduced from source, Shade `npm run
+    typecheck` (exit 0), and Shade `node scripts/browser-smoke.mjs` with
+    `NOISEMAKER` set (all 14 checks, exit 0, on Chromium's SwiftShader Vulkan
+    ICD). One configured-pin session on this pair initialized server
+    `shade-mcp` 0.5.4 / protocol `2025-06-18`, listed 21 tools, and ran the
+    eight worked calls without MCP `isError`. Every constant field matched the
+    recorded transcript, the passthrough call returned `skipped` as recorded,
+    frame metrics and benchmark times held this session's values (53.67 FPS
+    against the 30 FPS target), and five responses carried the software-GL
+    `console_errors` entries the freshness protocol documents. The passing
+    Shade CI runs recorded in the 2026-11-24 completed entry below cover
+    Shade's `npm test` at `0d5042b`. Pending: exact-source CI and live
+    readback. The completed checkpoint stays unchanged until those pass.
   - 2026-11-24 — completed delivery pair: Noisemaker
     `f635c0808b555aa75c46786c2e4cd5b8620533a4` and Shade MCP
     `1815133b47eaa33aee11d4a677cfea2f3939cf38`. The immutable `.mcp.json`

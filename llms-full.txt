@@ -13,7 +13,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `f635c0808b555aa75c46786c2e4cd5b8620533a4`.
+- Noisemaker: `5d5122e5065608942729c3f2c289304111d549d9`.
 - Shade MCP: `1815133b47eaa33aee11d4a677cfea2f3939cf38`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.5.4`. Its
   lockfile pins `@modelcontextprotocol/sdk` 1.32.2; the `npx` install below
@@ -471,10 +471,11 @@ ChainElement     ::= Call | WriteCall | Write3DCall | Subchain
 Call             ::= Identifier "(" [ ArgList ] ")"
 ArgList          ::= Argument { "," Argument } [ "," ]
 Argument         ::= Expr | Identifier ":" Expr
-WriteCall        ::= "write" "(" WriteTarget ")"
+WriteCall        ::= "write" "(" WriteTarget ElementId? ")"
 WriteTarget      ::= OutputRef | XyzRef | VelRef | RgbaRef | MeshRef | "none"
 Write3DCall      ::= "write3d" "(" (Identifier | OutputRef | VolRef) ","
-                     (Identifier | OutputRef | GeoRef) ")"
+                     (Identifier | OutputRef | GeoRef) ElementId? ")"
+ElementId        ::= "," "_id" ":" Expr
 RenderDirective  ::= "render" "(" OutputRef ")"
 Subchain         ::= "subchain" "(" SubchainArgs ")" "{"
                      Comments "." Comments Call
@@ -582,6 +583,19 @@ their named fields; positionals fill the remaining fields in source order.
 statement must have an explicit terminal `write(...)` or `write3d(...)`. A
 separate `render(oN)` chooses presentation but does not satisfy the write
 requirement. `render()` accepts only an `OUTPUT_REF` token.
+
+A chain element may carry an `_id:` keyword: on an effect call (an inline
+starter included) and on `read`, `read3d`, `write`, and `write3d`
+(`write(o0, _id: "out")`). This is Noisemaker 2's element id, which keys an
+element's state; 1.x keys state by position, so an id has no effect here. The
+parser and validator keep the id only when the value is a quoted string
+literal of letters, digits and `_` that starts with a letter; any other value
+is ignored without a diagnostic. The unparser writes the id back first among
+the element's keywords, and `read` and `read3d` with an id write their keyword
+form, so a program saved with ids keeps them. The expander passes no `_id`
+uniform, so a program with ids compiles to the same graph and renders the
+same pixels as the same program without them. Inside `subchain(...)`, `_id:`
+is an unknown metadata key, reported as `P008`.
 
 Numeric arithmetic is constant-folded during parsing. Operators accept only
 `Number` nodes. Applying arithmetic to another expression throws `SyntaxError:
