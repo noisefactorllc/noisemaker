@@ -1,0 +1,17 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/testPattern",
+        "render/loopBegin",
+        "filter/scroll",
+        "render/loopEnd"
+    ],
+    "dsl": "search synth, render, filter\n\ntestPattern(pattern: colorBars)\n  .loopBegin().loopEnd()\n  .scroll(x: 0.125, speedX: 0, speedY: 0)\n  .loopBegin(alpha: 75, intensity: 80).loopEnd()\n  .write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true
+}

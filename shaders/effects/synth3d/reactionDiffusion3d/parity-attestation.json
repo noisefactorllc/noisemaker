@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "synth3d/reactionDiffusion3d",
+  "sourceHash": "8184dd2fa1c3be8586e77e8c7d5d4b5b292251f5940deb793a4f2344a25fa241",
+  "caseHash": "f6c9034408c301039c2ac5b7106abbf54aa5cca1fa7433dd69958235289c70e1",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 6
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 6
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}
