@@ -986,7 +986,9 @@ export async function pins(repo, { mode, listed, log = () => {} }) {
             if (renderCase.control === undefined) { fail('it declares no control (a program without the target, or null)'); continue }
             if (renderCase.control !== null) {
                 const controlFile = path.join(scratch, `${id.replace('/', '__')}.control.json`)
-                writeJson(controlFile, { cases: { [id]: { ...renderCase, dsl: renderCase.control } } })
+                // The control drops the target's own texture fixtures: without the target they bind to nothing.
+                const controlCase = { ...renderCase, dsl: renderCase.control, textureInputs: (renderCase.textureInputs || []).filter(texture => texture.effect !== id) }
+                writeJson(controlFile, { cases: { [id]: controlCase } })
                 const controlPin = path.join(scratch, `${id.replace('/', '__')}.control.pin.json`)
                 const control = runPinTool(repo, controlFile, id, '--out', controlPin, ['--allow-blank'])
                 if (!control.ok) { fail(`its control does not render: ${control.detail}`); continue }

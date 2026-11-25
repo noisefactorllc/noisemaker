@@ -16,7 +16,7 @@
           255,
           255
         ],
-        "sha256": "d555c7c71f18a55468a404c2a16bb0badd0e0949ab7d85c459d69346e2477afd"
+        "sha256": "2195c66a7362588dc3d0f3be9b40948f3a43fe0e18228c0cf928932ba937b42b"
       },
       "webgpu": {
         "surface": "global_o0_write",
@@ -28,7 +28,7 @@
           255,
           255
         ],
-        "sha256": "d555c7c71f18a55468a404c2a16bb0badd0e0949ab7d85c459d69346e2477afd"
+        "sha256": "2195c66a7362588dc3d0f3be9b40948f3a43fe0e18228c0cf928932ba937b42b"
       }
     }
   }

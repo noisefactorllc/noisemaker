@@ -11,24 +11,24 @@
         "width": 64,
         "height": 64,
         "nonzeroRgbPixels": 4096,
-        "uniqueColors": 4096,
+        "uniqueColors": 4094,
         "alpha": [
           255,
           255
         ],
-        "sha256": "d3f3ba174a7ed8f5c958bdd0eb1faaa72e5c6564eeaf3308cfffe8ee53799823"
+        "sha256": "8fcc603f683e15a81ff6991590143bf85456f701ecca33ac5c612b661e304d86"
       },
       "webgpu": {
         "surface": "global_o0_write",
         "width": 64,
         "height": 64,
         "nonzeroRgbPixels": 4096,
-        "uniqueColors": 4096,
+        "uniqueColors": 4094,
         "alpha": [
           255,
           255
         ],
-        "sha256": "fafbc8093157e6dda1f46fae63ada767f922cba880f418bd9c7079fe610745bb"
+        "sha256": "af51cc50a31e568a78a5f8e46f66880203b724050e0efe30ceab082dfa49a482"
       }
     }
   }
