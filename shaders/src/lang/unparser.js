@@ -930,6 +930,19 @@ function unparseCall(call, options = {}) {
     const parentIndent = ' '.repeat(Math.max(0, baseIndent))
     const childIndent = ' '.repeat(Math.max(0, baseIndent + 2))
 
+    // Let declarations retain parser nodes. The host's value formatter works
+    // on compiled parameters, so write the binding's expressions as DSL here.
+    const formatArgument = (value, spec, sourceForm) => {
+        if (options.letArguments && value?.type) {
+            const { type } = value
+            if (options.letArguments === 'expression' || type === 'Call' || type === 'Chain' || type === 'Ident') {
+                if (type === 'Color') return formatColorLiteral(value.value)
+                return formatLetExpr(value, { ...options, letArguments: 'expression' })
+            }
+        }
+        return formatValue(value, spec, options, sourceForm)
+    }
+
     // The element id goes first among the keywords
     const elementId = elementIdValue(call.kwargs?._id)
     if (elementId !== undefined) {
@@ -961,7 +974,7 @@ function unparseCall(call, options = {}) {
 
             // Check against default value
             if (defaultSpec && defaultSpec.default !== undefined) {
-                const formattedValue = formatValue(value, spec, options, sourceForm)
+                const formattedValue = formatArgument(value, spec, sourceForm)
                 const formattedDefault = formatValue(defaultSpec.default, spec, options)
 
                 // For surface params, 'none' must always be explicit when set
@@ -973,14 +986,14 @@ function unparseCall(call, options = {}) {
                 }
             }
 
-            parts.push(`${key}: ${formatValue(value, spec, options, sourceForm)}`)
+            parts.push(`${key}: ${formatArgument(value, spec, sourceForm)}`)
         }
     }
 
     // Handle positional args
     if (call.args && call.args.length > 0) {
         for (const arg of call.args) {
-            parts.push(formatValue(arg, null, options))
+            parts.push(formatArgument(arg, null))
         }
     }
 
@@ -1186,7 +1199,7 @@ function unparseControlFlow(plan, searchNamespaces, options) {
         text = value ? `return ${formatLetExpr(value, options)}` : 'return'
     } else if (plan.type === 'VarAssign') {
         // A `let` inside a block body
-        text = `let ${plan.name} = ${formatLetExpr(plan.expr, options)}`
+        text = `let ${plan.name} = ${formatLetExpr(plan.expr, { ...options, letArguments: 'binding' })}`
     } else {
         return null
     }
@@ -1246,7 +1259,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
                     lines.push(c)
                 }
             }
-            const exprStr = formatLetExpr(v.expr, options)
+            const exprStr = formatLetExpr(v.expr, { ...options, letArguments: 'binding' })
             lines.push(`let ${v.name} = ${exprStr}`)
         }
         // Blank line separator after a let block that comes before a plan
