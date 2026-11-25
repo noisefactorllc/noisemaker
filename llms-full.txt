@@ -13,7 +13,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `5d5122e5065608942729c3f2c289304111d549d9`.
+- Noisemaker: `24250c8c69610017b1413ccb9dc29a627663a790`.
 - Shade MCP: `1815133b47eaa33aee11d4a677cfea2f3939cf38`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.5.4`. Its
   lockfile pins `@modelcontextprotocol/sdk` 1.32.2; the `npx` install below
@@ -573,6 +573,17 @@ as `synth.noise()` are rejected. Put the namespace in `search`, or use
 Positional and keyword arguments may be mixed in either order. Keywords claim
 their named fields; positionals fill the remaining fields in source order.
 
+A call whose keywords and positionals met through a `let` binds each positional
+to the parameter at its own source index instead; a positional whose slot a
+keyword holds binds to nothing, without a diagnostic. A colour positional still
+claims the `r`, `g` and `b` parameters at its index and supplies their
+components there, so a later keyword overrides only its own member and the
+stored colour keeps the rest.
+
+An argument value that is a chain expression must hold only effect calls; a
+chain holding any other entry produces `S001`, the parameter binds nothing, and
+an effect-only chain binds the temporary surface of its last effect.
+
 `read(oN)` has two different legal roles:
 
 1. At a chain head it becomes builtin `_read` and establishes the current input.
@@ -596,6 +607,15 @@ form, so a program saved with ids keeps them. The expander passes no `_id`
 uniform, so a program with ids compiles to the same graph and renders the
 same pixels as the same program without them. Inside `subchain(...)`, `_id:`
 is an unknown metadata key, reported as `P008`.
+
+A `let` binding keeps the expression form of its value across
+`compile()`/`unparse()`. When the binding's call carries a call, chain, or
+identifier keyword value, `unparse()` writes the whole binding with the AST
+writer, including its sibling arguments, so the saved program recompiles to
+the same plans. An oscillator or function value round-trips only inside such
+a call or chain value. A binding of plain literals keeps the host value
+formatter, which cannot write a bare oscillator, function, or colour keyword
+value; such a value saves only inside a call or chain value.
 
 Numeric arithmetic is constant-folded during parsing. Operators accept only
 `Number` nodes. Applying arithmetic to another expression throws `SyntaxError:
@@ -1232,7 +1252,11 @@ misfire). `Pipeline.render()` calls `onUpdate({time, delta, uniforms:
 globalUniforms})` once per frame per managed effect, and each returned
 uniform binds under fallback semantics: only when the pass does not already
 resolve that key, so DSL/step-provided and authored values (including
-synth/media's returned `imageSize` defaults) keep priority.
+synth/media's returned `imageSize` defaults) keep priority. `delta` is the
+frame-to-frame change of `time` in the same normalized units: zero on the first
+frame unless `syncTime()` has set a reference time, `1 - previousTime + time`
+when the loop wraps, and `time - previousTime` otherwise.
+
 `Pipeline.dispose()` calls `onDestroy()` for every managed effect, with
 hook errors captured into the existing dispose error path.
 
@@ -1817,7 +1841,8 @@ Parameter-related semantic failures use `Diagnostic`:
 
 - `S001`: quoted string for a non-string type, invalid surface/volume/geometry,
   unknown argument, unresolved enum, illegal string parameter, invalid function,
-  automation cycle, or automation depth overflow.
+  a parameter chain holding a non-effect-call entry, automation cycle, or
+  automation depth overflow.
 - `S002`: out-of-range value with `(got <v>, clamped to <c>)`, wrong value form,
   nonnumeric array element, or invalid audio channel.
 - `S003`: undefined variable, variable read before its `let`, enum identifier,

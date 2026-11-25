@@ -1181,6 +1181,44 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-25 — candidate pair: Noisemaker
+    `24250c8c69610017b1413ccb9dc29a627663a790` and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Audited the Noisemaker range
+    `5d5122e..24250c8`. `9fed01d` diagnoses an argument chain that holds a
+    non-effect-call entry with `S001`, and keeps a let-bound colour's r, g and
+    b components when later keywords override other parameters. `587a21e` and
+    `24250c8` write a `let` binding's expression arguments back as DSL, so a
+    saved program with such a binding recompiles to the same plans.
+    `de2e08e` makes the first frame's delta zero unless `syncTime()` set a
+    reference time, and a loop wrap step `1 - previousTime + time`.
+    `8911903` corrects the renderLit3d camera scale in its help text and
+    shader comments; it changes no contract statement. Contract corrections
+    in `llms-full.txt`: the mixed-arguments statement gains the let-merged
+    index binding rule and the stored-colour rule, the read() roles statement
+    gains the effect-only chain-argument rule, the parameter `S001` list
+    gains the chain-argument use, the lifecycle statement gains the current
+    `delta` semantics, a statement covers the let-binding round-trip, and
+    the snapshot block names this pair. The Shade range `1815133..0d5042b`
+    changes only `package.json` and `package-lock.json`, so the pin and the
+    delivery stay. Verified: the `NM_CHANGED_FILES` selection of `node
+    scripts/run-js-tests.js --skip-parity` (42 modules, exit 0), `npm run
+    lint` (exit 0), `node shaders/tests/test_validator.js` (79 tests pass),
+    `node shaders/tests/test-let-roundtrip.mjs` (29 tests pass),
+    `node shaders/tests/test_loop_seam_steps.js` (exit 0),
+    `node shaders/tests/test_pipeline.js` (exit 0), the four contract guard
+    tests (13 tests pass), and the worked-example `compileGraph()` pass
+    array reproduced from source. One configured-pin session on this pair
+    initialized server `shade-mcp` 0.5.4 / protocol `2025-06-18`, listed
+    21 tools, and ran the worked calls. `checkEffectStructure`,
+    both `compileEffect` calls, `renderEffectFrame` (identical frame
+    metrics), `testUniformResponsiveness` (identical uniform deltas),
+    `testNoPassthrough` (`skipped` as recorded), and `benchmarkEffectFPS`
+    matched the recorded transcript field for field. `testPixelParity`
+    could not run in this container: the software-GL browser lost its
+    adapter page (`OperationError`). The browser smoke test on the pair is
+    also not yet run. Pending: the browser smoke test, exact-source CI, and
+    live readback. The completed checkpoint stays unchanged until those
+    pass.
   - 2026-11-25 — completed delivery pair: Noisemaker
     `5d5122e5065608942729c3f2c289304111d549d9` and Shade MCP
     `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Commit `6f6153d` published
