@@ -1097,7 +1097,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `5d5122e5065608942729c3f2c289304111d549d9` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-25
+- **Checkpoint:** noisemaker `24250c8c69610017b1413ccb9dc29a627663a790` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-25
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -1181,6 +1181,24 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-25 — completed delivery pair: Noisemaker
+    `24250c8c69610017b1413ccb9dc29a627663a790` and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Commit `73234d5` published
+    the contract corrections. The candidate entry below records the audit,
+    the local checks, and the configured-pin session. Exact-source
+    [JavaScript 45674090165](https://github.com/noisefactorllc/noisemaker/actions/runs/45674090165)
+    and [Site 45674090164](https://github.com/noisefactorllc/noisemaker/actions/runs/45674090164)
+    passed at `73234d5`. A full GET of `https://noisemaker.app/llms-full.txt`
+    returned HTTP 200 and exactly matched the committed file, SHA-256
+    `4fa77b2c8c35fc3735a195842c7a9c9c787be609c0934e68084f076b7e1c0333`. The
+    deployment serves `git_hash: 73234d57d4e808bea62725836aa5b26f803d9b1d`
+    per `deployment-meta.json`. The checkpoint and contract snapshot now
+    name this qualified pair. Shade's browser smoke test ran on this pair
+    against the built Shade `0d5042b` source and passed all 14 checks,
+    including a genuine WebGPU render. The parity verb failed at its
+    browser page again on a second attempt: this container's software-GL
+    browser cannot hold that adapter page. The recorded `renderEffectFrame`
+    metrics and the five other transcript matches cover that session.
   - 2026-11-25 — candidate pair: Noisemaker
     `24250c8c69610017b1413ccb9dc29a627663a790` and Shade MCP
     `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Audited the Noisemaker range
