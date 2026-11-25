@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "effects": [
+    "synth/solid",
+    "filter/lensFlare"
+  ],
+  "dsl": "search synth, filter\n\nsolid(color: #203040).lensFlare(brightness: 100, centerX: 0.35, centerY: 0.35, lensType: zoom50_300).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ],
+  "epsilon": 0,
+  "requireColorVariation": true
+}
