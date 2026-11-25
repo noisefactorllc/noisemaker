@@ -328,6 +328,25 @@ export function validate(ast) {
         return { authored: authoredIds(nodes), claimed: new Set(), given: new Set() }
     }
 
+    // The key name of an element of a let's chain: the name the let gave it
+    // (see markLetElements), which every use shares; or an `_id:` written
+    // where the let is called, if no earlier element claimed it, with `'`
+    // added while it is one of the let's own names, so the element still
+    // draws apart from the let's other uses.
+    function letKeyName(call, idNode, at) {
+        const own = call._letName
+        if (idNode?.type !== 'String' || idNode._varRef !== undefined || !ELEMENT_ID.test(idNode.value) || idNode._letIdOrigin !== undefined) return own
+        if (namingBody.claimed.has(idNode.value)) return own
+        namingBody.claimed.add(idNode.value)
+        const names = letNames.get(joinKey(call._letScope, call._letKey)) || new Set()
+        let name = idNode.value
+        while (names.has(name)) name += "'"
+        if (name !== idNode.value) {
+            reportLetName(at, name, `'${idNode.value}' is the let's own name for an element, so this element draws as '${name}'`)
+        }
+        return name
+    }
+
     // An element's key name: its `_id:` if this is the first element of the
     // body to claim it, otherwise its occurrence name, with `'` added while
     // that name is an authored id or already given.
@@ -363,9 +382,14 @@ export function validate(ast) {
         for (const value of Object.values(node)) recordLetCalls(value)
     }
     // Declarations of each `let` name in one key scope.
-    const letDeclarations = new Map()
+    let letDeclarations = new Map()
+    // The key scope of each part instance being compiled, innermost last.
+    const partScopes = []
+    const partScope = () => (partScopes.length ? partScopes[partScopes.length - 1] : '')
     // The key of the value an effect is passed into, while it compiles.
     const valueKeys = []
+    // Whether each value key already carries its scope.
+    const valueAbsolute = []
     // The substituted source of each random `let`, by its parser node.
     const letSources = new Map()
     // The seeds of the enclosing `_seed:` scopes, innermost last.
@@ -517,8 +541,13 @@ export function validate(ast) {
         if (ownSeed !== null) keyScope.push(`part:${decl.name}`)
         else keyScope.push(...savedScope, useKey)
         if (ownSeed !== null) seedScopes.push(ownSeed)
+        partScopes.push(keyScope.join('/'))
         const savedCounts = occurrenceCounts
         occurrenceCounts = new Map()
+        // Each instance of the part counts its lets' declarations afresh, so
+        // two uses under one `_seed:` draw alike.
+        const savedLets = letDeclarations
+        letDeclarations = new Map()
         const savedNaming = namingBody
         namingBody = newNamingBody(decl.body)
         usePath.push({ name: useKey.slice('use@'.length), hasId: use.kwargs?._id !== undefined })
@@ -538,7 +567,28 @@ export function validate(ast) {
                 declareVar(item)
                 if (overrides.has(item.name)) {
                     recordLetCalls(use.kwargs[item.name])
-                    symbols.set(item.name, overrides.get(item.name))
+                    // A copy for each declaration it replaces, so each marks
+                    // its own. The argument's ids are written in it, as a
+                    // let's are, and every use shares them.
+                    const value = clone(overrides.get(item.name))
+                    // Its elements draw under the replaced let's key, named by
+                    // their place in the argument: they are not counted in
+                    // the body.
+                    if (letKeys.has(item) && value && (value.type === 'Chain' || value.type === 'Call')) {
+                        const counts = new Map()
+                        const own = []
+                        for (const c of chainCalls(value)) {
+                            if (c._letKey !== undefined) continue
+                            const n = (counts.get(c.name) || 0) + 1
+                            counts.set(c.name, n)
+                            Object.assign(c, letKeys.get(item), { _letOccurrence: `${c.name}_${n}` })
+                            const id = c.kwargs?._id
+                            if (id && typeof id === 'object' && id._letIdOrigin === undefined) id._letIdOrigin = ++letIdOrigins
+                            own.push(c)
+                        }
+                        nameLetElements(own, letKeys.get(item))
+                    }
+                    symbols.set(item.name, value)
                 }
             })
         } finally {
@@ -548,6 +598,8 @@ export function validate(ast) {
                 else symbols.delete(name)
             }
             occurrenceCounts = savedCounts
+            partScopes.pop()
+            letDeclarations = savedLets
             namingBody = savedNaming
             usePath.pop()
             if (ownSeed !== null) seedScopes.pop()
@@ -717,6 +769,7 @@ export function validate(ast) {
                     }
                 }
                 if (val.letApplied || selfNamed) merged.letApplied = true
+                copyLetMarks(val, merged)
                 // The let's call, applied where the let's name is called: its
                 // element is written in the let (see substitute()).
                 Object.defineProperty(merged, 'heldByLet', { value: true })
@@ -888,6 +941,7 @@ export function validate(ast) {
                 if (c.loc) mappedCall.loc = c.loc
                 if (c.positionalsByIndex) mappedCall.positionalsByIndex = c.positionalsByIndex
                 if (c.letApplied) mappedCall.letApplied = true
+                copyLetMarks(c, mappedCall)
                 // A call that comes from a let: its element is written in the
                 // let. Not enumerable, so the compiled output is unchanged. The
                 // mark stays when the call is substituted again, as an argument
@@ -908,6 +962,7 @@ export function validate(ast) {
             if (node.loc) mappedCall.loc = node.loc
             if (node.positionalsByIndex) mappedCall.positionalsByIndex = node.positionalsByIndex
             if (node.letApplied) mappedCall.letApplied = true
+            copyLetMarks(node, mappedCall)
             // A call held by a let: its element is written in the let. Not
             // enumerable. The mark stays when the call is substituted again.
             if (resolving.length > 0 || node.heldByLet) Object.defineProperty(mappedCall, 'heldByLet', { value: true })
@@ -1021,41 +1076,137 @@ export function validate(ast) {
         if (node.type === 'Call') {
             delete node.positionalsByIndex
             delete node.letApplied
+            for (const mark of LET_MARKS) delete node[mark]
         }
         if (node.type === 'ArrayLiteral') delete node._resolvedElements
         delete node._letIdOrigin
         for (const value of Object.values(node)) dropMarks(value)
     }
 
-    // Count the elements written in a let's expression, in source order:
-    // the calls of its chain, and the effects passed as values to them, at
-    // any depth. A call of another let's name is that let's element, counted
-    // at that let, but the values written in the call are counted here. A
-    // call of a name that aliases an effect is that effect's element.
-    function countLetElements(node) {
-        if (!node || typeof node !== 'object') return
-        for (const c of node.type === 'Chain' ? node.chain : [node]) {
-            if (!c || c.type !== 'Call' || !c.name) continue
-            let name = c.name
-            while (symbols.has(name) && symbols.get(name)?.type === 'Ident') name = symbols.get(name).name
-            if (!symbols.has(name)) nextOccurrence(name)
-            for (const value of [...(c.args || []), ...Object.values(c.kwargs || {})]) {
-                if (isEffectValue(value)) countLetElements(value)
-            }
-        }
+    // The op a call names, as the compiler resolves it, or null.
+    function opNameOf(call) {
+        const candidates = []
+        if (call.namespace?.resolved) candidates.push(`${call.namespace.resolved}.${call.name}`)
+        const searchOrder = (call.namespace || { searchOrder: programSearchOrder }).searchOrder
+        if (Array.isArray(searchOrder)) for (const ns of searchOrder) candidates.push(`${ns}.${call.name}`)
+        return candidates.find(name => ops[name]) ?? null
     }
-    // A value that is an effect, compiled as an element of its own.
+    // The values of a call that the compiler builds as elements of their
+    // own: effects and chains bound to the call's surface parameters.
+    function effectValuesOf(call) {
+        const opName = opNameOf(call)
+        const specArgs = opName ? ops[opName].args || [] : []
+        const kw = call.kwargs ? {...call.kwargs} : null
+        if (kw && opName) resolveParamAliases(opName, kw)
+        const byIndex = !kw || call.positionalsByIndex === true
+        const values = []
+        let cursor = 0
+        for (let i = 0; i < specArgs.length; i++) {
+            const def = specArgs[i]
+            if (byIndex) cursor = i
+            let value
+            if (kw && kw[def.name] !== undefined) value = kw[def.name]
+            else if (call.args && cursor < call.args.length) value = call.args[cursor++]
+            if (def.type === 'surface' && isEffectValue(value)) values.push(value)
+        }
+        return values
+    }
     function isEffectValue(value) {
         if (!value || (value.type !== 'Chain' && value.type !== 'Call')) return false
         if (callToSurface(value)) return false
         const head = value.type === 'Chain' ? value.chain[0] : value
-        if (!head || head.type !== 'Call' || !head.name || /^vec[234]$/.test(head.name)) return false
-        if (symbols.has(head.name)) return true
-        if (head.namespace?.resolved && ops[`${head.namespace.resolved}.${head.name}`]) return true
-        return canResolveOpName(head.name)
+        return !!(head && head.type === 'Call' && head.name)
+    }
+    // Whether a value is written in a let.
+    function writtenInLet(value) {
+        const head = value?.type === 'Chain' ? value.chain[0] : value
+        return !!(head && (head.heldByLet || letCallPositions.has(sourcePosition(head.loc))))
+    }
+    const chainCalls = node => (node.type === 'Chain' ? node.chain : [node]).filter(c => c && c.type === 'Call' && c.name)
+    // Count and mark the elements written in a let, in source order, on its
+    // substituted expression: the calls of its chain, keyed by the let, and
+    // the effects passed as values to them, at any depth. An element that
+    // already carries a mark comes from another let, where it was counted.
+    // The marks survive `clone()`, so every use of the let carries them.
+    // Each element of the chain is then named within the let, as a body
+    // names its elements: an `_id:` written in the let, unless an earlier
+    // element of the let took it, else its occurrence name, with `'` added
+    // while that name is taken.
+    function markLetElements(node, marks) {
+        const own = []
+        for (const c of chainCalls(node)) {
+            if (c._letKey === undefined) {
+                Object.assign(c, marks, { _letOccurrence: nextOccurrence(c.name) })
+                own.push(c)
+            }
+            for (const value of effectValuesOf(c)) markLetValue(value)
+        }
+        nameLetElements(own, marks)
+    }
+    // Name the elements of a let's chain, or of a use argument that replaces
+    // the let, and record the names under the let's key.
+    function nameLetElements(own, marks) {
+        const names = new Set()
+        for (const c of own) {
+            const id = c.kwargs?._id
+            if (id?.type === 'String' && id._varRef === undefined && ELEMENT_ID.test(id.value) && !names.has(id.value)) {
+                c._letName = id.value
+                names.add(id.value)
+            }
+        }
+        for (const c of own) {
+            if (c._letName !== undefined) continue
+            let name = c._letOccurrence
+            while (names.has(name)) name += "'"
+            if (name !== c._letOccurrence) {
+                reportLetName(c, name, `'${c._letOccurrence}' is another element's _id: in this let, so this element draws as '${name}'`)
+            }
+            c._letName = name
+            names.add(name)
+        }
+        letNames.set(joinKey(marks._letScope, marks._letKey), names)
+    }
+    // Report S014 for a let's name once for each place, however many part
+    // instances compile it.
+    const reportedLetNames = new Set()
+    function reportLetName(at, name, message) {
+        if (at?.loc) {
+            const report = `${sourcePosition(at.loc)}|${name}`
+            if (reportedLetNames.has(report)) return
+            reportedLetNames.add(report)
+        }
+        pushDiag('S014', at, message)
+    }
+    function markLetValue(node) {
+        for (const c of chainCalls(node)) {
+            if (!c._letCounted && c._letKey === undefined) {
+                c._letCounted = true
+                nextOccurrence(c.name)
+            }
+            for (const value of effectValuesOf(c)) markLetValue(value)
+        }
+    }
+    const LET_MARKS = ['_letKey', '_letScope', '_letBody', '_letOccurrence', '_letName', '_letCounted']
+    // The names each let gives its elements, by the let's key.
+    const letNames = new Map()
+    function copyLetMarks(from, to) {
+        for (const mark of LET_MARKS) if (from[mark] !== undefined) to[mark] = from[mark]
+    }
+
+    // A let's key segment: `let:<name>`, and `#<k>` from its second
+    // declaration in one scope. Lets that hold effects and lets that hold
+    // random values are counted apart, so neither moves the other's keys.
+    // The key of each let that holds effects, by its declaration.
+    const letKeys = new Map()
+    function letKeyOf(v, kind) {
+        const scopeKey = `${keyScope.join('/')}|${v.name}|${kind}`
+        const k = (letDeclarations.get(scopeKey) || 0) + 1
+        letDeclarations.set(scopeKey, k)
+        return k === 1 ? `let:${v.name}` : `let:${v.name}#${k}`
     }
 
     function declareVar(v) {
+        letKeys.delete(v)
         recordLetCalls(v.expr)
         let expr = substitute(clone(v.expr), [v.name])
         if (expr && (expr.type === 'Chain' || expr.type === 'Call') && !(expr.type === 'Call' && /^vec[234]$/.test(expr.name))) {
@@ -1063,13 +1214,14 @@ export function validate(ast) {
                 pushDiag('S013', v, `Random calls in an effect held by a let are not supported yet: '${v.name}'`)
             }
             // The elements written in a let are counted here, once, and not
-            // where the let is used.
-            countLetElements(v.expr)
+            // where the let is used. They draw under the let's key.
+            // The key carries the scope the let is written in, so every use
+            // of the let in its body draws alike, wherever it is.
+            const marks = { _letKey: letKeyOf(v, 'effect'), _letScope: keyScope.join('/'), _letBody: partScope() }
+            letKeys.set(v, marks)
+            markLetElements(expr, marks)
         } else if (containsRandom(expr)) {
-            const scopeKey = `${keyScope.join('/')}|${v.name}`
-            const k = (letDeclarations.get(scopeKey) || 0) + 1
-            letDeclarations.set(scopeKey, k)
-            const resolved = resolveRandomAt(expr, k === 1 ? `let:${v.name}` : `let:${v.name}#${k}`)
+            const resolved = resolveRandomAt(expr, letKeyOf(v, 'value'))
             if (resolved === undefined) return
             // The substituted source, with each call's draw, for pinning.
             letSources.set(v, expr)
@@ -1792,11 +1944,24 @@ export function validate(ast) {
                 // for an effect passed as a value, the key of that value.
                 // An element that comes from a let is written in the let, at
                 // any depth, or is the let's call applied where the let's name
-                // is called. It was counted at the let (see declareVar).
+                // is called. It was counted at the let (see declareVar), and
+                // an element of the let's chain draws under the let's key with
+                // the name it was given there, or its `_id:`.
                 const heldByLet = original.heldByLet || call.heldByLet ||
                     letCallPositions.has(sourcePosition(original.loc))
-                const occurrence = heldByLet ? call.name : nextOccurrence(call.name)
-                const keyName = heldByLet ? occurrence : keyNameFor(occurrence, call.kwargs?._id, original)
+                // A let used inside a part instance it is not written in
+                // draws under that instance's scope, so instances differ, and
+                // under `outer`, so it stays apart from the part's own lets.
+                const outerLet = call._letKey !== undefined && call._letBody !== partScope()
+                const letKey = call._letKey === undefined
+                    ? undefined
+                    : outerLet
+                        ? joinKey(partScope(), 'outer', call._letScope, call._letKey)
+                        : joinKey(call._letScope, call._letKey)
+                const occurrence = heldByLet ? (call._letOccurrence ?? call.name) : nextOccurrence(call.name)
+                const keyName = !heldByLet
+                    ? keyNameFor(occurrence, call.kwargs?._id, original)
+                    : letKey !== undefined ? letKeyName(call, call.kwargs?._id, original) : occurrence
                 if (call.kwargs?._id !== undefined && usePath.some(u => !u.hasId)) {
                     pushDiag('S001', original, "an _id: inside a part needs an _id: on every use of that part")
                 }
@@ -1815,11 +1980,23 @@ export function validate(ast) {
                 }
                 const callSeed = elementSeed ?? scopeSeed()
                 const restartsKeys = elementSeed !== null
+                // A key that already carries its scope: an element of a let,
+                // or a value inside one.
+                const absoluteKey = !restartsKeys && (letKey !== undefined ||
+                    (heldByLet && valueKeys.length > 0 && valueAbsolute[valueAbsolute.length - 1]))
                 const elementKey = restartsKeys
                     ? opName
-                    : valueKeys.length
-                        ? `${valueKeys[valueKeys.length - 1]}/e:${opName}`
-                        : `${opName}@${keyName}`
+                    : letKey !== undefined
+                        ? joinKey(letKey, `${opName}@${keyName}`)
+                        : valueKeys.length
+                            ? `${valueKeys[valueKeys.length - 1]}/e:${opName}`
+                            : `${opName}@${keyName}`
+                // The element's key without the scope it is used in, for a
+                // value written where a let is called: that value draws in the
+                // scope it is written in.
+                const elementKeyHere = letKey === undefined
+                    ? elementKey
+                    : joinKey(outerLet ? joinKey('outer', call._letScope, call._letKey) : call._letKey, `${opName}@${keyName}`)
                 // Whether unseeded effect seeds inherit here: with a seed
                 // directive, or inside a `_seed:` scope.
                 const inherits = hasSeedDirective || restartsKeys || seedScopes.length > 0
@@ -1932,7 +2109,7 @@ export function validate(ast) {
                     }
                     if (node && containsRandom(node)) {
                         const source = node
-                        node = resolveRandomAt(node, joinKey(elementKey, def.name), callSeed, restartsKeys)
+                        node = resolveRandomAt(node, joinKey(elementKey, def.name), callSeed, restartsKeys || absoluteKey)
                         if (node !== undefined) {
                             randomSources = randomSources || {}
                             randomSources[argKey] = source
@@ -1981,26 +2158,30 @@ export function validate(ast) {
                     if (inlineSurface) {
                         surf = inlineSurface
                     } else if (node && node.type === 'Chain') {
-                        valueKeys.push(joinKey(elementKey, argKey))
+                        valueKeys.push(joinKey(writtenInLet(node) ? elementKey : elementKeyHere, argKey))
+                        valueAbsolute.push(absoluteKey && writtenInLet(node))
                         seedScopes.push(callSeed)
                         let idx
                         try {
                             idx = processChain(node.chain, null, {allowStarterless: true})
                         } finally {
                             valueKeys.pop()
+                            valueAbsolute.pop()
                             seedScopes.pop()
                         }
                         if (idx !== null && idx !== undefined) {
                             surf = {kind:'temp', index: idx}
                         }
                     } else if (node && node.type === 'Call') {
-                        valueKeys.push(joinKey(elementKey, argKey))
+                        valueKeys.push(joinKey(writtenInLet(node) ? elementKey : elementKeyHere, argKey))
+                        valueAbsolute.push(absoluteKey && writtenInLet(node))
                         seedScopes.push(callSeed)
                         let idx
                         try {
                             idx = processChain([node], null, {allowStarterless: true})
                         } finally {
                             valueKeys.pop()
+                            valueAbsolute.pop()
                             seedScopes.pop()
                         }
                         if (idx !== null && idx !== undefined) {
@@ -2415,7 +2596,7 @@ export function validate(ast) {
                 let inheritedSeeds = null
                 for (const def of inheritable) {
                     if (!Number.isFinite(def.min) || !Number.isFinite(def.max)) continue
-                    const key = restartsKeys
+                    const key = restartsKeys || absoluteKey
                         ? joinKey(elementKey, def.name, 'inherit')
                         : joinKey(...keyScope, elementKey, def.name, 'inherit')
                     args[def.name] = randIntFrom(drawU32(callSeed, key), Math.ceil(def.min), Math.floor(def.max))

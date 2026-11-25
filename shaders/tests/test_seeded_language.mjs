@@ -157,6 +157,119 @@ test('an effect passed as a value inside a let is counted once, at the let', () 
     assert.equal(lastNoiseKey('let b = blendMode()\nnoise().b(tex: noise()).write(o0)'), 'noise_3')
 })
 
+test('an element from a let draws under the let\'s key, or its _id:', () => {
+    const noiseSteps = c => c.plans.map(plan => plan.chain.find(step => step.op === 'synth.noise').args)
+    const scaleY = key => randFrom(drawU32(1, key), 1, 10)
+    // Two lets draw apart, under let:<name>/<element>.
+    const two = compile('search synth\nseed 1\nlet a = noise()\nlet b = noise(octaves: 2)\na(scaleY: rand(1, 10)).write(o0)\nb(scaleY: rand(1, 10)).write(o1)')
+    assert.deepEqual(errors(two), [])
+    assert.deepEqual(noiseSteps(two).map(a => a.scaleY), [scaleY('let:a/synth.noise@noise_1/scaleY'), scaleY('let:b/synth.noise@noise_2/scaleY')])
+    assert.notEqual(noiseSteps(two)[0].seed, noiseSteps(two)[1].seed)
+    // A redeclared let has its own key.
+    const again = compile('search synth\nseed 1\nlet a = noise()\na(scaleY: rand(1, 10)).write(o0)\nlet a = noise()\na(scaleY: rand(1, 10)).write(o1)')
+    assert.deepEqual(noiseSteps(again).map(a => a.scaleY), [scaleY('let:a/synth.noise@noise_1/scaleY'), scaleY('let:a#2/synth.noise@noise_2/scaleY')])
+    // An _id: where the let is called names the element.
+    const ids = compile('search synth\nseed 1\nlet a = noise()\na(_id: "left", scaleY: rand(1, 10)).write(o0)\na(_id: "right", scaleY: rand(1, 10)).write(o1)')
+    assert.deepEqual(noiseSteps(ids).map(a => a.scaleY), [scaleY('let:a/synth.noise@left/scaleY'), scaleY('let:a/synth.noise@right/scaleY')])
+    assert.notEqual(noiseSteps(ids)[0].seed, noiseSteps(ids)[1].seed)
+})
+
+test('a name that aliases itself through a use argument does not stop the compiler', () => {
+    const c = compile('search synth, mixer\npart p {\n    let x = noise\n    let w = x().blendMode()\n    w()\n}\nuse(p, x: x).write(o0)')
+    assert.deepEqual(codes(c), ['S001', 'S005'])
+})
+
+// The scaleY and seed of every noise step, in plan order, through if branches.
+const allSteps = plans => plans.flatMap(plan => [...(plan.chain || []), ...allSteps([...(plan.then || []), ...(plan.else || []), ...(plan.elif || []).flatMap(e => e.then || [])])])
+const noiseDraws = src => {
+    const c = compile(src)
+    assert.deepEqual(errors(c), [], src)
+    return allSteps(c.plans).filter(step => step.op === 'synth.noise').map(step => [step.args.scaleY, step.args.seed])
+}
+
+test('the uses of a let draw alike in any scope, and a _seed: part repeats its draws', () => {
+    const scoped = noiseDraws('search synth\nseed 1\nlet a = noise()\na(scaleY: rand(1, 10)).write(o0)\nif (true) {\n    a(scaleY: rand(1, 10)).write(o1)\n}')
+    assert.equal(scoped.length, 2)
+    assert.deepEqual(scoped[1], scoped[0])
+    const parts = noiseDraws('search synth\npart p {\n    let x = noise()\n    x(scaleY: rand(1, 10)).write(o0)\n}\nuse(p, _seed: 5)\nuse(p, _seed: 5)')
+    assert.equal(parts.length, 2)
+    assert.deepEqual(parts[1], parts[0])
+})
+
+test('a let of effects does not move the key of a random let of the same name', () => {
+    const c = compile('search synth\nseed 1\nlet a = noise()\na().write(o0)\nlet a = rand(1, 10)\nnoise(scaleY: a).write(o1)')
+    assert.deepEqual(errors(c), [])
+    assert.equal(plain(args(c, 1).scaleY), randFrom(drawU32(1, 'let:a'), 1, 10))
+})
+
+test('a repeated _id: where a let is called falls back to the let\'s name, and use arguments draw under their lets', () => {
+    const repeated = noiseDraws('search synth\nseed 1\nlet a = noise()\na(_id: "left", scaleY: rand(1, 10)).write(o0)\na(_id: "left", scaleY: rand(1, 10)).write(o1)\na(scaleY: rand(1, 10)).write(o2)')
+    assert.notDeepEqual(repeated[1], repeated[0])
+    assert.deepEqual(repeated[2], repeated[1])
+    // An _id: equal to the let's own name for the element draws apart from it.
+    const own = compile('search synth\nseed 1\nlet a = noise()\na(_id: "noise_1", scaleY: rand(1, 10)).write(o0)\na(scaleY: rand(1, 10)).write(o1)')
+    assert.ok(codes(own).includes('S014'))
+    assert.notEqual(args(own, 0).scaleY, args(own, 1).scaleY)
+    // A part's let that holds effects in one use and a value in the next.
+    const stale = noiseDraws('search synth\nseed 1\nlet y = noise()\npart p {\n    let x = y\n    x(scaleY: rand(1, 10)).write(o0)\n}\nuse(p, x: noise())\nlet y = 5\nuse(p, x: noise())')
+    assert.equal(stale.length, 2)
+    assert.notDeepEqual(stale[1], stale[0])
+    const overrides = noiseDraws('search synth\nseed 1\npart p {\n    let x = noise()\n    let z = noise()\n    x(scaleY: rand(1, 10)).write(o0)\n    z(scaleY: rand(1, 10)).write(o1)\n}\nuse(p, x: noise(), z: noise())')
+    assert.equal(overrides.length, 2)
+    assert.notDeepEqual(overrides[1], overrides[0])
+})
+
+test('a let used in a part draws apart in each instance, and the names a let gives stay apart', () => {
+    const instances = noiseDraws('search synth\nseed 1\nlet a = noise()\npart p {\n    a(scaleY: rand(1, 10)).write(o0)\n}\nuse(p)\nuse(p)')
+    assert.equal(instances.length, 2)
+    assert.notDeepEqual(instances[1], instances[0])
+    // The last two noise steps are the two effect values that must draw apart.
+    const distinctSeeds = draws => assert.notEqual(draws.at(-1)[1], draws.at(-2)[1], JSON.stringify(draws))
+    // An _id: in the let equal to another element's occurrence name.
+    distinctSeeds(noiseDraws('search synth, mixer\nseed 1\nlet y = noise().blendMode(_id: "blendMode_2", tex: noise()).blendMode(tex: noise())\nnoise().blendMode(tex: y).write(o0)'))
+    // An _id: where the let is called equal to the _id: in the let.
+    const same = noiseDraws('search synth\nseed 1\nlet a = noise(_id: "x")\na(scaleY: rand(1, 10)).write(o0)\na(_id: "x", scaleY: rand(1, 10)).write(o1)')
+    assert.notDeepEqual(same[1], same[0])
+    // A use argument with the same effect twice.
+    distinctSeeds(noiseDraws('search synth, mixer\nseed 1\npart p {\n    let x = noise()\n    noise().blendMode(tex: x).write(o0)\n}\nuse(p, x: noise().blendMode(tex: noise()).blendMode(tex: noise()))'))
+})
+
+test('an outer let and a use argument stay apart from the part\'s own names', () => {
+    const shadowed = noiseDraws('search synth\nseed 1\nlet a = noise()\npart p {\n    a(scaleY: rand(1, 10)).write(o0)\n    let a = noise()\n    a(scaleY: rand(1, 10)).write(o1)\n}\nuse(p)')
+    assert.equal(shadowed.length, 2)
+    assert.notDeepEqual(shadowed[1], shadowed[0])
+    const callId = noiseDraws('search synth\nseed 1\npart p {\n    let x = sacredGeometry()\n    x(_id: "noise_1", scaleY: rand(1, 10)).write(o0)\n    x(scaleY: rand(1, 10)).write(o1)\n}\nuse(p, _id: "u", x: noise())')
+    assert.equal(callId.length, 2)
+    assert.notDeepEqual(callId[1], callId[0])
+    const argIds = noiseDraws('search synth, mixer\nseed 2\npart p {\n    let x = noise()\n    noise().blendMode(tex: x).write(o0)\n}\nuse(p, _id: "u", x: noise().blendMode(_id: "blendMode_2", tex: noise(scaleY: rand(1, 10))).blendMode(tex: noise(scaleY: rand(1, 10))))')
+    assert.notDeepEqual(argIds.at(-1), argIds.at(-2))
+})
+
+test('use arguments with ids or for a redeclared let, and values written where a let is called', () => {
+    const ownId = compile('search synth\nseed 1\npart p {\n    let x = noise()\n    x(scaleY: rand(1, 10)).write(o0)\n    x(scaleY: rand(1, 10)).write(o1)\n}\nuse(p, _id: "u", x: noise(_id: "foo"))')
+    // As for an _id: written in the let itself: S011, and no S014.
+    assert.deepEqual(codes(ownId), ['S011'])
+    const shared = allSteps(ownId.plans).filter(step => step.op === 'synth.noise').map(step => [step.args.scaleY, step.args.seed])
+    assert.deepEqual(shared[1], shared[0])
+    const redeclared = noiseDraws('search synth\nseed 1\npart p {\n    let x = noise()\n    x(scaleY: rand(1, 10)).write(o0)\n    let x = noise()\n    x(scaleY: rand(1, 10)).write(o1)\n}\nuse(p, x: noise())')
+    assert.notDeepEqual(redeclared[1], redeclared[0])
+    const branches = noiseDraws('search synth, mixer\nseed 1\nlet b = blendMode()\nif (true) {\n    noise().b(tex: noise(scaleY: rand(1, 10))).write(o0)\n} else {\n    noise().b(tex: noise(scaleY: rand(1, 10))).write(o1)\n}')
+    assert.equal(branches.length, 4)
+    assert.notDeepEqual(branches[3], branches[1])
+    const twice = compile('search synth\nseed 1\npart p {\n    let x = noise()\n    x(_id: "noise_1", scaleY: rand(1, 10)).write(o0)\n}\nuse(p, _id: "u")\nuse(p, _id: "v")')
+    assert.equal(codes(twice).filter(code => code === 'S014').length, 1)
+})
+
+test('a value written where a let is called, and an _id: on an outer let in a use argument, draw under their keys', () => {
+    const inPart = compile('search synth, mixer\nseed 1\npart p {\n    let b = blendMode()\n    noise().b(tex: noise(scaleY: rand(1, 10))).write(o0)\n}\nuse(p)')
+    assert.deepEqual(errors(inPart), [])
+    const value = allSteps(inPart.plans).filter(step => step.op === 'synth.noise').at(-1)
+    assert.equal(value.args.scaleY, randFrom(drawU32(1, 'use@use_1/let:b/mixer.blendMode@blendMode_1/tex/e:synth.noise/scaleY'), 1, 10))
+    const outerId = compile('search synth\nseed 1\nlet a = noise()\npart p {\n    let x = noise()\n    x(scaleY: rand(1, 10)).write(o0)\n}\nuse(p, _id: "u", x: a(_id: "left"))')
+    const step = allSteps(outerId.plans).find(s => s.op === 'synth.noise')
+    assert.equal(step.args.scaleY, randFrom(drawU32(1, 'use@u/outer/let:a/synth.noise@left/scaleY'), 1, 10))
+})
+
 test('a call-level seed draws under the constant key', () => {
     const c = compile('search synth\nseed 1\nnoise(scaleY: rand(1, 10, seed: 3150442103)).write(o0)')
     assert.deepEqual(errors(c), [])

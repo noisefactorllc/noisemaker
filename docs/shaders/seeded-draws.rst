@@ -97,6 +97,7 @@ Draw                                            Key
 a ``let``                                       ``<scope>/let:<name>[#k]<path>``
 a call in an element's parameter                ``<scope>/<op>@<name>/<param><path>``
 a call in an element passed as a value          the value's key, then ``/e:<op>/<param><path>``
+a call in an element of a ``let``'s chain       ``<scope>/let:<name>[#k]/<op>@<name>/<param><path>``
 a call in a ``use`` argument                    ``<scope>/use@<name>/arg:<arg><path>``
 the part of ``use(pick(...))``                  ``<scope>/use@<name>/part<path>``
 a ``maybe`` decision                            ``<scope>/maybe_<n>/decide``
@@ -116,7 +117,24 @@ a call with its own ``seed:``                   ``pin``
   for unary minus. Indexes count from 0. A value that is one call has an empty
   path.
 * ``let:<name>#k`` is the k-th declaration of a name in one scope, from 2; the
-  first has no suffix.
+  first has no suffix. Lets that hold effects and lets that hold random values
+  are counted apart. Each instance of a part counts its own.
+* An element of a ``let``'s chain takes the ``<scope>`` where the ``let`` is
+  written. Used inside a part instance the ``let`` is not written in, its key
+  starts with that instance's scope and ``outer``:
+  ``<instance scope>/outer/<scope>/let:<name>[#k]/...``. The ``let`` names its elements as a body does: an
+  ``_id:`` written in the ``let``, unless an earlier element of the ``let``
+  took it, else the occurrence name, with ``'`` added while that name is taken.
+  An ``_id:`` written where the ``let`` is called is the ``<name>`` if no
+  earlier element claimed it, with ``'`` added while it is one of the
+  ``let``'s own names; a claimed one falls back to the ``let``'s name. Every
+  use of the ``let`` without an ``_id:`` of its own draws alike. Its inherited
+  seed is drawn under ``<scope>/let:<name>[#k]/<op>@<name>/<param>/inherit``.
+  A ``use`` argument that replaces a part's ``let`` draws under that ``let``'s
+  key, its elements named as a ``let`` names them, with ``<effect>_<n>`` by
+  their place in the argument as the occurrence name. An effect passed as a
+  value where a ``let`` is called draws in the scope it is written in:
+  ``<scope>/let:<name>[#k]/<op>@<name>/<param>/e:<op>/...``.
 * ``<scope>`` is the path of enclosing ``use`` sites (``use@<name>``),
   ``maybe`` blocks (``maybe_<n>``) and ``if`` branches (``if_<n>/b<k>``, where
   ``k`` is 0 for the ``if``, then each ``elif``, then the ``else``), empty at
@@ -131,7 +149,8 @@ each naming body: the program outside every part, and each part body.
 1. Every element has an occurrence name ``<effect>_<n>``: ``n`` counts, from 1,
    the elements of that effect in source order in its naming body, including
    elements that carry an ``_id:``, elements in every ``if`` branch and in
-   untaken ``maybe`` blocks, and elements in chains held by a ``let``. Uses
+   untaken ``maybe`` blocks, and the elements of a ``let``, in its chain or
+   passed as values inside it, counted once where the ``let`` is written. Uses
    (``use_<n>``), ``maybe`` blocks (``maybe_<n>``) and ``if`` statements
    (``if_<n>``) are counted the same way.
 2. An element or use with an ``_id:`` takes it as its key name, unless an

@@ -385,7 +385,10 @@ An element draws under its occurrence name: its effect and its place among
 that effect's elements in source order, such as ``noise_2``. An effect
 written in a ``let``, in its chain or passed as a value inside it, takes its
 place where the ``let`` is written, once, however many times the ``let`` is
-used.
+used. An element of the ``let``'s chain draws under the ``let``'s name with
+that occurrence name, or with an ``_id:`` written in the ``let`` or where it
+is called. Every use of the ``let`` without an ``_id:`` of its own shares its
+draws, and so does every use of an ``_id:`` written in the ``let``.
 
 With a ``seed`` directive, an effect whose ``seed`` parameter is not set
 takes a seed drawn from the program seed, different for each effect. The
