@@ -1,0 +1,14 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/bitwise"
+    ],
+    "dsl": "search synth\n\nbitwise(operation: xor, mask: bit4, scale: 40, seed: 3, colorMode: rgb).write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true
+}

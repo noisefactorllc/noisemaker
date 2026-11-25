@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "synth/mandala",
+  "sourceHash": "096906bd7773319e52592b7f3defe35dd50346b0c43d4b566a6280fab1415c8a",
+  "caseHash": "3e08737a5db7eda4e60d6ed5ff898cc486120762dd26e4079956d5613b32c838",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 224,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 4
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 224,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 4
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

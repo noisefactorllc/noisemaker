@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "synth/sacredGeometry",
+  "sourceHash": "4987b579a1b998a2cf70cbd4cf0a209b1ef087249712ced207f58d5a421c7abf",
+  "caseHash": "1ba33c512a0c4a451f89cc4e933166e3cec7c9cb10ba1b16d7f715b0f792c733",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 656,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 58
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 656,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 58
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

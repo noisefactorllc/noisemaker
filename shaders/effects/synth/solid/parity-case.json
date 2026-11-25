@@ -1,0 +1,15 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/solid",
+        "filter/vignette"
+    ],
+    "dsl": "search synth, filter\n\nsolid(color: #c06030, alpha: 0.75).vignette().write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true
+}
