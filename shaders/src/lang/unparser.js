@@ -1041,6 +1041,17 @@ function formatLetBinding(expr, options) {
     return formatLetExpr(expr, hasExpression ? { ...options, letArguments: true } : options)
 }
 
+// Whether a compiled program draws: a seed directive, a random let, or a step
+// with a random call or an inherited seed, at any depth.
+function programDraws(compiled) {
+    if (compiled.seed !== undefined || compiled.letSources?.size > 0) return true
+    const visit = plans => (plans || []).some(plan => plan && (
+        (plan.chain || []).some(step => step.randomSources || step.inheritedSeeds) ||
+        visit(plan.then) || visit(plan.else) || visit(plan.body) ||
+        (plan.elif || []).some(branch => visit(branch.then))))
+    return visit(compiled.plans)
+}
+
 /**
  * Format a let expression AST node back to DSL source
  * @param {object} expr - Expression AST node from a VarAssign
@@ -1347,7 +1358,11 @@ function unparseControlFlow(plan, searchNamespaces, options) {
 export function unparse(compiled, overrides = {}, options = {}) {
     // Ensure enum definitions are available for formatting
     const visibleLets = new Set(options.visibleLets)
-    options = { ...options, enums: options.enums || stdEnums, visibleLets }
+    // In a program that draws, an element from a let draws under the let's
+    // key, so a save writes each use of a let by name: written inline, it
+    // would draw as an element of the body.
+    const keepLetNames = options.keepLetNames ?? programDraws(compiled)
+    options = { ...options, enums: options.enums || stdEnums, visibleLets, keepLetNames }
     const lines = []
     const getEffectDef = options.getEffectDef || null
     const searchNamespaces = compiled.searchNamespaces || []
@@ -1456,7 +1471,9 @@ export function unparse(compiled, overrides = {}, options = {}) {
         const tempLetNames = new Map()
         for (const { step, override } of stepsByTemp.values()) {
             for (const value of Object.values(step.args || {})) {
-                if (value?.kind === 'temp' && visibleLets.has(value.sourceLet)) tempLetNames.set(value.index, value.sourceLet)
+                if (value?.kind === 'temp' && visibleLets.has(value.sourceLet) && (!value.sourceLetPlain || options.keepLetNames)) {
+                    tempLetNames.set(value.index, value.sourceLet)
+                }
             }
             for (const value of [...Object.values(step.args || {}), ...Object.values(override)]) {
                 if (value?.kind === 'temp') collectDependencies(value.index, inlineTemps)
@@ -1650,6 +1667,10 @@ export function unparse(compiled, overrides = {}, options = {}) {
                     callName = callName.slice(fromPrefix.length)
                 }
             }
+            // A call of a let's name is written by that name. An `_id:` the
+            // let holds stays in the let.
+            const asLetCall = step.letCall && options.keepLetNames && options.visibleLets?.has(step.letCall)
+            if (asLetCall) callName = step.letCall
 
             const call = {
                 name: callName,
@@ -1673,6 +1694,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
 
                     // Skip _skip: false (only include when true)
                     if (key === '_skip' && value !== true) continue
+                    if (key === '_id' && asLetCall && step.letCallIdFromLet) continue
 
                     // Handle surface references
                     if (value && typeof value === 'object' && value.kind && value.kind !== 'temp') {

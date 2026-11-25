@@ -283,6 +283,28 @@ test('a let that holds a read, use, subchain or maybe chain reports a diagnostic
     }
 })
 
+test('a save keeps the draws of every element from a let', () => {
+    for (const body of [
+        'let a = noise()\na(scaleY: rand(1, 10)).write(o0)\nnoise(scaleY: rand(1, 10)).write(o1)',
+        'let a = noise()\na().write(o0)\na().write(o1)',
+        'let a = noise(octaves: 2)\na(scaleY: rand(1, 10)).write(o0)\na(octaves: 3).write(o1)',
+        'let a = noise(_id: "x")\na(scaleY: rand(1, 10)).write(o0)',
+        'let a = noise()\na(_id: "left", scaleY: rand(1, 10)).write(o0)\na(scaleY: rand(1, 10)).write(o1)',
+        'let y = noise().blendMode()\nnoise().blendMode(tex: y).write(o0)\nnoise(scaleY: rand(1, 10)).write(o1)',
+        'let b = blendMode()\nnoise().b(tex: noise(scaleY: rand(1, 10))).write(o0)',
+        'part p {\n    let x = noise()\n    x(scaleY: rand(1, 10)).write(o0)\n}\nuse(p)\nuse(p)'
+    ]) {
+        const src = `search synth, mixer\nseed 1\n${body}`
+        const first = compile(src)
+        assert.deepEqual(errors(first), [], body)
+        const text = unparse(first)
+        const second = compile(text)
+        assert.deepEqual(errors(second), [], text)
+        assert.deepEqual(allSteps(second.plans).map(step => step.args), allSteps(first.plans).map(step => step.args), text)
+        assert.equal(unparse(second), text, 'unparse is stable')
+    }
+})
+
 test('a call-level seed draws under the constant key', () => {
     const c = compile('search synth\nseed 1\nnoise(scaleY: rand(1, 10, seed: 3150442103)).write(o0)')
     assert.deepEqual(errors(c), [])

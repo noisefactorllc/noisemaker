@@ -770,6 +770,8 @@ export function validate(ast) {
                 }
                 if (val.letApplied || selfNamed) merged.letApplied = true
                 copyLetMarks(val, merged)
+                // The let's name, so a save can write the call as written.
+                Object.defineProperty(merged, 'letCallName', { value: call.name })
                 // The let's call, applied where the let's name is called: its
                 // element is written in the let (see substitute()).
                 Object.defineProperty(merged, 'heldByLet', { value: true })
@@ -2214,9 +2216,12 @@ export function validate(ast) {
                                 surf = toSurface({ type: 'Ident', name: def.default }) || { kind: 'pipeline', name: def.default }
                             }
                         }
-                        if (surf?.kind === 'temp' && node._varRef && hasEffectExpressionArgument(node)) {
+                        if (surf?.kind === 'temp' && node._varRef) {
                             // Keep the source name beside the runtime temp, including for positional arguments.
                             Object.defineProperty(surf, 'sourceLet', { value: node._varRef })
+                            // A let whose expression has no effect argument is
+                            // written inline on save unless the program draws.
+                            if (!hasEffectExpressionArgument(node)) Object.defineProperty(surf, 'sourceLetPlain', { value: true })
                         }
                         args[argKey] = surf
                     } else if (node && node.type === 'Call' && node.args?.length === (node.name === 'vec2' ? 2 : 4) && (
@@ -2677,6 +2682,13 @@ export function validate(ast) {
                 // The element's names, for a host that names it: its occurrence
                 // name, its key name and, in a part body, its use path. A step
                 // whose element comes from a let has none.
+                // A call of a let's name, for a save to write back by name.
+                // Not enumerable, so the compiled output is unchanged.
+                const letCallName = call.letCallName ?? original.letCallName
+                if (letCallName) {
+                    Object.defineProperty(step, 'letCall', { value: letCallName })
+                    if (call.kwargs?._id?._letIdOrigin !== undefined) Object.defineProperty(step, 'letCallIdFromLet', { value: true })
+                }
                 if (!heldByLet) {
                     step.occurrence = occurrence
                     step.keyName = keyName
