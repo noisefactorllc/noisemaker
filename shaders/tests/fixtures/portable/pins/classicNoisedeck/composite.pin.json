@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#classicNoisedeck/composite",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4095,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "04bebcf0c4723e5a06195c5cb7e4ff3f78065f69a263ce259a0e50a7b262ac51"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4095,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "d7060d596a6bb26d0ddbaf460428996f41399a01b3cd03cf0ed15e9952c842d8"
+      }
+    }
+  }
+}

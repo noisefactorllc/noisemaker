@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/degauss",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3642,
+        "uniqueColors": 538,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "2e79ce258bbc5f7cf0642fd552ad27678c737dbf4033d7748b215b0fac276fd5"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3642,
+        "uniqueColors": 538,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "2d744cc2f8b77dfea0d112b2c0e3bead46d814fd6886e6bc9dde86fdb41f0822"
+      }
+    }
+  }
+}

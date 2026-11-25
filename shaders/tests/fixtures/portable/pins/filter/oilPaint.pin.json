@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/oilPaint",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4075,
+        "uniqueColors": 3862,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "c974e817f8c8409c9efd630333c259b2ea4fe043653fc190504c1a357ab6bc8a"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4075,
+        "uniqueColors": 3862,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "d9392cec2d6de9269ee8093a578654b79f6a85a22b25c31c6c333992bdc92e29"
+      }
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/watercolor",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4071,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "35768388798d2f2ae53c07e2faf2f888b67b5aeacc0f0096fa1cf7cd340e1898"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4071,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "4e8a8e1d09aaf706d3ab8cd6bb740a92d958844319a46577d3ff92f2f21bb181"
+      }
+    }
+  }
+}

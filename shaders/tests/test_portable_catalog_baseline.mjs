@@ -29,6 +29,12 @@ import {
     firstDifference,
     loadCatalog,
     manifestEffectIds,
+    PERF_POLICY,
+    describeCase,
+    perfBudget,
+    pinPath,
+    pinTargets,
+    RENDER_CASES_RELATIVE,
     rewriteEffects,
     treeEffectIds,
 } from '../../scripts/audit-portable-migration.mjs'
@@ -85,6 +91,57 @@ test('the catalog at HEAD is the baseline: IDs, export kinds, metadata and choic
     // Order and values, as entry lists: an object comparison alone ignores key order.
     assert.deepEqual(choicesOf(observed.metadata), choicesOf(baseline.metadata))
     assert.deepEqual(compareCatalog(baseline, observed, context()), [])
+})
+
+test('every baseline ID has a render case, and every render case is a baseline ID', () => {
+    const renderCases = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, RENDER_CASES_RELATIVE), 'utf8')).cases
+    assert.deepEqual(Object.keys(renderCases).sort(), baseline.effectIds)
+    for (const [id, renderCase] of Object.entries(renderCases)) {
+        assert.ok(renderCase.effects.includes(id), `${id}: its case renders it`)
+        assert.match(renderCase.surface, /^o[0-7]$/, `${id}: it reads a user surface`)
+        assert.ok(renderCase.dsl.includes(`.write(${renderCase.surface})`), `${id}: its program writes the surface it reads`)
+        assert.deepEqual(renderCase.times, [0], id)
+        assert.deepEqual(renderCase.backends, ['webgl2', 'webgpu'], id)
+        assert.equal(renderCase.comparison, 'exact', id)
+        assert.ok(['parity-case', 'authored'].includes(renderCase.source), id)
+        assert.equal(renderCase.orientation, 'readback', id)
+        assert.deepEqual(renderCase.warmup, renderCase.steps ? { afterCompile: 1, steps: renderCase.steps } : { afterCompile: 1, beforeEachReading: 2 }, id)
+        assert.ok(renderCase.control === null || (typeof renderCase.control === 'string' && !renderCase.control.includes(`.${id.split('/')[1]}(`)), `${id}: its control, if any, leaves the target out`)
+    }
+    // A missing case fails the pin run before any render.
+    const dropped = baseline.effectIds[3]
+    const { [dropped]: _gone, ...rest } = renderCases
+    assert.deepEqual(pinTargets({ baselineIds: baseline.effectIds, cases: rest }).problems, [`${dropped} has no render case`])
+    assert.deepEqual(pinTargets({ baselineIds: baseline.effectIds, cases: renderCases, listed: ['filter/noSuchEffect'] }).problems, ['filter/noSuchEffect is listed and has no render case'])
+})
+
+test('a performance budget is the frozen factor times the worst round median, never below the floor', () => {
+    assert.deepEqual(PERF_POLICY, { warmupFrames: 10, measuredFrames: 30, rounds: 3, frame: 'stepFrame', budgetFactor: 3, budgetFloorMs: 2 })
+    assert.equal(perfBudget([1, 2, 1.5]), 6)
+    assert.equal(perfBudget([0.1, 0.2, 0.3]), 2)
+    assert.equal(perfBudget([0.9, 0.7, 0.8]), 2.7)
+})
+
+test('each render case records what its program sets, its expected alpha and its budgets, and they hold', async () => {
+    const doc = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, RENDER_CASES_RELATIVE), 'utf8'))
+    assert.deepEqual(doc.performancePolicy, { ...PERF_POLICY })
+    for (const [id, renderCase] of Object.entries(doc.cases)) {
+        // The seeds (defaults included) and the target's arguments are those of the compiled program.
+        assert.deepEqual({ seeds: renderCase.seeds, parameters: renderCase.parameters }, await describeCase(REPO_ROOT, id, renderCase), id)
+        const pin = JSON.parse(fs.readFileSync(pinPath(REPO_ROOT, id), 'utf8'))
+        assert.equal(pin.case, `${RENDER_CASES_RELATIVE}#${id}`, id)
+        assert.deepEqual(pin.resolution, renderCase.resolution, id)
+        const gpus = Object.keys(pin.baselines)
+        assert.ok(gpus.length >= 1, `${id}: its pin holds a GPU`)
+        const gpu = renderCase.performance?.gpu
+        assert.ok(gpus.includes(gpu), `${id}: its budgets were measured on a GPU its pin holds`)
+        for (const backend of ['webgl2', 'webgpu']) {
+            assert.deepEqual(renderCase.expectedAlpha?.[backend], pin.baselines[gpu][backend].alpha, `${id} ${backend} alpha`)
+            assert.ok(pin.baselines[gpu][backend].nonzeroRgbPixels > 0, `${id} ${backend} is lit`)
+            assert.ok(Number.isFinite(renderCase.performance[backend]?.budgetMs) && renderCase.performance[backend].budgetMs >= PERF_POLICY.budgetFloorMs, `${id} ${backend} budget`)
+        }
+        assert.deepEqual(Object.keys(renderCase.performance).sort(), ['gpu', 'webgl2', 'webgpu'], `${id}: only budgets are stored, not measurements`)
+    }
 })
 
 test('the baseline names its source, its reference release and the published list', () => {

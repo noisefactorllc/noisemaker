@@ -161,6 +161,11 @@ jobs:
     - name: Verify effects show their input unmirrored on both GPU backends
       run: npm run test:shaders:orientation
 
+    # Every effect's render case against its pin, on both backends. A pin
+    # baseline holds this runner's GPU model.
+    - name: Verify the Portable migration's pins on both GPU backends
+      run: npm run test:shaders:portable:gpu
+
   bundle:
     name: Bundle shaders
     runs-on: ubuntu-latest

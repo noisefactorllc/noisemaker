@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#synth/mandelbrot",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3064,
+        "uniqueColors": 125,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "f205211b0a514e3364c219162e9947826c9a6ff90aebd4d333c6230eb7d9b423"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3064,
+        "uniqueColors": 125,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "f205211b0a514e3364c219162e9947826c9a6ff90aebd4d333c6230eb7d9b423"
+      }
+    }
+  }
+}

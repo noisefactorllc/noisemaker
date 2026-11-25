@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/pinch",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3606,
+        "uniqueColors": 31,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "3677a457debf5db1ef5c898a68697dbc5e95e4f7a813ff4306d2cbddfcecc991"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3606,
+        "uniqueColors": 31,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "2c7d97820d73fb0d1b64765b85a078931dc176390aae11f0d670982870848190"
+      }
+    }
+  }
+}

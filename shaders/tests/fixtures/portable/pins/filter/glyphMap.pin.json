@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/glyphMap",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1346,
+        "uniqueColors": 5,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "74624ec1ad901b3e67a3cf43c84e84776105b9a8ab4e45191308619db37f6347"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1346,
+        "uniqueColors": 5,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "4f844911f8ea607eb4aa80f072f525d666218574c9ca33c284b2e034a329eb77"
+      }
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#synth/sacredGeometry",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 142,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "38deb7b209b2095fff5a50810d45ad4091fc74fa596b3d63099dd7a53372790c"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 142,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "67b20a8e60247ee04708a31502a1b0a6ad1594216e74c889a05a4b99da07c8bf"
+      }
+    }
+  }
+}

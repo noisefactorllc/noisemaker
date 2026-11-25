@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/parallax",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3362,
+        "uniqueColors": 8,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "f8ad7e731c4622e4c1913a9cc4315514159a956d94608d1c4ca95ac17d032619"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3362,
+        "uniqueColors": 8,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "9e46c211c52cb2c84d7f1cf85ccf80f50eb38a87e03b62e75ee67849cb557617"
+      }
+    }
+  }
+}

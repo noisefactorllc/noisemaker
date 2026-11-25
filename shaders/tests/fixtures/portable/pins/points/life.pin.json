@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#points/life",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 1006,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "a3b36f74fbaf23a191eb710efb643edab9939b3a40fe716d9b8837fa34d2165b"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 1006,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "3ac08ec363c84da9ca873e4eba1fa8c096a9781cf4d63e18e80f44d0c3af3870"
+      }
+    }
+  }
+}

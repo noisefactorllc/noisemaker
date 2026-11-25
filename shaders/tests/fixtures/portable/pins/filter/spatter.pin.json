@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/spatter",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4096,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "cb4df8868ee569de65db58eb831e3137d3efb0c9593385449fa78e37bb756fd0"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4096,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "95f07397f186a054fcffad3195393a7828ec68b0ceb7ba041b62d461c8e37ab9"
+      }
+    }
+  }
+}

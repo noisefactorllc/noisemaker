@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#synth/navierStokes",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 233,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "db259bb358f2406065138932621b492f565713b3fb069142e122dd13860dd203"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 233,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "d90c32a0cbcd6da8c2462198525ad2d8f1625186e0f8f6a862aaa92ccb01571f"
+      }
+    }
+  }
+}

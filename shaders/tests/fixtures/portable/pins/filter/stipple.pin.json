@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/stipple",
+  "resolution": [
+    128,
+    128
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 128,
+        "height": 128,
+        "nonzeroRgbPixels": 16384,
+        "uniqueColors": 9650,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "9554da7dfae127a51f54643460160b0ef3abdc4b636c891d953996f365b6eb92"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 128,
+        "height": 128,
+        "nonzeroRgbPixels": 16384,
+        "uniqueColors": 9650,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "20383736a7248a7cd67050da14ebfbaa15b2401ccce5f8e3ce900eae7d6a6228"
+      }
+    }
+  }
+}

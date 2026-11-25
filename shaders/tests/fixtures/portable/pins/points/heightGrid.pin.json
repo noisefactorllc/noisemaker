@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#points/heightGrid",
+  "resolution": [
+    96,
+    80
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 96,
+        "height": 80,
+        "nonzeroRgbPixels": 3119,
+        "uniqueColors": 1088,
+        "alpha": [
+          0,
+          162
+        ],
+        "sha256": "5e5c2c14e4919add581b5669ce6c192ba74657e7e679d5ef2ef730a317f09f9d"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 96,
+        "height": 80,
+        "nonzeroRgbPixels": 3119,
+        "uniqueColors": 1088,
+        "alpha": [
+          0,
+          162
+        ],
+        "sha256": "f4c4c0c17ebe31de94daf1087752621c3922fa0e62cdcc2cafdded09d19e2e36"
+      }
+    }
+  }
+}

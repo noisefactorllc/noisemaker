@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#mixer/centerMask",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4095,
+        "uniqueColors": 3757,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "787c088ac8941215320a4a1425be1c733e6ba2ed102c4cd623dfef8e8649184f"
+      },
+      "webgpu": {
+        "surface": "global_o1_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4095,
+        "uniqueColors": 3757,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "788a38342a4ab79f8c4067dbb795d995caf989bb49658196dd128c61f51defe0"
+      }
+    }
+  }
+}

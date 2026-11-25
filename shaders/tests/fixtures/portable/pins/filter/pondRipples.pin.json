@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/pondRipples",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4096,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "1ef22ba25d762eca4a33013847d496011c24b7df01a1043706fc0381708c1cb4"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4096,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "b0760e6f5eccdf8db518d4091b3c1a83fda1a1dec124b981658f0af3cb35253d"
+      }
+    }
+  }
+}

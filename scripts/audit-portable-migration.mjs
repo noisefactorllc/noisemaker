@@ -15,6 +15,8 @@
  *   node scripts/audit-portable-migration.mjs --record --consumers
  *   node scripts/audit-portable-migration.mjs --check
  *   node scripts/audit-portable-migration.mjs --realms --versions <published versions>
+ *   node scripts/audit-portable-migration.mjs --pins (--record | --check) [--effects <IDs>]
+ *   node scripts/audit-portable-migration.mjs --perf (--record [--replace-budgets] | --check) [--effects <IDs>]
  *
  * `--record` reads the reference release's `deployment-meta.json` and
  * `SHA256SUMS`. `--check` reads no network: it compares the committed tree
@@ -26,7 +28,9 @@
  */
 
 import { execFileSync, spawnSync } from 'node:child_process'
+import { matchesTargetEffectPass } from './lib/shader-parity-attestation.mjs'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -35,6 +39,9 @@ export const BASELINE_RELATIVE = 'shaders/tests/fixtures/portable/catalog-baseli
 export const WAVES_RELATIVE = 'shaders/tests/fixtures/portable/waves.json'
 export const SHADE_PROJECTION_RELATIVE = 'shaders/tests/fixtures/portable/consumers/shade-projection.json'
 export const LAYERS_SOURCE_RELATIVE = 'shaders/tests/fixtures/portable/consumers/layers-source.json'
+export const RENDER_CASES_RELATIVE = 'shaders/tests/fixtures/portable/render-cases.json'
+export const PINS_RELATIVE = 'shaders/tests/fixtures/portable/pins'
+const PIN_TOOL_RELATIVE = 'shaders/scripts/pin-effect-pixels.mjs'
 export const REFERENCE_ORIGIN = 'https://shaders.noisedeck.app'
 export const MAIN_REF = 'origin/main'
 export const LINE_REF = 'origin/2.x'
@@ -822,13 +829,366 @@ async function runRealm({ coreUrl, options, packages }) {
     return out
 }
 
+/** An effect's pin baseline: `pins/<namespace>/<name>.pin.json`. */
+export function pinPath(repo, id) {
+    return path.join(repo, PINS_RELATIVE, `${id}.pin.json`)
+}
+
+// A software rasterizer is not qualified GPU hardware (Section 1 of the plan):
+// a pin or a budget recorded on one would gate nothing real.
+const SOFTWARE_GPU = /swiftshader|llvmpipe|softpipe|software|microsoft basic render/i
+
+function runPinTool(repo, caseFile, id, flag, file, extra = []) {
+    const result = spawnSync(process.execPath, [path.join(repo, PIN_TOOL_RELATIVE), '--case', caseFile, '--entry', id, flag, file, ...extra],
+        { cwd: repo, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+    const output = `${result.stdout || ''}${result.stderr || ''}`.trim().split('\n')
+    const gpu = (result.stdout || '').match(/^Wrote .* for (.+)$/m)?.[1] ?? null
+    return { ok: result.status === 0, detail: output.slice(-4).join(' | '), gpu }
+}
+
+/**
+ * The IDs a pin or performance run renders, and the problems found before any
+ * render: an ID of the baseline with no render case (on a whole run), and a
+ * listed ID with no render case.
+ */
+export function pinTargets({ baselineIds, cases, listed }) {
+    const problems = []
+    if (!listed) problems.push(...baselineIds.filter(id => !cases[id]).map(id => `${id} has no render case`))
+    for (const id of listed ?? []) if (!cases[id]) problems.push(`${id} is listed and has no render case`)
+    const targets = (listed ?? Object.keys(cases).sort(compareIds)).filter(id => cases[id])
+    return { targets, problems }
+}
+
+let compilerReady = null
+
+/**
+ * Registers every effect of the tree, its enums and the starter ops, as the
+ * renderer's loadManifest() and loaders do, so that a render case's program
+ * compiles in Node.
+ */
+async function prepareCompiler(repo) {
+    compilerReady ??= (async () => {
+        const url = file => pathToFileURL(path.join(repo, file)).href
+        const index = await import(url('shaders/src/index.js'))
+        const { mergeIntoEnums } = await import(url('shaders/src/lang/enums.js'))
+        const { stdEnums } = await import(url('shaders/src/lang/std_enums.js'))
+        const { isStarterEffect } = await import(url('shaders/src/renderer/canvas.js'))
+        const renderer = new index.CanvasRenderer({ basePath: pathToFileURL(path.join(repo, 'shaders')).href })
+        const manifest = readManifest(repo)
+        const starters = []
+        const quiet = console.error
+        for (const id of treeEffectIds(repo)) {
+            const [namespace, name] = id.split('/')
+            console.error = () => {}
+            let effect
+            try { effect = await renderer.loadEffectDefinition(namespace, name) } finally { console.error = quiet }
+            const choices = renderer.registerEffectWithRuntime(effect)
+            if (choices) await mergeIntoEnums(choices)
+            // The loader also counts as a starter an effect whose passes read no pipeline input.
+            if (isStarterEffect(effect)) starters.push(name, `${namespace}.${name}`)
+        }
+        await mergeIntoEnums(stdEnums)
+        index.registerStarterOps([...Object.entries(manifest).filter(([, entry]) => entry.starter).flatMap(([id]) => [id.split('/')[1], id.replace('/', '.')]), ...starters])
+        return { compile: index.compile, getEffect: index.getEffect }
+    })()
+    return compilerReady
+}
+
+/**
+ * What a render case's program sets, read from its compiled plan: every seed
+ * of every step whose effect has one, defaults included, and the arguments the
+ * program gives each step of the target. A program that does not compile, or
+ * that never runs the target, is a problem.
+ */
+export async function describeCase(repo, id, renderCase) {
+    const { compile, getEffect } = await prepareCompiler(repo)
+    const compiled = compile(renderCase.dsl)
+    const errors = (compiled.diagnostics || []).filter(diagnostic => diagnostic.severity === 'error')
+    if (errors.length) throw new Error(`its program does not compile: ${errors.map(error => `${error.code} ${error.message}`).join('; ')}`)
+    const target = id.replace('/', '.')
+    const steps = compiled.plans.flatMap(plan => plan.chain)
+    const seeds = steps.filter(step => getEffect(step.op)?.globals?.seed && step.args?.seed !== undefined).map(step => [step.op, step.args.seed])
+    // Each argument the program sets on the target, by its resolved value.
+    const parameters = steps.filter(step => step.op === target)
+        .map(step => serializeArgs(Object.fromEntries(Object.keys(step.rawKwargs || {}).map(key => [key, step.args?.[key]]))))
+    if (!parameters.length) throw new Error(`its program never runs ${target}`)
+    return { seeds, parameters }
+}
+
+/** The diagnostics of errors in a program, compiled as the renderer compiles it. */
+export async function programErrors(repo, dsl) {
+    const { compile } = await prepareCompiler(repo)
+    return (compile(dsl).diagnostics || []).filter(diagnostic => diagnostic.severity === 'error').map(error => `${error.code} ${error.message}`)
+}
+
+function serializeArgs(args) {
+    return JSON.parse(JSON.stringify(args, (key, value) => (value && typeof value === 'object' && value.kind === 'output' ? `read(${value.name})` : value)))
+}
+
+function gpuOf(pinFile) {
+    const gpus = Object.keys(pinFile.baselines || {})
+    return gpus.length === 1 ? gpus[0] : null
+}
+
+function sameFrames(a, b) {
+    return a.webgl2.sha256 === b.webgl2.sha256 || a.webgpu.sha256 === b.webgpu.sha256
+}
+
+/**
+ * `--pins --record` and `--pins --check`, with `--effects <IDs>` to limit
+ * either to the listed IDs. Each case renders on both backends through the pin
+ * tool, and each backend is compared with its own pin for this GPU, byte for
+ * byte. A check fails on a case with no baseline for this GPU, and on a blank
+ * frame.
+ *
+ * A record writes each pin to a temporary file, renders the case a second time
+ * and checks it against that file, and only then moves it into place. It
+ * refuses a software rasterizer. It renders the case's control (its program
+ * without the target, or null for a case whose target makes the frame) and
+ * requires a different frame on both backends. Then it writes what the case
+ * observes into render-cases.json: its seeds and parameters from the compiled
+ * program, and its expected alpha from the pin.
+ */
+export async function pins(repo, { mode, listed, log = () => {} }) {
+    const casesFile = path.join(repo, RENDER_CASES_RELATIVE)
+    const baseline = readJson(path.join(repo, BASELINE_RELATIVE))
+    const doc = readJson(casesFile)
+    const cases = doc.cases
+    const { targets, problems } = pinTargets({ baselineIds: baseline.effectIds, cases, listed })
+    const rendered = []
+    const scratch = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'portable-pins-'))
+    try {
+        for (const id of targets) {
+            const file = pinPath(repo, id)
+            const fail = reason => { problems.push(`${id}: ${reason}`); log(`FAILED ${id}`) }
+            if (mode === 'check') {
+                if (!fs.existsSync(file)) { fail(`it has no pin baseline (${path.relative(repo, file)})`); continue }
+                const checked = runPinTool(repo, casesFile, id, '--check', file)
+                if (!checked.ok) { fail(checked.detail); continue }
+                rendered.push(id)
+                log(`ok ${id}`)
+                continue
+            }
+            const renderCase = cases[id]
+            let described
+            try { described = await describeCase(repo, id, renderCase) } catch (err) { fail(err.message); continue }
+            const temporary = path.join(scratch, `${id.replace('/', '__')}.pin.json`)
+            if (fs.existsSync(file)) fs.copyFileSync(file, temporary)
+            const written = runPinTool(repo, casesFile, id, '--out', temporary)
+            if (!written.ok) { fail(`no pin was recorded: ${written.detail}`); continue }
+            const repeated = runPinTool(repo, casesFile, id, '--check', temporary)
+            if (!repeated.ok) { fail(`a repeat render differs from the pin just recorded: ${repeated.detail}`); continue }
+            const pinFile = readJson(temporary)
+            const gpu = written.gpu
+            if (!gpu || !pinFile.baselines?.[gpu]) { fail('the pin tool did not name the GPU it recorded'); continue }
+            if (SOFTWARE_GPU.test(gpu)) { fail(`its GPU is a software rasterizer: ${gpu}`); continue }
+            const frames = pinFile.baselines[gpu]
+            if (renderCase.control === undefined) { fail('it declares no control (a program without the target, or null)'); continue }
+            if (renderCase.control !== null) {
+                const controlFile = path.join(scratch, `${id.replace('/', '__')}.control.json`)
+                writeJson(controlFile, { cases: { [id]: { ...renderCase, dsl: renderCase.control } } })
+                const controlPin = path.join(scratch, `${id.replace('/', '__')}.control.pin.json`)
+                const control = runPinTool(repo, controlFile, id, '--out', controlPin, ['--allow-blank'])
+                if (!control.ok) { fail(`its control does not render: ${control.detail}`); continue }
+                const controlFrames = readJson(controlPin).baselines[control.gpu]
+                if (sameFrames(frames, controlFrames)) { fail('its frame equals its control\'s, so the case does not show its target'); continue }
+            }
+            fs.mkdirSync(path.dirname(file), { recursive: true })
+            fs.renameSync(temporary, file)
+            Object.assign(renderCase, described, { expectedAlpha: { webgl2: frames.webgl2.alpha, webgpu: frames.webgpu.alpha } })
+            rendered.push(id)
+            log(`ok ${id}`)
+        }
+    } finally {
+        fs.rmSync(scratch, { recursive: true, force: true })
+    }
+    for (const id of listed ?? []) {
+        if (!rendered.includes(id) && !problems.some(problem => problem.startsWith(`${id} `) || problem.startsWith(`${id}:`))) problems.push(`${id} was listed and not rendered`)
+    }
+    if (mode === 'record' && rendered.length) writeJson(casesFile, doc)
+    return { rendered, problems }
+}
+
+// The performance policy, frozen with the cases: a case's median frame time on
+// a backend may not exceed its budget, which is this factor times the largest
+// median of the recording's rounds, and never less than the floor. A frame is
+// one stepFrame() of the stopped loop: one simulation step for a stateful
+// effect. The round medians are evidence, so only the budgets are stored.
+export const PERF_POLICY = Object.freeze({ warmupFrames: 10, measuredFrames: 30, rounds: 3, frame: 'stepFrame', budgetFactor: 3, budgetFloorMs: 2 })
+
+/** A case's budget from its recorded round medians, by the frozen policy. */
+export function perfBudget(roundMediansMs, policy = PERF_POLICY) {
+    const worst = Math.max(...roundMediansMs)
+    return Math.round(Math.max(policy.budgetFloorMs, worst * policy.budgetFactor) * 100) / 100
+}
+
+function median(values) {
+    const sorted = [...values].sort((a, b) => a - b)
+    const mid = Math.floor(sorted.length / 2)
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+}
+
+/** Runs inside a page: one case on one backend, set up as the pin tool sets it up, then timed frame by frame. */
+async function perfInPage({ baseUrl, pinCase, preferWebGPU, policy, matchesSource }) {
+    const matchesTargetEffectPass = new Function(`return ${matchesSource}`)()
+    const canvas = document.createElement('canvas')
+    canvas.width = pinCase.resolution[0]
+    canvas.height = pinCase.resolution[1]
+    document.body.appendChild(canvas)
+    const { CanvasRenderer } = await import(`${baseUrl}/shaders/src/index.js`)
+    const renderer = new CanvasRenderer({ canvas, width: canvas.width, height: canvas.height, basePath: `${baseUrl}/shaders`, preferWebGPU })
+    await renderer.loadManifest()
+    await renderer.loadEffects(pinCase.effects)
+    if (pinCase.audio === 'ramps') {
+        const audio = renderer.setAudioState()
+        audio.waveform.set(Float32Array.from({ length: 128 }, (_, i) => i / 127))
+        audio.spectrum.set(Float32Array.from({ length: 128 }, (_, i) => (127 - i) / 127))
+    }
+    if (pinCase.midiNotes?.length) {
+        const midi = renderer.setMidiState()
+        pinCase.midiNotes.forEach((held, index) => midi.channels[held.channel].noteOn(held.note, held.velocity, { time: 0, order: index + 1 }))
+    }
+    await renderer.compile(pinCase.dsl)
+    renderer.stop()
+    await renderer.render(0)
+    for (const texture of pinCase.textureInputs || []) {
+        const source = document.createElement('canvas')
+        source.width = texture.width
+        source.height = texture.height
+        source.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(texture.data), texture.width, texture.height), 0, 0)
+        const passes = renderer.pipeline.graph.passes.filter(pass => matchesTargetEffectPass(pass, texture.effect))
+        if (!passes.length) throw new Error(`Texture fixture has no executing effect: ${texture.effect}`)
+        for (const pass of passes) renderer.updateTextureFromSource(pass.inputs?.[texture.uniform], source, { flipY: false })
+    }
+    for (const mesh of pinCase.meshInputs || []) {
+        const loaded = await renderer.loadOBJFromURL(`${baseUrl}/${mesh.path}`, mesh.mesh)
+        if (!loaded.success) throw new Error(`Mesh fixture did not load: ${mesh.path}`)
+    }
+    const backend = renderer.pipeline.backend
+    const gl = backend.gl
+    const sync = async () => {
+        if (backend.device?.queue?.onSubmittedWorkDone) return backend.device.queue.onSubmittedWorkDone()
+        if (gl) gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4))
+    }
+    const step = async () => { await renderer.stepFrame(); await sync() }
+    for (let i = 0; i < policy.warmupFrames; i++) await step()
+    const rounds = []
+    for (let r = 0; r < policy.rounds; r++) {
+        const times = []
+        for (let i = 0; i < policy.measuredFrames; i++) {
+            const t0 = performance.now()
+            await step()
+            times.push(performance.now() - t0)
+        }
+        rounds.push(times)
+    }
+    const probe = document.createElement('canvas').getContext('webgl2')
+    const info = probe?.getExtension('WEBGL_debug_renderer_info')
+    return { backend: backend.getName(), gpu: info ? probe.getParameter(info.UNMASKED_RENDERER_WEBGL) : '', rounds }
+}
+
+/**
+ * `--perf --record` and `--perf --check`: each case's frame time on each
+ * backend, by the frozen policy, in one browser session. A record stores each
+ * case's budgets and the GPU they were measured on, and writes nothing unless
+ * every case was measured; it refuses to replace budgets that exist unless
+ * `replace` is set (`--replace-budgets`). A check refuses another GPU or
+ * another policy, and fails a case whose median exceeds its budget. The
+ * measurements themselves are returned, as evidence, and are not stored.
+ */
+export async function perf(repo, { mode, listed, replace = false, log = () => {} }) {
+    const casesFile = path.join(repo, RENDER_CASES_RELATIVE)
+    const doc = readJson(casesFile)
+    const { targets, problems } = pinTargets({ baselineIds: readJson(path.join(repo, BASELINE_RELATIVE)).effectIds, cases: doc.cases, listed })
+    if (mode === 'check' && JSON.stringify(doc.performancePolicy) !== JSON.stringify(PERF_POLICY)) {
+        return { measured: [], measurements: {}, problems: [`render-cases.json holds the performance policy ${JSON.stringify(doc.performancePolicy ?? null)}, and this tool measures by ${JSON.stringify(PERF_POLICY)}`] }
+    }
+    if (mode === 'record' && !replace) {
+        const existing = targets.filter(id => doc.cases[id].performance)
+        if (existing.length) return { measured: [], measurements: {}, problems: [`budgets exist for ${existing.length} of the listed cases (first ${existing[0]}); replacing frozen budgets needs --replace-budgets`] }
+    }
+    process.env.SHADE_EFFECTS_DIR = path.join(repo, 'shaders/effects')
+    process.env.SHADE_PROJECT_ROOT = repo
+    const { acquireServer, releaseServer } = await import(pathToFileURL(path.join(repo, 'vendor/shade-mcp/harness/index.js')).href)
+    const { chromium } = await import('playwright')
+    const baseUrl = await acquireServer(undefined, repo, path.join(repo, 'shaders/effects'))
+    const browser = await chromium.launch({ headless: true, args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan', process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=vulkan'] })
+    const measured = []
+    const measurements = {}
+    const recorded = {}
+    try {
+        for (const id of targets) {
+            const pinCase = doc.cases[id]
+            const result = {}
+            let gpu = null
+            const started = new Date().toISOString()
+            try {
+                for (const [name, preferWebGPU] of [['webgl2', false], ['webgpu', true]]) {
+                    const page = await browser.newPage({ viewport: { width: pinCase.resolution[0], height: pinCase.resolution[1] } })
+                    const errors = []
+                    page.on('pageerror', error => errors.push(error.message))
+                    try {
+                        await page.goto(`${baseUrl}/shaders/effects/manifest.json`)
+                        const run = await page.evaluate(perfInPage, { baseUrl, pinCase, preferWebGPU, policy: PERF_POLICY, matchesSource: matchesTargetEffectPass.toString() })
+                        if (run.backend.toLowerCase() !== name) throw new Error(`expected ${name}, ran ${run.backend}`)
+                        if (errors.length) throw new Error(`page errors: ${errors.join('; ')}`)
+                        if (!run.gpu || SOFTWARE_GPU.test(run.gpu)) throw new Error(`not a qualified GPU: ${run.gpu || 'unidentified'}`)
+                        if (gpu && run.gpu !== gpu) throw new Error(`the backends report different GPUs: ${gpu}, ${run.gpu}`)
+                        gpu = run.gpu
+                        result[name] = run.rounds.map(times => Math.round(median(times) * 1000) / 1000)
+                    } finally {
+                        await page.close()
+                    }
+                }
+            } catch (err) {
+                problems.push(`${id}: ${String(err?.message || err).split('\n')[0]}`)
+                log(`FAILED ${id}`)
+                continue
+            }
+            measurements[id] = { gpu, started, ended: new Date().toISOString(), roundMediansMs: result }
+            if (mode === 'record') {
+                recorded[id] = { gpu, ...Object.fromEntries(Object.entries(result).map(([name, medians]) => [name, { budgetMs: perfBudget(medians) }])) }
+            } else {
+                const budgets = pinCase.performance
+                if (!budgets) problems.push(`${id}: it has no recorded budgets`)
+                else if (budgets.gpu !== gpu) problems.push(`${id}: its budgets were measured on ${budgets.gpu}, and this GPU is ${gpu}`)
+                else {
+                    for (const [name, medians] of Object.entries(result)) {
+                        const budget = budgets[name]?.budgetMs
+                        const now = median(medians)
+                        if (budget === undefined) problems.push(`${id}: no ${name} budget is recorded`)
+                        else if (now > budget) problems.push(`${id}: the ${name} median frame time ${now} ms exceeds its budget ${budget} ms`)
+                    }
+                }
+            }
+            measured.push(id)
+            log(`ok ${id} ${started} ${measurements[id].ended} ${JSON.stringify(result)}`)
+        }
+    } finally {
+        await browser.close()
+        releaseServer()
+    }
+    if (mode === 'record' && problems.length === 0) {
+        for (const [id, budgets] of Object.entries(recorded)) doc.cases[id].performance = budgets
+        doc.performancePolicy = { ...PERF_POLICY }
+        writeJson(casesFile, doc)
+    }
+    return { measured, measurements, problems }
+}
+
 function parseArgs(argv) {
-    const args = { mode: null, effects: [], commit: null, reason: null, reference: null, versions: [], replace: false, consumers: false }
+    const args = { mode: null, effects: [], commit: null, reason: null, reference: null, versions: [], replace: false, consumers: false, pins: false, perf: false, replaceBudgets: false, effectsGiven: false }
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i]
         if (arg === '--record' || arg === '--check' || arg === '--realms') {
             if (args.mode && args.mode !== arg.slice(2)) throw new Error('Give one of --record, --check and --realms')
             args.mode = arg.slice(2)
+        } else if (arg === '--pins') {
+            args.pins = true
+        } else if (arg === '--perf') {
+            args.perf = true
+        } else if (arg === '--replace-budgets') {
+            args.replaceBudgets = true
         } else if (arg === '--replace-baseline') {
             args.replace = true
         } else if (arg === '--consumers') {
@@ -837,6 +1197,7 @@ function parseArgs(argv) {
             if (argv[i + 1] === undefined) throw new Error('--versions needs a value')
             args.versions.push(...argv[++i].split(',').filter(Boolean))
         } else if (arg === '--effects') {
+            args.effectsGiven = true
             while (argv[i + 1] && !argv[i + 1].startsWith('--')) args.effects.push(...argv[++i].split(',').filter(Boolean))
         } else if (arg === '--commit' || arg === '--reason' || arg === '--reference') {
             if (argv[i + 1] === undefined) throw new Error(`${arg} needs a value`)
@@ -846,6 +1207,15 @@ function parseArgs(argv) {
         }
     }
     if (!args.mode) throw new Error('Give --record, --check or --realms')
+    if (args.effectsGiven && !args.effects.length) throw new Error('--effects needs at least one effect ID')
+    if (args.replaceBudgets && !(args.perf && args.mode === 'record')) throw new Error('--replace-budgets goes with --perf --record')
+    if (args.pins && args.perf) throw new Error('Give one of --pins and --perf')
+    if (args.pins || args.perf) {
+        if (args.mode === 'realms' || args.commit || args.reason || args.reference || args.versions.length || args.replace || args.consumers) {
+            throw new Error('--pins and --perf go with --record or --check, and take only --effects')
+        }
+        return args
+    }
     if (args.mode === 'check' && (args.effects.length || args.commit || args.reason || args.reference || args.versions.length)) throw new Error('--check takes no other argument')
     if (args.mode === 'realms' && (args.effects.length || args.commit || args.reason || args.reference)) throw new Error('--realms takes only --versions')
     if (args.mode === 'realms' && !args.versions.length) throw new Error('--realms needs --versions <published versions>')
@@ -868,7 +1238,23 @@ async function main() {
         process.exit(2)
     }
     try {
-        if (args.mode === 'check') {
+        if (args.perf) {
+            const { measured, problems } = await perf(REPO_ROOT, { mode: args.mode, listed: args.effects.length ? args.effects : null, replace: args.replaceBudgets, log: line => console.log(line) })
+            if (problems.length) {
+                console.error(`The performance ${args.mode === 'record' ? 'was not measured for every case' : 'budgets do not hold'}:`)
+                for (const problem of problems) console.error(`  - ${problem}`)
+                process.exit(1)
+            }
+            console.log(`${args.mode === 'record' ? 'Measured and froze the budgets of' : 'Checked the budgets of'} ${measured.length} render cases on both backends`)
+        } else if (args.pins) {
+            const { rendered, problems } = await pins(REPO_ROOT, { mode: args.mode, listed: args.effects.length ? args.effects : null, log: line => console.log(line) })
+            if (problems.length) {
+                console.error(`The pins ${args.mode === 'record' ? 'were not all recorded' : 'do not hold'} (${problems.length} of the run's IDs):`)
+                for (const problem of problems) console.error(`  - ${problem}`)
+                process.exit(1)
+            }
+            console.log(`${args.mode === 'record' ? 'Recorded and repeated' : 'Checked'} the pins of ${rendered.length} render cases on both backends`)
+        } else if (args.mode === 'check') {
             const problems = await check(REPO_ROOT)
             if (problems.length) {
                 console.error(`The catalog fails its baseline (${BASELINE_RELATIVE}):`)

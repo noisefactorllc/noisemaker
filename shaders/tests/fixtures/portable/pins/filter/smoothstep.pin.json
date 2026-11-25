@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/smoothstep",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3893,
+        "uniqueColors": 2849,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "82efdfd68b9d2790be257aad25e80db5c57aa8e6d1e39ba1ad740e3a36507164"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3893,
+        "uniqueColors": 2849,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "692f48ecd8ba67a950faaea513ddba1365a221674b5363eb242d03ea59962a64"
+      }
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter3d/flow3d",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 81,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "a1643e9c028df9adc46c31699811103ccf02a3691e58e81791dcfb9f69039e2d"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 81,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "0b163003435c2c927495856d1a7875536ac694c0b8f733fd07c8f3f6d5cddefb"
+      }
+    }
+  }
+}

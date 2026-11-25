@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#synth/mandala",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 11,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "f06ec2dc80b60d9e93f498834d297f9a0cb0c49d5ce6f9aa5a8bcc7faca0e529"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 11,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "633196da53773dad9b6a32d4f7348ea7fe7d1bdda963e4f25c6cacdb1fc10761"
+      }
+    }
+  }
+}

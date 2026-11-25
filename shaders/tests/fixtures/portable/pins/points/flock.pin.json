@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#points/flock",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3785,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "f4d4fb3e5ff263113c046c84d4f042b4544d731f80932dfe1ea6cd2d08942638"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3785,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "a17667d4e081d20887f98af10eed83d7cb49f8596f3a8b0b256c920264d7c8dd"
+      }
+    }
+  }
+}

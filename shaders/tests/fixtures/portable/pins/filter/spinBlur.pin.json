@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/spinBlur",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4008,
+        "uniqueColors": 1072,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "fd6282fd225ca5e267e5522383a2d4ed199ae48857d4591ad14bff9304d82b28"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4008,
+        "uniqueColors": 1072,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "8505b18dafe69a75efa03b4bba3027d72eefc0312a64423374542f76daea41ec"
+      }
+    }
+  }
+}

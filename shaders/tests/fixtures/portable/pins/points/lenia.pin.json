@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#points/lenia",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4095,
+        "uniqueColors": 3763,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "b849ea72a7fc33d74a99b528e82027911e34f6fa3506e020c54b5114aec01cea"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4095,
+        "uniqueColors": 3763,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "8a2275a6306021c73bd8bb646fdf4da52fffe9023609662ba73f5e4824a3d2a5"
+      }
+    }
+  }
+}

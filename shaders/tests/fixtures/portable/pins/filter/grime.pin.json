@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/grime",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4096,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "c1322f3a79c5db330e4f1aae8526f40b55875dd23c8804e501010e12877bc96c"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4096,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "5069fadc0cf4d17ab2c36d048e85aa32774eeeb3604b7a5ee3751dec26408882"
+      }
+    }
+  }
+}

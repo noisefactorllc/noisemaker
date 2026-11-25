@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/simpleAberration",
+  "resolution": [
+    128,
+    128
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 128,
+        "height": 128,
+        "nonzeroRgbPixels": 16384,
+        "uniqueColors": 16362,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "0b8c52d7d995c6cfa2712729f52b541c03a6bcfd3922a51ae9950c06073eeb81"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 128,
+        "height": 128,
+        "nonzeroRgbPixels": 16384,
+        "uniqueColors": 16362,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "8f59ea999a6e50965fdec41a47abc5ddbc32a665828678d5faa8458cf8e67b6b"
+      }
+    }
+  }
+}

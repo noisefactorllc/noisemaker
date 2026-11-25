@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/octaveWarp",
+  "resolution": [
+    64,
+    48
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 48,
+        "nonzeroRgbPixels": 3072,
+        "uniqueColors": 2639,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "196ea0cd0d2b361ca8d7608857ae451871e52a70dcb4856cde0aeaa07b8988eb"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 48,
+        "nonzeroRgbPixels": 3072,
+        "uniqueColors": 2639,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "6b2cb62258afbd3ad6114690dd5430935bb1d993edcdb42bd4c32c67dc7fa348"
+      }
+    }
+  }
+}

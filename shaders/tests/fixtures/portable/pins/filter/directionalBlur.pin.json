@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/directionalBlur",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3645,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "e415c129a8a701b75695b38ba0da0a324cbe332ca40c29e0c86eef374cc42664"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3645,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "edeb12edf4ed4d8a61f9e7ce8ab338909e8f067571291999bf1fdccc1682ad2e"
+      }
+    }
+  }
+}

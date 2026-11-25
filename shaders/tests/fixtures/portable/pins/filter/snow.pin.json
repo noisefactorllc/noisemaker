@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/snow",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4094,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "91082b4ec38f1e0524676ced2bfcfac6a19987fccbc804fbadde2918d14586fe"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4094,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "eab8842bd48c8e62d1587bc5a87c4da6d68daad133a1faa88810600e2890c82f"
+      }
+    }
+  }
+}

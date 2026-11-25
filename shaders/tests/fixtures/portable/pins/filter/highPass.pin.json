@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/highPass",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3591,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "6827419b5007caf01f974da8b3933e6793e1cf3a443f32a2363c7393d399365a"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3591,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "2060ebe8f998c09fe20c33873ee86116144e5a979f1f81968e63e46aec13e586"
+      }
+    }
+  }
+}

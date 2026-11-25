@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/temporalAberration",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4096,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "d3f3ba174a7ed8f5c958bdd0eb1faaa72e5c6564eeaf3308cfffe8ee53799823"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4096,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "fafbc8093157e6dda1f46fae63ada767f922cba880f418bd9c7079fe610745bb"
+      }
+    }
+  }
+}

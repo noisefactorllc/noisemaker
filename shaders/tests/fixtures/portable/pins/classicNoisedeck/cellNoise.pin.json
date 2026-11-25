@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#classicNoisedeck/cellNoise",
+  "resolution": [
+    256,
+    128
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 256,
+        "height": 128,
+        "nonzeroRgbPixels": 32768,
+        "uniqueColors": 1056,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "d4e845b6340f9154c268a3604c6ca7dcd8b8accf1156bc5a4d9bc456670c7a06"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 256,
+        "height": 128,
+        "nonzeroRgbPixels": 32768,
+        "uniqueColors": 1056,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "38387bb73852e9e26657dd4714a2626cc4a2b3292305d5c253ddedfe455d15b3"
+      }
+    }
+  }
+}

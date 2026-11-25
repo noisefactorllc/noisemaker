@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#classicNoisedeck/bitEffects",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1054,
+        "uniqueColors": 251,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "4b5f55a1a815aaad06003e47ef19ccf445283a2f3731333180997bb07785914a"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 1054,
+        "uniqueColors": 251,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "ca496ac3ee0a361880f0203c093fdcbd138ef95ab31301abb4cad8df84959b95"
+      }
+    }
+  }
+}

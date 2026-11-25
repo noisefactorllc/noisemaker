@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/motionBlur",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4091,
+        "alpha": [
+          153,
+          153
+        ],
+        "sha256": "0287ed0da76eeabc7723f099abd99e27360bf6f005f84bf10e9d3880499d4d9d"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4091,
+        "alpha": [
+          153,
+          153
+        ],
+        "sha256": "a9411c3bf284e2c4d76abc25e83c7636b8f4582ea5ff9306981442e32f4e0422"
+      }
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/fibers",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3766,
+        "uniqueColors": 1628,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "4bd38e5d02a1155a567da4c189145f90e7ce59b5cdd8456278155852740eb689"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3766,
+        "uniqueColors": 1628,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "b4b4aa27bb995aec8997fd8dd62d1e8b88fa036136bde952a8c03e78a2f9b2cc"
+      }
+    }
+  }
+}

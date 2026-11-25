@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#synth3d/fractal3d",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 467,
+        "uniqueColors": 130,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "12ad7f9544dcbe491b5341af1cfb39ff5ab5be68d3a4324f6f5981db3f0cf987"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 467,
+        "uniqueColors": 130,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "6959716f5c9e9deda0c3632a6b209cd268999e369cd55e8f35142e8e85433e91"
+      }
+    }
+  }
+}

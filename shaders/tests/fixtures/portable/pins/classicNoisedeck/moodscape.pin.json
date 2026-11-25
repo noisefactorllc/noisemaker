@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#classicNoisedeck/moodscape",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3903,
+        "uniqueColors": 2133,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "65193254139714a9b0c85f376c5d0621e1c82190baec6b8b8d1f0b8ff1d270b5"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3903,
+        "uniqueColors": 2133,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "64380c73b439aa5ffb259d69fdc456bc31e5b71579bb5bf6df10af3066f0a016"
+      }
+    }
+  }
+}

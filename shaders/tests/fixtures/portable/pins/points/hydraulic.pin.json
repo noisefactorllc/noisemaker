@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#points/hydraulic",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3744,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "548decac5a12a658f1f9bc42a299297951a4b6a5d6a236cc25ad3bc30602a0f2"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3744,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "42c929081dca2fb90231b1aabf9d0a6824e5ff5c9fd120aa3c7acc1ffefaa4a0"
+      }
+    }
+  }
+}

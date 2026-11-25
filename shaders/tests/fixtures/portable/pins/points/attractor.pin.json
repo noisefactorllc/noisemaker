@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#points/attractor",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4095,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "eef6632f5981c70027b13c62ecd24d8168c9a0b865f44553063308905d82b8b1"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4095,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "b505b6b3095191088f4c7d7294c9be957051d1a757788f1182f19fd5c7088f99"
+      }
+    }
+  }
+}

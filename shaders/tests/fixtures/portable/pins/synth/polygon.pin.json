@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#synth/polygon",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 332,
+        "uniqueColors": 6,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "089a3d4dd3a5c37d2ce2c10e820e192c82b8bf44383e672563a4d51df9b658a8"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 332,
+        "uniqueColors": 6,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "ef88a5f7b453d0ad2f80d978ec96d3da8884cfac9c6332091a403135c054360c"
+      }
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/craquelure",
+  "resolution": [
+    128,
+    128
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 128,
+        "height": 128,
+        "nonzeroRgbPixels": 16384,
+        "uniqueColors": 15506,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "86fa67bdd8515dde0349dfa89a17dd315ebddc04cc33cae476143f2d40457102"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 128,
+        "height": 128,
+        "nonzeroRgbPixels": 16384,
+        "uniqueColors": 15506,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "f51dc527f1ccc8bc5e5ad5ba62253e6adc11a2b14d5452cacc873de2453615b9"
+      }
+    }
+  }
+}

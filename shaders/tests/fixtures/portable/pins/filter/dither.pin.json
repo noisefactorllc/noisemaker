@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/dither",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3955,
+        "uniqueColors": 64,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "8f8e080942244c14b1901651b2f52d561f3c9b521092e7986a370bf1a88a1e0f"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3955,
+        "uniqueColors": 64,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "08507d8388e3bf88c6bdfb0509f82f74ad593bbebb16eac405a4642c16dc5306"
+      }
+    }
+  }
+}

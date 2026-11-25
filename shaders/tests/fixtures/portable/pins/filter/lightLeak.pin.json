@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/lightLeak",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4095,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "699ae5e7fe8fd9969c7c0a1b353e883b2f98449e98b7c9131585569621bc771e"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4095,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "f693e10a35251a4dd02879397eb5a830d82e70951fad2d146665b72fceaea2f3"
+      }
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/vignette",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4091,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "3eaef858aa4b69a812302fbea2b9026a63d2633d39ab8d3ae529f495f00d389a"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4091,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "2cbcceedd45b7283816a6a88d03270b0f86fe63462f6f48080313576c6aa709a"
+      }
+    }
+  }
+}

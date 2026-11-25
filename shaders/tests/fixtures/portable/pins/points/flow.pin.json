@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#points/flow",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3752,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "431df025a63819a19ca0c88de3d7deba91d5dbd20d667c4c7845eaf45c97b983"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3752,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "d424d0b4ae67162528965ca0de59068b40f7243205bf6bc7567d22f61ace903c"
+      }
+    }
+  }
+}

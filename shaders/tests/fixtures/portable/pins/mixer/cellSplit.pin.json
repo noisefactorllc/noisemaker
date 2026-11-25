@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#mixer/cellSplit",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3690,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "b2165a9d127948354221dc7c7ead10cd3e36105ce0a7ddcc7784da4d79e28fbe"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3690,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "8aac40f62da803e94d3a67df413ca38e5485c68fdc4910013c8a76860c585081"
+      }
+    }
+  }
+}

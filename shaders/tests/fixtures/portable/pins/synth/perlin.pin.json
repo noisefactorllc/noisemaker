@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#synth/perlin",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3756,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "fd57621961709d37c76fa1fc2766875ca6d645d5d0bd056e1ce478b599f17dcb"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 3756,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "818ee5b3ab3100e309a0907ff1cead5569515df62106b3b2f3be3858a2bcb3a0"
+      }
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/clouds",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3885,
+        "uniqueColors": 1331,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "af3fe8bf7b5949798208046b4a9e6cab87e4bc61493d0bae7fed55bf005bdf42"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3885,
+        "uniqueColors": 1331,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "84d9f50e811be4c09e78de84010db0a1212b0002720476b87935c7724fd1fc8e"
+      }
+    }
+  }
+}

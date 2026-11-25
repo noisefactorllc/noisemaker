@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#mixer/distortion",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 49,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "eaa6238bfde0e61e2bb7ad5c68f7d5ed3d1a618d3d493751d70d706a62794fed"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 49,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "53e834e63d258704a679f8d0edaf1428f482c8929b088c827d38efad2b1c3b52"
+      }
+    }
+  }
+}

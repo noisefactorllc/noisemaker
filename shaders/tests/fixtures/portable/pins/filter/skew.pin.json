@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/skew",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3596,
+        "uniqueColors": 8,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "1fec5497542dccd417c9917ea7a5c6f2ca42a41bd157faa335a17576450939fb"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3596,
+        "uniqueColors": 8,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "3b8494fe4236281cec8d1a44a87017e7ac289515193e76c0003043b6d2e8e1cf"
+      }
+    }
+  }
+}

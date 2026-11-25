@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/emboss",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 138,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "fa3786eaf9ac8b261c447d52225261dbe9e9df2d624ccb592f0dd5de8ac1ddf5"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 138,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "c2d483fbee7e4422cf5832c8227a1b50a283f595338d002dbc9ef8143b1a45d5"
+      }
+    }
+  }
+}

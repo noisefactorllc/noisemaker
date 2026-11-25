@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#render/pointsBillboardRender",
+  "resolution": [
+    96,
+    80
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 96,
+        "height": 80,
+        "nonzeroRgbPixels": 2045,
+        "uniqueColors": 223,
+        "alpha": [
+          0,
+          222
+        ],
+        "sha256": "279a84ad6e4d3d7cf4b97173e8268fa1b22225b62c7b40c5ac9460e652cd5c69"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 96,
+        "height": 80,
+        "nonzeroRgbPixels": 2045,
+        "uniqueColors": 223,
+        "alpha": [
+          0,
+          222
+        ],
+        "sha256": "389464e122f8df0c82bb9c5b2f24c3067b18343089e4d625dde4ae2a4e274114"
+      }
+    }
+  }
+}

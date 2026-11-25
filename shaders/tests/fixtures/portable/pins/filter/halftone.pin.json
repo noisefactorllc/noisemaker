@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/halftone",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3931,
+        "uniqueColors": 3677,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "8edbd7a3a90619c42bc9b9c378a1ac94c6923ba52b4995f156db87b4b7e2b3c2"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 3931,
+        "uniqueColors": 3677,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "292743f2ef319974a31bd88c858a5bad067fd2327b2b8a18b7a73bb137493a3b"
+      }
+    }
+  }
+}

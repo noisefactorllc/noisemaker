@@ -15,12 +15,26 @@
  *
  *   node shaders/scripts/pin-effect-pixels.mjs --case <case.json> --out <pin.json>
  *   node shaders/scripts/pin-effect-pixels.mjs --case <case.json> --check <pin.json>
+ *   node shaders/scripts/pin-effect-pixels.mjs --case <cases.json> --entry <id> (--out | --check) <pin.json>
+ *
+ * With --entry, the case is the entry <id> of the file's `cases` object, as
+ * the Portable migration's render cases are stored, and the pin names it
+ * <file>#<id>.
  *
  * The case file reuses the parity-case.json shape (effects / dsl / surface /
  * resolution) so one file can serve both tools. A case's textureInputs,
  * meshInputs and settleMs are honoured as the attestation tool honours them, so
  * a pin renders what that case's attestation renders. A case's tiles are not:
- * a pin compares the untiled frame.
+ * a pin compares the untiled frame. A case's midiNotes ({ channel, note,
+ * velocity }) are held before the program compiles, as the cross-backend
+ * agreement harness holds its notes, for an effect that draws MIDI input. A
+ * case's audio, "ramps", fills the waveform and the spectrum with that
+ * harness's ramps. A case's steps advances the stopped loop that many frames
+ * with the renderer's own stepFrame() before the frame is read, for an effect
+ * whose output depends on earlier frames; it excludes settleMs.
+ *
+ * --allow-blank accepts a frame with no lit pixel, as a control render may
+ * have, instead of failing it.
  *
  * A baseline file holds one entry for each GPU it was recorded on (see
  * pin-baselines.mjs). --out records this machine's entry and keeps the others;
@@ -44,15 +58,21 @@ function flagValue(name) {
 }
 
 const casePath = flagValue('--case')
+const entry = flagValue('--entry')
 const outPath = flagValue('--out')
 const checkPath = flagValue('--check')
+const allowBlank = process.argv.includes('--allow-blank')
 
 if (!casePath || (!outPath && !checkPath)) {
-    console.error('Usage: node shaders/scripts/pin-effect-pixels.mjs --case <case.json> (--out <pin.json> | --check <pin.json>)')
+    console.error('Usage: node shaders/scripts/pin-effect-pixels.mjs --case <case.json> [--entry <id>] (--out <pin.json> | --check <pin.json>)')
     process.exit(2)
 }
 
-const pinCase = JSON.parse(fs.readFileSync(casePath, 'utf8'))
+const caseFile = JSON.parse(fs.readFileSync(casePath, 'utf8'))
+const pinCase = entry === null ? caseFile : caseFile?.cases?.[entry]
+if (!pinCase) throw new Error(`${casePath} has no case ${entry}`)
+if (pinCase.steps && pinCase.settleMs) throw new Error('a pin case takes steps or settleMs, not both')
+if (pinCase.audio !== undefined && pinCase.audio !== 'ramps') throw new Error(`unknown audio fixture ${pinCase.audio}`)
 for (const field of ['effects', 'dsl', 'surface', 'resolution']) {
     if (pinCase[field] == null) throw new Error(`pin case is missing "${field}"`)
 }
@@ -85,6 +105,16 @@ const renderer = new CanvasRenderer({
 });
 await renderer.loadManifest();
 await renderer.loadEffects(${JSON.stringify(pinCase.effects)});
+if (${JSON.stringify(pinCase.audio || null)} === 'ramps') {
+    const audio = renderer.setAudioState();
+    audio.waveform.set(Float32Array.from({ length: 128 }, (_, i) => i / 127));
+    audio.spectrum.set(Float32Array.from({ length: 128 }, (_, i) => (127 - i) / 127));
+}
+const midiNotes = ${JSON.stringify(pinCase.midiNotes || [])};
+if (midiNotes.length) {
+    const midi = renderer.setMidiState();
+    midiNotes.forEach((held, index) => midi.channels[held.channel].noteOn(held.note, held.velocity, { time: 0, order: index + 1 }));
+}
 await renderer.compile(${JSON.stringify(pinCase.dsl)});
 renderer.stop();
 // A scene program renders asynchronously, so every render is awaited.
@@ -113,9 +143,15 @@ for (const mesh of ${JSON.stringify(pinCase.meshInputs || [])}) {
 const settleMs = ${JSON.stringify(pinCase.settleMs || 0)};
 const surface = renderer.pipeline.surfaces.get(${JSON.stringify(pinCase.surface)});
 const candidates = [surface?.read, surface?.write].filter(Boolean);
+const steps = ${JSON.stringify(pinCase.steps || 0)};
+for (let i = 0; i < steps; i++) await renderer.stepFrame();
 async function readBest() {
-    await renderer.render(0);
-    await renderer.render(0);
+    // A stepped case is read where its steps left it: another render(0) would
+    // send the clock back to time 0.
+    if (steps === 0) {
+        await renderer.render(0);
+        await renderer.render(0);
+    }
     await renderer.pipeline.backend.device?.queue?.onSubmittedWorkDone?.();
     let capture = null;
     for (const id of candidates) {
@@ -171,7 +207,7 @@ window.pinResult = { backend: renderer.pipeline.backend.getName(), settled, gpu,
         const expectedBackend = preferWebGPU ? 'WebGPU' : 'WebGL2'
         assert.equal(result.backend, expectedBackend, `expected ${expectedBackend}, got ${result.backend}`)
         assert.ok(result.capture, `${expectedBackend} produced no readable output`)
-        assert.ok(result.capture.nonzeroRgbPixels > 0, `${expectedBackend} frame is empty`)
+        if (!allowBlank) assert.ok(result.capture.nonzeroRgbPixels > 0, `${expectedBackend} frame is empty`)
         if ((pinCase.settleMs || 0) > 0) {
             assert.ok(result.settled, `${expectedBackend} capture did not settle within ${pinCase.settleMs} ms`)
         }
@@ -185,12 +221,19 @@ window.pinResult = { backend: renderer.pipeline.backend.getName(), settled, gpu,
 }
 
 function pinFrame(capture) {
+    let alphaMin = 255
+    let alphaMax = 0
+    for (let i = 3; i < capture.data.length; i += 4) {
+        if (capture.data[i] < alphaMin) alphaMin = capture.data[i]
+        if (capture.data[i] > alphaMax) alphaMax = capture.data[i]
+    }
     return {
         surface: capture.id,
         width: capture.width,
         height: capture.height,
         nonzeroRgbPixels: capture.nonzeroRgbPixels,
         uniqueColors: capture.uniqueColors,
+        alpha: [alphaMin, alphaMax],
         sha256: crypto.createHash('sha256').update(Buffer.from(capture.data)).digest('hex'),
     }
 }
@@ -215,7 +258,7 @@ try {
     const webgpu = await renderBackend(browser, baseUrl, true)
     assert.equal(webgpu.gpu, webgl2.gpu, 'the two backends report different GPUs')
     const pin = {
-        case: path.relative(repoRoot, path.resolve(casePath)).split(path.sep).join('/'),
+        case: path.relative(repoRoot, path.resolve(casePath)).split(path.sep).join('/') + (entry === null ? '' : `#${entry}`),
         resolution: [width, height],
         gpu: webgl2.gpu,
         webgl2: pinFrame(webgl2),

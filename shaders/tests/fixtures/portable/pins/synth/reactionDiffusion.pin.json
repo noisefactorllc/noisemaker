@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#synth/reactionDiffusion",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2882,
+        "uniqueColors": 105,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "ba4be06943663bae0e2086c3477bc6ac4cb29a36c57638aa3ba55622030e49ef"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 2882,
+        "uniqueColors": 105,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "663ae8812cdca860c01393c2d30569cca83999513c1455233ddd87073ab0c92e"
+      }
+    }
+  }
+}

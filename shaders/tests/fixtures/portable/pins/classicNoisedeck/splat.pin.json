@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#classicNoisedeck/splat",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4020,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "9f4b08f37a6067ee96beaa0ee797115644ef7410d49615cee295c89a484ef041"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4020,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "c576b87f0378aca103ceff87f4b08dcc7c344e048ca534be280e692e2fa0bab8"
+      }
+    }
+  }
+}

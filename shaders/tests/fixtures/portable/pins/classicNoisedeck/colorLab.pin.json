@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#classicNoisedeck/colorLab",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4082,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "45f7176621f538c5ab0012bee97a7bfaeb5c42fcb803595539e40c75c62f1b6e"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4082,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "dba12315d81dc244c812aa601ab6c27a5a36bee3ab0f778b420c0d9d2f773aa2"
+      }
+    }
+  }
+}

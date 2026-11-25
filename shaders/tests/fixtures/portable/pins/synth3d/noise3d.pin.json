@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#synth3d/noise3d",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 135,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "8f165e2cf1530587da0173f1b9d4f6d49fe3222395180d8ecd891607e6e974e3"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 135,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "8236ac19d5ff86c07953473ea58df913fe5d6c29a0aa37346dfda000587fcbde"
+      }
+    }
+  }
+}

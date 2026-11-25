@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/seamless",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 999,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "7c5f364d57243918090fa6cc8e3c0d9a65e4ba2dfd202e9e520b8025fea65d60"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 999,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "28598f8d63e15a8cbf3057451930ab9df2b1a8bbef88d3b9a9afc13a1767cba6"
+      }
+    }
+  }
+}

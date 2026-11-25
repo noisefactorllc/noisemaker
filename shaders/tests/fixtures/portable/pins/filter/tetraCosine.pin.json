@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/tetraCosine",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 1252,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "de66b0b0ccc94f569ad34a5ccf8b1210415f2e22fff7e48d9e0978748e610a67"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 1252,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "515a8617ff097ee4f9d8b0c25e9456b1951e29668358a5f095b1b696cae1c3f1"
+      }
+    }
+  }
+}

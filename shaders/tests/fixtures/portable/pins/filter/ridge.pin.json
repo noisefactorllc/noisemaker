@@ -1,0 +1,35 @@
+{
+  "case": "shaders/tests/fixtures/portable/render-cases.json#filter/ridge",
+  "resolution": [
+    64,
+    64
+  ],
+  "baselines": {
+    "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)": {
+      "webgl2": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4096,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "bacfe0490f54e5129cd52bd5cb3d7fef99a89ff696c8fea5cca0b1f407011abc"
+      },
+      "webgpu": {
+        "surface": "global_o0_write",
+        "width": 64,
+        "height": 64,
+        "nonzeroRgbPixels": 4096,
+        "uniqueColors": 4096,
+        "alpha": [
+          255,
+          255
+        ],
+        "sha256": "0c6ccd98e1c0a63be5f2e306a3544310beee9e6d82bfd9988a22eb7b237f8a04"
+      }
+    }
+  }
+}
