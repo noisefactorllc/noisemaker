@@ -404,6 +404,45 @@ export class UIController {
     }
 
     /**
+     * The id of the external texture that the current program binds at a
+     * step, from renderer.getMediaSteps(): an element keyed by its `_id:`
+     * binds its key, and one without binds `<externalTexture>_step_<step>`.
+     * Read at each upload, so an id that changes with an edit is followed.
+     * @param {number} stepIndex - Step index
+     * @param {string} externalTexture - The effect's external texture name,
+     *   such as `imageTex` or `textTex`
+     * @returns {string|null} The id, or null when the program binds none there
+     * @private
+     */
+    _boundTextureId(stepIndex, externalTexture) {
+        const steps = this._renderer?.getMediaSteps?.() ?? []
+        return steps.find(step => step.stepIndex === stepIndex && step.uniform === externalTexture)?.textureId ?? null
+    }
+
+    /**
+     * After a compile that keeps the program's structure, follow each media
+     * and text texture whose id changed, as when a step gains or renames its
+     * `_id:`: move the upload to the new id, or upload it again.
+     * @private
+     */
+    _followBoundTextureIds() {
+        for (const [stepIndex, media] of this._mediaInputs ?? []) {
+            const bound = this._boundTextureId(stepIndex, media.externalTexture ?? 'imageTex')
+            if (!bound || bound === media.textureId) continue
+            const moved = this._renderer?.moveState?.(media.textureId, bound) === true
+            media.textureId = bound
+            if (!moved && media.source) this._updateMediaTexture(stepIndex)
+        }
+        for (const [stepIndex, text] of this._textInputs ?? []) {
+            const bound = this._boundTextureId(stepIndex, 'textTex')
+            if (!bound || bound === text.textureId) continue
+            const moved = this._renderer?.moveState?.(text.textureId, bound) === true
+            text.textureId = bound
+            if (!moved && text.canvas) this._updateTextTexture(stepIndex)
+        }
+    }
+
+    /**
      * Update a single media texture
      * @param {number} stepIndex - Step index
      * @private
@@ -412,7 +451,7 @@ export class UIController {
         const media = this._mediaInputs.get(stepIndex)
         if (!media || !media.source || !this._renderer._pipeline) return
 
-        const texId = media.textureId
+        const texId = this._boundTextureId(stepIndex, media.externalTexture ?? 'imageTex') ?? media.textureId
         // Don't flip Y - the mediaInput shader handles UV flipping internally (st.y = 1.0 - st.y)
         const resultOrPromise = this._renderer.updateTextureFromSource(texId, media.source, { flipY: false })
 
@@ -451,8 +490,12 @@ export class UIController {
                 stream: null,
                 videoEl: null,
                 imageEl: null,
-                textureId: textureId
+                textureId: textureId,
+                externalTexture: effectDef.externalTexture
             })
+        } else {
+            // The step's id may have changed with the program.
+            Object.assign(this._mediaInputs.get(stepIndex), { textureId, externalTexture: effectDef.externalTexture })
         }
 
         // Source type selector (file vs camera)
@@ -1106,7 +1149,7 @@ export class UIController {
      * @private
      */
     _initTextCanvas(stepIndex, effectKey, effectDef) {
-        const stepTextureId = `${effectDef.externalTexture}_step_${stepIndex}`
+        const stepTextureId = this._boundTextureId(stepIndex, effectDef.externalTexture) ?? `${effectDef.externalTexture}_step_${stepIndex}`
 
         // Create hidden canvas for text rendering
         const canvas = document.createElement('canvas')
@@ -1220,7 +1263,7 @@ export class UIController {
         const textState = this._textInputs.get(stepIndex)
         if (!textState || !textState.canvas || !this._renderer._pipeline) return
 
-        const texId = textState.textureId
+        const texId = this._boundTextureId(stepIndex, 'textTex') ?? textState.textureId
         const result = this._renderer.updateTextureFromSource(texId, textState.canvas, { flipY: true })
 
         if (result.width > 0 && result.height > 0) {
@@ -2288,7 +2331,7 @@ render(o1)`
 
             // Add external input section if effect has externalTexture (for media effects)
             if (effectDef.externalTexture && effectDef.externalTexture !== 'textTex') {
-                const stepTextureId = `${effectDef.externalTexture}_step_${effectInfo.stepIndex}`
+                const stepTextureId = this._boundTextureId(effectInfo.stepIndex, effectDef.externalTexture) ?? `${effectDef.externalTexture}_step_${effectInfo.stepIndex}`
                 // Check if we have previous state BEFORE creating the section
                 const hasPreviousMediaState = !!previousMediaByOccurrence[occurrenceKey]
                 const mediaSection = this._createMediaInputSection(
@@ -2361,6 +2404,10 @@ render(o1)`
         // Sync UI controls from the updated state
         // This ensures controls reflect new DSL values for effects that existed before paste
         this._syncControlValuesFromState()
+
+        // An edit that adds or renames an `_id:` keeps the structure but can
+        // change a media step's texture id: carry its upload along.
+        this._followBoundTextureIds()
 
         return true
     }

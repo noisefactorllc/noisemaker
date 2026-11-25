@@ -1003,7 +1003,8 @@ export class CanvasRenderer {
      *   instance identity: the `/`-joined key names of the enclosing `use`
      *   sites and its own id, such as `left/pond`
      * @param {string} name - A state texture or size parameter of its effect,
-     *   such as `global_rd_state` or `zoom`
+     *   such as `global_rd_state` or `zoom`, or its external texture, such as
+     *   `imageTex`
      * @returns {string|null} The key, or null when the current program has no
      *   such element or the element no such state
      */
@@ -1017,16 +1018,30 @@ export class CanvasRenderer {
     /**
      * Move live state from one key to another in the running session, as the
      * rename of an element's `_id:` does: take both keys from keyOf(), the old
-     * one before the program changes. Nothing is stored outside the program
-     * text.
+     * one before the program changes. A host's upload to a media step moves
+     * too, with its source for a decode in a later gamut, from another key or
+     * from the step-numbered id of a step that gains an `_id:`. Nothing is
+     * stored outside the program text.
      * @param {string} fromKey - The key that holds the state
      * @param {string} toKey - The key that takes it
      * @returns {boolean} False when the keys are not one state of one effect
-     *   under two ids, a key holds no state or names a size parameter, or a
-     *   texture is 3D or of another format
+     *   under two ids (or an upload's step-numbered id and its key), a key
+     *   holds no state or names a size parameter, a step still binds the
+     *   upload, or a texture is 3D or of another format
      */
     moveState(fromKey, toKey) {
-        return this._pipeline?.moveState?.(fromKey, toKey) ?? false
+        const moved = this._pipeline?.moveState?.(fromKey, toKey) ?? false
+        if (!moved || !this._mediaUploads) return moved
+        // A moved upload keeps its source for a decode in a new gamut. The
+        // record under the new key described the texture the move replaced.
+        const upload = this._mediaUploads.get(fromKey)
+        this._mediaUploads.delete(fromKey)
+        this._mediaUploads.delete(toKey)
+        if (upload) {
+            this._mediaUploads.set(toKey, upload)
+            this._uploadMediaAgainForGamut(this._pipeline)
+        }
+        return moved
     }
 
     /**
@@ -1933,12 +1948,16 @@ export class CanvasRenderer {
         const gamut = pipeline.graph?.gamut ?? null
         const mediaTextures = new Set((pipeline.graph?.mediaSteps ?? []).map(step => step.textureId))
         for (const [texId, upload] of this._mediaUploads) {
-            // A texture on another backend, or one that no media step of the
-            // program binds any more, is not kept.
-            if (upload.backend !== backend || !mediaTextures.has(texId) || !backend.textures?.has(texId)) {
+            // A texture on another backend, or one the backend no longer
+            // holds, is not kept.
+            if (upload.backend !== backend || !backend.textures?.has(texId)) {
                 this._mediaUploads.delete(texId)
                 continue
             }
+            // An upload that no media step binds now is kept while its texture
+            // lives, so moveState() can carry it to a step's new id; it is not
+            // decoded again until a step binds it.
+            if (!mediaTextures.has(texId)) continue
             if (upload.gamut === gamut) continue
             upload.gamut = gamut
             // The compile succeeded: a source that cannot be uploaded again keeps its old decode.
@@ -2748,7 +2767,8 @@ export class CanvasRenderer {
      * Update a texture from an external source (video, image, canvas).
      * This is used for media input effects that need to display camera/video content.
      * @param {string} texId - Texture ID from effect's externalTexture property
-     *   (per-step: 'imageTex_step_N'; list them with getMediaSteps())
+     *   (per step: 'imageTex_step_N', or the element key of a step with an
+     *   `_id:`; list them with getMediaSteps())
      * @param {HTMLVideoElement|HTMLImageElement|HTMLCanvasElement|ImageBitmap} source - Media source
      * @param {object} [options] - Update options
      * @param {boolean} [options.flipY=true] - Whether to flip the Y axis
@@ -2798,9 +2818,12 @@ export class CanvasRenderer {
      * List the current program's media texture bindings.
      *
      * Each step that uses an external-texture effect (e.g. synth/media) binds
-     * its own texture, named '<externalTexture>_step_N' where N is the step's
-     * node index in the compiled program. Returns one entry per distinct
-     * texture id, in program order.
+     * its own texture. A step without an `_id:` binds
+     * '<externalTexture>_step_N', where N is the step's node index in the
+     * compiled program; a step with one binds its element key,
+     * '<key>_<externalTexture>', which keeps its id across edits. Returns one
+     * entry per distinct texture id, in program order. Read it again after
+     * each compile().
      *
      * @returns {Array<{textureId: string, uniform: string, stepIndex: number, effect: string}>}
      */

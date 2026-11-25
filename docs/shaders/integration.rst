@@ -332,7 +332,7 @@ element's size wins; a diagnostic warns when it differs from the options.
 
     // Textures
     renderer.updateTextureFromSource(id, source, options = {})  // Update texture from image/video/canvas/VideoFrame
-    renderer.getMediaSteps()               // List per-step media texture ids (imageTex_step_N)
+    renderer.getMediaSteps()               // List per-step media texture ids (imageTex_step_N, or an element key)
 
     // Backend
     await renderer.switchBackend('wgsl')   // Switch to WebGPU
@@ -617,17 +617,31 @@ Some effects accept external textures (images, video, camera). Check for this vi
         // This effect expects a texture source
     }
 
-Each program step that uses a media effect binds its own texture, named
-``imageTex_step_N`` where ``N`` is the step's node index in the compiled
-program (every step counts, including ``.write()``). A bare ``'imageTex'``
-id binds nothing. List the current program's media textures with
-``renderer.getMediaSteps()``, and call it again after each ``compile()``
-since the ids follow the compiled program:
+Each program step that uses a media effect binds its own texture. A step
+without an ``_id:`` binds ``imageTex_step_N``, where ``N`` is the step's node
+index in the compiled program (every step counts, including ``.write()``), so
+an edit before the step changes the id. A step with an ``_id:`` binds its
+element key, such as ``id_photo@synth.media_imageTex`` for
+``media(_id: "photo")`` (see :ref:`element-state-keys`): it keeps that id
+across ``compile()`` calls, and an upload to it stays bound when other steps
+or chains are inserted, deleted or reordered. ``text`` binds ``textTex`` the
+same way. A bare ``'imageTex'`` id binds nothing. List the current program's
+media textures with ``renderer.getMediaSteps()``, and call it again after each
+``compile()``, since the ids follow the compiled program:
 
 .. code-block:: javascript
 
     // [{ textureId: 'imageTex_step_0', uniform: 'imageTex', stepIndex: 0, effect: 'synth.media' }, ...]
     const mediaSteps = renderer.getMediaSteps()
+
+When a step gains an ``_id:``, or its id is renamed, move its upload to the new
+key with ``renderer.moveState()``: take the old id before the program changes.
+
+.. code-block:: javascript
+
+    const from = renderer.getMediaSteps()[0].textureId   // 'imageTex_step_0'
+    await renderer.compile(source.replace('media(', 'media(_id: "photo", '))
+    renderer.moveState(from, renderer.keyOf('photo', 'imageTex'))
 
 Upload each step's source to its own texture id, then publish the returned
 dimensions into that step's ``imageSize`` uniform — the media shader places

@@ -2129,13 +2129,16 @@ export class Pipeline {
      * Copy the live state under one element key into another, for a host
      * that renames an element (CanvasRenderer.moveState()). A key is a state
      * texture id that CanvasRenderer.keyOf() returns: both halves of a state
-     * surface (`global_…`) move, or one node-local texture. Nothing is stored
+     * surface (`global_…`) are copied, or one node-local texture. A host's
+     * upload to a media step is moved instead, from another key or from the
+     * step-numbered id of a step that gains an `_id:`. Nothing is stored
      * outside the program text.
      * @param {string} fromKey - The key that holds the state
      * @param {string} toKey - The key that takes it
      * @returns {boolean} False when a key holds no state, the two keys are
-     *   not one state of one op under two element ids, or a texture is 3D or
-     *   of another format
+     *   not one state of one op under two element ids (or an upload's
+     *   step-numbered id and its key), a step still binds the upload, or a
+     *   texture is 3D or of another format
      */
     moveState(fromKey, toKey) {
         if (typeof fromKey !== 'string' || typeof toKey !== 'string' || fromKey === toKey) return false
@@ -2143,6 +2146,19 @@ export class Pipeline {
         // to-key is a state of an element of the current program, and the
         // from-key is that state's name under another id of the same op.
         if (!this.isRenameOf(fromKey, toKey)) return false
+        // An uploaded texture (a media step's) is the host's, not the graph's:
+        // it moves to the new key.
+        if (this.graph?.mediaSteps?.some(step => step.textureId === toKey)) {
+            // An upload that a step of the program still binds stays with it.
+            if (this.graph.mediaSteps.some(step => step.textureId === fromKey)) return false
+            if (typeof this.backend?.moveTexture === 'function') return this.backend.moveTexture(fromKey, toKey)
+            const record = this.backend?.textures?.get?.(fromKey)
+            if (!record) return false
+            if (this.backend.textures.has(toKey)) this.backend.destroyTexture(toKey)
+            this.backend.textures.set(toKey, record)
+            this.backend.textures.delete(fromKey)
+            return true
+        }
         const textures = (key) => {
             if (key.startsWith('global_')) {
                 const surface = this.surfaces.get(this.parseGlobalName(key))
@@ -2177,7 +2193,13 @@ export class Pipeline {
                 if (keyed !== toKey) continue
                 const [prefix, suffix] = keyed === `${name}_${element.key}` ? [`${name}_`, '']
                     : keyed === `${element.key}_${name}` ? ['', `_${name}`] : [null, null]
-                if (prefix === null || !fromKey.startsWith(prefix) || !fromKey.endsWith(suffix)) return false
+                if (prefix === null) return false
+                // An uploaded texture's step-numbered id, as an element without
+                // an `_id:` binds it, moves to its key when the element gains one.
+                const uploaded = this.graph?.mediaSteps?.some(step => step.textureId === toKey)
+                if (uploaded && suffix === `_${name}` && fromKey.startsWith(`${name}_step_`) &&
+                    /^\d+$/.test(fromKey.slice(`${name}_step_`.length))) return true
+                if (!fromKey.startsWith(prefix) || !fromKey.endsWith(suffix)) return false
                 const fromElement = fromKey.slice(prefix.length, fromKey.length - suffix.length)
                 const id = fromElement.match(ELEMENT_KEY)
                 return Boolean(id) && id[2] === element.op && fromElement !== element.key

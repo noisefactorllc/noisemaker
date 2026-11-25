@@ -111,7 +111,7 @@ export async function createAgreementPage(browser, baseUrl, backend) {
                         ui._renderTextToCanvas(pass.stepIndex)
                         r.applyStepParameterValues({ [`step_${pass.stepIndex}`]: { textSize: state.getStepValues(`step_${pass.stepIndex}`).textSize } })
                     } else if (effect?.externalTexture) {
-                        const id = `${effect.externalTexture}_step_${pass.stepIndex}`
+                        const id = pass.inputs?.[effect.externalTexture] ?? `${effect.externalTexture}_step_${pass.stepIndex}`
                         const upload = r.updateTextureFromSource(id, agreementImage, { flipY: false })
                         if (!upload?.width) throw new Error(`Input upload failed: ${id}`)
                         r.applyStepParameterValues({ [`step_${pass.stepIndex}`]: { imageSize: [upload.width, upload.height] } })

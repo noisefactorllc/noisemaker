@@ -678,6 +678,29 @@ ${DISPLAY_P3_GLSL}
     }
 
     /**
+     * Move a texture record from one id to another, for a host upload that
+     * changes key (CanvasRenderer.moveState()). A texture under the new id
+     * is destroyed first.
+     * @param {string} fromId
+     * @param {string} toId
+     * @returns {boolean} False when no texture has `fromId`
+     */
+    moveTexture(fromId, toId) {
+        const tex = this.textures.get(fromId)
+        if (!tex || fromId === toId) return false
+        if (this.textures.has(toId)) this.destroyTexture(toId)
+        this.textures.set(toId, tex)
+        this.textures.delete(fromId)
+        // A framebuffer attached to the texture moves with it.
+        const fbo = this.fbos.get(fromId)
+        if (fbo) {
+            this.fbos.delete(fromId)
+            this.fbos.set(toId, fbo)
+        }
+        return true
+    }
+
+    /**
      * Update a texture from an external source (video, image, canvas).
      * This is used for media input effects that need to display camera/video content.
      * @param {string} id - Texture ID

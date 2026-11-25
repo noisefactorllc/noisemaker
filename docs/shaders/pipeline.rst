@@ -461,7 +461,9 @@ of its chain and step position. The key is ``id_<id>@<op>``, for example
 * its private ``global_`` textures: ``global_rd_state_id_pond@synth.reactionDiffusion``;
 * its node-local textures: ``id_loop@filter.feedback__selfTex``;
 * the size parameters of that state: ``zoom_id_pond@synth.reactionDiffusion``;
-* the particle textures of an emitter with an id, and their ``stateSize``.
+* the particle textures of an emitter with an id, and their ``stateSize``;
+* its external texture, the one a host uploads to: ``id_photo@synth.media_imageTex``
+  (see "Media Inputs" in the integration guide).
 
 Inserting, deleting or reordering other elements or chains therefore leaves
 the element's state in place across a recompile. A replacement effect under the
@@ -489,11 +491,13 @@ A host reads the keys from the renderer and does not compose them:
   such state.
 * ``renderer.moveState(fromKey, toKey)`` copies the live state under one key
   into another in the running session, for a rename of an element's id. Both
-  halves of a state surface move, or one node-local texture. The two keys
-  name one state of one effect under two ids. It returns ``false`` otherwise,
-  and when a key holds no state, names a size parameter, or names a 3D texture
-  or a texture of another format than the other key's. Nothing is stored
-  outside the program text.
+  halves of a state surface move, or one node-local texture. The two keys name
+  one state of one effect under two ids. A host's upload to a media step moves
+  too, from another key or from the step-numbered id of a step that gains an
+  ``_id:`` (see "Media Inputs" in the integration guide), but not while a step
+  still binds it. It returns ``false`` otherwise, and when a key holds no state,
+  names a size parameter, or names a 3D texture or a texture of another format
+  than the other key's. Nothing is stored outside the program text.
 
 A rename takes the old key before the program changes:
 

@@ -178,9 +178,10 @@ export function expand(compilationResult, options = {}) {
     const readVolumes = new Map() // reader sizing scope -> volume and preceding writer
     const exportedTextures = new Map() // exported atlas -> source texture
     // Media steps bound to per-step external textures (imageTex_step_N, where
-    // N is the step's node index). One entry per distinct texture id so hosts
-    // can upload sources and publish imageSize without reproducing the
-    // numbering themselves (issue #308).
+    // N is the step's node index, or `<key>_imageTex` for an element keyed by
+    // its `_id:`). One entry per distinct texture id so hosts can upload
+    // sources and publish imageSize without reproducing the numbering
+    // themselves (issue #308).
     const mediaSteps = []
     const mediaStepIds = new Set()
     let lastWrittenSurface = null // Track the last surface written to
@@ -1086,8 +1087,11 @@ export function expand(compilationResult, options = {}) {
                         } else if (effectDef.externalTexture && texRef === effectDef.externalTexture) {
                             // External texture input (e.g., camera/video) - use per-step texture ID
                             // Each media effect instance gets its own texture (imageTex_step_0, imageTex_step_1, etc.)
+                            // An element keyed by its `_id:` binds `<key>_<texRef>` instead, so a
+                            // host's upload stays bound when other elements are edited.
                             // The texture will be created/updated via updateTextureFromSource()
-                            const texId = `${texRef}_step_${step.temp}`
+                            const texId = stateKey ? `${stateKey}_${texRef}` : `${texRef}_step_${step.temp}`
+                            recordState(texRef, texId)
                             pass.inputs[uniformName] = texId
                             // Record the binding so hosts can enumerate media
                             // texture ids via renderer.getMediaSteps().

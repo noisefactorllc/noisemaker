@@ -2497,6 +2497,14 @@ same bindings `compileGraph()` carries as `graph.mediaSteps` — so hosts no
 longer reproduce the numbering themselves; texture ids and step numbering are
 unchanged for hosts that already bind `<externalTexture>_step_N`.
 
+A step whose element has an `_id:` binds its element key instead,
+`<key>_<externalTexture>`, such as `id_photo@synth.media_imageTex`: it keeps
+that id across `compile()` calls, so an upload stays bound when other steps or
+chains are inserted, deleted or reordered. A step without an `_id:` is still
+step-numbered. Read `getMediaSteps()` after each `compile()`. When a step gains
+an `_id:` or is renamed, `CanvasRenderer.moveState(fromId, toKey)` moves the
+upload: take the old id before the program changes.
+
 2D texture specs may author two opt-in allocation policies and 3D texture
 specs may author a filtering policy:
 
