@@ -367,10 +367,12 @@ const scaleXPerChain = compiled => compiled.plans.map(plan => {
 const valuesPerChain = compiled => JSON.stringify(compiled.plans.map(plan => plan.chain?.map(step => [step.op, step.args])),
     (key, value) => typeof value === 'function' ? '<fn>' : value);
 
-for (const [kind, keyword] of [
+for (const [kind, keyword, head = 'scene()'] of [
     ['call', 'tex: noise(octaves: 3)'],
     ['chain', 'tex: noise(octaves: 3).invert()'],
     ['call containing an oscillator', 'tex: noise(scaleX: osc())'],
+    ['call beside an oscillator', 'tex: noise(octaves: 3), mix: osc()'],
+    ['call after a scene color', 'tex: noise(octaves: 3)', 'scene(background: #123456)'],
     ['call containing a function', 'tex: noise(scaleX: () => 10)'],
     ['call containing a color', 'tex: scene(background: #123456)'],
     ['name', 'mix: amount']
@@ -378,7 +380,7 @@ for (const [kind, keyword] of [
     test(`let chain preserves a ${kind} keyword value through compile/unparse`, () => {
         const src = `search synth, filter, mixer
 let amount = 0.25
-let layer = scene().blendMode(${keyword})
+let layer = ${head}.blendMode(${keyword})
 noise().blendMode(tex: layer).write(o0)
 render(o0)`;
         const original = compile(src);

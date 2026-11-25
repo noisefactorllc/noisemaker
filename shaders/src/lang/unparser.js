@@ -934,11 +934,8 @@ function unparseCall(call, options = {}) {
     // on compiled parameters, so write the binding's expressions as DSL here.
     const formatArgument = (value, spec, sourceForm) => {
         if (options.letArguments && value?.type) {
-            const { type } = value
-            if (options.letArguments === 'expression' || type === 'Call' || type === 'Chain' || type === 'Ident') {
-                if (type === 'Color') return formatColorLiteral(value.value)
-                return formatLetExpr(value, { ...options, letArguments: 'expression' })
-            }
+            if (value.type === 'Color') return formatColorLiteral(value.value)
+            return formatLetExpr(value, options)
         }
         return formatValue(value, spec, options, sourceForm)
     }
@@ -1018,6 +1015,16 @@ function unparseChain(chain, options = {}) {
     const parts = chain.map((call, idx) => unparseCall(call, { ...options, indent: idx === 0 ? 0 : 2 }))
     // Join with line break after closing paren, 2-space indent on next line
     return parts.join('\n  .')
+}
+
+// An effect expression in a binding needs the AST writer for the whole chain,
+// including sibling arguments. Keep ordinary bindings on the host formatter.
+function formatLetBinding(expr, options) {
+    const calls = expr?.type === 'Chain' ? expr.chain : [expr]
+    const isExpression = arg => arg?.type === 'Call' || arg?.type === 'Chain' || arg?.type === 'Ident'
+    const hasExpression = calls.some(call => call?.type === 'Call' &&
+        (call.args?.some(isExpression) || Object.values(call.kwargs || {}).some(isExpression)))
+    return formatLetExpr(expr, hasExpression ? { ...options, letArguments: true } : options)
 }
 
 /**
@@ -1199,7 +1206,7 @@ function unparseControlFlow(plan, searchNamespaces, options) {
         text = value ? `return ${formatLetExpr(value, options)}` : 'return'
     } else if (plan.type === 'VarAssign') {
         // A `let` inside a block body
-        text = `let ${plan.name} = ${formatLetExpr(plan.expr, { ...options, letArguments: 'binding' })}`
+        text = `let ${plan.name} = ${formatLetBinding(plan.expr, options)}`
     } else {
         return null
     }
@@ -1259,7 +1266,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
                     lines.push(c)
                 }
             }
-            const exprStr = formatLetExpr(v.expr, { ...options, letArguments: 'binding' })
+            const exprStr = formatLetBinding(v.expr, options)
             lines.push(`let ${v.name} = ${exprStr}`)
         }
         // Blank line separator after a let block that comes before a plan
