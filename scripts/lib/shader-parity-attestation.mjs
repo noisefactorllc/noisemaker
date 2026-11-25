@@ -175,6 +175,7 @@ const CASE_KEYS = new Set(['schemaVersion', 'effects', 'dsl', 'surface', 'resolu
     'requireColorVariation', 'settleMs', 'tiles', 'textureInputs', 'meshInputs', 'timeline', 'control', 'midiMessages'])
 const TEXTURE_INPUT_KEYS = new Set(['effect', 'uniform', 'width', 'height', 'data', 'afterFrame'])
 const MESH_INPUT_KEYS = new Set(['mesh', 'path'])
+const TILES_KEYS = new Set(['size', 'renderScale'])
 const MIDI_MESSAGE_KEYS = new Set(['afterFrame', 'data'])
 
 // A misspelt field must not silently change what a case records: a misspelt
@@ -193,6 +194,7 @@ export function validateParityCase(parityCase, effectId) {
     for (const mesh of Array.isArray(parityCase?.meshInputs) ? parityCase.meshInputs : []) {
         errors.push(...unknownKeys(mesh, MESH_INPUT_KEYS, 'parity case mesh input'))
     }
+    errors.push(...unknownKeys(parityCase?.tiles, TILES_KEYS, 'parity case tiles'))
     for (const message of Array.isArray(parityCase?.midiMessages) ? parityCase.midiMessages : []) {
         errors.push(...unknownKeys(message, MIDI_MESSAGE_KEYS, 'parity case MIDI message'))
     }

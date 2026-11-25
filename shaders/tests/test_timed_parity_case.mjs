@@ -107,6 +107,9 @@ test('a timed case is refused for frames off the grid, out of order or past one 
         'a misspelt timeline is refused, not read as an untimed case')
     refused(validateParityCase(timed({}, { textureInputs: [texture({ afterframe: 2 })] }), EFFECT), /afterframe/)
     refused(validateParityCase(untimed({ meshInputs: [{ mesh: 'mesh0', path: 'share/meshes/cube.obj', scale: 2 }] }), EFFECT), /scale/)
+    assert.deepEqual(validateParityCase(untimed({ tiles: { size: [4, 8], renderScale: 2 } }), EFFECT), [])
+    refused(validateParityCase(untimed({ tiles: { size: [4, 8], renderscale: 2 } }), EFFECT), /renderscale/,
+        'a misspelt renderScale would render at scale 1')
     refused(validateParityCase(untimed({ timeline: [0, 1], control: CONTROL }), EFFECT), /timeline/)
 })
 
