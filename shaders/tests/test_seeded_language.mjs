@@ -292,6 +292,8 @@ test('a save keeps the draws of every element from a let', () => {
         'let a = noise()\na(_id: "left", scaleY: rand(1, 10)).write(o0)\na(scaleY: rand(1, 10)).write(o1)',
         'let y = noise().blendMode()\nnoise().blendMode(tex: y).write(o0)\nnoise(scaleY: rand(1, 10)).write(o1)',
         'let b = blendMode()\nnoise().b(tex: noise(scaleY: rand(1, 10))).write(o0)',
+        'let a = noise()\nlet b = a(octaves: 2)\na(scaleY: rand(1, 10)).write(o0)\nb(scaleY: rand(1, 10)).write(o1)',
+        'part p {\n    let x = noise\n    x(scaleY: rand(1, 10)).write(o0)\n}\nuse(p, x: noise())',
         'part p {\n    let x = noise()\n    x(scaleY: rand(1, 10)).write(o0)\n}\nuse(p)\nuse(p)'
     ]) {
         const src = `search synth, mixer\nseed 1\n${body}`
@@ -319,6 +321,18 @@ test('a save of a program that does not draw writes its lets as before', () => {
     const text = unparse(c)
     assert.match(text, /\n\nnoise\(\)\n  \.write\(o0\)/)
     assert.match(text, /\.blendMode\(tex: noise\(\)\n  \.blendMode\(\)\)/)
+})
+
+test('use arguments for alias and value lets, and a let built from a let call, draw under their own lets', () => {
+    for (const lets of ['let x = noise\n    let z = noise', 'let x = rand(1, 2)\n    let z = rand(1, 2)']) {
+        const draws = noiseDraws(`search synth\nseed 1\npart p {\n    ${lets}\n    x(scaleY: rand(1, 10)).write(o0)\n    z(scaleY: rand(1, 10)).write(o1)\n}\nuse(p, x: noise(), z: noise())`)
+        assert.equal(draws.length, 2, lets)
+        assert.notDeepEqual(draws[1], draws[0], lets)
+    }
+    const derived = compile('search synth\nseed 1\nlet a = noise()\nlet b = a(octaves: 2)\na(scaleY: rand(1, 10)).write(o0)\nb(scaleY: rand(1, 10)).write(o1)')
+    assert.deepEqual(errors(derived), [])
+    assert.equal(args(derived, 0).scaleY, randFrom(drawU32(1, 'let:a/synth.noise@noise_1/scaleY'), 1, 10))
+    assert.equal(args(derived, 1).scaleY, randFrom(drawU32(1, 'let:b/synth.noise@noise_1/scaleY'), 1, 10))
 })
 
 test('a call-level seed draws under the constant key', () => {

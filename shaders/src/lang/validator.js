@@ -582,6 +582,10 @@ export function validate(ast) {
                     // Its elements draw under the replaced let's key, named by
                     // their place in the argument: they are not counted in
                     // the body.
+                    // A let that held no effect gets a key of its own here.
+                    if (!letKeys.has(item) && value && (value.type === 'Chain' || value.type === 'Call')) {
+                        letKeys.set(item, { _letKey: letKeyOf(item, 'effect'), _letScope: keyScope.join('/'), _letBody: partScope() })
+                    }
                     if (letKeys.has(item) && value && (value.type === 'Chain' || value.type === 'Call')) {
                         const counts = new Map()
                         const own = []
@@ -1145,11 +1149,16 @@ export function validate(ast) {
     // names its elements: an `_id:` written in the let, unless an earlier
     // element of the let took it, else its occurrence name, with `'` added
     // while that name is taken.
+    // A call of another let's name written in this let is this let's
+    // element, counted at the other let.
     function markLetElements(node, marks) {
         const own = []
         for (const c of chainCalls(node)) {
             if (c._letKey === undefined) {
                 Object.assign(c, marks, { _letOccurrence: nextOccurrence(c.name) })
+                own.push(c)
+            } else if (c.letCallName) {
+                Object.assign(c, marks, { _letName: undefined })
                 own.push(c)
             }
             for (const value of effectValuesOf(c)) markLetValue(value)
