@@ -1,0 +1,1 @@
+{"schemaVersion":1,"effects":["synth/testPattern","filter/strokes"],"dsl":"search synth, filter\ntestPattern(pattern: colorGrid, gridSize: 8).strokes(mode: sumiE, length: 65, intensity: 70, sharpness: 45).write(o0)\nrender(o0)","surface":"o0","resolution":[64,64],"epsilon":0,"requireColorVariation":true}

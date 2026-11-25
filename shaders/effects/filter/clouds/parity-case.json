@@ -1,0 +1,1 @@
+{"schemaVersion":1,"effects":["synth/testPattern","filter/clouds"],"dsl":"search synth, filter\ntestPattern(pattern: colorGrid, gridSize: 8).clouds(seed: 7, scale: 0.55, speed: 0).write(o0)\nrender(o0)","surface":"o0","resolution":[64,64],"epsilon":0,"requireColorVariation":true}

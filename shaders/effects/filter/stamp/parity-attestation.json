@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "filter/stamp",
+  "sourceHash": "07747764bb262ef247b2f84bcc25de8cddb76027fc0e8b17286c818d6b42fd7c",
+  "caseHash": "9f8d242f3c694ae366c80476101be8612c5c41a1f00d44cf304d90998ac7a646",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 394
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 394
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 3,
+    "webgpuTargetPasses": 3
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

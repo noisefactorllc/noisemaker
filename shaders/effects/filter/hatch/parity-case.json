@@ -1,0 +1,1 @@
+{"schemaVersion":1,"effects":["synth/testPattern","filter/hatch"],"dsl":"search synth, filter\ntestPattern(pattern: colorGrid, gridSize: 8).hatch(mode: crosshatch, strokeLength: 70, direction: leftDiag, balance: 45, pressure: 65).write(o0)\nrender(o0)","surface":"o0","resolution":[64,64],"epsilon":0,"requireColorVariation":true}

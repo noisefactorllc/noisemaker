@@ -1,0 +1,1 @@
+{"schemaVersion":1,"effects":["synth/testPattern","filter/spatter"],"dsl":"search synth, filter\ntestPattern(pattern: colorGrid, gridSize: 8).spatter(color: #df3030, density: 0.75, alpha: 0.8, seed: 9).write(o0)\nrender(o0)","surface":"o0","resolution":[64,64],"epsilon":0,"requireColorVariation":true}

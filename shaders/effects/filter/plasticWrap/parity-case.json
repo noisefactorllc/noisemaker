@@ -1,0 +1,1 @@
+{"schemaVersion":1,"effects":["synth/testPattern","filter/plasticWrap"],"dsl":"search synth, filter\ntestPattern(pattern: colorGrid, gridSize: 8).plasticWrap(highlight: 75, detail: 55, smoothness: 25, lightDirection: vec3(-0.5, 0.7, 0.8)).write(o0)\nrender(o0)","surface":"o0","resolution":[64,64],"epsilon":0,"requireColorVariation":true}
