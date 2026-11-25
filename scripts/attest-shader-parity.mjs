@@ -1,4 +1,119 @@
 #!/usr/bin/env node
+/*
+ * Record WebGL2 and WebGPU parity evidence for one effect.
+ *
+ *   node scripts/attest-shader-parity.mjs <namespace/effect> [--write]
+ *
+ * The recorder reads shaders/effects/<namespace>/<effect>/parity-case.json and
+ * renders it in headless Chromium on both backends. It fails unless:
+ *   - both frames show color (the empty frame gate);
+ *   - every channel of every pixel matches (epsilon 0);
+ *   - a case with a control renders a different frame from its control.
+ * With --write it writes parity-attestation.json beside the case. The
+ * verifier (scripts/verify-shader-parity-attestations.mjs) checks that file
+ * against the case without rendering.
+ *
+ * The case fields. The validator (validateParityCase in
+ * scripts/lib/shader-parity-attestation.mjs) refuses any other field.
+ *   schemaVersion          1
+ *   effects                the effect IDs the page loads. It includes the
+ *                          target, and every effect the dsl or the control uses.
+ *   dsl                    the program. Its target passes must execute.
+ *   surface                the surface to read, for example "o0"
+ *   resolution             [width, height]
+ *   epsilon                0
+ *   requireColorVariation  true
+ *   settleMs               optional: an integer from 0 to 60000. The recorder
+ *                          reads until two reads match, up to this time.
+ *   tiles                  optional: { size: [w, h], renderScale }, a tiled
+ *                          render. size divides resolution into at least two
+ *                          tiles, and renderScale, if given, is above 0.
+ *   textureInputs          optional: [{ effect, uniform, width, height, data,
+ *                          afterFrame }]. effect is listed in effects, and
+ *                          uniform is an identifier. data holds width * height
+ *                          RGBA bytes from 0 to 255, and width and height are 1
+ *                          to 64. The texture goes to each executing pass of the
+ *                          effect that binds the uniform, and the recorder fails
+ *                          if there is none. afterFrame is for timed cases only.
+ *   meshInputs             optional: [{ mesh: "mesh0".."mesh7",
+ *                          path: "share/meshes/<name>.obj" }], loaded after
+ *                          the first frame
+ *   timeline               optional: { frames, loopSeconds }. It makes a timed case.
+ *   control                a DSL program. A timed case needs one, and an
+ *                          untimed case may have one.
+ *   midiMessages           optional, timed cases only: a non-empty array of
+ *                          { afterFrame, data }
+ *
+ * An untimed case renders once at time 0, then uploads its textures and loads
+ * its meshes, then captures. Its attestation never has a timeline block, and
+ * has a control block only if the case has a control.
+ *
+ * A timed case steps the 2.x fixed-step simulation clock
+ * (shaders/src/runtime/simulation-clock.js):
+ *   - loopSeconds is above 0 and at most 600, and defaults to 10. A loop holds
+ *     N = max(1, round(60 * loopSeconds)) grid steps.
+ *   - frames lists grid steps. It starts at 0, rises strictly, stays below N,
+ *     and holds at least two frames. No two neighbouring frames are more than
+ *     K = min(30, ceil(N / 2)) steps apart, because a longer jump re-anchors
+ *     the clock instead of stepping it.
+ *   - The recorder renders frame k at loop time k / N, in order. Each render
+ *     runs every simulation step after the previous frame, so frames [0, 10]
+ *     run the same simulation steps as frames 0 to 10. Draw passes and input
+ *     uploads run once per stated frame, so the two need not render the same.
+ *     A first render at time 0 runs one step.
+ *   - After each frame it uploads the textureInputs whose afterFrame is that
+ *     frame (default: the first frame). It sends the midiMessages whose
+ *     afterFrame is that frame. afterFrame must be one of the frames.
+ *   - It captures at the last frame. The capture renders at that time again,
+ *     which runs no simulation step.
+ *
+ * A midiMessages entry's data is one MIDI message, which goes to the engine's
+ * MIDI state. Before every frame the pipeline packs the held notes (note on
+ * and note off) into the midiNoteGrid texture, as velocity and gate. The other
+ * messages change the MIDI state that automation reads, but not that texture,
+ * and a clock message counts into the midiClockCount uniform. Allowed messages:
+ *   - note off 0x8n, note on 0x9n, polyphonic pressure 0xAn, control change
+ *     0xBn or pitch bend 0xEn, each with two data bytes;
+ *   - channel pressure 0xDn with one data byte;
+ *   - clock 0xF8 alone.
+ * n is the channel minus one, and each data byte is 0 to 127. A note on with
+ * velocity 0 is a note off.
+ *
+ * The control is the case with the target's contribution disabled. It differs
+ * from dsl, and it renders with the same timeline and inputs:
+ *   - A timed control disables the target's time-dependence, for example
+ *     every delay at 0. It must still run the target.
+ *   - A producer seen through its consumer may use a control that replaces the
+ *     producer with an empty input, such as read(o1).
+ *   - A control may use only the effects that the case lists.
+ *   - The control render uploads the same textureInputs, so each fixture's
+ *     effect must still execute in the control. A producer control can replace
+ *     the producer only when no fixture targets it.
+ *   - The control must give a different frame from the case on both backends,
+ *     or the recorder fails with CONTROL GATE FAILED.
+ *   - The gate cannot see whether the control changes only the target's
+ *     time-dependence. A control that also changes a seed passes it, so the
+ *     case's author and reviewer check that the control disables only the target.
+ *
+ * Example: a timed case for a history effect. It renders a moving source
+ * through the effect until its longest delay fills, with a control that sets
+ * every delay to 0:
+ *   {
+ *     "schemaVersion": 1,
+ *     "effects": ["synth/noise", "filter/temporalAberration"],
+ *     "dsl": "search synth, filter\nnoise(seed: 1).temporalAberration(redDelay: 0, greenDelay: 4, blueDelay: 8).write(o0)\nrender(o0)",
+ *     "surface": "o0",
+ *     "resolution": [64, 64],
+ *     "epsilon": 0,
+ *     "requireColorVariation": true,
+ *     "timeline": { "frames": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
+ *     "control": "search synth, filter\nnoise(seed: 1).temporalAberration(redDelay: 0, greenDelay: 0, blueDelay: 0).write(o0)\nrender(o0)"
+ *   }
+ *
+ * A timed case's attestation adds timeline: { frames, loopSeconds }. A case
+ * with a control adds control: { differs: { webgl2, webgpu },
+ * targetPasses: { webgl2, webgpu } }.
+ */
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
