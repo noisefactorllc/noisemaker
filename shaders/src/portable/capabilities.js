@@ -14,17 +14,20 @@
  *   onInit()        once per effect per pipeline
  *   onUpdate(ctx)   once per effect per frame; returned uniforms bind where a
  *                   pass does not resolve them
- *   asyncInit(ctx)  once per node, again on resize and recompile, and when a
- *                   dependency changes value; ctx carries updateTexture,
- *                   width, height, params, isCancelled, signal (this
- *                   regeneration) and lifetimeSignal (the node)
+ *   asyncInit(ctx)  once per node, again on resize and recompile, when a
+ *                   parameter dependency changes value, and when a resource
+ *                   dependency's texture is allocated again; ctx carries
+ *                   updateTexture, width, height, params, isCancelled, signal
+ *                   (this regeneration) and lifetimeSignal (the node)
  *   onDestroy()     when a pipeline is disposed
  *
  * A package's providers compose in the order the package declares them:
  * onInit, onUpdate and asyncInit run in that order, and onDestroy in the
  * reverse order. When two providers return the same uniform from onUpdate,
  * the later one's value binds. Per-node state belongs in a cache keyed by the
- * asyncInit context, never on the shared receiver.
+ * asyncInit context's lifetimeSignal, which is the same object until the node
+ * ends, never on the shared receiver: the context itself is new for each
+ * regeneration.
  *
  * Duplicate registration of an ID and version is an error, and a package can
  * never install a provider: its descriptor files are data only.
@@ -136,10 +139,12 @@ const capabilityUse = new WeakMap()
 /**
  * Record how an effect uses its capabilities.
  * @param {object} effect - The registered effect
- * @param {{dependencies: string[]}} use - The global names whose values start a regeneration
+ * @param {{dependencies: string[], resources?: string[]}} use - The global
+ *   names whose values start a regeneration, and the texture names whose
+ *   allocation does
  */
-export function setCapabilityUse(effect, { dependencies }) {
-    capabilityUse.set(effect, Object.freeze({ dependencies: Object.freeze([...dependencies]) }))
+export function setCapabilityUse(effect, { dependencies, resources = [] }) {
+    capabilityUse.set(effect, Object.freeze({ dependencies: Object.freeze([...dependencies]), resources: Object.freeze([...resources]) }))
 }
 
 /**
@@ -147,7 +152,7 @@ export function setCapabilityUse(effect, { dependencies }) {
  * none: the pipeline then compares every scalar parameter but alpha, as
  * before capabilities existed.
  * @param {object} effect
- * @returns {{dependencies: string[]}|null}
+ * @returns {{dependencies: string[], resources: string[]}|null}
  */
 export function capabilityUseOf(effect) {
     return (effect && capabilityUse.get(effect)) ?? null
@@ -179,5 +184,17 @@ export function providerContext(context, descriptor) {
 export function dependencyGlobals(declaration, descriptor) {
     const roles = descriptor.dependencies?.parameters ?? []
     const bound = declaration.bindings?.parameters ?? {}
+    return roles.filter(role => Object.hasOwn(bound, role)).map(role => bound[role])
+}
+
+/**
+ * The texture names a declaration's resource dependencies name, through its bindings.
+ * @param {object} declaration
+ * @param {object} descriptor
+ * @returns {string[]}
+ */
+export function dependencyTextures(declaration, descriptor) {
+    const roles = descriptor.dependencies?.resources ?? []
+    const bound = declaration.bindings?.textures ?? {}
     return roles.filter(role => Object.hasOwn(bound, role)).map(role => bound[role])
 }

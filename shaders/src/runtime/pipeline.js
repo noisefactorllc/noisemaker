@@ -190,10 +190,21 @@ function isAutomationValue(value) {
 }
 
 // A declared dependency's value, for comparison by value: a number, a
-// string, a boolean or a vector compares equal to the same value, whatever
-// object holds it.
+// string, a boolean, a vector or an object compares equal to the same value,
+// whatever object holds it and in whatever key order. Infinity and -Infinity
+// are values of their own. NaN equals nothing, as it never compared equal
+// before dependencies were declared, so a NaN value regenerates each time.
+let nanKeys = 0
 function dependencyValueKey(value) {
-    return JSON.stringify(value)
+    if (typeof value === 'number') {
+        if (Number.isNaN(value)) return `NaN#${nanKeys++}`
+        return Number.isFinite(value) ? `n:${value}` : `n:${value > 0 ? 'Infinity' : '-Infinity'}`
+    }
+    if (Array.isArray(value)) return `[${value.map(dependencyValueKey).join(',')}]`
+    if (value && typeof value === 'object') {
+        return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${dependencyValueKey(value[key])}`).join(',')}}`
+    }
+    return `${typeof value}:${String(value)}`
 }
 
 function scaleAutomationValue(value, range) {
@@ -998,6 +1009,27 @@ export class Pipeline {
      * pipeline lifetime — effects are registry singletons shared by nodes,
      * and recompiles must not re-run onInit.
      */
+    /**
+     * Run the onInit of every effect of `graph` that this pipeline has not
+     * initialized yet, and change nothing else. A recompile calls it before it
+     * replaces the running graph, so that an onInit that throws refuses the
+     * candidate while the accepted graph, its nodes and their lifetimes stay
+     * as they were. An effect whose onInit ran is not initialized again.
+     * @param {object} graph - The candidate graph
+     */
+    runPendingLifecycleInits(graph) {
+        const seen = new Set()
+        for (const pass of graph?.passes ?? []) {
+            if (!pass.effectKey || seen.has(pass.effectKey)) continue
+            seen.add(pass.effectKey)
+            if (this._initLifecycleDone.has(pass.effectKey)) continue
+            const effectDef = getEffect(pass.effectKey)
+            if (!hasLifecycleHook(effectDef, 'onInit')) continue
+            effectDef.onInit()
+            this._initLifecycleDone.add(pass.effectKey)
+        }
+    }
+
     initLifecycleEffects() {
         if (!this.graph || !this.graph.passes) return
 
@@ -1191,6 +1223,8 @@ export class Pipeline {
     }
 
     _startAsyncInit(nodeId, effectDef, { debounce = false, params = null } = {}) {
+        // A disposed pipeline starts nothing: no regeneration, and no lifetime.
+        if (this._disposed) return
         if (debounce) {
             // Debounce: wait for slider to settle before regenerating
             if (!this._asyncDebounceTimers) this._asyncDebounceTimers = new Map()
@@ -1207,8 +1241,8 @@ export class Pipeline {
         const prevCancel = this._asyncRenders.get(nodeId)
         if (prevCancel) prevCancel()
 
-        // Two cancellations: this regeneration's, which the next regeneration
-        // of the node cancels, and the node's lifetime, which ends when a
+        // The regeneration's cancellation, which the next regeneration of the
+        // node cancels, apart from the node's lifetime, which ends when a
         // recompile replaces the graph or the pipeline is disposed.
         let cancelled = false
         const regeneration = new AbortController()
@@ -2060,8 +2094,44 @@ export class Pipeline {
         // A simulation texture recreated without its contents (for example a
         // stateSize change) makes the next render a start, so it is seeded at once.
         const before = this.simulationTextureRecords()
+        const resources = this._asyncResourceRecords()
         this.recreateGraphTextures(uniforms)
         if (this.simulationTexturesRecreated(before)) this.clock.reset()
+        // A texture that a capability declares as a resource dependency, and
+        // that this call allocated again, draws its node again. A resize or a
+        // recompile, which draws every node, cancels this pending one.
+        for (const { nodeId, effectDef, texId, record, params } of resources) {
+            if (this.backend?.textures?.get?.(texId) !== record) {
+                this._startAsyncInit(nodeId, effectDef, { debounce: true, params })
+            }
+        }
+    }
+
+    /**
+     * The backend records of the textures that capabilities declare as resource
+     * dependencies, with each node's parameter values.
+     * @private
+     */
+    _asyncResourceRecords() {
+        const records = []
+        const seen = new Set()
+        for (const pass of this.graph?.passes ?? []) {
+            if (!pass.nodeId || !pass.effectKey || seen.has(pass.nodeId)) continue
+            seen.add(pass.nodeId)
+            const effectDef = getEffect(pass.effectKey)
+            const resources = capabilityUseOf(effectDef)?.resources
+            if (!resources?.length) continue
+            const params = {}
+            for (const [paramName, spec] of Object.entries(effectDef.globals || {})) {
+                const value = pass.uniforms?.[spec.uniform || paramName] ?? this.globalUniforms[spec.uniform || paramName]
+                if (value !== undefined) params[paramName] = value
+            }
+            for (const name of resources) {
+                const texId = `${this.stateIdOf(pass.nodeId)}_${name}`
+                records.push({ nodeId: pass.nodeId, effectDef, texId, record: this.backend?.textures?.get?.(texId), params })
+            }
+        }
+        return records
     }
 
     /**

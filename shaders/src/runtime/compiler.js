@@ -415,6 +415,14 @@ export function compileGraphFor(pipeline, newSource, options = {}) {
  */
 export function swapGraph(pipeline, newGraph) {
     try {
+        // The candidate's effects run their onInit before anything changes, so
+        // one that throws leaves the accepted graph running as it was.
+        pipeline.runPendingLifecycleInits?.(newGraph)
+    } catch (error) {
+        console.error('Recompilation failed:', formatError(error))
+        return false
+    }
+    try {
         // Swap graph on pipeline. The scene volume() constraint the runtime
         // guard enforces is read off the graph, so the guard's warn-once memo
         // belongs to the graph being replaced: kept, it would silence every

@@ -396,9 +396,9 @@ export function normalizeCapabilityDescriptor(raw) {
     }
     if (data.methods !== undefined) {
         checkNameList(data.methods, 'methods', diagnostics, (name, path) => {
-            if (typeof name !== 'string' || !IDENTIFIER.test(name) || RESERVED_METHODS.has(name)) {
+            if (typeof name !== 'string' || !IDENTIFIER.test(name) || RESERVED_METHODS.has(name) || name.startsWith('_')) {
                 diagnostics.push(diagnostic('invalid-name', path,
-                    `${path}: a method name is an identifier that is not a lifecycle hook or a field of an effect`))
+                    `${path}: a method name is an identifier that is not private (no leading underscore), a lifecycle hook or a field of an effect`))
             }
         })
     }

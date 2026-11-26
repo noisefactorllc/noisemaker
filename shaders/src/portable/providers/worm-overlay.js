@@ -4,7 +4,7 @@
  * Draws layers of worm traces on a CPU 2D canvas and uploads the canvas into
  * a texture of the effect as it draws. A recipe states, as data, how each
  * layer is traced from the seed and density parameters. filter/fibers,
- * filter/scratches and filter/strayHair are three recipes.
+ * filter/scratches and filter/strayHair are each drawn from a recipe.
  *
  * For layer L (from 0) of a recipe:
  *   layerSeed = seed * layerSeed.multiply + L * layerSeed.step + layerSeed.offset
@@ -48,7 +48,7 @@ export const WORM_OVERLAY_DESCRIPTOR = Object.freeze({
             type: 'object',
             required: true,
             properties: {
-                layers: { type: 'integer', minimum: 1, required: true },
+                layers: { type: 'integer', minimum: 1, maximum: 16, required: true },
                 checkEachLayer: { type: 'boolean', required: true },
                 layerSeed: {
                     type: 'object',
@@ -63,7 +63,7 @@ export const WORM_OVERLAY_DESCRIPTOR = Object.freeze({
                 density: {
                     type: 'object',
                     required: true,
-                    properties: { base: { type: 'number', required: true }, scale: { type: 'number', required: true } },
+                    properties: { base: { type: 'number', minimum: 0, maximum: 4, required: true }, scale: { type: 'number', minimum: 0, maximum: 4, required: true } },
                 },
                 kink: { ...formula, required: true },
                 stride: { type: 'number', required: true },
@@ -196,8 +196,33 @@ export async function drawWormOverlay(recipe, parameters, texture, context, host
  * effect its asyncInit.
  * @param {{options: {recipe: object}, bindings: object, host: object}} input
  */
+/**
+ * What a recipe must hold beyond its descriptor's schema, which a schema of
+ * this form cannot state. A recipe that fails is refused when the effect
+ * registers, rather than failing on every draw.
+ * @param {object} recipe
+ */
+export function checkWormOverlayRecipe(recipe) {
+    const problems = []
+    const { color, behavior } = recipe
+    if (Boolean(color.random) === Boolean(color.rgb)) problems.push('color gives one of random and rgb')
+    if (color.rgb && color.rgb.length !== 3) problems.push('color.rgb holds red, green and blue')
+    if (behavior.name === undefined && (behavior.even === undefined || behavior.odd === undefined)) {
+        problems.push('behavior gives a name, or both even and odd')
+    }
+    if (behavior.name !== undefined && (behavior.even !== undefined || behavior.odd !== undefined)) {
+        problems.push('behavior gives a name or even and odd, not both')
+    }
+    for (const field of ['kink', 'duration', 'flowFreq']) {
+        if (recipe[field].divide === 0) problems.push(`${field}.divide is not 0`)
+    }
+    if (recipe.lineWidth.divide === 0) problems.push('lineWidth.divide is not 0')
+    if (problems.length) throw new Error(`the worm overlay recipe is refused: ${problems.join('; ')}`)
+}
+
 export function createWormOverlay({ options, bindings, host = {} }) {
     const { recipe } = options
+    checkWormOverlayRecipe(recipe)
     const parameters = bindings.parameters ?? {}
     const texture = bindings.textures.overlay
     return {
@@ -214,7 +239,7 @@ export const wormOverlayProvider = Object.freeze({
     create: createWormOverlay,
 })
 
-/** The recipes of the three overlays in the catalog, as their definitions draw them. */
+/** The recipes of the catalog's overlays, as their definitions draw them. */
 export const WORM_OVERLAY_RECIPES = Object.freeze({
     fibers: {
         layers: 4,

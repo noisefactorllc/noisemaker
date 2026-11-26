@@ -30,7 +30,7 @@
  * case renders its frames in order on the fixed-step clock, applies each
  * frame's inputs after it, and is read at its last frame. A case's tiles are
  * not honoured: a pin compares the untiled frame. A pin reads no control, so a
- * timed case needs none here. Two fields are the pin tool's own: audio,
+ * timed case needs none here. Fields of the pin tool's own: audio,
  * "ramps", fills the waveform and the spectrum with the cross-backend
  * agreement harness's ramps, for an effect that draws audio input; and
  * portablePackages, [{ id, path }], names Portable package directories in the

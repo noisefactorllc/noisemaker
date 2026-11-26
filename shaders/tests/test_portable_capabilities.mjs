@@ -14,7 +14,7 @@
 //
 // Then a third-party provider, registered in a fixture host through the
 // public API, drives a package through the production Pipeline with a
-// recording backend: two nodes, two pipelines, resize, recompile, dispose,
+// recording backend: several nodes and pipelines, resize, recompile, dispose,
 // cancellation, by-value dependencies and upload orientation.
 //
 // Run: node --test shaders/tests/test_portable_capabilities.mjs
@@ -24,9 +24,10 @@ import os from 'node:os'
 import path from 'node:path'
 import { after, before, test } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { spawnSync } from 'node:child_process'
 
 import {
-    CanvasRenderer, createCapabilityRegistry, getEffect, getPortableCapability, instantiatePortableEffect,
+    CanvasRenderer, createCapabilityRegistry, getAllEffects, getEffect, getPortableCapability, instantiatePortableEffect,
     mergeIntoEnums, registerPortableCapability, resolvePortableCapabilities,
 } from '../src/index.js'
 import { Backend } from '../src/runtime/backend.js'
@@ -96,7 +97,8 @@ async function traceLog(effect, { params, width, height, cancelAfter = Infinity 
     let checks = 0
     try {
         await effect.asyncInit({
-            updateTexture: (name, canvas) => log.push(['upload', name, canvasIds.get(canvas)]),
+            // The orientation each upload takes, as the pipeline reads it: flipY unless it is 'none'.
+            updateTexture: (name, canvas, options) => log.push(['upload', name, canvasIds.get(canvas), options?.orientation ?? 'flipY']),
             width,
             height,
             params,
@@ -142,7 +144,7 @@ test('each worm overlay keeps its class, its methods and its own properties', as
         assert.equal(current.constructor.name, reference.constructor.name)
         assert.deepEqual(Object.keys(current), Object.keys(reference), `${name}: the same own properties`)
         assert.deepEqual(Object.getOwnPropertyNames(Object.getPrototypeOf(current)), Object.getOwnPropertyNames(Object.getPrototypeOf(reference)))
-        assert.deepEqual(capabilityUseOf(current), { dependencies: ['seed', 'density'] }, `${name}: its scalar dependencies, declared`)
+        assert.deepEqual(capabilityUseOf(current), { dependencies: ['seed', 'density'], resources: [] }, `${name}: its scalar dependencies, declared`)
     }
 })
 
@@ -232,8 +234,9 @@ function stripesProvider(events) {
                         events.allocated++
                         context.lifetimeSignal.addEventListener('abort', () => { events.released++ })
                     }
-                    events.runs.push({ state, params: context.params, width: context.width, regeneration: context.signal, lifetime: context.lifetimeSignal })
-                    const source = { getContext: () => null, drawnFor: state.node }
+                    const run = events.runs.length
+                    events.runs.push({ run, state, params: context.params, width: context.width, regeneration: context.signal, lifetime: context.lifetimeSignal })
+                    const source = { getContext: () => null, drawnFor: state.node, run }
                     context.updateTexture(bindings.textures.target, source)
                     await events.gate?.()
                     context.updateTexture(bindings.textures.target, source)
@@ -345,7 +348,7 @@ test('providers compose in declaration order onto the registered effect, which i
     ])
     assert.ok(events.hooks.every(([, , receiver]) => receiver === instance), 'every hook runs on the registered effect')
     assert.deepEqual(instance.stripeCount(), [instance, 3], 'a declared method runs on the registered effect')
-    assert.deepEqual(capabilityUseOf(instance), { dependencies: ['tint', 'alpha'] })
+    assert.deepEqual(capabilityUseOf(instance), { dependencies: ['tint', 'alpha'], resources: ['overlayTex'] })
     assert.equal(getEffect('user.capabilityOrder'), instance)
 })
 
@@ -359,16 +362,16 @@ class RecordingBackend extends Backend {
     }
 
     async init() {}
-    createTexture(id, spec) { this.textures.set(id, { id, width: spec.width, height: spec.height }); return this.textures.get(id) }
+    createTexture(id, spec) { this.textures.set(id, { id, width: spec.width, height: spec.height, format: spec.format, usage: spec.usage }); return this.textures.get(id) }
     createTexture3D(id, spec) { this.textures.set(id, { id, ...spec }); return this.textures.get(id) }
     destroyTexture() {}
     async compileProgram(id, spec) { return { handle: id, type: spec.type } }
-    executePass() {}
+    executePass(pass) { this.executed?.push(pass) }
     beginFrame() {}
     endFrame() {}
     resize() {}
     async readPixels() { return { width: 1, height: 1, data: new Uint8Array(4) } }
-    updateTextureFromSource(id, source, options) { this.uploads.push({ id, node: source.drawnFor, flipY: options.flipY }) }
+    updateTextureFromSource(id, source, options) { this.uploads.push({ id, node: source.drawnFor, run: source.run, flipY: options.flipY }) }
     getName() { return 'Recording' }
     static isAvailable() { return true }
 }
@@ -443,8 +446,9 @@ test('under the pipeline: a regeneration cancels the one before it, and a cancel
     assert.equal(firstRun.lifetime.aborted, false, 'the node lives on')
     release()
     await pipeline.whenAsyncInitsSettled()
-    const stale = backend.uploads.slice(uploadsBefore).filter(upload => upload.node === firstRun.state.node && upload !== backend.uploads.at(-1) && upload !== backend.uploads.at(-2))
-    assert.equal(stale.length, 0, 'the cancelled run\'s last upload is dropped')
+    const stale = backend.uploads.slice(uploadsBefore).filter(upload => upload.run === firstRun.run)
+    assert.equal(stale.length, 0, 'the cancelled run uploads nothing after its cancellation')
+    assert.ok(backend.uploads.some(upload => upload.run === events.runs.at(-1).run), 'the new run uploads')
     pipeline.dispose()
 })
 
@@ -474,7 +478,7 @@ test('under the pipeline: declared dependencies compare by value, vectors and al
 
     // A migrated built-in declares the dependencies it observed: seed and density, not alpha.
     const fibers = (await importFrom(REPO_ROOT, 'shaders/effects/filter/fibers/definition.js')).default
-    assert.deepEqual(capabilityUseOf(fibers), { dependencies: ['seed', 'density'] })
+    assert.deepEqual(capabilityUseOf(fibers), { dependencies: ['seed', 'density'], resources: [] })
 })
 
 test('under the pipeline: an asyncInit that fails leaves the pipeline rendering', async () => {
@@ -576,7 +580,7 @@ test('the overlay example declares the engine\'s worm overlay with a recipe of i
     const drawn = await traceLog(effect.instance, { params: { seed: 2, density: 0.8 }, width: 64, height: 64 })
     assert.ok(drawn.log.some(([, call]) => call === 'stroke'), 'it draws strokes')
     assert.ok(drawn.log.some(([call, name]) => call === 'upload' && name === 'overlayTex'), 'it uploads its overlay')
-    assert.deepEqual(capabilityUseOf(effect.instance), { dependencies: ['seed', 'density'] })
+    assert.deepEqual(capabilityUseOf(effect.instance), { dependencies: ['seed', 'density'], resources: [] })
 })
 
 test('the host-provider example: a host registers its provider, and the package that carries its descriptor loads and draws', async () => {
@@ -605,7 +609,7 @@ test('the host-provider example: a host registers its provider, and the package 
     assert.deepEqual(log.filter(([, call]) => call === 'fillStyle=').map(([, , value]) => value),
         ['rgb(255, 0, 0)', 'rgb(128, 0, 128)', 'rgb(0, 0, 255)'], 'a row for each line of the texture, from top to bottom')
     assert.deepEqual(uploads, [['washTex', 4, { orientation: 'flipY' }]], 'one upload, in the declared orientation')
-    assert.deepEqual(capabilityUseOf(effect.instance), { dependencies: ['top', 'bottom'] }, 'both colors are dependencies, compared by value')
+    assert.deepEqual(capabilityUseOf(effect.instance), { dependencies: ['top', 'bottom'], resources: ['washTex'] }, 'its colors and its texture are dependencies')
 })
 
 test('a package registered through the public API runs the engine\'s worm overlay, with no catalog change', async () => {
@@ -620,6 +624,244 @@ test('a package registered through the public API runs the engine\'s worm overla
     const overlay = { params: { seed: 4, density: 0.5 }, width: 64, height: 64 }
     assert.deepEqual((await traceLog(effect.instance, overlay)).log, (await traceLog(fibers, overlay)).log,
         'the package draws what filter/fibers draws')
-    assert.deepEqual(capabilityUseOf(effect.instance), { dependencies: ['seed'] }, 'the bound dependency roles')
-    assert.equal(registerPortableCapability.length, 1)
+    assert.deepEqual(capabilityUseOf(effect.instance), { dependencies: ['seed'], resources: [] }, 'the bound dependency roles')
+})
+
+// ---------------------------------------------------------------------------
+// More of the lifecycle contract.
+
+// A catalog effect with its shader files attached, as the catalog's loader attaches them.
+async function catalogEffect(id) {
+    const mod = await importFrom(REPO_ROOT, `shaders/effects/${id}/definition.js`)
+    const instance = typeof mod.default === 'function' ? new mod.default() : mod.default
+    const shaders = {}
+    const keys = { '.glsl': 'glsl', '.vert': 'vertex', '.frag': 'fragment', '.wgsl': 'wgsl' }
+    for (const language of ['glsl', 'wgsl']) {
+        const directory = path.join(REPO_ROOT, 'shaders/effects', id, language)
+        for (const file of fs.readdirSync(directory)) {
+            const extension = path.extname(file)
+            const program = path.basename(file, extension);
+            (shaders[program] ??= {})[keys[extension]] = fs.readFileSync(path.join(directory, file), 'utf8')
+        }
+    }
+    instance.shaders = shaders
+    return instance
+}
+
+async function registerCatalogEffect(id) {
+    const [namespace, name] = id.split('/')
+    if (getEffect(`${namespace}.${name}`)?.shaders) return
+    const choices = new CanvasRenderer().registerEffectWithRuntime({ namespace, name, instance: await catalogEffect(id) })
+    if (choices) await mergeIntoEnums(choices)
+    if (namespace === 'synth') registerStarterOps([`${namespace}.${name}`])
+}
+
+// A provider that records its runs and its init, for the tests below.
+function recordingProvider(id, events, { methods = [], onInit, resources = [] } = {}) {
+    return {
+        id,
+        version: 1,
+        descriptor: {
+            id, version: 1,
+            bindings: { parameters: { tint: { types: ['vec3'] } }, textures: { target: {} } },
+            dependencies: { parameters: ['tint'], resources },
+            uploadOrientation: 'flipY',
+            methods,
+        },
+        create() {
+            return {
+                onInit() { if (onInit) onInit(); events.hooks.push([id, 'onInit']) },
+                async asyncInit(context) { events.runs.push({ id, lifetime: context.lifetimeSignal, regeneration: context.signal }) },
+                methods: Object.fromEntries(methods.map(name => [name, () => id])),
+            }
+        },
+    }
+}
+
+const recordingDeclaration = id => ({ id, version: 1, bindings: { parameters: { tint: 'tint' }, textures: { target: 'overlayTex' } } })
+
+test('under the pipeline: a resource dependency draws its node again when its texture is allocated again', async () => {
+    const registry = createCapabilityRegistry()
+    const events = freshEvents()
+    registry.register(recordingProvider('example/sized', events, { resources: ['target'] }))
+    registry.register(recordingProvider('example/unsized', events))
+    const sized = overrides => pkg(overrides.func, [recordingDeclaration(overrides.id)], {
+        globals: { ...pkg('x', []).globals, cells: { type: 'int', default: 8, uniform: 'cells' } },
+        textures: { overlayTex: { width: { param: 'cells', default: 8 }, height: { param: 'cells', default: 8 }, format: 'rgba8' } },
+    })
+    await new CanvasRenderer().registerPortableEffect(sized({ func: 'capabilitySized', id: 'example/sized' }), { capabilities: registry })
+    await new CanvasRenderer().registerPortableEffect(sized({ func: 'capabilityUnsized', id: 'example/unsized' }), { capabilities: registry })
+    for (const [func, expected] of [['capabilitySized', 1], ['capabilityUnsized', 0]]) {
+        const { pipeline } = await pipelineFor(`search user\n${func}().write(o0)\nrender(o0)`)
+        await pipeline.whenAsyncInitsSettled()
+        const before = events.runs.length
+        pipeline.recreateTextures({ cells: 16 })
+        await pipeline.whenAsyncInitsSettled()
+        assert.equal(events.runs.length - before, expected, `${func}: a texture allocated again at a new size`)
+        const settled = events.runs.length
+        pipeline.recreateTextures({ cells: 16 })
+        await pipeline.whenAsyncInitsSettled()
+        assert.equal(events.runs.length - settled, 0, `${func}: the same size allocates nothing, and draws nothing`)
+        pipeline.dispose()
+    }
+})
+
+test('under the pipeline: a candidate whose provider fails to init is refused, and the accepted graph runs on as it was', async () => {
+    const registry = createCapabilityRegistry()
+    const events = freshEvents()
+    registry.register(recordingProvider('example/good', events))
+    registry.register(recordingProvider('example/bad', events, { onInit: () => { throw new Error('no device') } }))
+    await new CanvasRenderer().registerPortableEffect(pkg('capabilityGood', [recordingDeclaration('example/good')]), { capabilities: registry })
+    await new CanvasRenderer().registerPortableEffect(pkg('capabilityBad', [recordingDeclaration('example/bad')]), { capabilities: registry })
+    const { pipeline } = await pipelineFor('search user\ncapabilityGood().write(o0)\nrender(o0)')
+    await pipeline.whenAsyncInitsSettled()
+    const accepted = pipeline.graph
+    const acceptedRun = events.runs.at(-1)
+    const logged = []
+    const error = console.error
+    console.error = (...args) => logged.push(args.join(' '))
+    let result
+    try {
+        result = recompile(pipeline, 'search user\ncapabilityBad().write(o0)\nrender(o0)')
+    } finally {
+        console.error = error
+    }
+    assert.ok(!result, 'the candidate is refused')
+    assert.ok(logged.some(line => line.includes('no device')), 'the failure is reported')
+    assert.equal(pipeline.graph, accepted, 'the accepted graph is still the pipeline\'s')
+    assert.equal(acceptedRun.lifetime.aborted, false, 'the accepted node lives on')
+    pipeline.render(0)
+    pipeline.render(0.1)
+    pipeline.dispose()
+    assert.equal(acceptedRun.lifetime.aborted, true, 'and ends with the pipeline')
+})
+
+test('under the pipeline: the media provider fixture keeps synth/media\'s size state and uniform precedence', async () => {
+    const files = readPackage(path.join(REPO_ROOT, PROVIDERS_RELATIVE, 'synth-media'))
+    const loaded = loadPortablePackage(files)
+    if (!getEffect('user.media')) await new CanvasRenderer().registerPortableEffect({ ...loaded.definition, shaders: loaded.shaders })
+    await registerCatalogEffect('synth/media')
+    const run = async (namespace) => {
+        const effect = getEffect(`${namespace}.media`)
+        effect.setMediaDimensions(320, 200)
+        const { pipeline, backend } = await pipelineFor(`search ${namespace}\nmedia().write(o0)\nrender(o0)`)
+        const trace = [['init', { ...effect.state }]]
+        backend.executed = []
+        pipeline.render(0)
+        trace.push(['frame', pipeline._runtimeUniforms.get(`${namespace}.media`), backend.executed.find(pass => pass.effectFunc === 'media')?.uniforms.imageSize])
+        effect.setMediaDimensions(640, 480)
+        pipeline.render(0.1)
+        trace.push(['set', pipeline._runtimeUniforms.get(`${namespace}.media`)])
+        pipeline.dispose()
+        return trace
+    }
+    const provided = await run('user')
+    assert.deepEqual(provided, await run('synth'), 'the package and the catalog\'s effect keep the same state and uniforms')
+    assert.deepEqual(provided[0], ['init', { imageWidth: 1, imageHeight: 1 }], 'onInit sets the size, after the host\'s earlier call')
+    assert.deepEqual(provided[2], ['set', { imageSize: [640, 480] }], 'setMediaDimensions reaches onUpdate')
+    assert.deepEqual(provided[1][2], [1024, 1024], 'the pass keeps its own imageSize, which binds over the hook\'s')
+})
+
+test('a fixture host registers its provider in the engine\'s registry, and an unfamiliar package loads and draws, with no catalog change', async () => {
+    const { gradientProvider } = await import(pathToFileURL(path.join(EXAMPLES, 'host-provider/provider.js')).href)
+    await registerCatalogEffect('synth/solid')
+    const catalog = () => Object.keys(getAllEffects()).filter(key => !key.startsWith('user')).sort()
+    const before = catalog()
+    if (!getPortableCapability('example/gradient', 1)) registerPortableCapability(gradientProvider)
+    const loaded = loadPortablePackage(readPackage(path.join(EXAMPLES, 'host-provider/package')))
+    const host = { createCanvas: (width, height) => {
+        const canvas = recordingCanvas([], 'host')
+        canvas.width = width
+        canvas.height = height
+        return canvas
+    } }
+    const first = new CanvasRenderer()
+    const effect = await first.registerPortableEffect({ ...loaded.definition, func: 'gradientWashHost', shaders: loaded.shaders }, { host })
+    const second = new CanvasRenderer()
+    assert.equal(getEffect('user.gradientWashHost'), effect.instance, 'every renderer of the realm finds the registered effect')
+    assert.ok(second)
+    const uploads = []
+    for (let index = 0; index < 2; index++) {
+        const { pipeline, backend } = await pipelineFor('search user, synth\nsolid().gradientWashHost().write(o0)\nrender(o0)')
+        await pipeline.whenAsyncInitsSettled()
+        uploads.push(backend.uploads.filter(upload => upload.id.endsWith('_washTex')).length)
+        pipeline.dispose()
+    }
+    assert.deepEqual(uploads, [1, 1], 'each pipeline draws the package\'s node')
+    assert.deepEqual(catalog(), before, 'the catalog is as it was')
+})
+
+test('a tool checks a package against its carried descriptor in a process that has no provider code', () => {
+    const script = `
+        import fs from 'node:fs'
+        import path from 'node:path'
+        import { pathToFileURL } from 'node:url'
+        const [root, packageDir] = process.argv.slice(1)
+        const { loadPortablePackage } = await import(pathToFileURL(path.join(root, 'shaders/src/portable/package.js')).href)
+        const files = new Map()
+        const walk = (dir, prefix) => { for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+            const name = prefix ? prefix + '/' + entry.name : entry.name
+            if (entry.isDirectory()) walk(path.join(dir, entry.name), name)
+            else files.set(name, new Uint8Array(fs.readFileSync(path.join(dir, entry.name))))
+        } }
+        walk(packageDir, '')
+        const loaded = loadPortablePackage(files)
+        console.log(JSON.stringify({ diagnostics: loaded.diagnostics, capabilities: loaded.capabilities }))
+    `
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', script, REPO_ROOT, path.join(EXAMPLES, 'host-provider/package')], { encoding: 'utf8' })
+    assert.equal(result.status, 0, result.stderr)
+    assert.deepEqual(JSON.parse(result.stdout), { diagnostics: [], capabilities: { complete: true, unresolved: [] } })
+})
+
+test('a provider\'s methods are new names on the effect, and a recipe the overlay cannot draw is refused', async () => {
+    const registry = createCapabilityRegistry()
+    const events = freshEvents()
+    registry.register(recordingProvider('example/first', events, { methods: ['reset'] }))
+    registry.register(recordingProvider('example/second', events, { methods: ['reset'] }))
+    assert.throws(() => instantiatePortableEffect({ definition: pkg('capabilityMethods', [recordingDeclaration('example/first'), recordingDeclaration('example/second')]), shaders: {} },
+        { capabilities: registry }), error => {
+        assert.deepEqual(error.diagnostics.map(entry => [entry.code, entry.path]), [['duplicate-method', 'capabilities.1']])
+        return true
+    })
+    assert.throws(() => registry.register(recordingProvider('example/private', events, { methods: ['_configOnUpdate'] })), error => {
+        assert.deepEqual(error.diagnostics.map(entry => [entry.code, entry.path]), [['invalid-name', 'descriptor.methods.0']])
+        return true
+    })
+    const { WORM_OVERLAY_RECIPES } = await import('../src/portable/providers/worm-overlay.js')
+    const { color: _color, ...colorless } = WORM_OVERLAY_RECIPES.fibers
+    await assert.rejects(() => new CanvasRenderer().registerPortableEffect(pkg('capabilityColorless', [{
+        id: 'noisemaker/worm-overlay', version: 1, options: { recipe: { ...colorless, color: { alpha: 0.5 } } },
+        bindings: { parameters: { seed: 'seed' }, textures: { overlay: 'overlayTex' } },
+    }])), error => {
+        assert.deepEqual(error.diagnostics.map(entry => entry.code), ['failed-provider'])
+        assert.match(error.message, /color gives one of random and rgb/)
+        return true
+    })
+    assert.equal(getEffect('user.capabilityColorless'), undefined)
+})
+
+test('under the pipeline: NaN regenerates each time, the infinities are values, and a disposed pipeline starts nothing', async () => {
+    const registry = createCapabilityRegistry()
+    const events = freshEvents()
+    registry.register(stripesProvider(events))
+    await new CanvasRenderer().registerPortableEffect(pkg('capabilityNumbers', [stripes()]), { capabilities: registry })
+    const { pipeline } = await pipelineFor('search user\ncapabilityNumbers().write(o0)\nrender(o0)')
+    const nodeId = pipeline.graph.passes.find(pass => pass.effectKey === 'user.capabilityNumbers').nodeId
+    const runs = async (values) => {
+        const before = events.runs.length
+        pipeline.checkAsyncRegen(nodeId, 'user.capabilityNumbers', values)
+        await pipeline.whenAsyncInitsSettled()
+        return events.runs.length - before
+    }
+    assert.equal(await runs({ tint: [NaN, 0, 0] }), 1)
+    assert.equal(await runs({ tint: [NaN, 0, 0] }), 1, 'NaN equals nothing, as before dependencies were declared')
+    assert.equal(await runs({ tint: [Infinity, 0, 0] }), 1)
+    assert.equal(await runs({ tint: [-Infinity, 0, 0] }), 1, 'Infinity and -Infinity are different values')
+    assert.equal(await runs({ tint: [-Infinity, 0, 0] }), 0)
+    pipeline.dispose()
+    const after = events.runs.length
+    pipeline.checkAsyncRegen(nodeId, 'user.capabilityNumbers', { tint: [9, 9, 9] })
+    await pipeline.whenAsyncInitsSettled()
+    assert.equal(events.runs.length, after, 'a disposed pipeline draws nothing')
+    assert.equal(pipeline._asyncLifetimes.size, 0, 'and starts no lifetime')
 })

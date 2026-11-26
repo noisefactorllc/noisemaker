@@ -15,8 +15,23 @@
 
 import { Effect } from '../runtime/effect.js'
 import {
-    capabilityUseOf, defaultCapabilityRegistry, dependencyGlobals, providerContext, resolvePortableCapabilities, setCapabilityUse
+    capabilityUseOf, defaultCapabilityRegistry, dependencyGlobals, dependencyTextures, providerContext, resolvePortableCapabilities,
+    setCapabilityUse
 } from './capabilities.js'
+
+// The create() signals of each instantiated effect, which abort when its
+// registration fails after create() ran.
+const creations = new WeakMap()
+
+/**
+ * Abort the create() signals of an effect whose registration failed after
+ * instantiatePortableEffect() returned it. Registration calls it; nothing else needs to.
+ * @param {object} effect
+ */
+export function abortPortableEffect(effect) {
+    for (const controller of creations.get(effect) ?? []) controller.abort()
+    creations.delete(effect)
+}
 
 // The engine's own catalog registers in its namespaces with this context.
 // It is not exported through the package's public entry point.
@@ -140,6 +155,25 @@ export function instantiatePortableEffect(packageData, { registrationContext, ca
         }
     }
     const effect = new Effect(config)
+    // A method a provider adds is a new name on the effect: never one the
+    // effect already has, a private one, or one another provider adds.
+    const added = new Map()
+    const problems = []
+    lifecycles.forEach((lifecycle, index) => {
+        for (const name of Object.keys(lifecycle.methods ?? {})) {
+            if (name.startsWith('_') || name in effect) {
+                problems.push({ code: 'invalid-provider', path: `capabilities.${index}`, message: `the method ${name} would replace a member of the effect` })
+            } else if (added.has(name)) {
+                problems.push({ code: 'duplicate-method', path: `capabilities.${index}`, message: `the method ${name} is also added by capabilities.${added.get(name)}` })
+            } else {
+                added.set(name, index)
+            }
+        }
+    })
+    if (problems.length > 0) {
+        for (const controller of controllers) controller.abort()
+        throw refuse(problems)
+    }
     lifecycles.forEach(lifecycle => {
         for (const [name, method] of Object.entries(lifecycle.methods ?? {})) {
             effect[name] = function (...args) { return method.apply(this, args) }
@@ -148,8 +182,10 @@ export function instantiatePortableEffect(packageData, { registrationContext, ca
     if (resolved.length > 0) {
         setCapabilityUse(effect, {
             dependencies: [...new Set(resolved.flatMap(({ declaration, provider }) => dependencyGlobals(declaration, provider.descriptor)))],
+            resources: [...new Set(resolved.flatMap(({ declaration, provider }) => dependencyTextures(declaration, provider.descriptor)))],
         })
     }
+    creations.set(effect, controllers)
     return effect
 }
 

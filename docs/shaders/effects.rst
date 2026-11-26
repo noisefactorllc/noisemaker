@@ -1537,7 +1537,10 @@ provider's lifecycle: any of ``onInit``, ``onUpdate``, ``asyncInit`` and
 ``onDestroy``, and in ``methods`` one function for each method that the
 descriptor names. A lifecycle of another form is refused
 (``invalid-provider``), and so is a ``create`` that throws
-(``failed-provider``).
+(``failed-provider``). A method a provider adds is a new name on the effect:
+one that names a member the effect already has, or starts with an
+underscore, is refused (``invalid-provider``), and so is one that another
+of the package's providers also adds (``duplicate-method``).
 
 **Registration.** ``registerPortableEffect()`` finds the provider of each
 capability a version 2 package declares, and checks each declaration
@@ -1553,12 +1556,12 @@ one registered effect, under the lifecycle contract of every effect
   return the same uniform from ``onUpdate``, the later one's value binds, and
   a returned uniform binds only where a pass does not resolve it.
 - ``asyncInit`` runs once for each node of the effect, again when the
-  pipeline is resized or recompiled, and when a dependency changes value. Its
+  pipeline is resized or recompiled, and when a dependency changes. Its
   context carries ``updateTexture``, ``width``, ``height``, ``params`` and
-  ``isCancelled``, and two signals: ``signal`` aborts when the next
-  regeneration of the node starts, and ``lifetimeSignal`` when the node ends,
-  because a recompile replaced the graph or the pipeline was disposed. A
-  resize keeps the node. ``updateTexture`` uploads in the descriptor's
+  ``isCancelled``, and the signals ``signal``, which aborts when the next
+  regeneration of the node starts, and ``lifetimeSignal``, which aborts when
+  the node ends, because a recompile replaced the graph or the pipeline was
+  disposed. A resize keeps the node. ``updateTexture`` uploads in the descriptor's
   ``uploadOrientation``, and an upload after the regeneration was cancelled
   is dropped.
 - ``onDestroy`` runs when a pipeline is disposed, in the reverse order.
@@ -1567,9 +1570,19 @@ one registered effect, under the lifecycle contract of every effect
   provider keeps state for one node in a cache keyed by the context's
   ``lifetimeSignal``, which is the same object until the node ends.
 
-A dependency is a bound parameter whose value starts a regeneration. Its
-value is compared with the value the node was last drawn with, by value, so
-the same vector in a new array is no change. An automation (an oscillator,
-MIDI or audio) is not a value: the node is drawn at the parameter's default,
-and a change of automation starts no regeneration. A bound texture that a
-resize reallocates starts one, as every ``asyncInit`` does on resize.
+A parameter dependency is a bound parameter whose value starts a
+regeneration. Its value is compared with the value the node was last drawn
+with, by value, so the same vector in a new array, or an object with its
+keys in another order, is no change. ``NaN`` equals nothing, so it starts a
+regeneration each time it is applied. An automation (an oscillator, MIDI or
+audio) is not a value: a node first drawn with one is drawn at the
+parameter's default, and a parameter that becomes an automation, or changes
+automation, starts no regeneration, so the node keeps what it last drew.
+
+A resource dependency is a bound texture whose allocation starts a
+regeneration: when a parameter that sizes the texture changes, and the
+texture is allocated again at its new size, the node is drawn again. A
+resize or a recompile draws every node.
+
+A failed ``onInit`` refuses a recompile before the graph changes, so the
+accepted graph, its nodes and their lifetimes stay as they were.

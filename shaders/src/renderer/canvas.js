@@ -39,7 +39,7 @@ import { expandPalette } from '../runtime/palette-expansion.js'
 import { SCENE_COLOR_TEXTURE } from '../rendering/scene-compiler.js'
 import { normalizePortableDefinition } from '../portable/definition.js'
 import { defaultCapabilityRegistry } from '../portable/capabilities.js'
-import { instantiatePortableEffect } from '../portable/instantiate.js'
+import { abortPortableEffect, instantiatePortableEffect } from '../portable/instantiate.js'
 import '../portable/providers/index.js'
 
 let sceneModules = null
@@ -2508,12 +2508,18 @@ export class CanvasRenderer {
         const previousBare = getEffect(func)
         let choices
         try {
-            choices = this.registerEffectWithRuntime(effect)
-        } finally {
-            if (previousBare === undefined) unregisterEffect(func)
-            else registerEffect(func, previousBare)
+            try {
+                choices = this.registerEffectWithRuntime(effect)
+            } finally {
+                if (previousBare === undefined) unregisterEffect(func)
+                else registerEffect(func, previousBare)
+            }
+            this._enums = await mergeIntoEnums(choices)
+        } catch (error) {
+            // The providers created for this effect are told that it did not register.
+            if (declaresCapabilities) abortPortableEffect(instance)
+            throw error
         }
-        this._enums = await mergeIntoEnums(choices)
         if (instance.starter) registerStarterOps([`user.${func}`])
         this._loadedEffects.set(`user/${func}`, effect)
         return effect
