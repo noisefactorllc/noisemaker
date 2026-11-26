@@ -144,7 +144,7 @@ try {
     midi.updateNoteGrid()
     for (const [channel, key, velocity] of [[1, 40, 110], [2, 60, 75], [16, 84, 100]]) {
         const offset = ((channel - 1) * 128 + key) * 4
-        assert.deepEqual([midi.noteGrid[offset], midi.noteGrid[offset + 1]], [velocity / 127, 1], `the note grid holds channel ${channel} key ${key}`)
+        assert.deepEqual([midi.noteGrid[offset], midi.noteGrid[offset + 1]], [Math.fround(velocity / 127), 1], `the note grid holds channel ${channel} key ${key}`)
     }
     const recorder = fs.readFileSync(new URL('../../scripts/attest-shader-parity.mjs', import.meta.url), 'utf8')
     assert.match(recorder, /midiNoteOnMessages\(\[midiInput\]\)/, 'the recorder feeds each midi input through midiNoteOnMessages')
