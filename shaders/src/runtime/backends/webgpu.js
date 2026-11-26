@@ -2853,7 +2853,16 @@ export class WebGPUBackend extends Backend {
             const [srcFactor, dstFactor] = blend
             const toFactor = (factor) => {
                 // Convert uppercase WebGL-style constants to lowercase WebGPU-style
-                if (typeof factor === 'string') return factor.toLowerCase().replace(/_/g, '-')
+                if (typeof factor === 'string') {
+                    const normalized = factor.toLowerCase().replace(/_/g, '-')
+                    switch (normalized) {
+                        case 'src-color': return 'src'
+                        case 'dst-color': return 'dst'
+                        case 'one-minus-src-color': return 'one-minus-src'
+                        case 'one-minus-dst-color': return 'one-minus-dst'
+                        default: return normalized
+                    }
+                }
                 return null
             }
 

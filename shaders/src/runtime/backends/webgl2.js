@@ -2289,7 +2289,7 @@ export class WebGL2Backend extends Backend {
             'one-minus-dst-alpha': gl.ONE_MINUS_DST_ALPHA
         }
 
-        return factors[factor] || gl.ONE
+        return factors[factor] ?? gl.ONE
     }
 
     getName() {
