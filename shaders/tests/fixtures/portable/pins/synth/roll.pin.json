@@ -22,13 +22,13 @@
         "surface": "global_o0_write",
         "width": 64,
         "height": 256,
-        "nonzeroRgbPixels": 69,
+        "nonzeroRgbPixels": 115,
         "uniqueColors": 27,
         "alpha": [
           255,
           255
         ],
-        "sha256": "95cb783ca97dbeda1116aed6edf21a9358adaaea2c15efbec00dee16245e48eb"
+        "sha256": "50c2d5bd68b029b80c755369b158497888dfe9d43cc842317cd0c0fb8d323ee8"
       }
     }
   }
