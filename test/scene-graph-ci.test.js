@@ -45,19 +45,61 @@ test('scene-graph pushes cannot run publication jobs', () => {
   assert.match(jobBlock(workflow('dependabot-auto-merge'), 'auto-merge'), /workflow_run\.event == 'pull_request'/)
 })
 
-test('a release needs a passed shaders.yml push run on main for its commit, before any build job', () => {
+// The release gate: the verify-source step that requires a passed shaders.yml run on main for the release commit.
+// Its own script runs here with stand-ins for git, gh and sleep. The gh stand-in answers from a fixture of workflow
+// runs, keeps the runs that the query's event names, and applies the step's own --jq filter.
+const GATE = 'Require a passed shaders.yml run on main for the release commit'
+const gateStep = () => jobBlock(workflow('release'), 'verify-source')
+  .match(new RegExp(`\\n {4}- name: ${GATE.replaceAll('.', '\\.')}\\n([\\s\\S]*?)(?=\\n {4}- |\\n {4}#|$)`))?.[1] ?? ''
+const gateScript = () => {
+  const lines = gateStep().split('\n'), start = lines.findIndex(line => /^ {6}run: \|$/.test(line))
+  return start < 0 ? '' : lines.slice(start + 1).filter(line => line.startsWith('        ') || line === '').map(line => line.slice(8)).join('\n')
+}
+const runGate = (t, fixtures) => {
+  const dir = mkdtempSync(join(tmpdir(), 'release-gate-'))
+  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  const sha = 'b'.repeat(40)
+  const tool = (name, body) => { writeFileSync(join(dir, name), `#!/bin/sh\n${body}\n`); chmodSync(join(dir, name), 0o755) }
+  tool('git', '[ "$1" = rev-parse ] && [ "$2" = "$GITHUB_SHA^{commit}" ] && { echo "$GITHUB_SHA"; exit 0; }\nexit 2')
+  tool('sleep', 'exit 0')
+  tool('gh', [
+    '[ "$1" = api ] && [ "$3" = --jq ] || exit 2',
+    'echo "$2" >> "$CALLS"',
+    'n=$(wc -l < "$CALLS" | tr -d " ")',
+    'fixture="$FIXTURES/$n.json"; [ -f "$fixture" ] || fixture="$FIXTURES/last.json"',
+    'event=$(printf "%s" "$2" | sed -n "s/.*[?&]event=\\([^&]*\\).*/\\1/p")',
+    'jq --arg e "$event" \'.workflow_runs |= map(select($e == "" or .event == $e))\' "$fixture" | jq "$4"'].join('\n'))
+  fixtures.forEach((runs, i) => writeFileSync(join(dir, i === fixtures.length - 1 ? 'last.json' : `${i + 1}.json`), JSON.stringify({ workflow_runs: runs })))
+  const calls = join(dir, 'calls')
+  writeFileSync(calls, '')
+  const result = spawnSync('bash', ['-c', gateScript()], { encoding: 'utf8', timeout: 20000,
+    env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, FIXTURES: dir, CALLS: calls, GITHUB_REPOSITORY: 'owner/repository', GITHUB_SHA: sha } })
+  return { ...result, sha, calls: readFileSync(calls, 'utf8').split('\n').filter(Boolean) }
+}
+
+test('a release needs a passed shaders.yml push run on main for its commit, before any build job', t => {
   const text = workflow('release')
-  const verify = jobBlock(text, 'verify-source')
-  const step = verify.match(/\n {4}- name: Require a passed shaders\.yml run on main for the release commit\n([\s\S]*?)(?=\n {4}- name:|$)/)?.[1] ?? ''
-  assert.ok(step, 'verify-source must require a passed shaders.yml run')
-  assert.match(step, /actions\/workflows\/shaders\.yml\/runs\?head_sha=\$sha&event=push&/, 'the gate reads shaders.yml push runs for the release commit')
-  assert.match(step, /select\(\.head_branch == "main"\)/, 'the gate reads runs on main only')
-  assert.match(step, /select\(\.conclusion == "success"\)/, 'the gate needs a run that passed')
-  assert.doesNotMatch(step, /workflow_dispatch/, 'on main, only a push run of shaders.yml dispatches the release')
-  assert.match(verify, /\n {4}permissions:\n {6}contents: read\n {6}actions: read\n/, 'the gate can read workflow runs')
+  const step = gateStep()
+  assert.ok(gateScript(), 'verify-source must require a passed shaders.yml run on main')
+  assert.doesNotMatch(step, /^ {6}(if|continue-on-error):/m, 'the gate runs, and fails the job, on every release')
+  assert.match(jobBlock(text, 'verify-source'), /\n {4}permissions:\n {6}contents: read\n {6}actions: read\n/, 'the gate can read workflow runs')
   for (const job of ['build-js-bundles', 'build-standalone-linux', 'build-standalone-macos', 'build-standalone-windows', 'build-shader-bundle']) {
     assert.match(jobBlock(text, job), /needs:.*verify-source/, `release/${job} must wait for the gate`)
   }
+  const run = (head_branch, event, status, conclusion) => ({ head_branch, event, status, conclusion })
+  const passed = runGate(t, [[run('main', 'push', 'completed', 'success')]])
+  assert.equal(passed.status, 0, passed.stdout + passed.stderr)
+  assert.deepEqual(passed.calls, [`repos/owner/repository/actions/workflows/shaders.yml/runs?head_sha=${passed.sha}&event=push&per_page=50`])
+  for (const [name, runs] of [['no run', []], ['a failed run', [run('main', 'push', 'completed', 'failure')]],
+    ['a passed run on another branch', [run('2.x', 'push', 'completed', 'success')]],
+    ['a passed dispatch run, since on main only a push run dispatches the release', [run('main', 'workflow_dispatch', 'completed', 'success')]]]) {
+    const refused = runGate(t, [runs])
+    assert.equal(refused.status, 1, `${name} is refused`)
+    assert.match(refused.stdout, /No passed shaders\.yml run on main/, name)
+  }
+  const waited = runGate(t, [[run('main', 'push', 'in_progress', null)], [run('main', 'push', 'completed', 'success')]])
+  assert.equal(waited.status, 0, 'a run still finishing is waited for')
+  assert.equal(waited.calls.length, 2)
 })
 
 // The downstream notice goes out only for a 1.x tree: a 2.x tree pushed to main by mistake queues no port work.
