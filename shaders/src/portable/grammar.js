@@ -65,6 +65,8 @@ export const RESOURCE_FORMS = Object.freeze([
 // resolved from it. (`inputOverride` in a size object has no effect either,
 // but catalog definitions carry it, so version 2 still accepts it.)
 export const INERT_PASS_KEYS = Object.freeze(['storageBuffers'])
+// A pipeline input that nothing writes, so a pass reads a blank texture from it.
+export const INERT_PIPELINE_INPUTS = Object.freeze(['noise'])
 
 // Sampler names the WebGPU backend creates; pass.samplerTypes picks one per
 // sampled input. WebGL2 ignores the field.

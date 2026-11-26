@@ -1201,8 +1201,9 @@ Limitations:
 - Vertex data comes only from textures: the particle state, the mesh
   surfaces or the pass's own inputs. A package has no vertex buffers.
 - Some fields have no effect, and version 2 refuses them with the diagnostic
-  code ``unsupported-field``: ``storageBuffers``, and a uniform name in
-  ``workgroups``. A legacy definition still loads with them.
+  code ``unsupported-field``: ``storageBuffers``, a uniform name in
+  ``workgroups``, and the ``noise`` pipeline input, which nothing writes, so
+  it always reads blank. A legacy definition still loads with them.
 - ``inputOverride`` in a size object has no effect either. Version 2 accepts
   it, because built-in definitions carry it.
 - Version 2 does not accept the top-level ``outputXyz``, ``outputVel``,

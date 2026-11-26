@@ -27,7 +27,7 @@ const {
     PORTABLE_FORMAT, PORTABLE_VERSION, MARKER_KEYS, DECLARATIVE_TOP_LEVEL_KEYS,
     LIFECYCLE_KEYS, RUNTIME_STATE_KEYS, GLOBAL_SPEC_KEYS, GLOBAL_TYPES, UI_KEYS,
     UI_CONTROLS, PASS_KEYS, PASS_TYPES, DRAW_MODES, TEXTURE_SPEC_KEYS, FORMATS,
-    TEXTURE_FILTERS, RESERVED_KEYS, IDENTIFIER_PATTERN, INERT_PASS_KEYS,
+    TEXTURE_FILTERS, RESERVED_KEYS, IDENTIFIER_PATTERN, INERT_PASS_KEYS, INERT_PIPELINE_INPUTS,
 } = grammar
 
 const IDENTIFIER = new RegExp(IDENTIFIER_PATTERN)
@@ -187,6 +187,14 @@ function normalizePasses(passes, diagnostics) {
             if (pass[key] !== undefined) {
                 diagnostics.push(diagnostic('unsupported-field', `${path}.${key}`,
                     `${path}.${key} has no effect: the backends allocate storage buffers from the shader bindings; remove it`))
+            }
+        }
+        if (isRecord(pass.inputs)) {
+            for (const [binding, texture] of Object.entries(pass.inputs)) {
+                if (INERT_PIPELINE_INPUTS.includes(texture)) {
+                    diagnostics.push(diagnostic('unsupported-field', `${path}.inputs.${binding}`,
+                        `${path}.inputs.${binding}: the ${texture} input has no effect, because nothing writes it and it always reads blank`))
+                }
             }
         }
         if (Array.isArray(pass.workgroups) && pass.workgroups.some(value => typeof value === 'string')) {

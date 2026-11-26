@@ -112,7 +112,8 @@ export function buildPortableSchema() {
                 .map(key => [key, { type: 'array', items: condition }]))),
             defines: NAME_MAP({ anyOf: [STRING, NUMBER] }),
             uniforms: NAME_MAP({ anyOf: [NUMBER, NAME] }),
-            inputs: NAME_MAP(NAME),
+            // A version 2 package refuses the pipeline inputs that nothing writes.
+            inputs: NAME_MAP({ ...NAME, pattern: `^(?!(${grammar.INERT_PIPELINE_INPUTS.join('|')})$)` }),
             outputs: NAME_MAP(NAME),
             clear: BOOLEAN,
             samplerTypes: NAME_MAP({ enum: [...grammar.SAMPLER_TYPES] }),

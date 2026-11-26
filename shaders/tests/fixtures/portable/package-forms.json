@@ -25,6 +25,12 @@
       "expect": { "code": "invalid-declaration", "path": "passes.main" }
     },
     {
+      "id": "pass-inputs-noise-is-blank", "kind": "negative", "covers": ["pass:inputs"],
+      "definition": { "passes": { "main": { "program": "main", "inputs": { "n": "noise" }, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "unsupported-field", "path": "passes.main.inputs.n" }
+    },
+    {
       "id": "pass-outputs-undeclared", "kind": "negative", "covers": ["pass:outputs"],
       "definition": { "passes": { "main": { "program": "main", "inputs": {}, "outputs": { "fragColor": "undeclared" } } } },
       "shaders": { "main": ["glsl", "wgsl"] },

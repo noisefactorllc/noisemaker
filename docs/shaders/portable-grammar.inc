@@ -80,7 +80,7 @@
    * - ``inputs``
      - object of names to: nonempty string
      - WebGL2, WebGPU
-     - Sampler name to texture: a pipeline input (``inputTex``, ``inputTex3d``, ``inputGeo``, ``inputXyz``, ``inputVel``, ``inputRgba``, ``inputColor``, ``noise``, ``midiNoteGrid``, ``feedback``, ``selfTex``, ``outputTex``, ``none``), ``o0`` to ``o7``, a ``global_`` surface, a declared texture, a global, or the ``externalTexture`` name.
+     - Sampler name to texture: a pipeline input (``inputTex``, ``inputTex3d``, ``inputGeo``, ``inputXyz``, ``inputVel``, ``inputRgba``, ``inputColor``, ``midiNoteGrid``, ``feedback``, ``selfTex``, ``outputTex``, ``none``), ``o0`` to ``o7``, a ``global_`` surface, a declared texture, a global, or the ``externalTexture`` name. Version 2 refuses ``noise``, which nothing writes.
    * - ``outputs``
      - object of names to: nonempty string
      - WebGL2, WebGPU
