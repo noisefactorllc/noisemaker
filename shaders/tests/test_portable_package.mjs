@@ -469,43 +469,46 @@ test('the backend option names a backend, not an inherited key', () => {
 })
 
 // outputTex3d and outputGeo hand on what the expander can resolve: the
-// field's own chain input, a texture the effect declares (blank when no pass
-// writes it) and, for outputTex3d only, a chain-scoped global_ texture.
-// Version 2 refuses any other name, even one a pass writes; the legacy
-// profile still accepts it.
+// field's own chain input, a node-local texture (declared in textures, blank
+// when no pass writes it, or a storageTextures target) and, for outputTex3d
+// only, a chain-scoped global_ texture. Version 2 refuses any other name, even
+// one a pass writes or the effect declares; the legacy profile accepts it.
 test('a version 2 outputTex3d or outputGeo names a texture the expander can hand on', () => {
     const write = name => ({ fill: { program: 'main', inputs: {}, outputs: { fragColor: name } } })
-    const textures = { atlas: { width: 8, height: 8, format: 'rgba16f' }, unwritten: { width: 8, height: 8, format: 'rgba16f' },
-        global_g: { width: 8, height: 8, format: 'rgba16f' } }
-    const textures3d = { volume: { width: 8, height: 8, depth: 8, format: 'rgba16f' } }
+    const compute = { sim: { program: 'main', type: 'compute', inputs: {}, storageTextures: { vol: 'scratch' } }, ...write('atlas') }
+    const texture = { width: 8, height: 8, format: 'rgba16f' }
+    const textures = { atlas: texture, unwritten: texture, global_g: texture, feedback_trail: texture }
+    const textures3d = { volume: { ...texture, depth: 8 } }
     const load = (extra, passes = write('atlas')) =>
         loadPortablePackage(files({ 'definition.json': v2('handOn', passes, { textures, textures3d, ...extra }), 'glsl/main.glsl': FRAGMENT }))
     const message = (field, value) => field === 'outputTex3d'
-        ? `outputTex3d names "${value}", which is not a texture the effect declares; name a declared texture, a global_ texture of the chain, or inputTex3d to pass the input through`
-        : `outputGeo names "${value}", which is not a texture the effect declares without the global_ prefix; name one, or inputGeo to pass the input through`
-    for (const extra of [
-        { outputTex3d: 'atlas' }, { outputTex3d: 'volume' }, { outputTex3d: 'unwritten' }, { outputTex3d: 'inputTex3d' },
-        { outputTex3d: 'global_ca_state' }, { outputTex3d: 'global_g' },
-        { outputGeo: 'atlas' }, { outputGeo: 'unwritten' }, { outputGeo: 'inputGeo' },
+        ? `outputTex3d names "${value}", which the effect does not produce; name a texture in textures or a storageTextures target, a global_ texture of the chain, or inputTex3d to pass the input through`
+        : `outputGeo names "${value}", which the effect does not produce; name a texture in textures or a storageTextures target, or inputGeo to pass the input through`
+    for (const [extra, passes] of [
+        [{ outputTex3d: 'atlas' }], [{ outputTex3d: 'unwritten' }], [{ outputTex3d: 'inputTex3d' }],
+        [{ outputTex3d: 'global_ca_state' }], [{ outputTex3d: 'global_g' }], [{ outputTex3d: 'scratch' }, compute],
+        [{ outputGeo: 'atlas' }], [{ outputGeo: 'unwritten' }], [{ outputGeo: 'inputGeo' }], [{ outputGeo: 'scratch' }, compute],
     ]) {
-        const result = load(extra)
+        const result = load(extra, passes)
         assert.deepEqual(result.diagnostics, [], JSON.stringify(extra))
         assert.ok(result.definition, JSON.stringify(extra))
     }
-    // A pass that writes a pipeline name, a feedback texture or a global_
-    // surface does not make it a texture the field can hand on.
+    // A pipeline name, a feedback texture, a 3D texture or the other field's
+    // passthrough is never one, even when a pass writes it or the effect declares it.
     for (const [field, value, written] of [
-        ['outputTex3d', 'missing'], ['outputTex3d', 'outputTex', 'outputTex'], ['outputTex3d', 'inputGeo', 'inputGeo'],
+        ['outputTex3d', 'missing'], ['outputTex3d', 'global_'], ['outputTex3d', 'volume'],
+        ['outputTex3d', 'outputTex', 'outputTex'], ['outputTex3d', 'inputGeo', 'inputGeo'],
         ['outputTex3d', 'feedback_trail', 'feedback_trail'],
-        ['outputGeo', 'missing'], ['outputGeo', 'global_g'], ['outputGeo', 'global_scratch', 'global_scratch'],
-        ['outputGeo', 'inputTex3d', 'inputTex3d'], ['outputGeo', 'outputTex3d', 'outputTex3d'],
+        ['outputGeo', 'missing'], ['outputGeo', 'volume'], ['outputGeo', 'global_g'], ['outputGeo', 'global_scratch', 'global_scratch'],
+        ['outputGeo', 'inputTex3d', 'inputTex3d'], ['outputGeo', 'outputTex3d', 'outputTex3d'], ['outputGeo', 'feedback_trail'],
     ]) {
         const result = load({ [field]: value }, written ? write(written) : undefined)
         refused(result, 'unsupported-field', field)
         assert.equal(result.diagnostics.find(entry => entry.path === field).message, message(field, value), `${field} ${value}`)
     }
-    // An invalid passes field is reported once, with no handed-on diagnostic.
-    const array = load({ outputTex3d: 'atlas' }, [{ name: 'fill', program: 'main', outputs: { fragColor: 'atlas' } }])
+    // The fields are read against valid passes only: an invalid passes field
+    // is reported alone.
+    const array = load({ outputTex3d: 'missing' }, [{ name: 'fill', program: 'main', outputs: { fragColor: 'atlas' } }])
     assert.deepEqual(codes(array), ['invalid-passes'])
 })
 

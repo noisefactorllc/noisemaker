@@ -840,20 +840,21 @@ either field means the field is absent.
 Each field names what the next effect receives:
 
 * the field's own passthrough value;
-* a texture the effect declares in ``textures`` or ``textures3d``, handed on as
-  that texture's contents. A declared texture that no pass writes is handed on
-  blank. A pass writes only declared, ``global_``, ``feedback_`` and pipeline
-  names, so a node-local texture a pass writes is a declared one;
-* for ``outputTex3d`` only, a ``global_`` texture. It is scoped to the chain,
-  so this effect or another effect in the chain writes it. ``outputGeo`` is
-  always node-local, so a declared ``global_`` texture is not one it can hand
-  on.
+* a node-local texture of the effect: one declared in ``textures``, handed on
+  as its contents, or one that a compute pass writes through
+  ``storageTextures``. A declared texture that no pass writes is handed on
+  blank. A ``textures3d`` entry is a 3D texture, and the chain carries volumes
+  and geometry as 2D atlases, so it is not one;
+* for ``outputTex3d`` only, a ``global_`` texture. It is scoped to the chain
+  and is not checked: the next effect reads it blank unless an effect in the
+  chain provides it. ``outputGeo`` is always node-local, so it takes no
+  ``global_`` name.
 
 A version 2 Portable package that names anything else is refused with
-``unsupported-field`` at ``outputTex3d`` or ``outputGeo``, including a
-pipeline name, a ``feedback_`` texture, or the other field's passthrough
-value, even when a pass writes it. A legacy package keeps its earlier behavior
-and accepts the name.
+``unsupported-field`` at ``outputTex3d`` or ``outputGeo``. That includes a
+pipeline name, a ``feedback_`` texture and the other field's passthrough value,
+even when a pass writes it or the effect declares it. A legacy package keeps
+its earlier behavior and accepts the name.
 
 The meaning of ``inputGeo`` depends on the preceding stage. Geometry from a
 volume generator is an atlas; geometry from a volume renderer is a screen
