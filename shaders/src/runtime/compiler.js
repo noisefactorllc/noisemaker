@@ -249,7 +249,7 @@ function extractTextureSpecs(passes, options, textureSpecs = {}) {
             // via copyTextureToTexture, and so updateTextureFromSource /
             // copyExternalImageToTexture can write into it without Dawn rejecting
             // with "Destination texture needs to have CopyDst usage".
-            usage: ['render', 'sample', 'copySrc', 'copyDst']
+            usage: effectSpec.usage || ['render', 'sample', 'copySrc', 'copyDst']
         }
         // Handle 3D textures
         if (effectSpec.is3D) {
