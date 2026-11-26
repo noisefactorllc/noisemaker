@@ -11,6 +11,7 @@ import {
     computeFileHash,
     computeParitySourceHash,
     effectDirectory,
+    feedMidiInputs,
     isReadbackPerformanceWarning,
     matchesTargetEffectPass,
     midiNoteOnMessages,
@@ -112,11 +113,8 @@ for (const mesh of ${JSON.stringify(parityCase.meshInputs || [])}) {
     const loaded = await renderer.loadOBJFromURL('${baseUrl}/' + mesh.path, mesh.mesh);
     if (!loaded.success || !loaded.vertexCount) throw new Error('Mesh fixture did not load: ' + mesh.path + ' ' + (loaded.error || ''));
 }
-// Each note goes in as a note-on message, so every reader of the MIDI state sees it.
-for (const messages of ${JSON.stringify((parityCase.midiInputs || []).map((midiInput) => midiNoteOnMessages([midiInput])))}) {
-    const midi = renderer.setMidiState();
-    for (const bytes of messages) midi.handleMessage(new Uint8Array(bytes));
-}
+// Each note goes in as a note-on message, so every reader of the MIDI state sees it, at the fixed time 0.
+(${feedMidiInputs.toString()})(renderer, ${JSON.stringify((parityCase.midiInputs || []).map((midiInput) => midiNoteOnMessages([midiInput])))});
 const settleMs = ${JSON.stringify(parityCase.settleMs || 0)};
 const surface = renderer.pipeline.surfaces.get(${JSON.stringify(parityCase.surface || 'o0')});
 const candidates = [surface?.read, surface?.write].filter(Boolean);

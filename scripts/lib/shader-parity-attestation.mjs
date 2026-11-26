@@ -179,6 +179,28 @@ export function midiNoteOnMessages(midiInputs = []) {
     return midiInputs.flatMap((midiInput) => midiInput.notes.map((note) => [0x90 | (note.channel - 1), note.key, note.velocity]))
 }
 
+/**
+ * Feeds a parity case's midi inputs into a renderer: one MIDI state per input,
+ * each note as a note-on message. A note-on message stamps its note with
+ * Date.now(); a recording must not depend on the clock, so every fed note
+ * carries the fixed time 0 instead. The recorder runs this function's own
+ * source in its page, so it uses no import and no outside name.
+ * @param {{ setMidiState: () => { handleMessage: (data: Uint8Array) => void } }} renderer
+ * @param {number[][][]} inputMessages - midiNoteOnMessages([input]) for each input
+ */
+export function feedMidiInputs(renderer, inputMessages) {
+    const now = Date.now
+    Date.now = () => 0
+    try {
+        for (const messages of inputMessages) {
+            const midi = renderer.setMidiState()
+            for (const bytes of messages) midi.handleMessage(new Uint8Array(bytes))
+        }
+    } finally {
+        Date.now = now
+    }
+}
+
 export function validateParityCase(parityCase, effectId) {
     const errors = []
     if (parityCase?.schemaVersion !== 1) errors.push('parity case schemaVersion must equal 1')
