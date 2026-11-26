@@ -8,6 +8,7 @@
 import { stdEnums } from './std_enums.js'
 import { decodeJsonStringLiteralContent } from './stringLiterals.js'
 import { ops } from './ops.js'
+import { argValueKey } from './argValues.js'
 
 /**
  * Map oscillator type number to oscKind enum name
@@ -1679,17 +1680,16 @@ export function unparse(compiled, overrides = {}, options = {}) {
             const letCallKeys = new Set(asLetCall ? [...step.letCallKeys, ...(step.pinnedSeeds || [])] : [])
             // A value a host changed in place on the step is written at the
             // call, so the edit is kept and the let form with it.
-            // A value the host deleted is written back as the default.
+            // A value the host deleted is written back as the default. A value
+            // the host changed or deleted is no longer drawn or inherited.
             const letCallDeleted = []
+            const letCallEdited = []
             if (asLetCall && step.letCallArgs) {
                 for (const [key, compiled] of Object.entries(step.letCallArgs)) {
-                    if (!Object.hasOwn(step.args || {}, key)) {
-                        letCallKeys.add(key)
-                        letCallDeleted.push(key)
-                    } else if (formatValue(step.args[key]) !== formatValue(compiled)) {
-                        letCallKeys.add(key)
-                    }
+                    if (!Object.hasOwn(step.args || {}, key)) letCallDeleted.push(key)
+                    else if (argValueKey(step.args[key]) !== compiled) letCallEdited.push(key)
                 }
+                for (const key of [...letCallDeleted, ...letCallEdited]) letCallKeys.add(key)
             }
 
             const call = {
@@ -1705,6 +1705,13 @@ export function unparse(compiled, overrides = {}, options = {}) {
             if (step.randomSources) call.randomSources = { ...step.randomSources }
             if (step.inheritedSeeds) call.inheritedSeeds = step.inheritedSeeds
             if (step.authoredSeeds) call.authoredSeeds = step.authoredSeeds
+            for (const key of [...letCallDeleted, ...letCallEdited]) {
+                if (call.randomSources?.[key]) delete call.randomSources[key]
+                if (call.inheritedSeeds?.[key]) {
+                    call.inheritedSeeds = { ...call.inheritedSeeds }
+                    delete call.inheritedSeeds[key]
+                }
+            }
 
             // Start with original args (already keyed by param names)
             if (step.args) {

@@ -453,6 +453,31 @@ test('a save by a let\'s name keeps a value a host changed in place on the step'
     assert.match(unparse(compile('search synth\nseed 5\nlet a = noise(octaves: 2)\na().write(o0)')), /\na\(\)\n/)
 })
 
+test('a save by a let\'s name keeps in-place edits inside objects and arrays, and writes deleted values as defaults', () => {
+    const saveOf = (src, edit) => {
+        const c = compile(src)
+        assert.deepEqual(errors(c), [], src)
+        edit(c.plans.at(-1).chain)
+        const text = unparse(c)
+        const again = compile(text)
+        assert.deepEqual(errors(again), [], text)
+        return { text, chain: again.plans.at(-1).chain }
+    }
+    const blend = saveOf('search synth, mixer\nseed 5\nnoise().write(o1)\nlet b = blendMode(tex: read(o1))\nnoise(octaves: 3).b().write(o0)',
+        chain => { chain.find(step => step.op === 'mixer.blendMode').args.tex.name = 'o2' })
+    assert.equal(blend.chain.find(step => step.op === 'mixer.blendMode').args.tex.name, 'o2', blend.text)
+    const tinted = saveOf('search synth, filter\nseed 5\nlet t = tint(color: #804020)\nnoise().t().write(o0)',
+        chain => { chain[1].args.color[0] = 51 / 255 })
+    assert.equal(tinted.chain[1].args.color[0], 51 / 255, tinted.text)
+    const DEFAULT = noise.globals.octaves.default
+    for (const call of ['a(octaves: 5)', 'a(octaves: randInt(3, 6))']) {
+        const deleted = saveOf(`search synth\nseed 5\nlet a = noise(octaves: 3)\n${call}.write(o0)`, chain => { delete chain[0].args.octaves })
+        assert.equal(deleted.chain[0].args.octaves, DEFAULT, deleted.text)
+    }
+    const seedDeleted = saveOf('search synth\nseed 5\nlet a = noise(octaves: 3)\na().write(o0)', chain => { delete chain[0].args.seed })
+    assert.equal(seedDeleted.chain[0].args.seed, noise.globals.seed.default, seedDeleted.text)
+})
+
 test('a call-level seed draws under the constant key', () => {
     const c = compile('search synth\nseed 1\nnoise(scaleY: rand(1, 10, seed: 3150442103)).write(o0)')
     assert.deepEqual(errors(c), [])
