@@ -162,6 +162,23 @@ try {
     }
     assert.equal(fed.state.channels[2].time, 0, 'a fed note is at time 0 for a channel reader')
     assert.equal(fed.state.getZoneVoice({ zone: 0, members: 15 })?.time, 0, 'a fed note is at time 0 for a zone reader')
+    const { CanvasRenderer } = await import(new URL('../src/renderer/canvas.js', import.meta.url))
+    const combined = Object.create(CanvasRenderer.prototype)
+    const multipleMidiInputs = [
+        { effect: 'filter/example', notes: [{ channel: 1, key: 40, velocity: 110 }] },
+        { effect: 'synth/dependency', notes: [{ channel: 1, key: 60, velocity: 75 }, { channel: 16, key: 84, velocity: 100 }] },
+    ]
+    assert.deepEqual(validateParityCase({ ...completeParityCase, midiInputs: multipleMidiInputs }, 'filter/example'), [])
+    pageFeed(combined, multipleMidiInputs.map(input => midiNoteOnMessages([input])))
+    combined.midiState.updateNoteGrid()
+    for (const [channel, key, velocity] of [[1, 40, 110], [1, 60, 75], [16, 84, 100]]) {
+        const offset = ((channel - 1) * 128 + key) * 4
+        assert.deepEqual([combined.midiState.noteGrid[offset], combined.midiState.noteGrid[offset + 1]],
+            [Math.fround(velocity / 127), 1], `the recorder retains channel ${channel} key ${key} from every MIDI input`)
+    }
+    const existingMidiState = combined.midiState
+    pageFeed(combined, [])
+    assert.equal(combined.midiState, existingMidiState, 'a case without MIDI inputs leaves the state unchanged')
     const recorder = fs.readFileSync(new URL('../../scripts/attest-shader-parity.mjs', import.meta.url), 'utf8')
     assert.match(recorder, /\(\$\{feedMidiInputs\.toString\(\)\}\)\(renderer, /, 'the recorder runs feedMidiInputs in its page')
     assert.match(recorder, /midiNoteOnMessages\(\[midiInput\]\)/, 'the recorder feeds each midi input through midiNoteOnMessages')

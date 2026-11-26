@@ -180,7 +180,7 @@ export function midiNoteOnMessages(midiInputs = []) {
 }
 
 /**
- * Feeds a parity case's midi inputs into a renderer: one MIDI state per input,
+ * Feeds a parity case's midi inputs into a renderer through a shared MIDI state,
  * each note as a note-on message. A note-on message stamps its note with
  * Date.now(); a recording must not depend on the clock, so every fed note
  * carries the fixed time 0 instead. The recorder runs this function's own
@@ -189,11 +189,12 @@ export function midiNoteOnMessages(midiInputs = []) {
  * @param {number[][][]} inputMessages - midiNoteOnMessages([input]) for each input
  */
 export function feedMidiInputs(renderer, inputMessages) {
+    if (inputMessages.length === 0) return
     const now = Date.now
     Date.now = () => 0
     try {
+        const midi = renderer.setMidiState()
         for (const messages of inputMessages) {
-            const midi = renderer.setMidiState()
             for (const bytes of messages) midi.handleMessage(new Uint8Array(bytes))
         }
     } finally {
