@@ -172,11 +172,13 @@ export function registeredParityEffectIds(repoRoot) {
 }
 
 const CASE_KEYS = new Set(['schemaVersion', 'effects', 'dsl', 'surface', 'resolution', 'epsilon',
-    'requireColorVariation', 'settleMs', 'tiles', 'textureInputs', 'meshInputs', 'timeline', 'control', 'midiMessages'])
+    'requireColorVariation', 'settleMs', 'tiles', 'textureInputs', 'meshInputs', 'timeline', 'control', 'midiMessages', 'midiInputs'])
 const TEXTURE_INPUT_KEYS = new Set(['effect', 'uniform', 'width', 'height', 'data', 'afterFrame'])
 const MESH_INPUT_KEYS = new Set(['mesh', 'path'])
 const TILES_KEYS = new Set(['size', 'renderScale'])
 const MIDI_MESSAGE_KEYS = new Set(['afterFrame', 'data'])
+const MIDI_INPUT_KEYS = new Set(['effect', 'notes'])
+const MIDI_NOTE_KEYS = new Set(['channel', 'key', 'velocity'])
 
 // A misspelt field must not silently change what a case records: a misspelt
 // timeline would record an untimed case, and a misspelt afterFrame would
@@ -197,6 +199,12 @@ export function validateParityCase(parityCase, effectId) {
     errors.push(...unknownKeys(parityCase?.tiles, TILES_KEYS, 'parity case tiles'))
     for (const message of Array.isArray(parityCase?.midiMessages) ? parityCase.midiMessages : []) {
         errors.push(...unknownKeys(message, MIDI_MESSAGE_KEYS, 'parity case MIDI message'))
+    }
+    for (const midiInput of Array.isArray(parityCase?.midiInputs) ? parityCase.midiInputs : []) {
+        errors.push(...unknownKeys(midiInput, MIDI_INPUT_KEYS, 'parity case midi input'))
+        for (const note of Array.isArray(midiInput?.notes) ? midiInput.notes : []) {
+            errors.push(...unknownKeys(note, MIDI_NOTE_KEYS, 'parity case midi note'))
+        }
     }
     if (parityCase?.schemaVersion !== 1) errors.push('parity case schemaVersion must equal 1')
     if (!Array.isArray(parityCase?.effects) || parityCase.effects.length === 0) {
@@ -251,6 +259,25 @@ export function validateParityCase(parityCase, effectId) {
                 if (!mesh || typeof mesh.mesh !== 'string' || !/^mesh[0-7]$/.test(mesh.mesh) ||
                     typeof mesh.path !== 'string' || !/^share\/meshes\/[A-Za-z0-9_-]+\.obj$/.test(mesh.path)) {
                     errors.push('parity case mesh input must name mesh0-mesh7 and a share/meshes OBJ file')
+                }
+            }
+        }
+    }
+    if (parityCase?.midiInputs !== undefined) {
+        if (!Array.isArray(parityCase.midiInputs)) {
+            errors.push('parity case midi inputs must be an array')
+        } else {
+            for (const midiInput of parityCase.midiInputs) {
+                if (!midiInput || !parityCase.effects?.includes(midiInput.effect) ||
+                    !Array.isArray(midiInput.notes) || midiInput.notes.length === 0) {
+                    errors.push('parity case midi input must name a loaded effect and at least one note')
+                    continue
+                }
+                for (const note of midiInput.notes) {
+                    if (!note || !integerInRange(note.channel, 0, 15) || !integerInRange(note.key, 0, 127) ||
+                        !integerInRange(note.velocity, 1, 127)) {
+                        errors.push('parity case midi note must give channel 0-15, key 0-127 and velocity 1-127')
+                    }
                 }
             }
         }

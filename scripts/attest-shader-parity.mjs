@@ -225,7 +225,8 @@ await renderer.loadEffects(${JSON.stringify(parityCase.effects)});
 if (timeline) renderer.setLoopDuration(timeline.loopSeconds);
 // Note activity goes through the engine's own MIDI state, which the pipeline
 // packs into its note grid texture before each frame.
-const midi = midiMessages.length ? renderer.setMidiState() : null;
+const midiInputs = ${JSON.stringify(parityCase.midiInputs || [])};
+const midi = midiMessages.length || midiInputs.length ? renderer.setMidiState() : null;
 await renderer.compile(${JSON.stringify(dsl)});
 renderer.stop();
 const matchesTargetEffectPass = ${matchesTargetEffectPass.toString()};
@@ -256,6 +257,13 @@ function applyInputs(frame) {
     for (const message of midiMessages) {
         if (message.afterFrame === frame) midi.handleMessage(new Uint8Array(message.data));
     }
+}
+// Untimed note activity (midiInputs, the 1.x form) is fed before the first
+// render: on the fixed-step clock only that render steps a stateful effect at
+// time 0, so a note fed later would never reach its history. A timed case
+// gives its notes as midiMessages instead.
+for (const midiInput of midiInputs) {
+    midiInput.notes.forEach((note, index) => midi.channels[note.channel].noteOn(note.key, note.velocity, { time: 0, order: index + 1 }));
 }
 // A scene program renders asynchronously, so a timed case awaits each frame
 // before its inputs. An untimed case renders as it did before.
