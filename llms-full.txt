@@ -13,7 +13,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `405557cddfd6292c2f13ed3e55a674556f82ed44`.
+- Noisemaker: `740601018edb867c564c77aab3d157fa719dea53`.
 - Shade MCP: `1815133b47eaa33aee11d4a677cfea2f3939cf38`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.5.4`. Its
   lockfile pins `@modelcontextprotocol/sdk` 1.32.2; the `npx` install below
@@ -2005,8 +2005,9 @@ and an
 effect-local reference scopes under the element's state key, as its sampled
 inputs and render outputs do (`id_<id>@<op>` for an element with an `_id:`), and
 adds `storage` to that texture's usage. A pass that declares `storageTextures`
-but no `outputs` gets no `outputs` map, so allocation falls back from render
-outputs to storage outputs.
+but no `outputs` gets no `outputs` map. `extractTextureSpecs` gives each of its
+non-`global_` storage targets that no effect declares, such as the pass node's
+own output texture, a `graph.textures` spec with `storage` usage.
 
 Passes are appended in DSL plan order, effect-step order, and definition pass
 array order. Builtin read/write/blit passes are inserted at the point the
@@ -2176,8 +2177,11 @@ over-budget and emits no structured failure.
 
 Fresh allocation uses the mutated graph format. Texture reuse requires matching
 dimensions and format. A 3D texture must also have matching depth. A
-double-buffered global surface must have matching read and write textures.
-The pipeline recreates the allocation when one of these properties differs.
+double-buffered global surface must have matching read and write textures. The
+existing texture's recorded usage must also cover the spec's usage, so a
+recompile that makes a node's output a storage target at the same size
+recreates the texture. The pipeline recreates the allocation when any of these
+properties differs.
 
 Inspect `pipeline.backend.textures` to verify the physical formats. Do not use
 only `graph.textures` as evidence. A framebuffer failure surfaces through the structured, non-throwing

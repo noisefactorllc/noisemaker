@@ -1181,6 +1181,24 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-26 — candidate pair: Noisemaker (the publication carrying this
+    entry, above `740601018edb867c564c77aab3d157fa719dea53`) and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Audited the Noisemaker range
+    `405557c..740601018e`: storage-only passes now allocate their undeclared
+    storage targets with storage usage, a recompile reuses a texture only when
+    its recorded usage covers the spec's usage, and the declared storage
+    texture test runs in the GPU CI job. Corrected the stale `llms-full.txt`
+    texture-reuse statement to include the usage-coverage rule and moved the
+    contract snapshot's Noisemaker source line to `740601018e`. Also audited
+    the Shade range `d3d898e..7b93f7c8` against the pin: three unreleased
+    commits add getProgramSeed, setProgramSeed and reseedProgram and change
+    compile-error reporting. The pin and vendor stay at v0.5.4 with verified
+    provenance, and the delivered runtime source is unchanged. Verified: the
+    storage texture target test on WebGL2 and WebGPU (both exit 0), the four
+    contract guard tests (exit 0), Noisemaker `npm run lint` (exit 0), Shade
+    `npm run typecheck` (exit 0), and Shade `npm test` (556 tests pass).
+    Pending: the site deployment, the pin's scene-DSL defect, and the smoke
+    skip stay recorded as delivery blockers below.
   - 2026-11-26 — qualified checks at publication `db697bb`; deployment
     pending: Noisemaker `405557cddfd6292c2f13ed3e55a674556f82ed44` (the
     audited source end this contract snapshot pins) with Shade MCP
