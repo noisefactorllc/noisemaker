@@ -2409,6 +2409,19 @@ export class CanvasRenderer {
         if (!Array.isArray(passes) || passes.length === 0) fail('passes must be a nonempty array')
         if (!isRecord(shaders)) fail('loaded shaders are required')
         const hasSource = source => typeof source === 'string' && source.trim().length > 0
+        // A refusal with a diagnostic code and path, as the Portable loader
+        // (../portable/package.js) reports the same problem.
+        const refuse = (code, path, message) => {
+            const error = new Error(`Portable effect: ${message} (${path})`)
+            error.diagnostics = [{ code, path, message }]
+            throw error
+        }
+        // A GLSL program is one fragment stage (glsl) or split stages (vertex
+        // with fragment), as the built-in loader reads them. WGSL is one file.
+        const covers = {
+            glsl: source => hasSource(source.glsl) || hasSource(source.fragment),
+            wgsl: source => hasSource(source.wgsl),
+        }
         for (const pass of passes) {
             if (!isRecord(pass) || typeof pass.program !== 'string' || !pass.program) fail('each pass must name a program')
             for (const field of ['inputs', 'outputs']) {
@@ -2417,16 +2430,32 @@ export class CanvasRenderer {
                 }
             }
             const source = shaders[pass.program]
-            if (!isRecord(source) || ![source.glsl, source.wgsl].some(hasSource)) {
+            if (!isRecord(source) || !(covers.glsl(source) || covers.wgsl(source))) {
                 fail(`missing shader source for ${pass.program}`)
+            }
+            if (hasSource(source.glsl) && (source.vertex !== undefined || source.fragment !== undefined)) {
+                refuse('duplicate-stage', `shaders/${pass.program}`,
+                    `program ${pass.program} gives glsl, one fragment stage, beside split vertex and fragment stages`)
+            }
+            if (hasSource(source.vertex) && !hasSource(source.fragment)) {
+                refuse('missing-stage', `shaders/${pass.program}`, `program ${pass.program} gives a vertex stage without its fragment stage`)
             }
         }
         for (const language of ['glsl', 'wgsl']) {
-            if (passes.some(pass => hasSource(shaders[pass.program][language]))) {
+            if (passes.some(pass => covers[language](shaders[pass.program]))) {
                 for (const pass of passes) {
-                    if (!hasSource(shaders[pass.program][language])) fail(`missing ${language} shader source for ${pass.program}`)
+                    if (!covers[language](shaders[pass.program])) fail(`missing ${language} shader source for ${pass.program}`)
                 }
             }
+        }
+        // The backend that will run the effect needs its language for every
+        // program. Say so now, before any registry changes, rather than at
+        // compile time.
+        const running = this.backend
+        const uncovered = passes.find(pass => !covers[running](shaders[pass.program]))
+        if (uncovered) {
+            refuse('missing-backend', `shaders/${uncovered.program}`,
+                `${running === 'wgsl' ? 'WebGPU' : 'WebGL2'} runs ${running}, and program ${uncovered.program} has no ${running} source`)
         }
         if (globals !== undefined && (!isRecord(globals) || Object.values(globals).some(spec => !isRecord(spec)))) {
             fail('globals must contain parameter objects')

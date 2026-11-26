@@ -1,0 +1,42 @@
+{
+  "format": "noisemaker-portable-effect",
+  "version": 2,
+  "name": "MRT Dynamic",
+  "func": "mrtDynamic",
+  "description": "One pass writes two cell textures, each the screen divided by zoom: the first holds each cell's left pixel in red, the second its bottom pixel in green. A second pass combines them",
+  "globals": {
+    "zoom": {
+      "type": "int",
+      "default": 4,
+      "min": 1,
+      "max": 16,
+      "uniform": "zoom",
+      "ui": { "label": "zoom", "control": "slider" }
+    }
+  },
+  "textures": {
+    "columnCells": {
+      "width": { "screenDivide": "zoom", "default": 16 },
+      "height": { "screenDivide": "zoom", "default": 16 },
+      "format": "rgba16f"
+    },
+    "rowCells": {
+      "width": { "screenDivide": "zoom", "default": 16 },
+      "height": { "screenDivide": "zoom", "default": 16 },
+      "format": "rgba16f"
+    }
+  },
+  "passes": {
+    "cells": {
+      "program": "cells",
+      "drawBuffers": 2,
+      "inputs": {},
+      "outputs": { "columns": "columnCells", "rows": "rowCells" }
+    },
+    "combine": {
+      "program": "combine",
+      "inputs": { "columnCells": "columnCells", "rowCells": "rowCells" },
+      "outputs": { "fragColor": "outputTex" }
+    }
+  }
+}

@@ -250,7 +250,10 @@
             "compute"
           ]
         },
-        "entryPoint": {},
+        "entryPoint": {
+          "type": "string",
+          "minLength": 1
+        },
         "drawMode": {
           "enum": [
             "points",
@@ -258,18 +261,166 @@
             "billboards"
           ]
         },
-        "drawBuffers": {},
-        "count": {},
-        "countUniform": {},
-        "repeat": {},
-        "blend": {},
-        "workgroups": {},
-        "storageBuffers": {},
-        "storageTextures": {},
-        "viewport": {},
-        "conditions": {},
-        "defines": {},
-        "uniforms": {},
+        "drawBuffers": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "count": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "enum": [
+                "auto",
+                "screen",
+                "input"
+              ]
+            }
+          ]
+        },
+        "countUniform": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repeat": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ]
+        },
+        "blend": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          ]
+        },
+        "workgroups": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "storageTextures": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "viewport": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "w": {
+              "type": "number"
+            },
+            "h": {
+              "type": "number"
+            },
+            "width": {
+              "$ref": "#/$defs/dimension"
+            },
+            "height": {
+              "$ref": "#/$defs/dimension"
+            }
+          },
+          "additionalProperties": false
+        },
+        "conditions": {
+          "type": "object",
+          "properties": {
+            "runIf": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "uniform": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "equals": {}
+                },
+                "additionalProperties": false,
+                "required": [
+                  "uniform",
+                  "equals"
+                ]
+              }
+            },
+            "skipIf": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "uniform": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "equals": {}
+                },
+                "additionalProperties": false,
+                "required": [
+                  "uniform",
+                  "equals"
+                ]
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "defines": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "uniforms": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "minLength": 1
+              }
+            ]
+          }
+        },
         "inputs": {
           "type": "object",
           "additionalProperties": {
@@ -284,7 +435,9 @@
             "minLength": 1
           }
         },
-        "clear": {},
+        "clear": {
+          "type": "boolean"
+        },
         "samplerTypes": {
           "type": "object",
           "additionalProperties": {

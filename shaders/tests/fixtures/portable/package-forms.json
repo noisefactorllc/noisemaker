@@ -1,0 +1,330 @@
+{
+  "description": "Version 2 package fixtures, independent of the catalog. Each fixture covers pass properties (pass:<key>) and resource forms (resource:<form>) of shaders/src/portable/grammar.js. A positive fixture loads and registers. A negative fixture is refused with the stated code at the stated path. shaders names, for each program, the files the package holds: glsl (glsl/<program>.glsl), vertex and fragment (glsl/<program>.vert and .frag), wgsl (wgsl/<program>.wgsl). test_portable_package.mjs fills them with minimal sources.",
+  "fixtures": [
+    {
+      "id": "pass-name", "kind": "positive", "covers": ["pass:name", "pass:program", "pass:inputs", "pass:outputs", "resource:globalSurface"],
+      "definition": { "passes": { "blurMain": { "program": "blur", "inputs": { "inputTex": "inputTex", "previous": "o1" }, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "blur": ["glsl", "wgsl"] }
+    },
+    {
+      "id": "pass-name-not-identifier", "kind": "negative", "covers": ["pass:name"],
+      "definition": { "passes": { "1blur": { "program": "blur", "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "blur": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-name", "path": "passes.1blur" }
+    },
+    {
+      "id": "pass-program-empty", "kind": "negative", "covers": ["pass:program"],
+      "definition": { "passes": { "main": { "program": "", "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "missing-field", "path": "passes.main.program" }
+    },
+    {
+      "id": "pass-inputs-unknown-texture", "kind": "negative", "covers": ["pass:inputs"],
+      "definition": { "passes": { "main": { "program": "main", "inputs": { "inputTex": "nowhere" }, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main" }
+    },
+    {
+      "id": "pass-outputs-undeclared", "kind": "negative", "covers": ["pass:outputs"],
+      "definition": { "passes": { "main": { "program": "main", "inputs": {}, "outputs": { "fragColor": "undeclared" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main" }
+    },
+    {
+      "id": "global-surface-out-of-range", "kind": "negative", "covers": ["resource:globalSurface"],
+      "definition": { "passes": { "main": { "program": "main", "inputs": { "inputTex": "o9" }, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main" }
+    },
+    {
+      "id": "compute-workgroups", "kind": "positive", "covers": ["pass:type", "pass:entryPoint", "pass:workgroups", "pass:storageTextures", "resource:storageTexture"],
+      "definition": { "passes": { "simulate": { "program": "simulate", "type": "compute", "entryPoint": "main", "workgroups": [8, 8, 1], "storageTextures": { "outputBuffer": "outputTex" }, "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "simulate": ["glsl", "wgsl"] }
+    },
+    {
+      "id": "storage-buffers-have-no-effect", "kind": "negative", "covers": ["pass:storageBuffers"],
+      "definition": { "passes": { "simulate": { "program": "simulate", "type": "compute", "storageBuffers": { "particles": { "size": 1024 } }, "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "simulate": ["glsl", "wgsl"] },
+      "expect": { "code": "unsupported-field", "path": "passes.simulate.storageBuffers" }
+    },
+    {
+      "id": "workgroups-uniform-name", "kind": "negative", "covers": ["pass:workgroups"],
+      "definition": { "passes": { "simulate": { "program": "simulate", "type": "compute", "workgroups": ["groupsX", 1], "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "simulate": ["glsl", "wgsl"] },
+      "expect": { "code": "unsupported-field", "path": "passes.simulate.workgroups" }
+    },
+    {
+      "id": "write-back-and-feedback", "kind": "positive", "covers": ["pass:outputs"],
+      "definition": {
+        "passes": {
+          "advance": { "program": "advance", "inputs": { "xyzTex": "inputXyz", "colorTex": "inputColor" }, "outputs": { "position": "inputXyz", "trail": "feedback_trail" } },
+          "show": { "program": "show", "inputs": { "colorTex": "inputColor" }, "outputs": { "fragColor": "outputTex" } }
+        }
+      },
+      "shaders": { "advance": ["glsl", "wgsl"], "show": ["glsl", "wgsl"] }
+    },
+    {
+      "id": "pass-type-unknown", "kind": "negative", "covers": ["pass:type"],
+      "definition": { "passes": { "main": { "program": "main", "type": "raytrace", "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-value", "path": "passes.main.type" }
+    },
+    {
+      "id": "pass-entry-point-number", "kind": "negative", "covers": ["pass:entryPoint"],
+      "definition": { "passes": { "main": { "program": "main", "type": "compute", "entryPoint": 5, "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main" }
+    },
+    {
+      "id": "pass-workgroups-zero", "kind": "negative", "covers": ["pass:workgroups"],
+      "definition": { "passes": { "main": { "program": "main", "type": "compute", "workgroups": [0, 8], "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main" }
+    },
+    {
+      "id": "storage-texture-not-a-name", "kind": "negative", "covers": ["pass:storageTextures", "resource:storageTexture"],
+      "definition": { "passes": { "main": { "program": "main", "type": "compute", "storageTextures": { "outputBuffer": 5 }, "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main" }
+    },
+    {
+      "id": "points-split-stages", "kind": "positive", "covers": ["pass:drawMode", "pass:count", "pass:blend", "pass:clear", "resource:particleState"],
+      "definition": {
+        "textures": {
+          "global_xyz": { "width": 32, "height": 32, "format": "rgba32f" },
+          "global_vel": { "width": 32, "height": 32, "format": "rgba32f" },
+          "global_rgba": { "width": 32, "height": 32, "format": "rgba16f" }
+        },
+        "passes": {
+          "deposit": { "program": "deposit", "drawMode": "points", "count": "input", "blend": true, "clear": true, "inputs": { "xyzTex": "global_xyz", "rgbaTex": "global_rgba" }, "outputs": { "fragColor": "outputTex" } }
+        }
+      },
+      "shaders": { "deposit": ["vertex", "fragment", "wgsl"] }
+    },
+    {
+      "id": "pass-draw-mode-unknown", "kind": "negative", "covers": ["pass:drawMode"],
+      "definition": { "passes": { "main": { "program": "main", "drawMode": "lines", "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["vertex", "fragment", "wgsl"] },
+      "expect": { "code": "invalid-value", "path": "passes.main.drawMode" }
+    },
+    {
+      "id": "pass-count-word", "kind": "negative", "covers": ["pass:count"],
+      "definition": { "passes": { "main": { "program": "main", "drawMode": "points", "count": "lots", "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["vertex", "fragment", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main" }
+    },
+    {
+      "id": "pass-blend-word", "kind": "negative", "covers": ["pass:blend"],
+      "definition": { "passes": { "main": { "program": "main", "blend": "yes", "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main" }
+    },
+    {
+      "id": "pass-clear-word", "kind": "negative", "covers": ["pass:clear"],
+      "definition": { "passes": { "main": { "program": "main", "clear": "red", "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main" }
+    },
+    {
+      "id": "particle-state-bad-format", "kind": "negative", "covers": ["resource:particleState"],
+      "definition": {
+        "textures": { "global_xyz": { "width": 32, "height": 32, "format": "rgb565" } },
+        "passes": { "deposit": { "program": "deposit", "drawMode": "points", "count": "input", "inputs": { "xyzTex": "global_xyz" }, "outputs": { "fragColor": "outputTex" } } }
+      },
+      "shaders": { "deposit": ["vertex", "fragment", "wgsl"] },
+      "expect": { "code": "invalid-value", "path": "textures.global_xyz.format" }
+    },
+    {
+      "id": "mesh-triangles", "kind": "positive", "covers": ["pass:countUniform", "resource:meshSurface"],
+      "definition": {
+        "globals": { "instances": { "type": "int", "default": 1, "uniform": "instances", "min": 1, "max": 8 } },
+        "passes": { "draw": { "program": "draw", "drawMode": "triangles", "count": "input", "countUniform": "instances", "inputs": { "meshPositions": "global_mesh0_positions", "meshNormals": "global_mesh0_normals" }, "outputs": { "fragColor": "outputTex" } } }
+      },
+      "shaders": { "draw": ["vertex", "fragment", "wgsl"] }
+    },
+    {
+      "id": "pass-count-uniform-number", "kind": "negative", "covers": ["pass:countUniform"],
+      "definition": { "passes": { "main": { "program": "main", "drawMode": "triangles", "countUniform": 3, "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["vertex", "fragment", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main" }
+    },
+    {
+      "id": "mesh-unprefixed", "kind": "negative", "covers": ["resource:meshSurface"],
+      "definition": { "passes": { "draw": { "program": "draw", "drawMode": "triangles", "inputs": { "meshPositions": "mesh0_positions" }, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "draw": ["vertex", "fragment", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.draw" }
+    },
+    {
+      "id": "repeat-and-conditions", "kind": "positive", "covers": ["pass:repeat", "pass:conditions", "pass:defines", "pass:uniforms", "pass:viewport", "resource:persistentTexture"],
+      "definition": {
+        "globals": {
+          "steps": { "type": "int", "default": 2, "uniform": "steps", "min": 1, "max": 8 },
+          "mode": { "type": "int", "default": 1, "uniform": "mode", "min": 0, "max": 2 }
+        },
+        "textures": { "state": { "width": "screen", "height": "screen", "format": "rgba16f", "persistent": true } },
+        "passes": {
+          "relax": { "program": "relax", "repeat": "steps", "conditions": { "runIf": [{ "uniform": "mode", "equals": 1 }] }, "defines": { "RELAX_TAPS": 4 }, "uniforms": { "weight": 0.5, "frameTime": "time" }, "viewport": { "x": 0, "y": 0, "w": 256, "h": 256 }, "inputs": { "stateTex": "state" }, "outputs": { "fragColor": "state" } },
+          "show": { "program": "show", "inputs": { "stateTex": "state" }, "outputs": { "fragColor": "outputTex" } }
+        }
+      },
+      "shaders": { "relax": ["glsl", "wgsl"], "show": ["glsl", "wgsl"] }
+    },
+    {
+      "id": "pass-repeat-negative", "kind": "negative", "covers": ["pass:repeat"],
+      "definition": { "passes": { "main": { "program": "main", "repeat": -1, "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main" }
+    },
+    {
+      "id": "pass-conditions-unknown-field", "kind": "negative", "covers": ["pass:conditions"],
+      "definition": { "passes": { "main": { "program": "main", "conditions": { "whenever": [] }, "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main.conditions" }
+    },
+    {
+      "id": "pass-defines-object", "kind": "negative", "covers": ["pass:defines"],
+      "definition": { "passes": { "main": { "program": "main", "defines": { "TAPS": {} }, "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main" }
+    },
+    {
+      "id": "pass-uniforms-object", "kind": "negative", "covers": ["pass:uniforms"],
+      "definition": { "passes": { "main": { "program": "main", "uniforms": { "weight": {} }, "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main" }
+    },
+    {
+      "id": "pass-viewport-word", "kind": "negative", "covers": ["pass:viewport"],
+      "definition": { "passes": { "main": { "program": "main", "viewport": "all", "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main" }
+    },
+    {
+      "id": "persistent-not-boolean", "kind": "negative", "covers": ["resource:persistentTexture"],
+      "definition": {
+        "textures": { "state": { "width": "screen", "height": "screen", "persistent": "yes" } },
+        "passes": { "main": { "program": "main", "inputs": { "stateTex": "state" }, "outputs": { "fragColor": "outputTex" } } }
+      },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "textures.state" }
+    },
+    {
+      "id": "mrt-dynamic-size", "kind": "positive", "covers": ["pass:drawBuffers", "resource:multipleRenderTargets", "resource:texture", "resource:mipmappedTexture"],
+      "definition": {
+        "globals": { "detail": { "type": "int", "default": 2, "uniform": "detail", "min": 1, "max": 4 } },
+        "textures": {
+          "color": { "width": { "screenDivide": "detail", "default": 256 }, "height": { "screenDivide": "detail", "default": 256 }, "format": "rgba16f", "mipmaps": true },
+          "depthInfo": { "width": { "param": "detail", "multiply": 64, "default": 128 }, "height": "50%", "format": "rgba32f" }
+        },
+        "passes": {
+          "split": { "program": "split", "drawBuffers": 2, "inputs": { "inputTex": "inputTex" }, "outputs": { "color": "color", "info": "depthInfo" } },
+          "combine": { "program": "combine", "inputs": { "colorTex": "color", "infoTex": "depthInfo" }, "outputs": { "fragColor": "outputTex" } }
+        }
+      },
+      "shaders": { "split": ["glsl", "wgsl"], "combine": ["glsl", "wgsl"] }
+    },
+    {
+      "id": "pass-draw-buffers-negative", "kind": "negative", "covers": ["pass:drawBuffers"],
+      "definition": { "passes": { "main": { "program": "main", "drawBuffers": -1, "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main" }
+    },
+    {
+      "id": "mrt-undeclared-target", "kind": "negative", "covers": ["resource:multipleRenderTargets"],
+      "definition": { "passes": { "split": { "program": "split", "drawBuffers": 2, "inputs": {}, "outputs": { "color": "outputTex", "info": "infoTarget" } } } },
+      "shaders": { "split": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.split" }
+    },
+    {
+      "id": "texture-unknown-format", "kind": "negative", "covers": ["resource:texture"],
+      "definition": {
+        "textures": { "color": { "width": "screen", "height": "screen", "format": "rgb565" } },
+        "passes": { "main": { "program": "main", "inputs": {}, "outputs": { "fragColor": "color" } } }
+      },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-value", "path": "textures.color.format" }
+    },
+    {
+      "id": "mipmaps-not-boolean", "kind": "negative", "covers": ["resource:mipmappedTexture"],
+      "definition": {
+        "textures": { "color": { "width": "screen", "height": "screen", "mipmaps": 3 } },
+        "passes": { "main": { "program": "main", "inputs": {}, "outputs": { "fragColor": "color" } } }
+      },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "textures.color" }
+    },
+    {
+      "id": "volume-producer", "kind": "positive", "covers": ["resource:volumeTexture", "resource:volumeAtlas", "pass:samplerTypes", "resource:sampler"],
+      "definition": {
+        "globals": { "volumeSize": { "type": "int", "default": 32, "uniform": "volumeSize", "choices": { "x16": 16, "x32": 32, "x64": 64 } } },
+        "textures": {
+          "volumeCache": { "width": { "param": "volumeSize", "default": 64 }, "height": { "param": "volumeSize", "power": 2, "default": 4096 }, "format": "rgba16f" }
+        },
+        "textures3d": { "density": { "width": 16, "height": 16, "depth": 16, "format": "rgba16f", "filter": "linear" } },
+        "outputTex3d": "volumeCache",
+        "passes": {
+          "fill": { "program": "fill", "samplerTypes": { "densitySampler": "repeat" }, "inputs": { "densityTex": "density" }, "outputs": { "fragColor": "volumeCache" } }
+        }
+      },
+      "shaders": { "fill": ["glsl", "wgsl"] }
+    },
+    {
+      "id": "volume-depth-negative", "kind": "negative", "covers": ["resource:volumeTexture"],
+      "definition": {
+        "textures3d": { "density": { "width": 16, "height": 16, "depth": -1 } },
+        "passes": { "main": { "program": "main", "inputs": { "densityTex": "density" }, "outputs": { "fragColor": "outputTex" } } }
+      },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "textures3d.density" }
+    },
+    {
+      "id": "volume-atlas-not-a-name", "kind": "negative", "covers": ["resource:volumeAtlas"],
+      "definition": {
+        "outputTex3d": 7,
+        "passes": { "main": { "program": "main", "inputs": {}, "outputs": { "fragColor": "outputTex" } } }
+      },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "outputTex3d" }
+    },
+    {
+      "id": "sampler-unknown", "kind": "negative", "covers": ["pass:samplerTypes", "resource:sampler"],
+      "definition": { "passes": { "main": { "program": "main", "samplerTypes": { "inputSampler": "bilinear" }, "inputs": { "inputTex": "inputTex" }, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main" }
+    },
+    {
+      "id": "geometry-producer", "kind": "positive", "covers": ["resource:geometry"],
+      "definition": {
+        "textures": { "geoBuffer": { "width": 64, "height": 64, "format": "rgba16f" } },
+        "outputGeo": "geoBuffer",
+        "passes": { "build": { "program": "build", "inputs": {}, "outputs": { "fragColor": "geoBuffer" } } }
+      },
+      "shaders": { "build": ["glsl", "wgsl"] }
+    },
+    {
+      "id": "geometry-not-a-name", "kind": "negative", "covers": ["resource:geometry"],
+      "definition": {
+        "outputGeo": 7,
+        "passes": { "main": { "program": "main", "inputs": {}, "outputs": { "fragColor": "outputTex" } } }
+      },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "outputGeo" }
+    },
+    {
+      "id": "host-textures", "kind": "positive", "covers": ["resource:hostTexture"],
+      "definition": {
+        "externalTexture": "camera",
+        "passes": { "main": { "program": "main", "inputs": { "cameraTex": "camera", "noteGridTex": "midiNoteGrid" }, "outputs": { "fragColor": "outputTex" } } }
+      },
+      "shaders": { "main": ["glsl", "wgsl"] }
+    },
+    {
+      "id": "host-texture-undeclared", "kind": "negative", "covers": ["resource:hostTexture"],
+      "definition": {
+        "passes": { "main": { "program": "main", "inputs": { "cameraTex": "camera" }, "outputs": { "fragColor": "outputTex" } } }
+      },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "invalid-declaration", "path": "passes.main" }
+    }
+  ]
+}

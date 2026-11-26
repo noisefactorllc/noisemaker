@@ -1,0 +1,10 @@
+# A square from (-0.5, -0.5) to (0.5, 0.5) at z 0, facing +z, as two
+# triangles. The faces are listed clockwise: the runtime's OBJ parser
+# (shaders/src/runtime/obj-parser.js) reverses each face to counter-clockwise.
+v -0.5 -0.5 0
+v 0.5 -0.5 0
+v 0.5 0.5 0
+v -0.5 0.5 0
+vn 0 0 1
+f 1//1 3//1 2//1
+f 1//1 4//1 3//1

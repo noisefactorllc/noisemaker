@@ -1,0 +1,38 @@
+{
+  "format": "noisemaker-portable-effect",
+  "version": 2,
+  "name": "Split Points",
+  "func": "splitPoints",
+  "description": "A grid of points drawn by split GLSL vertex and fragment stages, and one WGSL program",
+  "globals": {
+    "background": {
+      "type": "vec4",
+      "default": [0, 0, 0, 1],
+      "uniform": "background",
+      "ui": { "control": false }
+    }
+  },
+  "textures": {
+    "frame": { "width": "screen", "height": "screen", "format": "rgba8" }
+  },
+  "passes": {
+    "fill": {
+      "program": "fill",
+      "inputs": {},
+      "outputs": { "fragColor": "frame" }
+    },
+    "points": {
+      "program": "points",
+      "drawMode": "points",
+      "count": 16,
+      "blend": false,
+      "inputs": {},
+      "outputs": { "fragColor": "frame" }
+    },
+    "present": {
+      "program": "present",
+      "inputs": { "frameTex": "frame" },
+      "outputs": { "fragColor": "outputTex" }
+    }
+  }
+}

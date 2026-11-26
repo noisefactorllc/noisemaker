@@ -812,15 +812,24 @@ function validatePass(source, pass, index, errors, context) {
     }
     if (pass.workgroups !== undefined) {
         if (!Array.isArray(pass.workgroups) || pass.workgroups.length < 1 || pass.workgroups.length > 3 ||
-            !pass.workgroups.every(v => isFiniteNumber(v) || (typeof v === 'string' && v))) {
-            errors.push(`${label}: "workgroups" must be an array of 1-3 numbers or uniform names`)
+            !pass.workgroups.every(v => (Number.isInteger(v) && v >= 1) || (typeof v === 'string' && v))) {
+            // A dispatch of zero, negative or fractional workgroups runs nothing.
+            errors.push(`${label}: "workgroups" must be an array of 1-3 positive integers or uniform names`)
         }
     }
     if (pass.storageBuffers !== undefined && !isObj(pass.storageBuffers)) {
         errors.push(`${label}: "storageBuffers" must be an object`)
     }
-    if (pass.storageTextures !== undefined && !isObj(pass.storageTextures)) {
-        errors.push(`${label}: "storageTextures" must be an object`)
+    if (pass.storageTextures !== undefined) {
+        if (!isObj(pass.storageTextures)) {
+            errors.push(`${label}: "storageTextures" must be an object`)
+        } else {
+            for (const [binding, texRef] of Object.entries(pass.storageTextures)) {
+                if (typeof texRef !== 'string' || !texRef) {
+                    errors.push(`${label}: storageTextures['${binding}'] must be a non-empty texture reference string`)
+                }
+            }
+        }
     }
     if (pass.viewport !== undefined) {
         if (!isObj(pass.viewport)) {
@@ -938,6 +947,7 @@ function validatePass(source, pass, index, errors, context) {
                     continue
                 }
                 if (PIPELINE_OUTPUTS.has(texRef)) continue
+                if (texRef.startsWith(grammar.FEEDBACK_PREFIX) && texRef.length > grammar.FEEDBACK_PREFIX.length) continue
                 if (texRef.startsWith('global_')) continue
                 if (declaredTextures.has(texRef)) continue
                 errors.push(`${label}: outputs['${attachment}'] references unsupported output '${texRef}'`)

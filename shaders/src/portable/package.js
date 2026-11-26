@@ -1,0 +1,392 @@
+/**
+ * Portable effect packages as files.
+ *
+ * A package is a file map: a package-relative path to the file's bytes (a
+ * Uint8Array) or text (a string). A host reads one from a directory, or from a
+ * ZIP archive with fileMapFromZip(). loadPortablePackage() reads the map and
+ * nothing else: it fetches nothing and runs no code from the package.
+ *
+ * The layout:
+ *   definition.json       the declaration (./definition.js reads it)
+ *   glsl/<program>.glsl   a GLSL program as one fragment stage, or
+ *   glsl/<program>.vert   a GLSL vertex stage, with
+ *   glsl/<program>.frag   its GLSL fragment stage
+ *   wgsl/<program>.wgsl   a WGSL program
+ *   help.md               optional help text
+ *   any other path        an asset, kept as bytes
+ *
+ * The loaded shaders use the keys the built-in loader uses: glsl, vertex,
+ * fragment and wgsl. A GLSL program is complete with a .glsl file or a .frag
+ * file; a .vert file without a .frag file is incomplete, and a .glsl file
+ * beside split stages is refused. A package needs one complete language for
+ * every program. With a backend, it needs that backend's language.
+ *
+ * The loader keeps every file's bytes, so packageFiles() gives back the same
+ * file map. Assets are data the package carries: a host uploads them, for
+ * example a mesh through loadOBJFromString(). No pass binds an asset by
+ * declaration.
+ */
+
+import { normalizePortableDefinition } from './definition.js'
+
+const DEFINITION = 'definition.json'
+const HELP = 'help.md'
+const BACKEND_LANGUAGE = Object.freeze({ webgl2: 'glsl', webgpu: 'wgsl' })
+const STAGE_FILES = Object.freeze({
+    glsl: { directory: 'glsl', extensions: { '.glsl': 'glsl', '.vert': 'vertex', '.frag': 'fragment' } },
+    wgsl: { directory: 'wgsl', extensions: { '.wgsl': 'wgsl' } },
+})
+// Files an archiver adds that belong to no package: Portable's packager leaves
+// out the same ones.
+const JUNK = /(^|\/)\.DS_Store$|(^|\/)__MACOSX(\/|$)/
+
+function diagnostic(code, path, message) {
+    return { code, path, message }
+}
+
+/**
+ * The normal form of a package path, or null when the path cannot be a file of
+ * the package. A backslash counts as a separator, "." segments are dropped and
+ * the name is in Unicode NFC. An absolute path, a drive letter, an empty
+ * segment, a ".." segment or a control character is refused.
+ * @param {string} path
+ * @returns {string|null}
+ */
+export function normalizePackagePath(path) {
+    if (typeof path !== 'string' || path.length === 0) return null
+    // eslint-disable-next-line no-control-regex
+    if (/[\u0000-\u001f\u007f]/.test(path)) return null
+    const unified = path.normalize('NFC').replace(/\\/g, '/')
+    if (unified.startsWith('/') || /^[A-Za-z]:/.test(unified)) return null
+    const segments = []
+    for (const segment of unified.split('/')) {
+        if (segment === '.') continue
+        if (segment === '' || segment === '..') return null
+        segments.push(segment)
+    }
+    return segments.length > 0 ? segments.join('/') : null
+}
+
+function toBytes(content) {
+    if (content instanceof Uint8Array) return content
+    if (typeof content === 'string') return new TextEncoder().encode(content)
+    return null
+}
+
+function decodeText(bytes) {
+    try {
+        return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+    } catch {
+        return null
+    }
+}
+
+/**
+ * Read a file map into normal paths and bytes. Two paths that normalize to one,
+ * or that differ only in case, are refused: one of them would overwrite the
+ * other when the package is written to a disk.
+ * @param {Map<string, Uint8Array|string>|Object<string, Uint8Array|string>} files
+ * @returns {{files: Map<string, Uint8Array>|null, diagnostics: Array}}
+ */
+export function readFileMap(files) {
+    const entries = files instanceof Map ? [...files] : (files && typeof files === 'object' ? Object.entries(files) : null)
+    if (!entries) return { files: null, diagnostics: [diagnostic('not-a-file-map', '', 'a package is a map of paths to file contents')] }
+    const diagnostics = []
+    const normal = new Map()
+    const folded = new Map()
+    for (const [path, content] of entries) {
+        const name = normalizePackagePath(path)
+        if (name === null) {
+            diagnostics.push(diagnostic('invalid-path', String(path), `${JSON.stringify(path)} is not a relative path inside the package`))
+            continue
+        }
+        if (JUNK.test(name)) continue
+        const bytes = toBytes(content)
+        if (!bytes) {
+            diagnostics.push(diagnostic('invalid-file', name, `${name} must be bytes (a Uint8Array) or text`))
+            continue
+        }
+        const key = name.toLowerCase()
+        if (folded.has(key)) {
+            diagnostics.push(diagnostic('duplicate-path', name, `${JSON.stringify(path)} and ${JSON.stringify(folded.get(key))} name the same file`))
+            continue
+        }
+        folded.set(key, path)
+        normal.set(name, bytes)
+    }
+    return diagnostics.length > 0 ? { files: null, diagnostics } : { files: normal, diagnostics }
+}
+
+// The stage a path holds, as [language, program, key], or null for an asset.
+function stageOf(path) {
+    const slash = path.indexOf('/')
+    if (slash < 0 || path.indexOf('/', slash + 1) >= 0) return null
+    const directory = path.slice(0, slash)
+    const file = path.slice(slash + 1)
+    for (const [language, { directory: expected, extensions }] of Object.entries(STAGE_FILES)) {
+        if (directory !== expected) continue
+        const dot = file.lastIndexOf('.')
+        const key = dot > 0 ? extensions[file.slice(dot)] : undefined
+        if (key) return [language, file.slice(0, dot), key]
+    }
+    return null
+}
+
+function complete(language, stages) {
+    if (!stages) return false
+    return language === 'glsl' ? Boolean(stages.glsl || stages.fragment) : Boolean(stages.wgsl)
+}
+
+/**
+ * Load a Portable package from its files.
+ * @param {Map<string, Uint8Array|string>|Object<string, Uint8Array|string>} files
+ * @param {object} [options]
+ * @param {'webgl2'|'webgpu'} [options.backend] - The backend that will run the
+ *   package: its language must cover every program
+ * @returns {{profile: 'legacy'|'v2'|null, definition: object|null, shaders: object|null,
+ *   assets: Map<string, Uint8Array>|null, help: string|null, files: Map<string, Uint8Array>|null,
+ *   diagnostics: Array<{code: string, path: string, message: string}>}}
+ */
+export function loadPortablePackage(files, { backend } = {}) {
+    const failed = (diagnostics, profile = null) => ({
+        profile, definition: null, shaders: null, assets: null, help: null, files: null, diagnostics,
+    })
+    if (backend !== undefined && !BACKEND_LANGUAGE[backend]) {
+        return failed([diagnostic('unsupported-backend', '', `backend must be ${Object.keys(BACKEND_LANGUAGE).join(' or ')}`)])
+    }
+    const read = readFileMap(files)
+    if (!read.files) return failed(read.diagnostics)
+
+    const diagnostics = []
+    const definitionBytes = read.files.get(DEFINITION)
+    if (!definitionBytes) return failed([diagnostic('missing-file', DEFINITION, `a package holds ${DEFINITION} at its root`)])
+    const definitionText = decodeText(definitionBytes)
+    let declared = null
+    if (definitionText === null) {
+        diagnostics.push(diagnostic('invalid-encoding', DEFINITION, `${DEFINITION} must be UTF-8`))
+    } else {
+        try {
+            declared = JSON.parse(definitionText)
+        } catch (error) {
+            diagnostics.push(diagnostic('invalid-json', DEFINITION, `${DEFINITION} is not JSON: ${error.message}`))
+        }
+    }
+    let help = null
+    if (read.files.has(HELP)) {
+        help = decodeText(read.files.get(HELP))
+        if (help === null) diagnostics.push(diagnostic('invalid-encoding', HELP, `${HELP} must be UTF-8`))
+    }
+
+    const shaders = {}
+    const assets = new Map()
+    for (const [path, bytes] of read.files) {
+        if (path === DEFINITION || path === HELP) continue
+        const stage = stageOf(path)
+        if (!stage) {
+            assets.set(path, bytes)
+            continue
+        }
+        const [, program, key] = stage
+        const text = decodeText(bytes)
+        if (text === null) {
+            diagnostics.push(diagnostic('invalid-encoding', path, `${path} must be UTF-8`))
+            continue
+        }
+        const bucket = shaders[program] ?? (shaders[program] = {})
+        bucket[key] = text
+    }
+    if (diagnostics.length > 0) return failed(diagnostics)
+
+    const normalized = normalizePortableDefinition(declared)
+    if (normalized.diagnostics.length > 0) return failed(normalized.diagnostics, normalized.profile)
+    const passes = Array.isArray(normalized.definition.passes) ? normalized.definition.passes : null
+    if (!passes || passes.length === 0) {
+        return failed([diagnostic('missing-field', 'passes', 'a package declares its passes; each names the program it runs')], normalized.profile)
+    }
+
+    for (const [program, stages] of Object.entries(shaders)) {
+        if (stages.glsl && (stages.vertex || stages.fragment)) {
+            diagnostics.push(diagnostic('duplicate-stage', `shaders/${program}`,
+                `glsl/${program}.glsl is one fragment stage; it cannot stand beside glsl/${program}.vert or glsl/${program}.frag`))
+        }
+        if (stages.vertex && !stages.fragment) {
+            diagnostics.push(diagnostic('missing-stage', `shaders/${program}`, `glsl/${program}.vert needs glsl/${program}.frag`))
+        }
+    }
+    const programs = [...new Set(passes.map(pass => pass.program))]
+    for (const program of programs) {
+        if (!shaders[program]) {
+            diagnostics.push(diagnostic('missing-shader', `shaders/${program}`,
+                `no shader file for program ${program}: add glsl/${program}.glsl (or .vert and .frag) or wgsl/${program}.wgsl`))
+        }
+    }
+    if (diagnostics.length > 0) return failed(diagnostics, normalized.profile)
+
+    const languages = backend ? [BACKEND_LANGUAGE[backend]] : Object.keys(STAGE_FILES)
+    const covering = languages.filter(language => programs.every(program => complete(language, shaders[program])))
+    if (covering.length === 0) {
+        for (const language of languages) {
+            for (const program of programs.filter(name => !complete(language, shaders[name]))) {
+                diagnostics.push(backend
+                    ? diagnostic('missing-backend', `shaders/${program}`, `${backend} runs ${language}, and program ${program} has no complete ${language} source`)
+                    : diagnostic('incomplete-language', `shaders/${program}`, `program ${program} has no complete ${language} source, so ${language} does not cover every program`))
+            }
+        }
+        return failed(diagnostics, normalized.profile)
+    }
+    // A language that covers only some programs runs nowhere: name each gap,
+    // as registerPortableEffect refuses such a package.
+    for (const language of Object.keys(STAGE_FILES).filter(name => !covering.includes(name))) {
+        const present = programs.filter(program => {
+            const stages = shaders[program]
+            return language === 'glsl' ? Boolean(stages?.glsl || stages?.vertex || stages?.fragment) : Boolean(stages?.wgsl)
+        })
+        if (present.length === 0) continue
+        for (const program of programs.filter(name => !complete(language, shaders[name]))) {
+            diagnostics.push(diagnostic('incomplete-language', `shaders/${program}`,
+                `the package gives ${language} for some programs but not for ${program}; give it for every program or for none`))
+        }
+    }
+    if (diagnostics.length > 0) return failed(diagnostics, normalized.profile)
+
+    return { profile: normalized.profile, definition: declared, shaders, assets, help, files: read.files, diagnostics: [] }
+}
+
+/**
+ * The files of a loaded package, in its normal paths, as copies of the bytes it
+ * was loaded from.
+ * @param {{files: Map<string, Uint8Array>}} loaded - A result of loadPortablePackage()
+ * @returns {Map<string, Uint8Array>}
+ */
+export function packageFiles(loaded) {
+    if (!(loaded?.files instanceof Map)) throw new TypeError('packageFiles takes a loaded package')
+    return new Map([...loaded.files].map(([path, bytes]) => [path, new Uint8Array(bytes)]))
+}
+
+// ZIP reading (APPNOTE.TXT): the end of central directory record, the central
+// directory, then each local header and its data.
+const EOCD = 0x06054b50
+const ZIP64_LOCATOR = 0x07064b50
+const CENTRAL = 0x02014b50
+const LOCAL = 0x04034b50
+const STORED = 0
+const DEFLATED = 8
+const S_IFMT = 0o170000
+const S_IFLNK = 0o120000
+
+let crcTable = null
+function crc32(bytes) {
+    if (!crcTable) {
+        crcTable = new Uint32Array(256)
+        for (let n = 0; n < 256; n++) {
+            let c = n
+            for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+            crcTable[n] = c >>> 0
+        }
+    }
+    let crc = 0xffffffff
+    for (let i = 0; i < bytes.length; i++) crc = crcTable[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8)
+    return (crc ^ 0xffffffff) >>> 0
+}
+
+// Inflate raw deflate data, reading no more than `size` bytes of output.
+async function inflate(data, size) {
+    const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
+    const reader = stream.getReader()
+    const out = new Uint8Array(size)
+    let length = 0
+    for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        if (length + value.length > size) {
+            await reader.cancel()
+            return null
+        }
+        out.set(value, length)
+        length += value.length
+    }
+    return length === size ? out : null
+}
+
+/**
+ * Read the files of a ZIP archive into a file map. Stored and deflated entries
+ * are read; each entry's size and CRC-32 must match its record. An encrypted,
+ * ZIP64, multi-disk or link entry, another compression method, a damaged
+ * record, a name that is not UTF-8 or not a relative path inside the package,
+ * and two names for one file are refused. Directory entries carry no file and
+ * are skipped, as are an archiver's .DS_Store and __MACOSX entries.
+ * @param {Uint8Array|ArrayBuffer} bytes
+ * @returns {Promise<{files: Map<string, Uint8Array>|null, diagnostics: Array}>}
+ */
+export async function fileMapFromZip(bytes) {
+    const data = bytes instanceof Uint8Array ? bytes : (bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : null)
+    const refuse = (code, path, message) => ({ files: null, diagnostics: [diagnostic(code, path, message)] })
+    if (!data) return refuse('not-an-archive', '', 'a ZIP archive is bytes (a Uint8Array or an ArrayBuffer)')
+    const view = new DataView(data.buffer, data.byteOffset, data.byteLength)
+    const u16 = offset => view.getUint16(offset, true)
+    const u32 = offset => view.getUint32(offset, true)
+
+    let eocd = -1
+    for (let offset = data.length - 22; offset >= Math.max(0, data.length - 22 - 0xffff); offset--) {
+        if (u32(offset) === EOCD && offset + 22 + u16(offset + 20) === data.length) {
+            eocd = offset
+            break
+        }
+    }
+    if (eocd < 0) return refuse('damaged-archive', '', 'the archive has no end of central directory record')
+    if (eocd >= 20 && u32(eocd - 20) === ZIP64_LOCATOR) return refuse('unsupported-archive', '', 'ZIP64 archives are not read')
+    const disk = u16(eocd + 4)
+    const centralDisk = u16(eocd + 6)
+    const diskEntries = u16(eocd + 8)
+    const entries = u16(eocd + 10)
+    const centralSize = u32(eocd + 12)
+    const centralOffset = u32(eocd + 16)
+    if (entries === 0xffff || centralSize === 0xffffffff || centralOffset === 0xffffffff) {
+        return refuse('unsupported-archive', '', 'ZIP64 archives are not read')
+    }
+    if (disk !== 0 || centralDisk !== 0 || diskEntries !== entries) {
+        return refuse('unsupported-archive', '', 'multi-disk archives are not read')
+    }
+    if (centralOffset + centralSize > eocd) return refuse('damaged-archive', '', 'the central directory lies outside the archive')
+
+    const names = new TextDecoder('utf-8', { fatal: true })
+    const files = new Map()
+    let offset = centralOffset
+    for (let index = 0; index < entries; index++) {
+        if (offset + 46 > eocd || u32(offset) !== CENTRAL) return refuse('damaged-archive', '', `central directory entry ${index} is damaged`)
+        const madeBy = u16(offset + 4) >> 8
+        const flags = u16(offset + 8)
+        const method = u16(offset + 10)
+        const crc = u32(offset + 16)
+        const compressedSize = u32(offset + 20)
+        const size = u32(offset + 24)
+        const nameLength = u16(offset + 28)
+        const extraLength = u16(offset + 30)
+        const commentLength = u16(offset + 32)
+        const external = u32(offset + 38)
+        const localOffset = u32(offset + 42)
+        let name
+        try {
+            name = names.decode(data.subarray(offset + 46, offset + 46 + nameLength))
+        } catch {
+            return refuse('invalid-path', `entry ${index}`, `the name of entry ${index} is not UTF-8`)
+        }
+        offset += 46 + nameLength + extraLength + commentLength
+        if (compressedSize === 0xffffffff || size === 0xffffffff || localOffset === 0xffffffff) {
+            return refuse('unsupported-archive', name, 'ZIP64 archives are not read')
+        }
+        if (flags & 0x1) return refuse('encrypted-entry', name, `${name} is encrypted`)
+        if (madeBy === 3 && (external >>> 16 & S_IFMT) === S_IFLNK) return refuse('link-entry', name, `${name} is a link, not a file`)
+        if (name.endsWith('/')) continue
+        if (method !== STORED && method !== DEFLATED) return refuse('unsupported-compression', name, `${name} uses compression method ${method}; only stored and deflated entries are read`)
+        if (localOffset + 30 > centralOffset || u32(localOffset) !== LOCAL) return refuse('damaged-archive', name, `the local header of ${name} is damaged`)
+        const start = localOffset + 30 + u16(localOffset + 26) + u16(localOffset + 28)
+        if (start + compressedSize > centralOffset) return refuse('damaged-archive', name, `the data of ${name} lies outside the archive`)
+        const raw = data.subarray(start, start + compressedSize)
+        const content = method === STORED ? (compressedSize === size ? new Uint8Array(raw) : null) : await inflate(raw, size)
+        if (!content || crc32(content) !== crc) return refuse('damaged-archive', name, `${name} does not match its recorded size and CRC-32`)
+        if (files.has(name)) return refuse('duplicate-path', name, `the archive holds ${name} twice`)
+        files.set(name, content)
+    }
+    return readFileMap(files)
+}

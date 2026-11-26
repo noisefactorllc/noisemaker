@@ -43,7 +43,7 @@ const schema = readJson(SCHEMA_PATH)
 const KEYWORDS = new Set([
     '$schema', '$id', 'title', 'description', '$defs', '$ref', 'type', 'enum', 'const', 'required',
     'properties', 'additionalProperties', 'propertyNames', 'pattern', 'minLength', 'minProperties',
-    'items', 'anyOf', 'exclusiveMinimum',
+    'items', 'anyOf', 'exclusiveMinimum', 'minimum', 'minItems', 'maxItems',
 ])
 
 function typeOf(value) {
@@ -82,9 +82,12 @@ function validateSchema(value, node = schema, at = '') {
         if (node.minLength !== undefined && value.length < node.minLength) fail('too short')
     }
     if (typeof value === 'number' && node.exclusiveMinimum !== undefined && !(value > node.exclusiveMinimum)) fail('too small')
+    if (typeof value === 'number' && node.minimum !== undefined && value < node.minimum) fail('too small')
     if (node.anyOf && !node.anyOf.some(option => validateSchema(value, option, at).length === 0)) fail('matches no allowed form')
-    if (typeOf(value) === 'array' && node.items) {
-        value.forEach((item, index) => errors.push(...validateSchema(item, node.items, `${at}[${index}]`)))
+    if (typeOf(value) === 'array') {
+        if (node.minItems !== undefined && value.length < node.minItems) fail('has too few items')
+        if (node.maxItems !== undefined && value.length > node.maxItems) fail('has too many items')
+        if (node.items) value.forEach((item, index) => errors.push(...validateSchema(item, node.items, `${at}[${index}]`)))
     }
     if (typeOf(value) === 'object') {
         for (const key of node.required || []) if (!(key in value)) fail(`${key} is required`)
@@ -336,6 +339,19 @@ test('the documentation\'s version 2 examples are valid packages', () => {
         }
     }
     assert.ok(found > 0, 'the documentation holds a version 2 example')
+})
+
+test('the schema accepts the declaration of every positive package fixture', () => {
+    // The fixtures of test_portable_package.mjs cover each pass property and
+    // resource form. A positive one must also pass the schema, so the schema
+    // and the runtime agree on what a package may declare.
+    const forms = readJson(path.join(REPO_ROOT, 'shaders/tests/fixtures/portable/package-forms.json'))
+    const positives = forms.fixtures.filter(fixture => fixture.kind === 'positive')
+    assert.ok(positives.length > 0)
+    for (const fixture of positives) {
+        const pkg = { format: PORTABLE_FORMAT, version: PORTABLE_VERSION, name: 'fixture', func: 'fixture', ...fixture.definition }
+        assert.deepEqual(validateSchema(pkg), [], fixture.id)
+    }
 })
 
 test('this core registers a version 2 package, and refuses an unknown version without changing a registry', async () => {

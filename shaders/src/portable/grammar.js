@@ -37,6 +37,35 @@ export const PASS_KEYS = Object.freeze([
     'defines', 'uniforms', 'inputs', 'outputs', 'clear', 'samplerTypes'
 ])
 
+// The forms of resource a definition declares or a pass reads and writes, as
+// the runtime allocates them:
+//   texture                a 2D texture in `textures`, sized by the size grammar
+//   persistentTexture      `persistent`: contents kept when the texture is recreated
+//   mipmappedTexture       `mipmaps`: a mip chain regenerated after each render
+//   volumeTexture          a 3D texture in `textures3d`
+//   volumeAtlas            a 2D atlas of a volume, sized from `volumeSize`, and
+//                          handed on by `outputTex3d`
+//   geometry               a geometry buffer handed on by `outputGeo`
+//   particleState          the shared global_xyz, global_vel and global_rgba textures
+//   multipleRenderTargets  several outputs of one pass, with `drawBuffers`
+//   storageTexture         a texture a WebGPU compute pass writes (`storageTextures`)
+//   globalSurface          o0-o7 and the global_ surfaces every effect shares
+//   meshSurface            the positions, normals and uvs of mesh0-mesh7
+//   hostTexture            data a host uploads: midiNoteGrid and `externalTexture`
+//   sampler                the WebGPU sampler of a sampled input (`samplerTypes`)
+export const RESOURCE_FORMS = Object.freeze([
+    'texture', 'persistentTexture', 'mipmappedTexture', 'volumeTexture', 'volumeAtlas',
+    'geometry', 'particleState', 'multipleRenderTargets', 'storageTexture',
+    'globalSurface', 'meshSurface', 'hostTexture', 'sampler'
+])
+
+// Fields the runtime accepts and then reads nowhere. A legacy definition keeps
+// them; a version 2 package refuses them, because they have no effect. A
+// uniform name in `workgroups` is the same: the dispatch size is never
+// resolved from it. (`inputOverride` in a size object has no effect either,
+// but catalog definitions carry it, so version 2 still accepts it.)
+export const INERT_PASS_KEYS = Object.freeze(['storageBuffers'])
+
 // Sampler names the WebGPU backend creates; pass.samplerTypes picks one per
 // sampled input. WebGL2 ignores the field.
 export const SAMPLER_TYPES = Object.freeze(['default', 'nearest', 'repeat', 'mipmap'])
@@ -83,11 +112,18 @@ export const LIFECYCLE_KEYS = Object.freeze(['onInit', 'onUpdate', 'onDestroy', 
 export const RUNTIME_STATE_KEYS = Object.freeze(['state', 'uniforms'])
 
 export const PIPELINE_INPUTS = Object.freeze([
-    'inputTex', 'inputTex3d', 'inputGeo', 'inputXyz', 'inputVel', 'inputRgba',
+    'inputTex', 'inputTex3d', 'inputGeo', 'inputXyz', 'inputVel', 'inputRgba', 'inputColor',
     'noise', 'midiNoteGrid', 'feedback', 'selfTex', 'outputTex', 'none'
 ])
 
-export const PIPELINE_OUTPUTS = Object.freeze(['outputTex', 'outputTex3d', 'outputXyz', 'outputVel', 'outputRgba'])
+// A pass may also write back to a chain input (inputTex3d and the others
+// below) or to a feedback texture (FEEDBACK_PREFIX).
+export const PIPELINE_OUTPUTS = Object.freeze([
+    'outputTex', 'outputTex3d', 'outputXyz', 'outputVel', 'outputRgba',
+    'inputTex3d', 'inputGeo', 'inputXyz', 'inputVel', 'inputRgba'
+])
+
+export const FEEDBACK_PREFIX = 'feedback_'
 
 // The fields of a version 2 package: the marker, then every declarative field.
 // The shaders a host has loaded travel beside a package, not in it.

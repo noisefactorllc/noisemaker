@@ -1,0 +1,41 @@
+{
+  "format": "noisemaker-portable-effect",
+  "version": 2,
+  "name": "Mesh Asset",
+  "func": "meshAsset",
+  "description": "Draws the mesh a host uploads to mesh0, coloured by its normals. The package carries the mesh as assets/mesh.obj",
+  "globals": {
+    "background": {
+      "type": "vec4",
+      "default": [0, 0, 0, 1],
+      "uniform": "background",
+      "ui": { "control": false }
+    }
+  },
+  "textures": {
+    "frame": { "width": "screen", "height": "screen", "format": "rgba8" }
+  },
+  "passes": {
+    "fill": {
+      "program": "fill",
+      "inputs": {},
+      "outputs": { "fragColor": "frame" }
+    },
+    "mesh": {
+      "program": "mesh",
+      "drawMode": "triangles",
+      "count": "input",
+      "blend": false,
+      "inputs": {
+        "meshPositions": "global_mesh0_positions",
+        "meshNormals": "global_mesh0_normals"
+      },
+      "outputs": { "fragColor": "frame" }
+    },
+    "present": {
+      "program": "present",
+      "inputs": { "frameTex": "frame" },
+      "outputs": { "fragColor": "outputTex" }
+    }
+  }
+}

@@ -84,14 +84,37 @@ export function buildPortableSchema() {
         mipmaps: BOOLEAN,
         persistent: BOOLEAN,
     })
+    const NAME = { type: 'string', minLength: 1 }
+    const POSITIVE_INTEGER = { type: 'integer', minimum: 1 }
+    // A condition compares a declared global's value with `equals`.
+    const condition = closedObject(['uniform', 'equals'], { uniform: NAME })
+    condition.required = ['uniform', 'equals']
     const pass = {
-        ...closedObject(grammar.PASS_KEYS, {
+        // A version 2 package refuses the pass fields the runtime never reads.
+        ...closedObject(grammar.PASS_KEYS.filter(key => !grammar.INERT_PASS_KEYS.includes(key)), {
             name: IDENTIFIER,
-            program: { type: 'string', minLength: 1 },
+            program: NAME,
             type: { enum: [...grammar.PASS_TYPES] },
+            entryPoint: NAME,
             drawMode: { enum: [...grammar.DRAW_MODES] },
-            inputs: NAME_MAP({ type: 'string', minLength: 1 }),
-            outputs: NAME_MAP({ type: 'string', minLength: 1 }),
+            drawBuffers: POSITIVE_INTEGER,
+            count: { anyOf: [POSITIVE_INTEGER, { enum: ['auto', 'screen', 'input'] }] },
+            countUniform: NAME,
+            repeat: { anyOf: [POSITIVE_INTEGER, NAME] },
+            blend: { anyOf: [BOOLEAN, { type: 'array', minItems: 2, maxItems: 2, items: NAME }] },
+            workgroups: { type: 'array', minItems: 1, maxItems: 3, items: POSITIVE_INTEGER },
+            storageTextures: NAME_MAP(NAME),
+            viewport: closedObject(['x', 'y', 'w', 'h', 'width', 'height'], {
+                x: NUMBER, y: NUMBER, w: NUMBER, h: NUMBER,
+                width: { $ref: '#/$defs/dimension' }, height: { $ref: '#/$defs/dimension' },
+            }),
+            conditions: closedObject(grammar.CONDITION_CONTAINER_KEYS, Object.fromEntries(grammar.CONDITION_CONTAINER_KEYS
+                .map(key => [key, { type: 'array', items: condition }]))),
+            defines: NAME_MAP({ anyOf: [STRING, NUMBER] }),
+            uniforms: NAME_MAP({ anyOf: [NUMBER, NAME] }),
+            inputs: NAME_MAP(NAME),
+            outputs: NAME_MAP(NAME),
+            clear: BOOLEAN,
             samplerTypes: NAME_MAP({ enum: [...grammar.SAMPLER_TYPES] }),
         }),
         required: ['program'],

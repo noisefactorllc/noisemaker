@@ -1,0 +1,41 @@
+{
+  "format": "noisemaker-portable-effect",
+  "version": 2,
+  "name": "Volume Work",
+  "func": "volumeWork",
+  "description": "Writes a volume atlas whose voxel (x, y, z) holds (x, y, z) / (volumeSize - 1), hands it on as the 3D output, and shows its z slices side by side",
+  "globals": {
+    "volumeSize": {
+      "type": "int",
+      "default": 16,
+      "min": 4,
+      "max": 32,
+      "uniform": "volumeSize",
+      "ui": { "label": "volume size", "control": "slider" }
+    }
+  },
+  "textures": {
+    "volumeCache": {
+      "width": { "param": "volumeSize", "default": 16 },
+      "height": { "param": "volumeSize", "power": 2, "default": 256 },
+      "format": "rgba16f"
+    }
+  },
+  "passes": {
+    "volume": {
+      "program": "volume",
+      "viewport": {
+        "width": { "param": "volumeSize", "default": 16 },
+        "height": { "param": "volumeSize", "power": 2, "default": 256 }
+      },
+      "inputs": {},
+      "outputs": { "fragColor": "volumeCache" }
+    },
+    "slices": {
+      "program": "slices",
+      "inputs": { "volumeCache": "volumeCache" },
+      "outputs": { "fragColor": "outputTex" }
+    }
+  },
+  "outputTex3d": "volumeCache"
+}

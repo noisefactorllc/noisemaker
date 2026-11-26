@@ -27,7 +27,7 @@ const {
     PORTABLE_FORMAT, PORTABLE_VERSION, MARKER_KEYS, DECLARATIVE_TOP_LEVEL_KEYS,
     LIFECYCLE_KEYS, RUNTIME_STATE_KEYS, GLOBAL_SPEC_KEYS, GLOBAL_TYPES, UI_KEYS,
     UI_CONTROLS, PASS_KEYS, PASS_TYPES, DRAW_MODES, TEXTURE_SPEC_KEYS, FORMATS,
-    TEXTURE_FILTERS, RESERVED_KEYS, IDENTIFIER_PATTERN,
+    TEXTURE_FILTERS, RESERVED_KEYS, IDENTIFIER_PATTERN, INERT_PASS_KEYS,
 } = grammar
 
 const IDENTIFIER = new RegExp(IDENTIFIER_PATTERN)
@@ -183,6 +183,16 @@ function normalizePasses(passes, diagnostics) {
             continue
         }
         unknownFields(pass, PASS_KEYS, path, diagnostics)
+        for (const key of INERT_PASS_KEYS) {
+            if (pass[key] !== undefined) {
+                diagnostics.push(diagnostic('unsupported-field', `${path}.${key}`,
+                    `${path}.${key} has no effect: the backends allocate storage buffers from the shader bindings; remove it`))
+            }
+        }
+        if (Array.isArray(pass.workgroups) && pass.workgroups.some(value => typeof value === 'string')) {
+            diagnostics.push(diagnostic('unsupported-field', `${path}.workgroups`,
+                `${path}.workgroups: a uniform name has no effect, because the dispatch size is never resolved from one; give positive integers`))
+        }
         if (pass.name !== undefined && pass.name !== name) {
             diagnostics.push(diagnostic('invalid-value', `${path}.name`, `${path}.name must equal its key, or be left out`))
         }
@@ -268,11 +278,20 @@ export function normalizePortableDefinition(pkg, { loadedShaders = false } = {})
     const definition = { ...omit(declared, MARKER_KEYS), passes }
     // starter is a package field that registration reads; an effect definition has none.
     for (const message of validateEffectDefinition(omit(definition, ['starter']))) {
-        const pass = /^Pass (\d+): (.*)$/s.exec(message)
+        const pass = /^Pass (\d+)((?:\.[A-Za-z]+)*)(?:: | )(.*)$/s.exec(message)
         const name = pass ? passes[Number(pass[1])]?.name : undefined
         const global = /^Global '([^']+)': (.*)$/s.exec(message)
+        const texture = /^Texture '([^']+)'((?:\.[A-Za-z]+)*): (.*)$/s.exec(message)
+        const field = /^"([A-Za-z0-9_]+)" (.*)$/s.exec(message)
         if (name) {
-            diagnostics.push(diagnostic('invalid-declaration', `passes.${name}`, `passes.${name}: ${pass[2]}`))
+            const path = `passes.${name}${pass[2] ?? ''}`
+            diagnostics.push(diagnostic('invalid-declaration', path, `${path}: ${pass[3]}`))
+        } else if (texture) {
+            const table = isRecord(declared.textures3d) && Object.hasOwn(declared.textures3d, texture[1]) ? 'textures3d' : 'textures'
+            const path = `${table}.${texture[1]}${texture[2]}`
+            diagnostics.push(diagnostic('invalid-declaration', path, `${path}: ${texture[3]}`))
+        } else if (field && DECLARATIVE_TOP_LEVEL_KEYS.includes(field[1])) {
+            diagnostics.push(diagnostic('invalid-declaration', field[1], `${field[1]} ${field[2]}`))
         } else if (global) {
             diagnostics.push(diagnostic('invalid-declaration', `globals.${global[1]}`, `globals.${global[1]}: ${global[2]}`))
         } else if (/^Unknown tag /.test(message)) {
