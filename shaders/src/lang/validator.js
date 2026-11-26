@@ -2766,6 +2766,11 @@ export function validate(ast) {
                 if (randomSources) { step.randomSources = randomSources }
                 if (authoredSeeds.length) { step.authoredSeeds = authoredSeeds }
                 if (inheritedSeeds) { step.inheritedSeeds = inheritedSeeds }
+                // The values a let call compiled to, so a save can tell which
+                // a host has changed in place since. Not enumerable.
+                if (step.letCall) {
+                    Object.defineProperty(step, 'letCallArgs', { value: Object.fromEntries(Object.entries(args).map(([key, value]) => [key, JSON.stringify(value)])) })
+                }
                 chain.push(step)
                 current = idx
             }

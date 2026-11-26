@@ -433,6 +433,22 @@ test('a save leaves a let\'s own seed in the let, keeps let names for a copy, an
     assert.deepEqual(errors(compile(text)), [], text)
 })
 
+test('a save by a let\'s name keeps a value a host changed in place on the step', () => {
+    const c = compile('search synth\nseed 5\nlet a = noise(octaves: 2)\na().write(o0)\nnoise(scaleY: rand(1, 10)).write(o1)')
+    const before = allSteps(c.plans).map(step => ({ ...step.args }))
+    c.plans[0].chain[0].args.scaleX = 42
+    c.plans[0].chain[0].args.octaves = noise.globals.octaves.default
+    const text = unparse(c)
+    assert.match(text, /\na\(/, text)
+    const again = compile(text)
+    assert.equal(args(again).scaleX, 42)
+    assert.equal(args(again).octaves, noise.globals.octaves.default)
+    // The other draws do not move.
+    assert.deepEqual(allSteps(again.plans).slice(1).map(step => step.args), before.slice(1))
+    // An unedited program still saves its let call bare.
+    assert.match(unparse(compile('search synth\nseed 5\nlet a = noise(octaves: 2)\na().write(o0)')), /\na\(\)\n/)
+})
+
 test('a call-level seed draws under the constant key', () => {
     const c = compile('search synth\nseed 1\nnoise(scaleY: rand(1, 10, seed: 3150442103)).write(o0)')
     assert.deepEqual(errors(c), [])

@@ -1677,6 +1677,13 @@ export function unparse(compiled, overrides = {}, options = {}) {
             // it is called, and a seed pinned on it. A seed written in the let
             // stays in the let.
             const letCallKeys = new Set(asLetCall ? [...step.letCallKeys, ...(step.pinnedSeeds || [])] : [])
+            // A value a host changed in place on the step is written at the
+            // call, so the edit is kept and the let form with it.
+            if (asLetCall) {
+                for (const [key, value] of Object.entries(step.args || {})) {
+                    if (step.letCallArgs && JSON.stringify(value) !== step.letCallArgs[key]) letCallKeys.add(key)
+                }
+            }
 
             const call = {
                 name: callName,
