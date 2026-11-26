@@ -430,3 +430,40 @@ test('a ZIP archive is refused when entries share bytes, a local header disagree
     assert.deepEqual(read.diagnostics, [])
     assert.equal(new TextDecoder().decode(read.files.get('glsl/main.glsl')), FRAGMENT)
 })
+
+test('a ZIP archive padded with zero bytes after its end record reads, as some archivers write it', async () => {
+    const archive = await zip([
+        { name: 'definition.json', content: JSON.stringify(v2('paddedZip')) },
+        { name: 'glsl/main.glsl', content: FRAGMENT },
+    ])
+    const padded = new Uint8Array(10240)
+    padded.set(archive)
+    const read = await fileMapFromZip(padded)
+    assert.deepEqual(read.diagnostics, [])
+    assert.deepEqual([...read.files.keys()], ['definition.json', 'glsl/main.glsl'])
+    const junk = new Uint8Array(archive.length + 4)
+    junk.set(archive)
+    junk.set([1, 2, 3, 4], archive.length)
+    assert.equal((await fileMapFromZip(junk)).files, null, 'bytes other than zero after the end record are refused')
+})
+
+test('reserved device names are refused in each form a Windows disk reserves, and other names are kept apart', () => {
+    for (const path of ['assets/COM¹', 'assets/lpt³.bin', 'assets/con .txt', 'assets/CONIN$', 'assets/conout$.log']) {
+        assert.equal(normalizePackagePath(path), null, path)
+    }
+    for (const path of ['assets/console.txt', 'assets/conf.json', 'assets/a ', 'assets/com.json']) {
+        assert.equal(normalizePackagePath(path), path, path)
+    }
+    const base = { 'definition.json': v2('distinctNames'), 'glsl/main.glsl': FRAGMENT }
+    const twoFiles = loadPortablePackage(files({ ...base, 'assets/straße.png': 'a', 'assets/strasse.png': 'b' }))
+    assert.deepEqual(twoFiles.diagnostics, [], 'a letter whose upper case is two letters keeps its name apart')
+    // Names compare in NFC, where the Kelvin sign is the letter K.
+    refused(loadPortablePackage(files({ ...base, 'assets/K.png': 'a', 'assets/k.png': 'b' })), 'duplicate-path')
+})
+
+test('the backend option names a backend, not an inherited key', () => {
+    const glsl = files({ 'definition.json': v2('backendOption'), 'glsl/main.glsl': FRAGMENT })
+    for (const backend of ['constructor', 'toString', '__proto__']) {
+        refused(loadPortablePackage(glsl, { backend }), 'unsupported-backend')
+    }
+})

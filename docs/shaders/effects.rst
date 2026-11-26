@@ -981,12 +981,14 @@ segments; a ``\`` counts as one. Names compare in Unicode NFC. A path that is
 absolute, names a drive, has an empty or ``..`` segment, or holds a control
 character is refused (``invalid-path``). So is a segment that a Windows disk
 would change or cannot hold: one that ends with a dot or a space, holds one of
-``< > : " | ? *``, or is a reserved device name such as ``CON`` or ``NUL``. Two
+``< > : " | ? *``, or is a reserved device name such as ``CON`` or ``NUL``,
+with or without an extension. Two
 paths for one file, including two that differ only in case, are refused
 (``duplicate-path``), because one would overwrite the other on a disk. A
 ``.DS_Store`` file and a ``__MACOSX`` directory are not package files and are
-left out. A program name that is a reserved key (``constructor``,
-``__proto__`` and the other keys of ``Object.prototype``) is refused
+left out. A program name that is a reserved key (``prototype``, and
+``constructor``, ``__proto__`` and the other keys of ``Object.prototype``) is
+refused
 (``reserved-name``), and so is a shader file that holds only white space
 (``empty-stage``).
 
@@ -996,8 +998,10 @@ its record, and its local header must name the same file with the same
 method. An encrypted entry, a ZIP64 or multi-disk archive, a link, another
 compression method, a damaged record or stream, two entries that share
 archive bytes, and a size larger than deflate can produce from the entry's
-bytes are refused. So the files read are never much larger than the archive.
-Directory entries carry no file.
+bytes are refused. So the files read are at most 1032 times the size of the
+archive, deflate's largest expansion. Directory entries carry no file, and
+zero bytes after the end record, which some archivers add as padding, are
+allowed.
 
 **Loading.** ``loadPortablePackage()`` (:ref:`portable-registration`) reads
 the files of a package and nothing else: it fetches nothing and runs no code

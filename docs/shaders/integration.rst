@@ -954,13 +954,13 @@ code ``unsupported-version``, and nothing is registered.
 - The backend that will run the effect needs its language for every program:
   GLSL on WebGL2, WGSL on WebGPU. A package without it is refused with the
   diagnostic code ``missing-backend``, at the path ``shaders/<program>``. The
-  backend is certain once the renderer has compiled a program, and before that
-  when it prefers WebGL2. A renderer that prefers WebGPU may still fall back to
-  WebGL2, so before its first compile it checks the language at compile time,
-  as before. A package with one complete language is valid; built-in effects
-  carry both.
-- A pass whose ``program`` is a reserved key (``constructor``, ``__proto__``
-  and the other keys of ``Object.prototype``) is refused.
+  backend is certain while the renderer has a pipeline, and when it prefers
+  WebGL2. A renderer that prefers WebGPU and has no pipeline yet may still
+  fall back to WebGL2, so the language is checked when the program compiles.
+  A package with one complete language is valid; built-in effects carry both.
+- A pass whose ``program`` is a reserved key (``prototype``, and
+  ``constructor``, ``__proto__`` and the other keys of ``Object.prototype``)
+  is refused.
 - ``globals`` must contain parameter objects. ``choices`` must map names to
   numbers — or strings for string-typed parameters — or null.
 - ``paramAliases`` is retired and causes registration to fail.

@@ -47,7 +47,7 @@ function diagnostic(code, path, message) {
 
 // Names a Windows disk cannot hold as a file: reserved devices, with or
 // without an extension.
-const DEVICE_NAME = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\.|$)/i
+const DEVICE_NAME = /^(con|prn|aux|nul|conin\$|conout\$|com[0-9¹²³]|lpt[0-9¹²³]) *(\.|$)/i
 
 /**
  * The normal form of a package path, or null when the path cannot be a file of
@@ -55,7 +55,8 @@ const DEVICE_NAME = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\.|$)/i
  * the name is in Unicode NFC. An absolute path, a drive letter, an empty
  * segment, a ".." segment or a control character is refused. So is a segment
  * that a Windows disk would change or cannot hold: one that ends with a dot or
- * a space, holds one of < > : " | ? *, or names a reserved device.
+ * a space, holds one of < > : " | ? *, or names a reserved device (with or
+ * without an extension, and with spaces before it).
  * @param {string} path
  * @returns {string|null}
  */
@@ -69,21 +70,28 @@ export function normalizePackagePath(path) {
     for (const segment of unified.split('/')) {
         if (segment === '.') continue
         if (segment === '' || segment === '..') return null
-        if (/[.\s]$/.test(segment) || /[<>:"|?*]/.test(segment) || DEVICE_NAME.test(segment)) return null
+        if (/[. ]$/.test(segment) || /[<>:"|?*]/.test(segment) || DEVICE_NAME.test(segment)) return null
         segments.push(segment)
     }
     return segments.length > 0 ? segments.join('/') : null
 }
 
 // The form two names share when a case-insensitive disk holds them as one
-// file. Upper case then lower case also folds letters such as the long s.
+// file: each character in its simple upper case, as such a disk compares
+// names. A character whose upper case is several characters stays as it is,
+// so ß and ss stay distinct, while the long s folds to S.
 function foldCase(name) {
-    return name.toUpperCase().toLowerCase()
+    let folded = ''
+    for (const char of name) {
+        const upper = char.toUpperCase()
+        folded += [...upper].length === 1 ? upper : char
+    }
+    return folded
 }
 
 // A copy, so that the loaded package does not change when the caller's bytes do.
-function toBytes(content) {
-    if (content instanceof Uint8Array) return new Uint8Array(content)
+function toBytes(content, copy = true) {
+    if (content instanceof Uint8Array) return copy ? new Uint8Array(content) : content
     if (typeof content === 'string') return new TextEncoder().encode(content)
     return null
 }
@@ -101,9 +109,12 @@ function decodeText(bytes) {
  * or that differ only in case, are refused: one of them would overwrite the
  * other when the package is written to a disk.
  * @param {Map<string, Uint8Array|string>|Object<string, Uint8Array|string>} files
+ * @param {object} [options]
+ * @param {boolean} [options.copy=true] - Copy the bytes it is given; false only for
+ *   bytes that nothing else holds
  * @returns {{files: Map<string, Uint8Array>|null, diagnostics: Array}}
  */
-export function readFileMap(files) {
+export function readFileMap(files, { copy = true } = {}) {
     const entries = files instanceof Map ? [...files] : (files && typeof files === 'object' ? Object.entries(files) : null)
     if (!entries) return { files: null, diagnostics: [diagnostic('not-a-file-map', '', 'a package is a map of paths to file contents')] }
     const diagnostics = []
@@ -116,7 +127,7 @@ export function readFileMap(files) {
             continue
         }
         if (JUNK.test(name)) continue
-        const bytes = toBytes(content)
+        const bytes = toBytes(content, copy)
         if (!bytes) {
             diagnostics.push(diagnostic('invalid-file', name, `${name} must be bytes (a Uint8Array) or text`))
             continue
@@ -171,7 +182,7 @@ export function loadPortablePackage(files, { backend } = {}) {
     const failed = (diagnostics, profile = null) => ({
         profile, definition: null, shaders: null, assets: null, help: null, files: null, diagnostics,
     })
-    if (backend !== undefined && !BACKEND_LANGUAGE[backend]) {
+    if (backend !== undefined && !Object.hasOwn(BACKEND_LANGUAGE, backend)) {
         return failed([diagnostic('unsupported-backend', '', `backend must be ${Object.keys(BACKEND_LANGUAGE).join(' or ')}`)])
     }
     const read = readFileMap(files)
@@ -325,12 +336,13 @@ function crc32(bytes) {
 const DEFLATE_MAX_RATIO = 1032
 
 // Inflate raw deflate data, reading no more than `size` bytes of output. A
-// damaged stream gives null, as a wrong size does.
+// damaged stream gives null, as a wrong size does. The output grows as the
+// stream yields data, so a declared size alone allocates nothing.
 async function inflate(data, size) {
-    const reader = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader()
-    const out = new Uint8Array(size)
+    const chunks = []
     let length = 0
     try {
+        const reader = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader()
         for (;;) {
             const { done, value } = await reader.read()
             if (done) break
@@ -338,13 +350,20 @@ async function inflate(data, size) {
                 await reader.cancel()
                 return null
             }
-            out.set(value, length)
+            chunks.push(value)
             length += value.length
         }
     } catch {
         return null
     }
-    return length === size ? out : null
+    if (length !== size) return null
+    const out = new Uint8Array(size)
+    let at = 0
+    for (const chunk of chunks) {
+        out.set(chunk, at)
+        at += chunk.length
+    }
+    return out
 }
 
 /**
@@ -355,8 +374,10 @@ async function inflate(data, size) {
  * stream, two entries that share archive bytes, a size larger than deflate can
  * produce from the entry's bytes, a name that is not UTF-8 or not a relative
  * path inside the package, and two names for one file are refused. So the
- * files read are never much larger than the archive. Directory entries carry
- * no file and are skipped, as are an archiver's .DS_Store and __MACOSX entries.
+ * files read are at most 1032 times the size of the archive, deflate's largest
+ * expansion. Directory entries carry no file and are skipped, as are an
+ * archiver's .DS_Store and __MACOSX entries. Zero bytes after the end record,
+ * which some archivers add as padding, are allowed.
  * @param {Uint8Array|ArrayBuffer} bytes
  * @returns {Promise<{files: Map<string, Uint8Array>|null, diagnostics: Array}>}
  */
@@ -368,9 +389,15 @@ export async function fileMapFromZip(bytes) {
     const u16 = offset => view.getUint16(offset, true)
     const u32 = offset => view.getUint32(offset, true)
 
+    // The end record is the last record of the archive: after it and its
+    // comment come only zero bytes, if anything.
+    let end = data.length
+    while (end > 0 && data[end - 1] === 0) end--
     let eocd = -1
-    for (let offset = data.length - 22; offset >= Math.max(0, data.length - 22 - 0xffff); offset--) {
-        if (u32(offset) === EOCD && offset + 22 + u16(offset + 20) === data.length) {
+    for (let offset = data.length - 22; offset >= 0 && offset >= end - 22 - 0xffff; offset--) {
+        if (u32(offset) !== EOCD) continue
+        const recordEnd = offset + 22 + u16(offset + 20)
+        if (recordEnd <= data.length && recordEnd >= end) {
             eocd = offset
             break
         }
@@ -391,9 +418,10 @@ export async function fileMapFromZip(bytes) {
     }
     if (centralOffset + centralSize > eocd) return refuse('damaged-archive', '', 'the central directory lies outside the archive')
 
+    // First every record is read and checked, then the data, so that no data
+    // is inflated from an archive that a later record refuses.
     const names = new TextDecoder('utf-8', { fatal: true })
-    const files = new Map()
-    const ranges = []
+    const records = []
     let offset = centralOffset
     for (let index = 0; index < entries; index++) {
         if (offset + 46 > eocd || u32(offset) !== CENTRAL) return refuse('damaged-archive', '', `central directory entry ${index} is damaged`)
@@ -408,9 +436,10 @@ export async function fileMapFromZip(bytes) {
         const commentLength = u16(offset + 32)
         const external = u32(offset + 38)
         const localOffset = u32(offset + 42)
+        const centralName = data.subarray(offset + 46, offset + 46 + nameLength)
         let name
         try {
-            name = names.decode(data.subarray(offset + 46, offset + 46 + nameLength))
+            name = names.decode(centralName)
         } catch {
             return refuse('invalid-path', `entry ${index}`, `the name of entry ${index} is not UTF-8`)
         }
@@ -427,26 +456,34 @@ export async function fileMapFromZip(bytes) {
         // that a streaming reader of the archive sees the files this one does.
         const localNameLength = u16(localOffset + 26)
         const localName = data.subarray(localOffset + 30, localOffset + 30 + localNameLength)
-        const centralName = data.subarray(offset - commentLength - extraLength - nameLength, offset - commentLength - extraLength)
         if (u16(localOffset + 8) !== method || localName.length !== centralName.length || localName.some((byte, at) => byte !== centralName[at])) {
             return refuse('damaged-archive', name, `the local header of ${name} names another file or method than its central record`)
         }
         const start = localOffset + 30 + localNameLength + u16(localOffset + 28)
         if (start + compressedSize > centralOffset) return refuse('damaged-archive', name, `the data of ${name} lies outside the archive`)
-        // No two entries share bytes: shared data would let a small archive
-        // give many large files.
-        if (ranges.some(([from, to]) => localOffset < to && start + compressedSize > from)) {
-            return refuse('damaged-archive', name, `${name} shares archive bytes with another entry`)
-        }
-        ranges.push([localOffset, start + compressedSize])
         if (method === DEFLATED && size > compressedSize * DEFLATE_MAX_RATIO) {
             return refuse('damaged-archive', name, `${name} declares more data than its compressed bytes can hold`)
         }
+        records.push({ name, method, crc, compressedSize, size, localOffset, start })
+    }
+    // No two entries share bytes: shared data would let a small archive give
+    // many large files. Sorted by offset, each entry must end before the next begins.
+    const byOffset = [...records].sort((a, b) => a.localOffset - b.localOffset)
+    for (let index = 1; index < byOffset.length; index++) {
+        const previous = byOffset[index - 1]
+        if (byOffset[index].localOffset < previous.start + previous.compressedSize) {
+            return refuse('damaged-archive', byOffset[index].name, `${byOffset[index].name} shares archive bytes with ${previous.name}`)
+        }
+    }
+
+    const files = new Map()
+    for (const { name, method, crc, compressedSize, size, start } of records) {
         const raw = data.subarray(start, start + compressedSize)
         const content = method === STORED ? (compressedSize === size ? new Uint8Array(raw) : null) : await inflate(raw, size)
         if (!content || crc32(content) !== crc) return refuse('damaged-archive', name, `${name} does not match its recorded size and CRC-32`)
         if (files.has(name)) return refuse('duplicate-path', name, `the archive holds ${name} twice`)
         files.set(name, content)
     }
-    return readFileMap(files)
+    // These bytes were just read from the archive, so nothing else holds them.
+    return readFileMap(files, { copy: false })
 }
