@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "effects": [
+    "synth/roll"
+  ],
+  "dsl": "search synth\nroll(speed: 2).write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    256
+  ],
+  "epsilon": 0,
+  "requireColorVariation": true,
+  "timeline": {
+    "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "loopSeconds": 1
+  },
+  "control": "search synth\nroll(speed: 2, color: #000000).write(o0)\nrender(o0)",
+  "midiMessages": [
+    {
+      "afterFrame": 0,
+      "data": [
+        144,
+        48,
+        110
+      ]
+    },
+    {
+      "afterFrame": 0,
+      "data": [
+        146,
+        67,
+        75
+      ]
+    }
+  ]
+}
