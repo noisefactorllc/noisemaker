@@ -334,6 +334,17 @@ test('a package that cannot be read is watched until it is fixed, without reload
     await waitForStatus(first.page, /^Loaded: user\.gradientSweep/, 'success')
     await first.page.close()
 
+    // A package whose definition does not answer on the first load recovers
+    // once it answers.
+    const offline = await openViewer(browser)
+    let answer = false
+    await offline.page.route('**/effect/definition.json', route => (answer ? route.fallback() : route.abort()))
+    await offline.page.goto(`${origin}${VIEWER_PATH}?package=/effect/`)
+    await waitForStatus(offline.page, /^Failed to load effect/, 'error')
+    answer = true
+    await waitForStatus(offline.page, /^Loaded: user\.gradientSweep/, 'success')
+    await offline.page.close()
+
     // A package broken after a good load is read again only once it changes.
     const { page, edit, state } = await openViewer(browser)
     await page.goto(`${origin}${VIEWER_PATH}?package=/effect/`)

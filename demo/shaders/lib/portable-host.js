@@ -80,6 +80,9 @@ function validator(response) {
 }
 
 async function fetchFile(url, files, read, path, required) {
+    // A file that does not answer at all is watched too, with no stamp, so
+    // the viewer reloads once it answers.
+    read.set(url.href, null)
     const response = await fetch(url, { cache: 'no-store' })
     read.set(url.href, validator(response))
     if (!response.ok) {
