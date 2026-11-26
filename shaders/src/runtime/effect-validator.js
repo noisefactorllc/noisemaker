@@ -77,7 +77,7 @@ const TOP_LEVEL_KEYS = new Set([
     'name', 'namespace', 'func', 'description', 'feature', 'tags', 'globals', 'passes',
     'textures', 'textures3d', 'shaders', 'uniformLayout', 'uniformLayouts',
     'paramAliases', 'openCategories', 'defaultProgram', 'hidden', 'deprecatedBy',
-    'externalTexture', 'externalMesh', 'builtinMeshes', 'outputTex3d', 'outputGeo',
+    'externalTexture', 'externalMesh', 'builtinMeshes', 'outputTex', 'outputTex3d', 'outputGeo', 'outputXyz', 'outputVel', 'outputRgba',
     'state', 'uniforms', 'onInit', 'onUpdate', 'onDestroy', 'asyncInit'
 ])
 
@@ -1105,11 +1105,10 @@ export function validateEffectDefinition(def) {
             }
         }
     }
-    if (source.outputTex3d !== undefined && (typeof source.outputTex3d !== 'string' || !source.outputTex3d)) {
-        errors.push('"outputTex3d" must be a non-empty string')
-    }
-    if (source.outputGeo !== undefined && (typeof source.outputGeo !== 'string' || !source.outputGeo)) {
-        errors.push('"outputGeo" must be a non-empty string')
+    for (const field of ['outputTex', 'outputTex3d', 'outputGeo', 'outputXyz', 'outputVel', 'outputRgba']) {
+        if (source[field] !== undefined && (typeof source[field] !== 'string' || !source[field])) {
+            errors.push(`"${field}" must be a non-empty string`)
+        }
     }
 
     // --- lifecycle hooks must be functions ---

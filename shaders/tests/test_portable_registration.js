@@ -89,7 +89,8 @@ test('Invalid Portable packages fail before registration and leave a valid name 
         definition('portableInvalid', { shaders: {} }), definition('portableInvalid', { shaders: { main: { glsl: ' ' } } }),
         definition('portableInvalid', { passes: [{ program: 'a' }, { program: 'b' }],
             shaders: { a: { glsl: 'source' }, b: { wgsl: 'source' } } }),
-        definition('portableInvalid', { globals: { amount: null } }), definition('portableInvalid', { starter: 'false' })]
+        definition('portableInvalid', { globals: { amount: null } }), definition('portableInvalid', { starter: 'false' }),
+        definition('portableInvalid', { outputXyz: 7 }), definition('portableInvalid', { outputTex: '' })]
     invalid.push(definition('portableInvalid', { paramAliases: { old: 'mode' }, globals: { mode: { type: 'int' } } }),
         definition('portableInvalid', { paramAliases: 'bad' }),
         definition('portableInvalid', { paramAliases: { old: 42 } }),

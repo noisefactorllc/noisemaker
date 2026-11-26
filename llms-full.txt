@@ -1132,9 +1132,6 @@ interface EffectDefinition {
   textures3d?: Record<string, TextureSpec3D>
   externalTexture?: string
   shaders?: Record<string, ProgramSources> // populated by loader in normal use
-
-  // Consumed by expander/loader when exposed by a subclass or assigned later.
-  // The base Effect constructor does NOT copy these config keys.
   outputTex?: string
   outputXyz?: string
   outputVel?: string

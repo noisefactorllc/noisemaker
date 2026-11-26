@@ -11,7 +11,11 @@ import { registerOp } from '../src/lang/ops.js'
 import { registerEffect } from '../src/runtime/registry.js'
 import { expand } from '../src/runtime/expander.js'
 import { Effect } from '../src/runtime/effect.js'
+import { validateEffectDefinition } from '../src/runtime/effect-validator.js'
 import attractor from '../effects/points/attractor/definition.js'
+import pointsEmit from '../effects/render/pointsEmit/definition.js'
+import flow from '../effects/points/flow/definition.js'
+import pointsRender from '../effects/render/pointsRender/definition.js'
 
 // For each field: the consumer's pass input that reads it.
 const FIELDS = {
@@ -69,15 +73,55 @@ for (const field of Object.keys(FIELDS)) {
         const config = new Effect(producerConfig(viaConfig, field))
         assert.equal(config[field], 'stateTex', `new Effect(config).${field}`)
         register(viaConfig, config, { starter: true })
-        class Producer extends Effect {}
-        const instance = new Producer(producerConfig(viaClass, field))
-        instance[field] = 'stateTex'
-        register(viaClass, instance, { starter: true })
+        // The class form sets the field itself, from a configuration without it.
+        const withoutField = producerConfig(viaClass, field)
+        delete withoutField[field]
+        class Producer extends Effect {
+            constructor(config) {
+                super(config)
+                this[field] = 'stateTex'
+            }
+        }
+        register(viaClass, new Producer(withoutField), { starter: true })
         const classBinding = consumerBinding(viaClass, field)
         assert.equal(classBinding, 'node_0_stateTex', `the class form hands on its state texture through ${field}`)
         assert.equal(consumerBinding(viaConfig, field), classBinding)
     })
 }
+
+test('the validator accepts the four fields as texture names and refuses anything else', () => {
+    for (const field of Object.keys(FIELDS)) {
+        const config = producerConfig('validated', field)
+        assert.deepEqual(validateEffectDefinition(config), [], `${field} on a plain definition`)
+        assert.deepEqual(validateEffectDefinition({ ...config, [field]: 42 }), [`"${field}" must be a non-empty string`])
+    }
+})
+
+test('agent state from points/attractor reaches a reader in the particle scope of its pointsEmit', () => {
+    for (const [id, effect] of [['render.pointsEmit', pointsEmit], ['points.attractor', attractor], ['points.flow', flow], ['render.pointsRender', pointsRender]]) {
+        registerOp(id, { name: effect.func, args: [] })
+        registerEffect(id, effect)
+    }
+    registerOp('user.agentReader', { name: 'agentReader', args: [] })
+    registerEffect('user.agentReader', new Effect({
+        name: 'agentReader', func: 'agentReader',
+        passes: [{ name: 'main', program: 'reader', inputs: { src: 'inputTex', xyzTex: 'inputXyz', velTex: 'inputVel', rgbaTex: 'inputRgba' }, outputs: { color: 'outputTex' } }]
+    }))
+    registerStarterOps(['user.agentSource'])
+    registerOp('user.agentSource', { name: 'agentSource', args: [] })
+    registerEffect('user.agentSource', new Effect({ name: 'agentSource', func: 'agentSource', passes: [{ name: 'main', program: 'src', outputs: { color: 'outputTex' } }] }))
+    const bindings = dsl => {
+        const result = validate(parse(lex(`search user, render, points\n${dsl}\nrender(o0)`)))
+        assert.deepEqual(result.diagnostics.filter(d => d.severity === 'error'), [], dsl)
+        const reader = expand(result).passes.find(p => p.effectKey === 'user.agentReader')
+        return [reader.inputs.xyzTex, reader.inputs.velTex, reader.inputs.rgbaTex]
+    }
+    assert.deepEqual(bindings('agentSource().pointsEmit().attractor().agentReader().write(o0)'),
+        ['global_xyz_node_1', 'global_vel_node_1', 'global_rgba_node_1'])
+    // A second pointsEmit starts a particle scope of its own.
+    assert.deepEqual(bindings('agentSource().pointsEmit().flow().pointsRender().pointsEmit().attractor().agentReader().write(o0)'),
+        ['global_xyz_node_4', 'global_vel_node_4', 'global_rgba_node_4'])
+})
 
 test('points/attractor, made with new Effect({...}), carries outputXyz, outputVel and outputRgba', () => {
     assert.equal(attractor.outputXyz, 'global_xyz')
