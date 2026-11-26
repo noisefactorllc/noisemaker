@@ -467,3 +467,39 @@ test('the backend option names a backend, not an inherited key', () => {
         refused(loadPortablePackage(glsl, { backend }), 'unsupported-backend')
     }
 })
+
+// outputTex3d and outputGeo hand on a texture of the effect: a declared one
+// (blank when no pass writes it), one a pass writes, or the chain input
+// unchanged (inputTex3d, inputGeo). Version 2 refuses any other name; the
+// legacy profile still accepts it.
+test('a version 2 outputTex3d or outputGeo names a texture of the effect, or its passthrough input', () => {
+    const passes = { fill: { program: 'main', inputs: {}, outputs: { fragColor: 'atlas', geoOut: 'global_scratch' } } }
+    const textures = { atlas: { width: 8, height: 8, format: 'rgba16f' }, unwritten: { width: 8, height: 8, format: 'rgba16f' } }
+    const textures3d = { volume: { width: 8, height: 8, depth: 8, format: 'rgba16f' } }
+    const load = extra => loadPortablePackage(files({ 'definition.json': v2('handOn', passes, { textures, textures3d, ...extra }), 'glsl/main.glsl': FRAGMENT }))
+    for (const extra of [{ outputTex3d: 'atlas' }, { outputGeo: 'unwritten' }, { outputTex3d: 'volume' }, { outputGeo: 'global_scratch' },
+        { outputTex3d: 'inputTex3d' }, { outputGeo: 'inputGeo' }]) {
+        const result = load(extra)
+        assert.deepEqual(result.diagnostics, [], JSON.stringify(extra))
+        assert.ok(result.definition, JSON.stringify(extra))
+    }
+    for (const field of ['outputTex3d', 'outputGeo']) {
+        for (const value of ['missing', field === 'outputTex3d' ? 'inputGeo' : 'inputTex3d']) {
+            const result = load({ [field]: value })
+            refused(result, 'unsupported-field', field)
+            assert.equal(result.diagnostics.find(entry => entry.path === field).message,
+                `${field} names "${value}", which is neither a declared texture nor one a pass writes; ` +
+                `name a texture of the effect, or ${field === 'outputTex3d' ? 'inputTex3d' : 'inputGeo'} to pass the input through`)
+        }
+    }
+})
+
+test('a legacy package keeps accepting an outputTex3d or outputGeo that nothing produces', () => {
+    for (const field of ['outputTex3d', 'outputGeo']) {
+        const legacy = { name: 'handOnLegacy', func: 'handOnLegacy', passes: [{ name: 'fill', program: 'main', inputs: {}, outputs: { fragColor: 'outputTex' } }], [field]: 'missing' }
+        const result = loadPortablePackage(files({ 'definition.json': legacy, 'glsl/main.glsl': FRAGMENT }))
+        assert.equal(result.profile, 'legacy')
+        assert.ok(result.definition, JSON.stringify(result.diagnostics))
+        assert.equal(result.definition[field], 'missing')
+    }
+})

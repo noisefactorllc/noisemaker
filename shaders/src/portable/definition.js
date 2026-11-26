@@ -246,6 +246,30 @@ function checkCapabilities(capabilities, declared, diagnostics) {
 }
 
 // Version 2 passes: an object keyed by DSL identifier, in declaration order.
+// The chain input each handed-on field may pass through unchanged.
+const PASSTHROUGH = Object.freeze({ outputTex3d: 'inputTex3d', outputGeo: 'inputGeo' })
+
+/**
+ * In version 2, outputTex3d and outputGeo name a texture of the effect: one
+ * declared in textures or textures3d (handed on as its contents, blank when no
+ * pass writes it), one a pass writes, or the field's own chain input, which
+ * passes through. Any other name hands on nothing, so it is refused. The
+ * legacy profile accepts it, as it did before version 2.
+ */
+function checkHandedOn(declared, passes, diagnostics) {
+    const produced = new Set([
+        ...passes.flatMap(pass => isRecord(pass.outputs) ? Object.values(pass.outputs) : []),
+        ...['textures', 'textures3d'].flatMap(table => isRecord(declared[table]) ? Object.keys(declared[table]) : []),
+    ])
+    for (const [field, passthrough] of Object.entries(PASSTHROUGH)) {
+        const value = declared[field]
+        if (typeof value !== 'string' || value.trim() === '' || value === passthrough || produced.has(value)) continue
+        diagnostics.push(diagnostic('unsupported-field', field,
+            `${field} names ${JSON.stringify(value)}, which is neither a declared texture nor one a pass writes; ` +
+            `name a texture of the effect, or ${passthrough} to pass the input through`))
+    }
+}
+
 function normalizePasses(passes, diagnostics) {
     if (!isRecord(passes) || Object.keys(passes).length === 0) {
         diagnostics.push(diagnostic('invalid-passes', 'passes',
@@ -362,6 +386,7 @@ export function normalizePortableDefinition(pkg, { loadedShaders = false } = {})
     checkTextures(declared.textures3d, 'textures3d', diagnostics)
     checkCapabilities(declared.capabilities, declared, diagnostics)
     const passes = normalizePasses(declared.passes, diagnostics)
+    checkHandedOn(declared, passes, diagnostics)
     if (diagnostics.length > 0) return { profile: 'v2', definition: null, diagnostics }
 
     const definition = { ...omit(declared, MARKER_KEYS), passes }

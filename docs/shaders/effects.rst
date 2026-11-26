@@ -837,6 +837,13 @@ passes the upstream geometry through; passthrough does not require an unused
 shader sampler. In a legacy Portable package (Section 8.2), ``null`` for
 either field means the field is absent.
 
+Each field names a texture of the effect: a texture declared in ``textures``
+or ``textures3d``, a texture that a pass writes, or the field's own
+passthrough value. A declared texture that no pass writes is handed on as that
+texture's blank contents. A version 2 Portable package that names any other
+texture is refused with ``unsupported-field`` at ``outputTex3d`` or
+``outputGeo``. A legacy package keeps its earlier behavior and accepts the name.
+
 The meaning of ``inputGeo`` depends on the preceding stage. Geometry from a
 volume generator is an atlas; geometry from a volume renderer is a screen
 image (Section 8.6).
@@ -1127,12 +1134,16 @@ version, independent of these profiles.
      - string or null
      -
      - Internal volume atlas exposed to the next effect, or ``inputTex3d``
-       for passthrough. In a legacy package ``null`` means absent.
+       for passthrough. In a legacy package ``null`` means absent. Version 2
+       refuses a name that is neither declared nor written by a pass
+       (Section 7.1).
    * - ``outputGeo``
      - string or null
      -
      - Internal geometry texture exposed to the next effect, or ``inputGeo``
-       for passthrough. In a legacy package ``null`` means absent.
+       for passthrough. In a legacy package ``null`` means absent. Version 2
+       refuses a name that is neither declared nor written by a pass
+       (Section 7.1).
    * - ``outputTex``
      - string
      -
