@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "effects": [
+    "synth/roll"
+  ],
+  "dsl": "search synth\nroll().write(o0)\nrender(o0)",
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ],
+  "epsilon": 0,
+  "requireColorVariation": true,
+  "midiInputs": [
+    {
+      "effect": "synth/roll",
+      "notes": [
+        {
+          "channel": 1,
+          "key": 40,
+          "velocity": 110
+        },
+        {
+          "channel": 1,
+          "key": 60,
+          "velocity": 75
+        },
+        {
+          "channel": 3,
+          "key": 67,
+          "velocity": 90
+        },
+        {
+          "channel": 7,
+          "key": 36,
+          "velocity": 64
+        },
+        {
+          "channel": 7,
+          "key": 84,
+          "velocity": 100
+        }
+      ]
+    }
+  ]
+}

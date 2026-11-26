@@ -148,7 +148,9 @@ const testEntries = [
   { file: 'shaders/tests/test_midi.js', parity: false },
   { file: 'shaders/tests/test_midi_audio_integration.js', parity: false },
   { file: 'test/mcp-config.test.js', parity: false },
-  { file: 'test/docs-static-paths.test.js', parity: false, docs: true }
+  { file: 'test/docs-static-paths.test.js', parity: false, docs: true },
+  // Shader parity attestation contracts
+  { file: 'shaders/tests/test_shader_parity_attestation.mjs', parity: false }
 ]
 
 const skipParity = process.argv.includes('--skip-parity')

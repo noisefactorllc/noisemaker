@@ -228,6 +228,25 @@ export function validateParityCase(parityCase, effectId) {
             }
         }
     }
+    if (parityCase?.midiInputs !== undefined) {
+        if (!Array.isArray(parityCase.midiInputs)) {
+            errors.push('parity case midi inputs must be an array')
+        } else {
+            for (const midiInput of parityCase.midiInputs) {
+                if (!midiInput || !parityCase.effects?.includes(midiInput.effect) ||
+                    !Array.isArray(midiInput.notes) || midiInput.notes.length === 0) {
+                    errors.push('parity case midi input must name a loaded effect and at least one note')
+                    continue
+                }
+                for (const note of midiInput.notes) {
+                    if (!note || !integerInRange(note.channel, 0, 15) || !integerInRange(note.key, 0, 127) ||
+                        !integerInRange(note.velocity, 1, 127)) {
+                        errors.push('parity case midi note must give channel 0-15, key 0-127 and velocity 1-127')
+                    }
+                }
+            }
+        }
+    }
     if (parityCase?.tiles !== undefined) {
         const tiles = parityCase.tiles
         const size = tiles?.size
