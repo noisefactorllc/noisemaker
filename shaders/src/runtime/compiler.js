@@ -296,6 +296,27 @@ function extractTextureSpecs(passes, options, textureSpecs = {}) {
         }
     }
 
+    // A pass that writes only through storageTextures has no outputs, so
+    // its targets that no effect declares (such as the node's own output
+    // when the chain continues past it) are allocated here, with storage usage.
+    for (const pass of passes) {
+        if (!pass.storageTextures) continue
+        for (const texId of Object.values(pass.storageTextures)) {
+            if (typeof texId !== 'string' || texId.startsWith('global_')) continue
+            const spec = textures.get(texId)
+            if (spec) {
+                if (!spec.usage.includes('storage')) spec.usage = [...spec.usage, 'storage']
+                continue
+            }
+            textures.set(texId, {
+                width: 'screen',
+                height: 'screen',
+                format: 'rgba16f',
+                usage: ['render', 'sample', 'storage', 'copySrc', 'copyDst']
+            })
+        }
+    }
+
     return textures
 }
 
