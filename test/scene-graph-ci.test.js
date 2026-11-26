@@ -46,8 +46,8 @@ test('scene-graph pushes cannot run publication jobs', () => {
 })
 
 // The release gate: the verify-source step that requires a passed shaders.yml run on main for the release commit.
-// Its own script runs here with stand-ins for git and gh, and a sleep that moves the shell's clock past the gate's
-// deadline. The gh stand-in answers from a fixture of workflow runs, keeps the runs that the query's event names,
+// Its own script runs here with stand-ins for git and gh, and a sleep that moves the shell's clock by its argument
+// at once. The gh stand-in answers from a fixture of workflow runs, keeps the runs that the query's event names,
 // and applies the step's own --jq filter.
 const GATE = 'Require a passed shaders.yml run on main for the release commit'
 const gateStep = () => jobBlock(workflow('release'), 'verify-source')
@@ -72,7 +72,7 @@ const runGate = (t, fixtures) => {
   fixtures.forEach((runs, i) => writeFileSync(join(dir, i === fixtures.length - 1 ? 'last.json' : `${i + 1}.json`), JSON.stringify({ workflow_runs: runs })))
   const calls = join(dir, 'calls')
   writeFileSync(calls, '')
-  const result = spawnSync('bash', ['-c', `sleep() { SECONDS=$((SECONDS + 600)); }\n${gateScript()}`], { encoding: 'utf8', timeout: 20000,
+  const result = spawnSync('bash', ['-c', `sleep() { SECONDS=$((SECONDS + $1)); }\n${gateScript()}`], { encoding: 'utf8', timeout: 20000,
     env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, FIXTURES: dir, CALLS: calls, GITHUB_REPOSITORY: 'owner/repository', GITHUB_SHA: sha } })
   const why = `${result.stdout}${result.stderr}${result.error ? ` ${result.error.message}` : ''}${result.signal ? ` signal ${result.signal}` : ''}`
   return { ...result, why, sha, calls: readFileSync(calls, 'utf8').split('\n').filter(Boolean) }
@@ -105,6 +105,7 @@ test('a release needs a passed shaders.yml push run on main for its commit, befo
   const late = runGate(t, [[run('main', 'push', 'in_progress', null)]])
   assert.equal(late.status, 1, `a run that does not finish within the wait is refused: ${late.why}`)
   assert.match(late.stdout, /did not finish within the wait/)
+  assert.equal(late.calls.length, 41, 'the gate asks every 15 seconds and gives up after 600')
 })
 
 // The downstream notice goes out only for a 1.x tree: a 2.x tree pushed to main by mistake queues no port work.
