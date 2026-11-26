@@ -1032,6 +1032,8 @@ code ``unsupported-version``, and nothing is registered.
 - ``globals`` must contain parameter objects. ``choices`` must map names to
   numbers — or strings for string-typed parameters — or null.
 - ``paramAliases`` is retired and causes registration to fail.
+- ``outputTex``, ``outputXyz``, ``outputVel`` and ``outputRgba``, when
+  present, must be nonempty texture names.
 
 A refusal that has a diagnostic code carries it in the error's
 ``diagnostics`` array. Registration does not compile shaders: a package that

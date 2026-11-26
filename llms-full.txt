@@ -1146,9 +1146,6 @@ interface EffectDefinition {
   textures3d?: Record<string, TextureSpec3D>
   externalTexture?: string
   shaders?: Record<string, ProgramSources> // populated by loader in normal use
-
-  // Consumed by expander/loader when exposed by a subclass or assigned later.
-  // The base Effect constructor does NOT copy these config keys.
   outputTex?: string
   outputXyz?: string
   outputVel?: string
@@ -1208,8 +1205,7 @@ type EffectHookThis = InstanceType<typeof Effect> & {
 ```
 
 Use `export default new Effect({...})` for data-only definitions.
-Use a subclass when you must expose consumed fields that the base constructor does not copy.
-Also use a subclass when you must override lifecycle methods. Do not assume an arbitrary config property is
+Use a subclass when you must override lifecycle methods. Do not assume an arbitrary config property is
 copied: the constructor uses an explicit allowlist.
 
 Each uniform-layout slot is one 16-byte `vec4`. A one-character component

@@ -105,7 +105,8 @@ export const TOP_LEVEL_KEYS = Object.freeze([
     'name', 'namespace', 'func', 'description', 'feature', 'tags', 'globals', 'passes',
     'textures', 'textures3d', 'shaders', 'uniformLayout', 'uniformLayouts',
     'paramAliases', 'openCategories', 'defaultProgram', 'hidden', 'deprecatedBy',
-    'externalTexture', 'externalMesh', 'builtinMeshes', 'outputTex3d', 'outputGeo',
+    'externalTexture', 'externalMesh', 'builtinMeshes', 'outputTex', 'outputTex3d', 'outputGeo',
+    'outputXyz', 'outputVel', 'outputRgba',
     'state', 'uniforms', 'onInit', 'onUpdate', 'onDestroy', 'asyncInit'
 ])
 

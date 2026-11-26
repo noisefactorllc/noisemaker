@@ -759,6 +759,11 @@ carry the lifecycle functions of Section 5 (``onInit``, ``onUpdate``,
    * - ``outputGeo``
      - Internal texture name to expose as geometry buffer output
        (Section 7.1).
+   * - ``outputTex``
+     - Internal texture name to hand on as the 2D output.
+   * - ``outputXyz``, ``outputVel``, ``outputRgba``
+     - Internal texture names to hand on as agent positions, velocities and
+       colors.
    * - pass ``name``
      - Pass label, preserved verbatim on expanded passes.
    * - pass ``type``

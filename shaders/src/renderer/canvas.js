@@ -2504,6 +2504,11 @@ export class CanvasRenderer {
             }
         }
         if (definition.paramAliases !== undefined) fail('paramAliases is no longer supported')
+        // The 2D and agent textures an effect hands on are texture names: the
+        // expander reads them as strings.
+        for (const field of ['outputTex', 'outputXyz', 'outputVel', 'outputRgba']) {
+            if (definition[field] !== undefined && !hasSource(definition[field])) fail(`${field} must be a nonempty texture name`)
+        }
         if (getEffect(`user.${func}`) || getEffect(`user/${func}`)) fail(`user.${func} is already registered`)
 
         // A package that declares capabilities is composed from its providers,

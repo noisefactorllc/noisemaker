@@ -83,8 +83,13 @@ export class Effect {
         if (config.externalTexture) this.externalTexture = config.externalTexture
         if (config.externalMesh) this.externalMesh = config.externalMesh
         if (config.builtinMeshes) this.builtinMeshes = config.builtinMeshes
+        // The textures an effect hands on to the next effect in its chain.
+        if (config.outputTex) this.outputTex = config.outputTex
         if (config.outputTex3d) this.outputTex3d = config.outputTex3d
         if (config.outputGeo) this.outputGeo = config.outputGeo
+        if (config.outputXyz) this.outputXyz = config.outputXyz
+        if (config.outputVel) this.outputVel = config.outputVel
+        if (config.outputRgba) this.outputRgba = config.outputRgba
         if (config.uniformLayout) this.uniformLayout = config.uniformLayout
         if (config.uniformLayouts) this.uniformLayouts = config.uniformLayouts
         if (config.paramAliases) this.paramAliases = config.paramAliases

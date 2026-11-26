@@ -75,8 +75,12 @@
     "externalTexture": {},
     "externalMesh": {},
     "builtinMeshes": {},
+    "outputTex": {},
     "outputTex3d": {},
     "outputGeo": {},
+    "outputXyz": {},
+    "outputVel": {},
+    "outputRgba": {},
     "capabilities": {
       "type": "array",
       "items": {
