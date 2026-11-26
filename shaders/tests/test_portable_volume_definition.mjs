@@ -26,8 +26,9 @@ try {
     for (const [label, patch, expected, message] of [
         ['valid volume', {}, 0],
         ['legacy 2D null outputs', { outputTex3d: null, outputGeo: null }, 0],
-        // LEGACY. For a version 2 package, the rule for a name that no pass
-        // produces follows GAP-084: https://github.com/noisefactorllc/noisemaker/issues/440
+        // LEGACY. A version 2 package refuses a name the effect does not
+        // declare (GAP-084, https://github.com/noisefactorllc/noisemaker/issues/440),
+        // checked after these rows.
         ['missing volume output', { outputTex3d: 'missing' }, 0],
         ['missing geometry output', { outputGeo: 'missing' }, 0],
         // LEGACY: the engine loads and registers it (effects.rst:1051-1052)
@@ -53,6 +54,18 @@ try {
         const run = spawnSync(process.execPath, [validator, dir], { encoding: 'utf8', timeout: 10000 });
         assert.equal(run.status, expected, `${label}: ${run.stdout}${run.stderr}`);
         if (message) assert.match(run.stderr, message, `${label}: ${run.stdout}${run.stderr}`);
+        console.log(`PASS ${label}`);
+    }
+    // A version 2 package refuses an outputTex3d or outputGeo that names no
+    // texture of the effect (GAP-084), at that field.
+    const v2 = { format: 'noisemaker-portable-effect', version: 2, name: 'Volume', func: 'volume', starter: true,
+        textures: base.textures, passes: { fill: { program: 'main', inputs: {}, outputs: { color: 'atlas' } } } };
+    for (const field of ['outputTex3d', 'outputGeo']) {
+        const label = `version 2 missing ${field === 'outputTex3d' ? 'volume' : 'geometry'} output`;
+        await writeFile(join(dir, 'definition.json'), JSON.stringify({ ...v2, outputTex3d: 'atlas', [field]: 'missing' }));
+        const run = spawnSync(process.execPath, [validator, dir], { encoding: 'utf8', timeout: 10000 });
+        assert.equal(run.status, 1, `${label}: ${run.stdout}${run.stderr}`);
+        assert.match(run.stderr, new RegExp(`FAIL: ${field} names "missing".* at ${field}\\)`), `${label}: ${run.stdout}${run.stderr}`);
         console.log(`PASS ${label}`);
     }
 } finally { await rm(dir, { recursive: true, force: true }); }
