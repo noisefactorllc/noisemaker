@@ -494,6 +494,16 @@
       "change": "changed",
       "commit": "fdcd69b5912576d7f4c49835fd72538fb493b22f",
       "source": "runtime"
+    },
+    {
+      "effectId": "filter3d/flow3d",
+      "change": "changed",
+      "commit": "5596e69fd6e3b9014e9df0f8674e10e70c332e11"
+    },
+    {
+      "effectId": "filter3d/palette3d",
+      "change": "changed",
+      "commit": "5596e69fd6e3b9014e9df0f8674e10e70c332e11"
     }
   ],
   "exportKinds": [
@@ -26884,14 +26894,12 @@
             "viewport": {
               "width": {
                 "param": "volumeSize",
-                "default": 32,
-                "inputOverride": "inputTex3d"
+                "default": 32
               },
               "height": {
                 "param": "volumeSize",
                 "power": 2,
-                "default": 1024,
-                "inputOverride": "inputTex3d"
+                "default": 1024
               }
             },
             "inputs": {
@@ -26910,14 +26918,12 @@
             "viewport": {
               "width": {
                 "param": "volumeSize",
-                "default": 32,
-                "inputOverride": "inputTex3d"
+                "default": 32
               },
               "height": {
                 "param": "volumeSize",
                 "power": 2,
-                "default": 1024,
-                "inputOverride": "inputTex3d"
+                "default": 1024
               }
             },
             "inputs": {
@@ -26936,14 +26942,12 @@
             "viewport": {
               "width": {
                 "param": "volumeSize",
-                "default": 32,
-                "inputOverride": "inputTex3d"
+                "default": 32
               },
               "height": {
                 "param": "volumeSize",
                 "power": 2,
-                "default": 1024,
-                "inputOverride": "inputTex3d"
+                "default": 1024
               }
             },
             "inputs": {
@@ -26964,14 +26968,12 @@
             "viewport": {
               "width": {
                 "param": "volumeSize",
-                "default": 32,
-                "inputOverride": "inputTex3d"
+                "default": 32
               },
               "height": {
                 "param": "volumeSize",
                 "power": 2,
-                "default": 1024,
-                "inputOverride": "inputTex3d"
+                "default": 1024
               }
             },
             "inputs": {
@@ -27208,14 +27210,12 @@
             "viewport": {
               "width": {
                 "param": "volumeSize",
-                "default": 64,
-                "inputOverride": "inputTex3d"
+                "default": 64
               },
               "height": {
                 "param": "volumeSize",
                 "power": 2,
-                "default": 4096,
-                "inputOverride": "inputTex3d"
+                "default": 4096
               }
             },
             "inputs": {
