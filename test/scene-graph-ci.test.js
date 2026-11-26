@@ -45,6 +45,21 @@ test('scene-graph pushes cannot run publication jobs', () => {
   assert.match(jobBlock(workflow('dependabot-auto-merge'), 'auto-merge'), /workflow_run\.event == 'pull_request'/)
 })
 
+test('a release needs a passed shaders.yml push run on main for its commit, before any build job', () => {
+  const text = workflow('release')
+  const verify = jobBlock(text, 'verify-source')
+  const step = verify.match(/\n {4}- name: Require a passed shaders\.yml run on main for the release commit\n([\s\S]*?)(?=\n {4}- name:|$)/)?.[1] ?? ''
+  assert.ok(step, 'verify-source must require a passed shaders.yml run')
+  assert.match(step, /actions\/workflows\/shaders\.yml\/runs\?head_sha=\$sha&event=push&/, 'the gate reads shaders.yml push runs for the release commit')
+  assert.match(step, /select\(\.head_branch == "main"\)/, 'the gate reads runs on main only')
+  assert.match(step, /select\(\.conclusion == "success"\)/, 'the gate needs a run that passed')
+  assert.doesNotMatch(step, /workflow_dispatch/, 'on main, only a push run of shaders.yml dispatches the release')
+  assert.match(verify, /\n {4}permissions:\n {6}contents: read\n {6}actions: read\n/, 'the gate can read workflow runs')
+  for (const job of ['build-js-bundles', 'build-standalone-linux', 'build-standalone-macos', 'build-standalone-windows', 'build-shader-bundle']) {
+    assert.match(jobBlock(text, job), /needs:.*verify-source/, `release/${job} must wait for the gate`)
+  }
+})
+
 // The downstream notice goes out only for a 1.x tree: a 2.x tree pushed to main by mistake queues no port work.
 const notifySteps = () => [...jobBlock(workflow('downstream'), 'notify').matchAll(/\n {6}- name: ([^\n]+)\n([\s\S]*?)(?=\n {6}- name:|\n {6}#|$)/g)]
   .map(([, name, body]) => ({ name, body }))
