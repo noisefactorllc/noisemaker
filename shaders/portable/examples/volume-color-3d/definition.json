@@ -1,0 +1,30 @@
+{
+  "name": "Volume Color 3D",
+  "func": "volumeColor3d",
+  "description": "Color a volume while retaining the legacy red-channel density and upstream geometry",
+  "starter": false,
+  "tags": ["3d", "color"],
+  "globals": {
+    "volumeSize": { "type": "int", "uniform": "volumeSize", "ui": { "control": false } },
+    "amount": { "type": "float", "default": 0.75, "min": 0, "max": 1, "uniform": "amount" }
+  },
+  "textures": {
+    "volume": {
+      "width": { "param": "volumeSize", "default": 64 },
+      "height": { "param": "volumeSize", "power": 2, "default": 4096 },
+      "format": "rgba16f"
+    }
+  },
+  "passes": [{
+    "name": "color", "program": "color",
+    "viewport": {
+      "width": { "param": "volumeSize", "default": 64, "inputOverride": "inputTex3d" },
+      "height": { "param": "volumeSize", "power": 2, "default": 4096, "inputOverride": "inputTex3d" }
+    },
+    "inputs": { "volumeInput": "inputTex3d" },
+    "outputs": { "color": "volume" }
+  }],
+  "outputTex3d": "volume",
+  "outputGeo": "inputGeo",
+  "defaultProgram": "search synth3d, user, render\nshape3d(volumeSize: 16).volumeColor3d().render3d(filtering: 1, orbitSpeed: 0).write(o0)\nrender(o0)"
+}

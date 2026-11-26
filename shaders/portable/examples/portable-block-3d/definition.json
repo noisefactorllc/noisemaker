@@ -1,0 +1,60 @@
+{
+  "name": "Portable Block 3D",
+  "func": "portableBlock3d",
+  "starter": true,
+  "globals": {
+    "volumeSize": {
+      "type": "int",
+      "default": 32,
+      "min": 16,
+      "max": 64,
+      "uniform": "volumeSize"
+    }
+  },
+  "textures": {
+    "volume": {
+      "width": {
+        "param": "volumeSize"
+      },
+      "height": {
+        "param": "volumeSize",
+        "power": 2
+      },
+      "format": "rgba16f"
+    },
+    "geometry": {
+      "width": {
+        "param": "volumeSize"
+      },
+      "height": {
+        "param": "volumeSize",
+        "power": 2
+      },
+      "format": "rgba16f"
+    }
+  },
+  "passes": [
+    {
+      "name": "fill",
+      "program": "fill",
+      "drawBuffers": 2,
+      "viewport": {
+        "width": {
+          "param": "volumeSize"
+        },
+        "height": {
+          "param": "volumeSize",
+          "power": 2
+        }
+      },
+      "inputs": {},
+      "outputs": {
+        "color": "volume",
+        "geoOut": "geometry"
+      }
+    }
+  ],
+  "outputTex3d": "volume",
+  "outputGeo": "geometry",
+  "defaultProgram": "search user, render\nportableBlock3d(volumeSize: 16).render3d(filtering: 1, orbitSpeed: 0).write(o0)\nrender(o0)"
+}
