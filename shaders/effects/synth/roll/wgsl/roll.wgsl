@@ -29,9 +29,12 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let keyExact = f32(keyLow) + laneLocal * f32(keyRange);
     let key = i32(floor(keyExact));
 
-    // Sample note grid with fixed spread for visibility
+    // Sample every key covered by this lane pixel, matching WebGL2.
     var maxVel = 0.0;
-    for (var dk = -2; dk <= 2; dk++) {
+    let lanePixels = resolution.y / 16.0;
+    let keysPerPixel = f32(keyRange) / lanePixels;
+    let spread = max(1, i32(ceil(keysPerPixel)));
+    for (var dk = -spread; dk <= spread; dk++) {
         let k = clamp(key + dk, 0, 127);
         let gridUv = vec2<f32>((f32(k) + 0.5) / 128.0, (f32(channel) + 0.5) / 16.0);
         let noteData = textureSample(noteGridTex, noteGridSampler, gridUv);

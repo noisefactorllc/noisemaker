@@ -62,6 +62,8 @@ try {
     }
     const rollDsl = 'search synth\nroll().write(o0)\nrender(o0)'
     const notes = await gl.render(rollDsl, 'synth/roll')
+    const gpuNotes = await gpu.render(rollDsl, 'synth/roll')
+    assert.equal(compareFrames(notes.frame, gpuNotes.frame).pass, true, 'roll must render the same MidiState notes on both backends')
     await gl.page.evaluate(async dsl => {
         const r = window.agreementRenderer
         await r.dispose()
