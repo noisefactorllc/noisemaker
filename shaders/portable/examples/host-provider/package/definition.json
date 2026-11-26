@@ -1,0 +1,45 @@
+{
+  "format": "noisemaker-portable-effect",
+  "version": 2,
+  "name": "Gradient Wash",
+  "func": "gradientWash",
+  "namespace": "user",
+  "description": "A vertical gradient over the input, drawn by a capability that the host provides",
+  "tags": ["color"],
+  "globals": {
+    "top": {
+      "type": "vec3", "default": [0.9, 0.5, 0.2], "uniform": "top",
+      "ui": { "label": "top", "control": "color" }
+    },
+    "bottom": {
+      "type": "vec3", "default": [0.1, 0.2, 0.6], "uniform": "bottom",
+      "ui": { "label": "bottom", "control": "color" }
+    },
+    "alpha": {
+      "type": "float", "default": 0.5, "uniform": "alpha",
+      "min": 0, "max": 1, "step": 0.01,
+      "ui": { "label": "alpha", "control": "slider" }
+    }
+  },
+  "textures": {
+    "washTex": { "width": "screen", "height": "screen", "format": "rgba8" }
+  },
+  "passes": {
+    "blend": {
+      "program": "washBlend",
+      "inputs": { "inputTex": "inputTex", "overlayTex": "washTex" },
+      "uniforms": { "alpha": "alpha" },
+      "outputs": { "fragColor": "outputTex" }
+    }
+  },
+  "capabilities": [
+    {
+      "id": "example/gradient",
+      "version": 1,
+      "bindings": {
+        "parameters": { "top": "top", "bottom": "bottom" },
+        "textures": { "target": "washTex" }
+      }
+    }
+  ]
+}

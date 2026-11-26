@@ -1,0 +1,38 @@
+{
+  "id": "example/gradient",
+  "version": 1,
+  "description": "A vertical gradient from one color at the top to another at the bottom, drawn on a CPU canvas into a texture",
+  "bindings": {
+    "parameters": {
+      "top": {
+        "types": [
+          "vec3",
+          "color"
+        ],
+        "required": true
+      },
+      "bottom": {
+        "types": [
+          "vec3",
+          "color"
+        ],
+        "required": true
+      }
+    },
+    "textures": {
+      "target": {
+        "required": true
+      }
+    }
+  },
+  "dependencies": {
+    "parameters": [
+      "top",
+      "bottom"
+    ],
+    "resources": [
+      "target"
+    ]
+  },
+  "uploadOrientation": "flipY"
+}

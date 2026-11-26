@@ -1,0 +1,65 @@
+{
+  "format": "noisemaker-portable-effect",
+  "version": 2,
+  "name": "Threads",
+  "func": "threads",
+  "namespace": "user",
+  "description": "A few long pale threads drawn on the CPU over the input, by the engine's worm overlay with a recipe of its own",
+  "tags": ["noise"],
+  "globals": {
+    "density": {
+      "type": "float", "default": 0.5, "uniform": "density",
+      "min": 0, "max": 1, "step": 0.01,
+      "ui": { "label": "density", "control": "slider" }
+    },
+    "seed": {
+      "type": "int", "default": 1, "uniform": "seed",
+      "min": 1, "max": 100, "step": 1,
+      "ui": { "label": "seed", "control": "slider" }
+    },
+    "alpha": {
+      "type": "float", "default": 0.6, "uniform": "alpha",
+      "min": 0, "max": 1, "step": 0.01,
+      "ui": { "label": "alpha", "control": "slider" }
+    }
+  },
+  "textures": {
+    "overlayTex": { "width": "screen", "height": "screen", "format": "rgba8" }
+  },
+  "passes": {
+    "blend": {
+      "program": "threadsBlend",
+      "inputs": { "inputTex": "inputTex", "overlayTex": "overlayTex" },
+      "uniforms": { "alpha": "alpha" },
+      "outputs": { "fragColor": "outputTex" }
+    }
+  },
+  "defaultProgram": "search user, synth\n\nsolid(color: #202830)\n.threads(density: 0.8)\n.write(o0)\nrender(o0)",
+  "capabilities": [
+    {
+      "id": "noisemaker/worm-overlay",
+      "version": 1,
+      "options": {
+        "recipe": {
+          "layers": 2,
+          "checkEachLayer": true,
+          "layerSeed": { "multiply": 1000, "step": 17, "offset": 3 },
+          "densityDefault": 0.5,
+          "density": { "base": 0.02, "scale": 0.08 },
+          "kink": { "base": 0.5, "modulus": 7, "divide": 4 },
+          "stride": 0.6,
+          "strideDeviation": 0.2,
+          "duration": { "base": 6, "modulus": 4 },
+          "behavior": { "even": "obedient", "odd": "unruly" },
+          "flowFreq": { "base": 2 },
+          "lineWidth": { "minimum": 1, "divide": 512 },
+          "color": { "rgb": [235, 225, 205], "alpha": 0.8 }
+        }
+      },
+      "bindings": {
+        "parameters": { "seed": "seed", "density": "density" },
+        "textures": { "overlay": "overlayTex" }
+      }
+    }
+  ]
+}

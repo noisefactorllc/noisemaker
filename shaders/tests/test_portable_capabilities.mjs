@@ -562,6 +562,52 @@ test('each provider fixture is its effect\'s declaration with the provider, and 
     }
 })
 
+// ---------------------------------------------------------------------------
+// The capability examples under shaders/portable/examples/.
+
+const EXAMPLES = path.join(REPO_ROOT, 'shaders/portable/examples')
+
+test('the overlay example declares the engine\'s worm overlay with a recipe of its own, and draws', async () => {
+    const loaded = loadPortablePackage(readPackage(path.join(EXAMPLES, 'overlay-threads')),
+        { capabilityDescriptors: [getPortableCapability('noisemaker/worm-overlay', 1).descriptor] })
+    assert.deepEqual(loaded.diagnostics, [])
+    assert.deepEqual(loaded.capabilities, { complete: true, unresolved: [] })
+    const effect = await new CanvasRenderer().registerPortableEffect({ ...loaded.definition, shaders: loaded.shaders })
+    const drawn = await traceLog(effect.instance, { params: { seed: 2, density: 0.8 }, width: 64, height: 64 })
+    assert.ok(drawn.log.some(([, call]) => call === 'stroke'), 'it draws strokes')
+    assert.ok(drawn.log.some(([call, name]) => call === 'upload' && name === 'overlayTex'), 'it uploads its overlay')
+    assert.deepEqual(capabilityUseOf(effect.instance), { dependencies: ['seed', 'density'] })
+})
+
+test('the host-provider example: a host registers its provider, and the package that carries its descriptor loads and draws', async () => {
+    const { gradientProvider, GRADIENT_DESCRIPTOR } = await import(pathToFileURL(path.join(EXAMPLES, 'host-provider/provider.js')).href)
+    const loaded = loadPortablePackage(readPackage(path.join(EXAMPLES, 'host-provider/package')))
+    assert.deepEqual(loaded.diagnostics, [])
+    assert.deepEqual(loaded.capabilities, { complete: true, unresolved: [] }, 'the package\'s descriptor file checks its declaration')
+    assert.deepEqual(loaded.capabilityDescriptors, [JSON.parse(JSON.stringify(GRADIENT_DESCRIPTOR))], 'the file is the provider\'s descriptor')
+
+    const registry = createCapabilityRegistry()
+    registry.register(gradientProvider)
+    const log = []
+    const host = { createCanvas: (width, height) => {
+        const canvas = recordingCanvas(log, 'host')
+        canvas.width = width
+        canvas.height = height
+        return canvas
+    } }
+    const effect = await new CanvasRenderer().registerPortableEffect({ ...loaded.definition, shaders: loaded.shaders }, { capabilities: registry, host })
+    const uploads = []
+    await effect.instance.asyncInit({
+        updateTexture: (name, source, options) => uploads.push([name, source.width, options]),
+        width: 4, height: 3, params: { top: [1, 0, 0], bottom: [0, 0, 1] }, isCancelled: () => false,
+        signal: new AbortController().signal, lifetimeSignal: new AbortController().signal,
+    })
+    assert.deepEqual(log.filter(([, call]) => call === 'fillStyle=').map(([, , value]) => value),
+        ['rgb(255, 0, 0)', 'rgb(128, 0, 128)', 'rgb(0, 0, 255)'], 'a row for each line of the texture, from top to bottom')
+    assert.deepEqual(uploads, [['washTex', 4, { orientation: 'flipY' }]], 'one upload, in the declared orientation')
+    assert.deepEqual(capabilityUseOf(effect.instance), { dependencies: ['top', 'bottom'] }, 'both colors are dependencies, compared by value')
+})
+
 test('a package registered through the public API runs the engine\'s worm overlay, with no catalog change', async () => {
     const definition = pkg('capabilityFibers', [{
         id: 'noisemaker/worm-overlay',
