@@ -1149,8 +1149,8 @@ work, verify it, then update the checkpoint and append a log line.
      message, catalog reference, viewer bridge, harness API, or gap status.
      Check Shade's consumers against these changes, re-audit the affected
      contract sections, and re-check gaps whose "Source evidence" changed.
-  2. Shade MCP drift — `.mcp.json` runs
-     `npx -y github:noisedeck/shade-mcp#<sha>` pinned to an immutable commit
+  2. Shade MCP drift — `.mcp.json` runs the Shade MCP server through
+     `npx -y` from an immutable package pin
      (GAP-013 closed). Check upstream `noisefactorllc/shade-mcp` for new
      commits since the Shade checkpoint and for newer releases. Compare
      tool schemas/results, harness exports, and browser behavior with
@@ -1183,9 +1183,9 @@ work, verify it, then update the checkpoint and append a log line.
 - **Log:**
   - 2026-11-26 — candidate pair: Noisemaker
     `740601018edb867c564c77aab3d157fa719dea53` (the engine source this
-    contract pins is unchanged) and Shade MCP
-    `1815133b47eaa33aee11d4a677cfea2f3939cf38` (the configured pin; its
-    release is v0.5.4). Audited the queued Shade range `d3d898e..c856db5`
+    contract pins is unchanged) and Shade MCP at the configured immutable
+    pin (release v0.5.4; the pin's SHA is recorded in the completion
+    evidence, not here). Audited the queued Shade range `d3d898e..c856db5`
     against the pin: three commits add `getProgramSeed`, `setProgramSeed`,
     and `reseedProgram`, `runDslProgram` now awaits each render call, so a
     scene program advances its frames instead of failing with
