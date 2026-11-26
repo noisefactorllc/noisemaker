@@ -28,9 +28,11 @@ const {
     LIFECYCLE_KEYS, RUNTIME_STATE_KEYS, GLOBAL_SPEC_KEYS, GLOBAL_TYPES, UI_KEYS,
     UI_CONTROLS, PASS_KEYS, PASS_TYPES, DRAW_MODES, TEXTURE_SPEC_KEYS, FORMATS,
     TEXTURE_FILTERS, RESERVED_KEYS, IDENTIFIER_PATTERN, INERT_PASS_KEYS, INERT_PIPELINE_INPUTS,
+    CAPABILITY_ID_PATTERN, CAPABILITY_KEYS, BINDING_KINDS,
 } = grammar
 
 const IDENTIFIER = new RegExp(IDENTIFIER_PATTERN)
+const CAPABILITY_ID = new RegExp(CAPABILITY_ID_PATTERN)
 
 /** The top-level fields of a version 2 package, in the order the schema lists them. */
 export const PACKAGE_KEYS = Object.freeze([...MARKER_KEYS, ...DECLARATIVE_TOP_LEVEL_KEYS, 'starter'])
@@ -55,8 +57,14 @@ function join(path, key) {
     return path ? `${path}.${key}` : String(key)
 }
 
-// Reserved keys and executable values, at any depth.
-function scanValues(value, path, diagnostics, seen = new Set()) {
+/**
+ * Report reserved keys and executable values (functions and function source)
+ * at any depth of a value that must be data.
+ * @param {*} value
+ * @param {string} path - The value's path, for the diagnostics
+ * @param {Array} diagnostics - Receives a diagnostic for each finding
+ */
+export function scanValues(value, path, diagnostics, seen = new Set()) {
     if (typeof value === 'function') {
         diagnostics.push(diagnostic('function-value', path, `${path || 'the package'} is a function; a package holds data only`))
         return
@@ -163,6 +171,76 @@ function checkTextures(textures, field, diagnostics) {
         checkEnum(spec.format, FORMATS, `${path}.format`, diagnostics)
         checkEnum(spec.filter, TEXTURE_FILTERS, `${path}.filter`, diagnostics)
     }
+}
+
+// The structure of the capability declarations, and that each binding names a
+// global or a texture of the package. Whether a capability accepts the
+// options and bindings is the descriptor's to say (./descriptor.js).
+function checkCapabilities(capabilities, declared, diagnostics) {
+    if (capabilities === undefined) return
+    if (!Array.isArray(capabilities)) {
+        diagnostics.push(diagnostic('invalid-value', 'capabilities',
+            'capabilities must be a list of declarations: [{ "id": "<owner>/<name>", "version": 1 }]'))
+        return
+    }
+    const ids = new Set()
+    const textureNames = new Set([
+        ...(isRecord(declared.textures) ? Object.keys(declared.textures) : []),
+        ...(isRecord(declared.textures3d) ? Object.keys(declared.textures3d) : []),
+    ])
+    const globalNames = new Set(isRecord(declared.globals) ? Object.keys(declared.globals) : [])
+    capabilities.forEach((entry, index) => {
+        const path = `capabilities.${index}`
+        if (!isRecord(entry)) {
+            diagnostics.push(diagnostic('invalid-value', path, `${path} must be a capability declaration object`))
+            return
+        }
+        unknownFields(entry, CAPABILITY_KEYS, path, diagnostics)
+        if (entry.id === undefined) {
+            diagnostics.push(diagnostic('missing-field', `${path}.id`, `${path}.id is required: the capability's <owner>/<name>`))
+        } else if (typeof entry.id !== 'string' || !CAPABILITY_ID.test(entry.id)) {
+            diagnostics.push(diagnostic('invalid-value', `${path}.id`,
+                `${path}.id must be <owner>/<name>, in lower case letters, digits and hyphens`))
+        } else if (ids.has(entry.id)) {
+            diagnostics.push(diagnostic('duplicate-capability', `${path}.id`, `${path}.id: ${entry.id} is declared more than once`))
+        } else {
+            ids.add(entry.id)
+        }
+        if (entry.version === undefined) {
+            diagnostics.push(diagnostic('missing-field', `${path}.version`, `${path}.version is required: the capability's contract version`))
+        } else if (!Number.isInteger(entry.version) || entry.version < 1) {
+            diagnostics.push(diagnostic('invalid-value', `${path}.version`, `${path}.version must be a positive integer`))
+        }
+        if (entry.options !== undefined && !isRecord(entry.options)) {
+            diagnostics.push(diagnostic('invalid-value', `${path}.options`, `${path}.options must be an object`))
+        }
+        if (entry.bindings === undefined) return
+        if (!isRecord(entry.bindings)) {
+            diagnostics.push(diagnostic('invalid-value', `${path}.bindings`, `${path}.bindings must be an object`))
+            return
+        }
+        unknownFields(entry.bindings, BINDING_KINDS, `${path}.bindings`, diagnostics)
+        for (const kind of BINDING_KINDS) {
+            const roles = entry.bindings[kind]
+            if (roles === undefined) continue
+            const kindPath = `${path}.bindings.${kind}`
+            if (!isRecord(roles)) {
+                diagnostics.push(diagnostic('invalid-value', kindPath, `${kindPath} must map role names to names`))
+                continue
+            }
+            const names = kind === 'parameters' ? globalNames : textureNames
+            for (const [role, name] of Object.entries(roles)) {
+                const rolePath = `${kindPath}.${role}`
+                if (!IDENTIFIER.test(role)) diagnostics.push(diagnostic('invalid-name', rolePath, `${rolePath}: a role name is an identifier (${IDENTIFIER_RULE})`))
+                if (typeof name !== 'string' || name.length === 0) {
+                    diagnostics.push(diagnostic('invalid-value', rolePath, `${rolePath} must name a ${kind === 'parameters' ? 'global' : 'texture'} of the package`))
+                } else if (!names.has(name)) {
+                    diagnostics.push(diagnostic('unknown-binding', rolePath,
+                        `${rolePath}: the package declares no ${kind === 'parameters' ? 'global' : 'texture'} named ${name}`))
+                }
+            }
+        }
+    })
 }
 
 // Version 2 passes: an object keyed by DSL identifier, in declaration order.
@@ -280,6 +358,7 @@ export function normalizePortableDefinition(pkg, { loadedShaders = false } = {})
     checkGlobals(declared.globals, diagnostics)
     checkTextures(declared.textures, 'textures', diagnostics)
     checkTextures(declared.textures3d, 'textures3d', diagnostics)
+    checkCapabilities(declared.capabilities, declared, diagnostics)
     const passes = normalizePasses(declared.passes, diagnostics)
     if (diagnostics.length > 0) return { profile: 'v2', definition: null, diagnostics }
 

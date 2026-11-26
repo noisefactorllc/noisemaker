@@ -106,6 +106,7 @@ export const TOP_LEVEL_KEYS = Object.freeze([
     'textures', 'textures3d', 'shaders', 'uniformLayout', 'uniformLayouts',
     'paramAliases', 'openCategories', 'defaultProgram', 'hidden', 'deprecatedBy',
     'externalTexture', 'externalMesh', 'builtinMeshes', 'outputTex3d', 'outputGeo',
+    'capabilities',
     'state', 'uniforms', 'onInit', 'onUpdate', 'onDestroy', 'asyncInit'
 ])
 
@@ -136,6 +137,45 @@ export const DECLARATIVE_TOP_LEVEL_KEYS = Object.freeze(TOP_LEVEL_KEYS.filter(ke
 
 // A DSL identifier: the form of func, of a version 2 pass name, and of a global's name.
 export const IDENTIFIER_PATTERN = '^[A-Za-z_][A-Za-z0-9_]*$'
+
+// Capabilities: lifecycle behavior that a host provides and a package
+// declares. A declaration in a package's `capabilities` list names the
+// capability and its contract version, gives options, and binds the
+// capability's roles to the package's globals and textures. A descriptor
+// states, as data, what a capability accepts: it is the part of a capability
+// that a package, an editor or a command-line tool can read without running
+// the host's code.
+//
+// A capability ID is <owner>/<name>, in lower case, with digits and hyphens.
+export const CAPABILITY_ID_PATTERN = '^[a-z][a-z0-9-]*/[a-z][a-z0-9-]*$'
+
+export const CAPABILITY_KEYS = Object.freeze(['id', 'version', 'options', 'bindings'])
+
+// What a declaration binds: a role to a global (parameters) or to a texture
+// the package declares (textures).
+export const BINDING_KINDS = Object.freeze(['parameters', 'textures'])
+
+export const DESCRIPTOR_KEYS = Object.freeze([
+    'id', 'version', 'description', 'options', 'bindings', 'dependencies', 'uploadOrientation', 'methods'
+])
+
+// An option's schema: a subset of JSON Schema, which a descriptor states as data.
+export const OPTION_SCHEMA_KEYS = Object.freeze([
+    'type', 'description', 'enum', 'minimum', 'maximum', 'required', 'properties', 'items'
+])
+
+export const OPTION_TYPES = Object.freeze(['number', 'integer', 'string', 'boolean', 'object', 'array'])
+
+// A binding role's slot in a descriptor: the global types a parameter role
+// takes, and whether a declaration must bind it.
+export const BINDING_SLOT_KEYS = Object.freeze(['description', 'types', 'required'])
+
+// The bound parameters and resources whose values start a regeneration.
+export const DEPENDENCY_KINDS = Object.freeze(['parameters', 'resources'])
+
+// How a provider's canvas reaches its texture: flipY turns the canvas over,
+// so that its top row is the texture's last row; none uploads it as it is.
+export const UPLOAD_ORIENTATIONS = Object.freeze(['flipY', 'none'])
 
 // Keys that reach the shared operator and enum registries' prototypes. No
 // declaration may carry one at any depth.

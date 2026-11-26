@@ -120,6 +120,18 @@ export function buildPortableSchema() {
         }),
         required: ['program'],
     }
+    // A capability declaration. Whether the capability accepts its options and
+    // bindings is stated by the capability's descriptor, not by this schema.
+    const roleMap = { type: 'object', propertyNames: { pattern: grammar.IDENTIFIER_PATTERN }, additionalProperties: NAME }
+    const capability = {
+        ...closedObject(grammar.CAPABILITY_KEYS, {
+            id: { type: 'string', pattern: grammar.CAPABILITY_ID_PATTERN },
+            version: POSITIVE_INTEGER,
+            options: { type: 'object' },
+            bindings: closedObject(grammar.BINDING_KINDS, Object.fromEntries(grammar.BINDING_KINDS.map(kind => [kind, roleMap]))),
+        }),
+        required: ['id', 'version'],
+    }
     const topLevel = {
         format: { const: grammar.PORTABLE_FORMAT },
         version: { const: grammar.PORTABLE_VERSION },
@@ -134,6 +146,7 @@ export function buildPortableSchema() {
         textures3d: NAME_MAP({ $ref: '#/$defs/texture' }),
         defaultProgram: STRING,
         hidden: BOOLEAN,
+        capabilities: { type: 'array', items: { $ref: '#/$defs/capability' } },
         starter: BOOLEAN,
     }
     return {
@@ -144,7 +157,7 @@ export function buildPortableSchema() {
         ...closedObject(PACKAGE_KEYS, topLevel),
         required: ['format', 'version', 'passes'],
         anyOf: [{ required: ['func'] }, { required: ['name'] }],
-        $defs: { ui, parameter, pass, texture, dimension },
+        $defs: { ui, parameter, pass, texture, dimension, capability },
     }
 }
 

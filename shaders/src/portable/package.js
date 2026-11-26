@@ -28,10 +28,14 @@
  */
 
 import { normalizePortableDefinition } from './definition.js'
+import { checkCapabilityDeclarations, normalizeCapabilityDescriptor } from './descriptor.js'
 import { RESERVED_KEYS } from './grammar.js'
 
 const DEFINITION = 'definition.json'
 const HELP = 'help.md'
+// A capability descriptor the package carries, named by its ID and version.
+const DESCRIPTOR_DIRECTORY = 'capabilities/'
+const DESCRIPTOR_FILE = /^capabilities\/([a-z][a-z0-9-]*)\/([a-z][a-z0-9-]*)\/v([1-9][0-9]*)\.json$/
 const BACKEND_LANGUAGE = Object.freeze({ webgl2: 'glsl', webgpu: 'wgsl' })
 const STAGE_FILES = Object.freeze({
     glsl: { directory: 'glsl', extensions: { '.glsl': 'glsl', '.vert': 'vertex', '.frag': 'fragment' } },
@@ -178,9 +182,10 @@ function complete(language, stages) {
  *   assets: Map<string, Uint8Array>|null, help: string|null, files: Map<string, Uint8Array>|null,
  *   diagnostics: Array<{code: string, path: string, message: string}>}}
  */
-export function loadPortablePackage(files, { backend } = {}) {
+export function loadPortablePackage(files, { backend, capabilityDescriptors = [] } = {}) {
     const failed = (diagnostics, profile = null) => ({
-        profile, definition: null, shaders: null, assets: null, help: null, files: null, diagnostics,
+        profile, definition: null, shaders: null, assets: null, help: null, files: null,
+        capabilities: null, capabilityDescriptors: null, diagnostics,
     })
     if (backend !== undefined && !Object.hasOwn(BACKEND_LANGUAGE, backend)) {
         return failed([diagnostic('unsupported-backend', '', `backend must be ${Object.keys(BACKEND_LANGUAGE).join(' or ')}`)])
@@ -210,8 +215,14 @@ export function loadPortablePackage(files, { backend } = {}) {
 
     const shaders = {}
     const assets = new Map()
+    const carried = []
     for (const [path, bytes] of read.files) {
         if (path === DEFINITION || path === HELP) continue
+        if (path.startsWith(DESCRIPTOR_DIRECTORY)) {
+            const descriptor = readDescriptorFile(path, bytes, diagnostics)
+            if (descriptor) carried.push(descriptor)
+            continue
+        }
         const stage = stageOf(path)
         if (!stage) {
             assets.set(path, bytes)
@@ -290,7 +301,53 @@ export function loadPortablePackage(files, { backend } = {}) {
     }
     if (diagnostics.length > 0) return failed(diagnostics, normalized.profile)
 
-    return { profile: normalized.profile, definition: declared, shaders, assets, help, files: read.files, diagnostics: [] }
+    // The declarations, against the descriptors the caller gave and those the
+    // package carries. A declaration with no descriptor here passes the
+    // structural check only, and the result says so.
+    // A legacy package is read as before, and has no capability declarations.
+    const descriptors = [...(Array.isArray(capabilityDescriptors) ? capabilityDescriptors : [capabilityDescriptors]), ...carried]
+    const checked = normalized.profile === 'v2'
+        ? checkCapabilityDeclarations(normalized.definition, descriptors)
+        : { diagnostics: [], complete: true, unresolved: [] }
+    if (checked.diagnostics.length > 0) return failed(checked.diagnostics, normalized.profile)
+
+    return {
+        profile: normalized.profile, definition: declared, shaders, assets, help, files: read.files,
+        capabilities: { complete: checked.complete, unresolved: checked.unresolved },
+        capabilityDescriptors: descriptors.map(descriptor => structuredClone(descriptor)),
+        diagnostics: [],
+    }
+}
+
+// A descriptor file: JSON, a valid descriptor, and named by its own ID and version.
+function readDescriptorFile(path, bytes, diagnostics) {
+    const named = DESCRIPTOR_FILE.exec(path)
+    if (!named) {
+        diagnostics.push(diagnostic('invalid-descriptor', path, `${path}: a capability descriptor file is capabilities/<owner>/<name>/v<version>.json`))
+        return null
+    }
+    const text = decodeText(bytes)
+    let raw
+    try {
+        raw = text === null ? undefined : JSON.parse(text)
+    } catch (error) {
+        diagnostics.push(diagnostic('invalid-json', path, `${path} is not JSON: ${error.message}`))
+        return null
+    }
+    if (raw === undefined) {
+        diagnostics.push(diagnostic('invalid-encoding', path, `${path} must be UTF-8`))
+        return null
+    }
+    const result = normalizeCapabilityDescriptor(raw)
+    for (const entry of result.diagnostics) diagnostics.push({ ...entry, path: entry.path ? `${path}#${entry.path}` : path })
+    if (!result.descriptor) return null
+    const [, owner, name, version] = named
+    if (result.descriptor.id !== `${owner}/${name}` || result.descriptor.version !== Number(version)) {
+        diagnostics.push(diagnostic('invalid-descriptor', path,
+            `${path} describes ${result.descriptor.id} version ${result.descriptor.version}; its file is capabilities/${result.descriptor.id}/v${result.descriptor.version}.json`))
+        return null
+    }
+    return result.descriptor
 }
 
 /**

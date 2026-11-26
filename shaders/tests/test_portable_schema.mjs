@@ -310,6 +310,14 @@ const AGREEMENT = {
     'a func that is not an identifier': { ...minimal(), func: '9wave' },
     'neither func nor name': (() => { const pkg = minimal(); delete pkg.func; delete pkg.name; return pkg })(),
     'a starter that is not a boolean': { ...minimal(), starter: 'yes' },
+    'a capability declaration': { ...minimal(), capabilities: [{ id: 'example/pulse', version: 1, options: { rate: 2 }, bindings: { parameters: { rate: 'speed' } } }] },
+    'capabilities that are not a list': { ...minimal(), capabilities: { id: 'example/pulse', version: 1 } },
+    'a capability without a version': { ...minimal(), capabilities: [{ id: 'example/pulse' }] },
+    'a capability ID without an owner': { ...minimal(), capabilities: [{ id: 'pulse', version: 1 }] },
+    'a capability version of zero': { ...minimal(), capabilities: [{ id: 'example/pulse', version: 0 }] },
+    'an unknown capability field': { ...minimal(), capabilities: [{ id: 'example/pulse', version: 1, provider: 'pulse.js' }] },
+    'an unknown binding kind': { ...minimal(), capabilities: [{ id: 'example/pulse', version: 1, bindings: { meshes: {} } }] },
+    'options that are not an object': { ...minimal(), capabilities: [{ id: 'example/pulse', version: 1, options: [2] }] },
 }
 
 test('the schema and the normalizer agree', () => {

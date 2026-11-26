@@ -2387,6 +2387,16 @@ export class CanvasRenderer {
                 ? entry.message : `${entry.message} (${entry.path})`).join('; '))
         }
         definition = normalized.definition
+        // A declared capability is behavior the effect needs from the host. No
+        // provider can be registered with this core, so the package is refused
+        // rather than registered without that behavior.
+        if (Array.isArray(definition.capabilities) && definition.capabilities.length > 0) {
+            const [first] = definition.capabilities
+            const message = `no provider is registered for capability ${first.id} version ${first.version}`
+            const error = new Error(`Portable effect: ${message} (capabilities.0)`)
+            error.diagnostics = [{ code: 'missing-provider', path: 'capabilities.0', message }]
+            throw error
+        }
         const { namespace, passes, shaders, globals, starter } = definition
         const func = definition.func ?? definition.name
         if (typeof func !== 'string' || !isValidIdentifier(func)) fail('func must be a DSL identifier')

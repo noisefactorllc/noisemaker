@@ -950,6 +950,8 @@ A package is a directory or ZIP archive:
    │   └── deposit.wgsl
    ├── assets/                   # OPTIONAL: any other files, kept as bytes
    │   └── mesh.obj
+   ├── capabilities/             # OPTIONAL: capability descriptors (Section 8.10)
+   │   └── example/stripes/v1.json
    └── help.md                   # OPTIONAL: Documentation
 
 - ``definition.json`` is required, at the root of the package, in UTF-8.
@@ -957,6 +959,10 @@ A package is a directory or ZIP archive:
   one shader language runs only on the corresponding backend: GLSL on WebGL2,
   WGSL on WebGPU. Provide both for use across Noise Factor applications.
 - ``help.md`` is optional documentation.
+- ``capabilities/<owner>/<name>/v<version>.json`` is the descriptor of a
+  capability the package declares, as data (Section 8.10). Its path names its
+  own ID and version, and any other file under ``capabilities/`` is refused
+  (``invalid-descriptor``).
 - Every other file is an asset. The package keeps its bytes, and a host
   uploads it, for example a mesh through ``loadOBJFromString()``. No pass
   binds an asset by declaration.
@@ -1129,6 +1135,11 @@ version, independent of these profiles.
      - object
      -
      - Program name to WGSL uniform layout, for multi-pass shaders
+   * - ``capabilities``
+     - array
+     - ``[]``
+     - Version 2 only. Capability declarations, in composition order
+       (Section 8.10)
 
 At least one of ``name`` and ``func`` must be present. When ``func`` is
 absent, ``name`` is the function name and must be a valid DSL identifier.
@@ -1327,7 +1338,8 @@ renderer needs an upstream volume in this program.
 A package is data. It contains no function strings and no JavaScript modules,
 and none of its keys can reach object prototypes (``prototype`` and every own
 key of ``Object.prototype``). The lifecycle methods of Section 5 are not
-available to packages. ``paramAliases`` is retired.
+available to packages: a package that needs lifecycle behavior declares a
+capability that the host provides (Section 8.10). ``paramAliases`` is retired.
 
 8.9 Validation
 ^^^^^^^^^^^^^^
@@ -1361,3 +1373,125 @@ the same structure in an editor or on the command line, without loading
 Noisemaker. The runtime validator also checks what a schema cannot state,
 such as an ``enabledBy`` reference or a uniform layout that matches its
 globals.
+
+.. _portable-capabilities:
+
+8.10 Capabilities
+^^^^^^^^^^^^^^^^^
+
+A capability is lifecycle behavior that a host provides and a package
+declares, such as an overlay drawn on the CPU into a texture. A capability
+has an ID, ``<owner>/<name>`` in lower case letters, digits and hyphens, and
+an integer contract version. Its descriptor states, as data, what it
+accepts. Its provider is the host's code that runs it.
+
+**Declarations.** A version 2 package lists the capabilities it needs in
+``capabilities``, in the order the host composes them. Each declaration has
+these fields:
+
+- ``id`` and ``version``, both required.
+- ``options``: an object that the capability's descriptor describes.
+- ``bindings``: ``parameters`` maps each of the capability's parameter roles
+  to a global of the package, and ``textures`` maps each texture role to a
+  texture the package declares in ``textures`` or ``textures3d``.
+
+.. code-block:: json
+
+   {
+     "capabilities": [
+       {
+         "id": "example/stripes",
+         "version": 1,
+         "options": { "count": 4, "style": "soft" },
+         "bindings": {
+           "parameters": { "seed": "seed", "alpha": "alpha" },
+           "textures": { "target": "overlayTex" }
+         }
+       }
+     ]
+   }
+
+The normalizer refuses a declaration that is not an object, has an unknown
+field (``unknown-field``), lacks ``id`` or ``version`` (``missing-field``),
+or gives an ID or version of another form (``invalid-value``). It refuses an
+ID declared twice (``duplicate-capability``), and a binding to a global or
+texture that the package does not declare (``unknown-binding``). Options and
+bindings are data, under Section 8.8.
+
+**Descriptors.** A descriptor has these fields:
+
+- ``id`` and ``version``, the capability it describes.
+- ``description``, a string.
+- ``options``: each option's schema. A schema has a ``type`` (``number``,
+  ``integer``, ``string``, ``boolean``, ``object`` or ``array``) and may give
+  ``enum``, ``minimum``, ``maximum``, ``required`` and ``description``.
+  An ``object`` option lists its ``properties``, and accepts no other, and an
+  ``array`` option gives the schema of its ``items``.
+- ``bindings``: for each role in ``parameters`` and ``textures``, whether a
+  declaration must bind it (``required``). A parameter role also lists the
+  global ``types`` it takes.
+- ``dependencies``: the parameter and texture roles whose values start a
+  regeneration, as ``parameters`` and ``resources``.
+- ``uploadOrientation``: how the provider's canvas reaches its texture.
+  ``flipY`` turns it over, so that the canvas's top row is the texture's last
+  row; ``none`` uploads it as it is. A descriptor that binds a texture states
+  it.
+- ``methods``: the methods the capability adds to the effect. A method name
+  is an identifier, and it cannot be a lifecycle hook or a field of an
+  effect.
+
+.. code-block:: json
+
+   {
+     "id": "example/stripes",
+     "version": 1,
+     "description": "Draws stripes into a texture on the CPU",
+     "options": {
+       "count": { "type": "integer", "minimum": 1, "maximum": 16, "required": true },
+       "style": { "type": "string", "enum": ["soft", "hard"] }
+     },
+     "bindings": {
+       "parameters": {
+         "seed": { "types": ["int", "float"], "required": true },
+         "alpha": { "types": ["float"] }
+       },
+       "textures": { "target": { "required": true } }
+     },
+     "dependencies": { "parameters": ["seed"], "resources": [] },
+     "uploadOrientation": "flipY"
+   }
+
+``normalizeCapabilityDescriptor()`` in ``shaders/src/portable/descriptor.js``
+reads a descriptor. It refuses a function or function source in it, an
+unknown field, and any field of another form. It also refuses a dependency
+on a role that ``bindings`` does not list. It calls nothing in the
+descriptor.
+
+**Checking declarations.** ``checkCapabilityDeclarations(definition,
+descriptors)`` checks each declaration of a normalized definition against
+the descriptor of its ID and version:
+
+- An option that the descriptor does not list is ``unknown-option``.
+- A required option that is absent is ``missing-option``.
+- An option of the wrong type, outside its ``enum``, or outside its
+  ``minimum`` and ``maximum`` is ``invalid-option``.
+- A role that the descriptor does not list is ``unknown-binding``.
+- A required role that is not bound is ``missing-binding``.
+- A parameter role bound to a global of a type it does not take is
+  ``invalid-binding``.
+- A declaration of a version that no descriptor of its ID describes is
+  ``unsupported-capability-version``.
+
+A declaration whose ID has no descriptor passes the structural check only.
+The result is then incomplete: ``complete`` is false, and ``unresolved``
+names the declaration's ID and version. The check runs no provider code.
+
+``loadPortablePackage()`` checks a package's declarations against the
+descriptors the package carries and those the caller gives in
+``capabilityDescriptors``, and returns the result as ``capabilities``:
+``{ complete, unresolved }``.
+
+**Registration.** A capability needs a provider, which only the host can
+register. ``registerPortableEffect()`` refuses a package that declares a
+capability that no registered provider serves (``missing-provider``), and
+changes no registry.
