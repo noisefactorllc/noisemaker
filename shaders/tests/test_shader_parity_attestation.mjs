@@ -149,18 +149,19 @@ try {
     }
     // The recorder runs feedMidiInputs in its page. Each fed note carries the fixed time 0, as before the note-on
     // messages, so a note's age reads the same on both backends and on every run.
+    // The checks run the function rebuilt from its own source, as the page runs it, so it may name nothing outside itself.
+    const pageFeed = new Function(`return ${feedMidiInputs.toString()}`)()
     const fed = { setMidiState() { this.state = new MidiState(); return this.state } }
     const realNow = Date.now
     Date.now = () => 1_000_000
     try {
-        feedMidiInputs(fed, [midiNoteOnMessages([{ effect: 'synth/roll', notes: [{ channel: 2, key: 60, velocity: 75 }] }])])
+        pageFeed(fed, [midiNoteOnMessages([{ effect: 'synth/roll', notes: [{ channel: 2, key: 60, velocity: 75 }] }])])
+        assert.equal(Date.now(), 1_000_000, 'feeding leaves Date.now as it found it')
     } finally {
         Date.now = realNow
     }
     assert.equal(fed.state.channels[2].time, 0, 'a fed note is at time 0 for a channel reader')
     assert.equal(fed.state.getZoneVoice({ zone: 0, members: 15 })?.time, 0, 'a fed note is at time 0 for a zone reader')
-    assert.equal(Date.now, realNow, 'feeding leaves Date.now as it found it')
-    assert.equal(new Function(`return ${feedMidiInputs.toString()}`)().length, 2, 'feedMidiInputs runs from its own source')
     const recorder = fs.readFileSync(new URL('../../scripts/attest-shader-parity.mjs', import.meta.url), 'utf8')
     assert.match(recorder, /\(\$\{feedMidiInputs\.toString\(\)\}\)\(renderer, /, 'the recorder runs feedMidiInputs in its page')
     assert.match(recorder, /midiNoteOnMessages\(\[midiInput\]\)/, 'the recorder feeds each midi input through midiNoteOnMessages')
