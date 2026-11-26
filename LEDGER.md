@@ -1097,7 +1097,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `24250c8c69610017b1413ccb9dc29a627663a790` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-25
+- **Checkpoint:** noisemaker `740601018edb867c564c77aab3d157fa719dea53` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-26
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -1181,6 +1181,24 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-26 — completed delivery pair: Noisemaker
+    `740601018edb867c564c77aab3d157fa719dea53` and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Commit `028585ec` published
+    the contract corrections. Exact-source
+    [Site 45841867602](https://github.com/noisefactorllc/noisemaker/actions/runs/45841867602)
+    and [JavaScript 45841867726](https://github.com/noisefactorllc/noisemaker/actions/runs/45841867726)
+    passed at `028585ec`. A full GET of `https://noisemaker.app/llms-full.txt`
+    returned HTTP 200 and exactly matched the committed file, and
+    `deployment-meta.json` serves
+    `git_hash: 028585ec90ac78d717b82e6593c0c92e4eb2655c`: the earlier
+    deployment lag recorded below is resolved. The checkpoint names the
+    audited Noisemaker source end `740601018e` that this contract snapshot
+    pins, and the publication carrying the completed entry published the
+    corrections. The pin's scene-DSL defect has a released fix: shade-mcp
+    published v0.6.0 (tag target `94ecd80`), which contains the awaited
+    render, and automation pulled that dist into `vendor/shade-mcp/harness`.
+    Moving the `.mcp.json` pin to v0.6.0 through pull-shade-mcp stays recorded
+    as the delivery blocker, with the smoke skip below.
   - 2026-11-26 — candidate pair: Noisemaker (the publication carrying this
     entry, above `740601018edb867c564c77aab3d157fa719dea53`) and Shade MCP
     `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Audited the Noisemaker range
@@ -1190,10 +1208,12 @@ work, verify it, then update the checkpoint and append a log line.
     texture test runs in the GPU CI job. Corrected the stale `llms-full.txt`
     texture-reuse statement to include the usage-coverage rule and moved the
     contract snapshot's Noisemaker source line to `740601018e`. Also audited
-    the Shade range `d3d898e..7b93f7c8` against the pin: three unreleased
-    commits add getProgramSeed, setProgramSeed and reseedProgram and change
-    compile-error reporting. The pin and vendor stay at v0.5.4 with verified
-    provenance, and the delivered runtime source is unchanged. Verified: the
+    the Shade range `d3d898e..94ecd80` against the pin: three commits add
+    getProgramSeed, setProgramSeed and reseedProgram and change compile-error
+    reporting, and the release commit bumped the package version to 0.6.0.
+    Shade-mcp then published release v0.6.0 (tag target `94ecd80`). The
+    configured pin and its recorded audit stay at v0.5.4 (`1815133b`), and
+    the vendor delivery moved to the v0.6.0 dist. Verified: the
     storage texture target test on WebGL2 and WebGPU (both exit 0), the four
     contract guard tests (exit 0), Noisemaker `npm run lint` (exit 0), Shade
     `npm run typecheck` (exit 0), and Shade `npm test` (556 tests pass).
