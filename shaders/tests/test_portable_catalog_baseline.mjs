@@ -347,14 +347,40 @@ test('an explainedDifferences entry has no source, or the source "runtime"', () 
 })
 
 // The record refuses these before it checks the tree or writes the baseline.
-test('the record refuses a commit that changes neither the effect nor the definition runtime, and a runtime commit that leaves the effect alone', async () => {
-    const sha = short => execFileSync('git', ['-C', REPO_ROOT, 'rev-parse', `${short}^{commit}`], { encoding: 'utf8' }).trim()
-    const unrelated = sha('4c3c599d')
+test('the record refuses a commit that changes neither the effect nor the definition runtime', async () => {
+    const unrelated = execFileSync('git', ['-C', REPO_ROOT, 'rev-parse', '4c3c599d^{commit}'], { encoding: 'utf8' }).trim()
     await assert.rejects(() => recordEffects(REPO_ROOT, { ids: ['points/attractor'], commit: unrelated }),
         { message: `${unrelated} changes nothing under shaders/effects/points/attractor/ nor in the definition runtime (shaders/src/runtime/effect.js, shaders/src/renderer/canvas.js)` })
-    const noChange = sha('726ee22d')
-    await assert.rejects(() => recordEffects(REPO_ROOT, { ids: ['points/attractor'], commit: noChange }),
-        { message: `${noChange} changes the definition runtime, but not the metadata of points/attractor` })
+})
+
+// The runtime path, on commits this test makes in a clone of HEAD: one that
+// changes only a comment in the definition runtime, and one after it that
+// rewrites the first one's context, so the first no longer applies in reverse.
+test('the record refuses a runtime commit that leaves the effect alone, and one that does not apply in reverse to HEAD', async () => {
+    const scratch = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'catalog-runtime-'))
+    const env = { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_'))), GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_NOSYSTEM: '1' }
+    const clone = path.join(scratch, 'clone')
+    const git = (...args) => execFileSync('git', ['-c', 'user.name=catalog test', '-c', 'user.email=catalog-test@example.invalid', '-c', 'commit.gpgsign=false', ...args],
+        { cwd: clone, env, encoding: 'utf8' }).trim()
+    try {
+        execFileSync('git', ['clone', '-q', '--shared', REPO_ROOT, clone], { env })
+        const effect = path.join(clone, 'shaders/src/runtime/effect.js')
+        const commit = (text, message) => {
+            fs.writeFileSync(effect, text)
+            git('commit', '-q', '-a', '-m', message)
+            return git('rev-parse', 'HEAD')
+        }
+        const source = fs.readFileSync(effect, 'utf8')
+        const commentOnly = commit(`// A comment only.\n${source}`, 'comment only')
+        await assert.rejects(() => recordEffects(clone, { ids: ['points/attractor'], commit: commentOnly }),
+            { message: `${commentOnly} changes the definition runtime, but not the metadata of points/attractor` })
+        commit(`// A comment only.\n// Another comment, in its context.\n${source}`, 'rewrite the context')
+        await assert.rejects(() => recordEffects(clone, { ids: ['points/attractor'], commit: commentOnly }),
+            error => error.message.startsWith(`${commentOnly}'s change to the definition runtime does not apply in reverse to HEAD:`))
+        assert.equal(git('status', '--porcelain'), '', 'the refused records write nothing')
+    } finally {
+        fs.rmSync(scratch, { recursive: true, force: true })
+    }
 })
 
 test('until the migration is closed, the IDs must equal the merge base\'s; once closed, a 2.x commit needs a reason', () => {

@@ -728,7 +728,8 @@ export async function recordEffects(repo, { ids, commit, reason }) {
     for (const id of throughRuntime) {
         const entry = (baseline.explainedDifferences || []).find(old => old.effectId === id && old.commit === commit && old.source === 'runtime')
         if (!entry || !isDeepStrictEqual(baseline.metadata?.[id], metadata[id])) continue
-        if (reason !== undefined && reason !== null && reason.trim() !== entry.reason) {
+        // A main commit's entry has no reason; rewriteEffects refuses --reason for it.
+        if (reason !== undefined && reason !== null && entry.reason !== undefined && reason.trim() !== entry.reason) {
             throw new Error(`${id} is recorded already for ${commit} with another reason`)
         }
         keep.add(id)
