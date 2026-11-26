@@ -19,13 +19,14 @@
 // demo's controls in place of Portable's panel:
 //   #params                    -> #effect-controls-container
 //   .param-group               -> .control-group[data-param-key]
-//   input[type="checkbox"]     -> toggle-switch (readout: its aria-checked)
-//   select                     -> select-dropdown (readout: .trigger-text)
+//   input[type="checkbox"]     -> toggle-switch
+//   select                     -> select-dropdown
 //   input[type="range"]        -> slider-value, and one per component of a
 //                                 vector2d-picker or vector3d-picker
 //   input[type="range"][data-param="rotation"]
 //                              -> .control-group[data-param-key="rotation"] slider-value
-//   .param-value of a slider   -> its .value-display
+//   .param-value readouts      -> the values the change handlers wrote to
+//                                 the program state, formatted as Portable's
 //   input[type="color"]        -> input[type="color"], as before
 // The server keeps Portable's /effect/ URL for the starter effect
 // (scripts/lib/portable-viewer-server.mjs).
@@ -171,11 +172,18 @@ const PARAM_COUNT = Object.keys(MULTI_TYPE_DEF.globals).length;
         rotationSlider.value = 3.7;
         rotationSlider.dispatchEvent(new Event('input', { bubbles: true }));
 
+        // The readouts are the values the change handlers wrote to the
+        // program's state, in the form Portable's readouts showed them.
+        const state = window.__portableRealm.ui.programState;
+        const step = state.getStructure().find(entry => entry.effectKey === 'user.gradientSweep');
+        const value = key => state.getValue(`step_${step.stepIndex}`, key);
+        const hex = rgb => '#' + rgb.map(channel => Math.round(channel * 255).toString(16).padStart(2, '0')).join('');
+        const choices = { 0: 'normal', 1: 'add', 2: 'screen' };
         return {
-            color: colorInput.value,
-            bool: checkbox.querySelector('[role="switch"]').getAttribute('aria-checked'),
-            select: select.querySelector('.trigger-text').textContent,
-            rotationReadout: rotationSlider.querySelector('.value-display').textContent
+            color: hex(value('tint')),
+            bool: String(value('invert')),
+            select: choices[value('mode')],
+            rotationReadout: Number(value('rotation')).toFixed(2)
         };
     });
     const passUniforms = await page.evaluate(() => window.__portableRenderingPipeline?.graph.passes

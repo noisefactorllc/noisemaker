@@ -2,8 +2,9 @@
 // package in a fresh realm and shows it only once it is accepted. These cases
 // edit the starter effect through request interception, so the files on disk
 // never change, and check what each revision leaves visible: a revision that
-// a missing capability refuses, rapid edits, and a revision whose realm is
-// still loading when a newer one arrives.
+// a missing capability refuses, rapid edits, a revision whose realm is still
+// loading or compiling when a newer one arrives, a realm that does not start
+// or never reports, and an edit made while a revision compiles.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -163,5 +164,124 @@ test('a revision still loading when a newer one arrives never replaces it', asyn
     assert.deepEqual(await centerPixel(page), [0, 255, 0], 'the newer revision stays visible')
     assert.equal(await realms(page), 1, 'the superseded realm is disposed')
     assert.deepEqual(errors, [])
+    await page.close()
+})
+
+// A program that also runs a built-in effect, whose definition a test can hold
+// back so that a realm is compiling when something else happens.
+const WITH_ADJUST = { ...DEFINITION, defaultProgram: 'search user, filter\ngradientSweep(speed: 1.0).adjust()\n  .write(o0)\n\nrender(o0)' }
+
+// Hold back the realms' next request for filter/adjust's definition.
+async function holdAdjust(page) {
+    let held = false
+    let release
+    const holding = new Promise(resolve => { release = resolve })
+    let reached
+    const reachedHold = new Promise(resolve => { reached = resolve })
+    await page.route('**/shaders/effects/filter/adjust/definition.js', async route => {
+        if (!held) {
+            held = true
+            reached()
+            await holding
+        }
+        await route.continue().catch(() => {})
+    })
+    return { reachedHold, release: () => release() }
+}
+
+const realmOf = async page => (await page.$('iframe.portable-realm.active')).contentFrame()
+
+test('a revision held while it compiles never replaces a newer one', async () => {
+    const { page, errors, edit } = await openViewer(browser)
+    await page.goto(`${origin}${VIEWER_PATH}?package=/effect/`)
+    await waitForStatus(page, /^Loaded: user\.gradientSweep/, 'success')
+    const start = await generation(page)
+    const hold = await holdAdjust(page)
+    // This revision's realm has received its files and is compiling when the
+    // next revision arrives.
+    edit({ definition: WITH_ADJUST, shader: solid([1, 0, 0]) })
+    await hold.reachedHold
+    edit({ definition: DEFINITION, shader: solid([0, 1, 0]) })
+    await waitForPixel(page, [0, 255, 0])
+    assert.equal(await generation(page), start + 1, 'only the newer revision was accepted')
+    hold.release()
+    await new Promise(resolve => setTimeout(resolve, 3000))
+    assert.equal(await generation(page), start + 1, 'the held revision is never accepted')
+    assert.deepEqual(await centerPixel(page), [0, 255, 0], 'the newer revision stays visible')
+    assert.equal(await realms(page), 1, 'the held realm is disposed')
+    assert.deepEqual(errors, [])
+    await page.close()
+})
+
+test('an edit made while a revision compiles reaches the realm that replaces it', async () => {
+    const { page, errors, edit } = await openViewer(browser)
+    await page.goto(`${origin}${VIEWER_PATH}?package=/effect/`)
+    await waitForStatus(page, /^Loaded: user\.gradientSweep/, 'success')
+    const start = await generation(page)
+    const hold = await holdAdjust(page)
+    edit({ definition: WITH_ADJUST })
+    await hold.reachedHold
+    // Edit the parameter in the visible realm while the next one compiles.
+    const visible = await realmOf(page)
+    await visible.locator('.shader-effect[data-effect-name="gradientSweep"] .control-group[data-param-key="speed"] slider-value')
+        .evaluate(slider => {
+            slider.value = 3.3
+            slider.dispatchEvent(new Event('input', { bubbles: true }))
+        })
+    hold.release()
+    await page.waitForFunction(expected => window.__portablePipelineGeneration === expected, start + 1, { timeout: 30000 })
+    const speed = await (await realmOf(page)).evaluate(() => {
+        const state = window.__portableRealm.ui.programState
+        const step = state.getStructure().find(entry => entry.effectKey === 'user.gradientSweep')
+        return state.getValue(`step_${step.stepIndex}`, 'speed')
+    })
+    assert.equal(speed, 3.3, 'the new realm shows the edit made while it compiled')
+    assert.deepEqual(errors, [])
+    await page.close()
+})
+
+test('a realm whose demo does not start is refused at once, and the viewer stays usable', async () => {
+    const { page, errors, edit } = await openViewer(browser)
+    await page.goto(`${origin}${VIEWER_PATH}?package=/effect/`)
+    await waitForStatus(page, /^Loaded: user\.gradientSweep/, 'success')
+    const start = await generation(page)
+    let failManifest = true
+    await page.route('**/shaders/effects/manifest.json', route =>
+        (failManifest ? route.fulfill({ status: 500, body: '' }) : route.continue()))
+    edit({ shader: solid([1, 0, 0]) })
+    await waitForStatus(page, /did not start/, 'error')
+    assert.equal(await generation(page), start, 'the realm that did not start is not shown')
+    assert.equal(await realms(page), 1, 'and it is disposed')
+    failManifest = false
+    const selected = await page.evaluate(() => window.__portableSelectEffect('effect', { url: '/effect/' }))
+    assert.deepEqual(selected, { ok: true }, 'a later harness call loads the package')
+    assert.deepEqual(await centerPixel(page), [255, 0, 0])
+    assert.deepEqual(errors, [])
+    await page.close()
+})
+
+test('a realm that never reports is refused after the viewer\'s timeout, and the viewer stays usable', { timeout: 120000 }, async () => {
+    const { page, edit } = await openViewer(browser)
+    await page.goto(`${origin}${VIEWER_PATH}?package=/effect/`)
+    await waitForStatus(page, /^Loaded: user\.gradientSweep/, 'success')
+    const start = await generation(page)
+    // The realm's own module cannot load, so its start-up never runs.
+    let block = true
+    await page.route('**/demo/shaders/lib/portable-realm.js', route => (block ? route.abort() : route.continue()))
+    await page.route('**/demo/shaders/index.html?package=1*', async route => {
+        if (!block) return route.continue()
+        const response = await route.fetch()
+        const body = (await response.text()).replace('<script type="module">', '<script type="module">\nthrow new Error("held");\n')
+        await route.fulfill({ response, body })
+    })
+    edit({ shader: solid([1, 0, 0]) })
+    await page.waitForFunction(() => /did not start or report/.test(document.getElementById('status').textContent),
+        null, { timeout: 90000 })
+    assert.equal(await page.evaluate(() => document.getElementById('status').className), 'error')
+    assert.equal(await generation(page), start, 'the realm that never reported is not shown')
+    assert.equal(await realms(page), 1, 'and it is disposed')
+    block = false
+    const selected = await page.evaluate(() => window.__portableSelectEffect('effect', { url: '/effect/' }))
+    assert.deepEqual(selected, { ok: true }, 'a later harness call loads the package')
     await page.close()
 })

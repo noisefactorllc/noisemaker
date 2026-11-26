@@ -35,7 +35,7 @@
             "destination": "LICENSE"
         },
         "README.md": {
-            "destination": "docs/shaders/portable-packages.rst"
+            "reason": "Portable's front page: its quick start, packaging, Noisedeck import and coding-agent notes, for Portable's own repository. The format and authoring content it points to is in the Portable guides under docs/shaders/, the viewer's use in docs/shaders/portable-viewer.rst, and the command-line tools' use in the headers of scripts/validate-portable.mjs and scripts/package-portable.mjs."
         },
         "docs/DSL.md": {
             "destination": "docs/shaders/portable-dsl.rst"

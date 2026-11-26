@@ -13,7 +13,9 @@
  * Messages, all with `source: 'portable-viewer'`:
  *   realm to viewer: { type: 'ready' }
  *                    { type: 'accepted', revision, func, backend }
- *                    { type: 'failed', revision, error }
+ *                    { type: 'failed', revision, error }, with a null
+ *                      revision when the demo itself did not start
+ *   viewer to realm: { type: 'edits', edits }, edits made while it loaded
  *                    { type: 'edit', revision, name, value }
  *   viewer to realm: { type: 'load', revision, files: [[path, ArrayBuffer]], edits }
  */
@@ -61,6 +63,21 @@ export function startPackageRealm({ renderer, ui, compileDsl, setPaused, setPaus
     let loading = null
     let func = null
     let revision = null
+    let globals = {}
+
+    // Apply the edits of earlier revisions on this package's steps, as a
+    // control change applies them, and show them in the controls.
+    function applyEdits(edits) {
+        const steps = ui.programState.getStructure().filter(entry => entry.effectKey === `user.${func}`)
+        const known = Object.entries(edits ?? {}).filter(([name]) => Object.hasOwn(globals, name))
+        if (!steps.length || !known.length) return
+        ui.programState.batch(() => {
+            for (const step of steps) {
+                for (const [name, value] of known) ui.programState.setValue(`step_${step.stepIndex}`, name, value)
+            }
+        })
+        ui._syncControlValuesFromState()
+    }
 
     // Report an edit of the package's own step, so that the viewer can replay
     // it in the next revision's realm. Built-in effects keep their own values.
@@ -88,18 +105,8 @@ export function startPackageRealm({ renderer, ui, compileDsl, setPaused, setPaus
             const dsl = packageProgram({ ...definition, func }, Boolean(cached.instance?.starter))
             ui.setDsl(dsl)
             await compileDsl(dsl)
-            // Replay the edits of earlier revisions on this package's steps, as
-            // a control change applies them, and show them in the controls.
-            const steps = ui.programState.getStructure().filter(entry => entry.effectKey === `user.${func}`)
-            const known = Object.entries(edits).filter(([name]) => definition.globals && Object.hasOwn(definition.globals, name))
-            if (steps.length && known.length) {
-                ui.programState.batch(() => {
-                    for (const step of steps) {
-                        for (const [name, value] of known) ui.programState.setValue(`step_${step.stepIndex}`, name, value)
-                    }
-                })
-                ui._syncControlValuesFromState()
-            }
+            globals = definition.globals ?? {}
+            applyEdits(edits)
             renderer.render(0)
             setPaused(false)
             post({ type: 'accepted', revision: next, func, backend: renderer.backend })
@@ -111,9 +118,13 @@ export function startPackageRealm({ renderer, ui, compileDsl, setPaused, setPaus
     window.addEventListener('message', event => {
         if (event.source !== parent || event.origin !== location.origin) return
         const message = event.data
-        if (message?.source !== SOURCE || message.type !== 'load') return
-        if (loading) return
-        loading = load(message)
+        if (message?.source !== SOURCE) return
+        if (message.type === 'load' && !loading) {
+            loading = load(message)
+        } else if (message.type === 'edits' && loading) {
+            // Edits made in the previous realm while this one compiled.
+            loading.then(() => applyEdits(message.edits))
+        }
     })
 
     // The viewer reads the visible realm through this object.

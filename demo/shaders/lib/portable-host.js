@@ -79,9 +79,9 @@ function validator(response) {
     return response.ok ? (response.headers.get('Last-Modified') || response.headers.get('ETag')) : null
 }
 
-async function fetchFile(url, files, path, required) {
+async function fetchFile(url, files, read, path, required) {
     const response = await fetch(url, { cache: 'no-store' })
-    stamps.set(url.href, validator(response))
+    read.set(url.href, validator(response))
     if (!response.ok) {
         if (required) throw new Error(`Failed to load ${path} (${response.status})`)
         return
@@ -89,21 +89,24 @@ async function fetchFile(url, files, path, required) {
     files.set(path, await response.arrayBuffer())
 }
 
-/** The files of the package at `url`, by path, as ArrayBuffers. */
+/**
+ * The files of the package at `url`, by path, as ArrayBuffers, and the
+ * stamps of the files read, by URL. The caller watches the stamps only if
+ * this read is still the latest one.
+ */
 async function readPackage(url) {
     const files = new Map()
-    stamps = new Map()
-    headSeen = new Set()
+    const read = new Map()
     if (isZip(url)) {
         const response = await fetch(url, { cache: 'no-store' })
-        stamps.set(url.href, validator(response))
+        read.set(url.href, validator(response))
         if (!response.ok) throw new Error(`Failed to load ${url.pathname} (${response.status})`)
-        const read = await fileMapFromZip(new Uint8Array(await response.arrayBuffer()))
-        if (!read.files) throw Object.assign(new Error('the archive does not read'), { diagnostics: read.diagnostics })
-        for (const [path, bytes] of read.files) files.set(path, bytes.slice().buffer)
-        return files
+        const archive = await fileMapFromZip(new Uint8Array(await response.arrayBuffer()))
+        if (!archive.files) throw Object.assign(new Error('the archive does not read'), { diagnostics: archive.diagnostics })
+        for (const [path, bytes] of archive.files) files.set(path, bytes.slice().buffer)
+        return { files, stamps: read }
     }
-    await fetchFile(new URL('definition.json', url), files, 'definition.json', true)
+    await fetchFile(new URL('definition.json', url), files, read, 'definition.json', true)
     let declared
     try {
         declared = JSON.parse(new TextDecoder().decode(files.get('definition.json')))
@@ -119,12 +122,12 @@ async function readPackage(url) {
             wanted.push(`capabilities/${declaration.id}/v${declaration.version}.json`)
         }
     }
-    await Promise.all(wanted.map(path => fetchFile(new URL(path, url), files, path, false)))
+    await Promise.all(wanted.map(path => fetchFile(new URL(path, url), files, read, path, false)))
     // A program without a .glsl file can have split GLSL stages.
     const split = programs.filter(program => !files.has(`glsl/${program}.glsl`))
         .flatMap(program => [`glsl/${program}.vert`, `glsl/${program}.frag`])
-    await Promise.all(split.map(path => fetchFile(new URL(path, url), files, path, false)))
-    return files
+    await Promise.all(split.map(path => fetchFile(new URL(path, url), files, read, path, false)))
+    return { files, stamps: read }
 }
 
 function readDefinition(files) {
@@ -157,33 +160,54 @@ function createRealm(backend) {
     return frame
 }
 
+const disposed = new WeakSet()
 async function disposeRealm(frame) {
+    if (!frame || disposed.has(frame)) return
+    disposed.add(frame)
     try {
-        await frame?.contentWindow?.__portableRealm?.dispose()
+        await frame.contentWindow?.__portableRealm?.dispose()
     } catch {
         // A realm that never started has nothing to dispose.
     }
-    frame?.remove()
+    frame.remove()
 }
+
+// A realm that has not started and reported on its revision by then is
+// refused, so that no load waits on it for ever.
+const REALM_TIMEOUT_MS = 60000
+const SUPERSEDED = Symbol('superseded')
+
+// The latest load. A load that a newer revision supersedes resolves with the
+// newest load's outcome, so a harness call reports the package as it ends up.
+let latestLoad = null
 
 /**
  * Show the package's latest files in a new realm. Resolves with { ok } when
- * that realm is accepted and shown, or { error } when it is refused, failed
- * or superseded.
+ * the latest revision is accepted and shown, or { error } when it is refused
+ * or fails.
  */
-async function loadLatest() {
+function loadLatest() {
     const revision = ++revisionCounter
     latestRevision = revision
-    let files
+    const run = loadRevision(revision).then(result => (result === SUPERSEDED ? latestLoad : result))
+    latestLoad = run
+    return run
+}
+
+async function loadRevision(revision) {
+    let read
     try {
-        files = await readPackage(packageUrl)
+        read = await readPackage(packageUrl)
     } catch (error) {
-        if (revision !== latestRevision) return { error: 'superseded by a newer revision' }
+        if (revision !== latestRevision) return SUPERSEDED
         const message = `Failed to load effect: ${errorText(error)}`
         setStatus(message, 'error')
         return { error: message }
     }
-    if (revision !== latestRevision) return { error: 'superseded by a newer revision' }
+    if (revision !== latestRevision) return SUPERSEDED
+    const { files } = read
+    stamps = read.stamps
+    headSeen = new Set()
     definition = readDefinition(files)
     const backend = backendFor(files, requestedBackend)
     // A newer revision cancels the one still loading.
@@ -194,40 +218,39 @@ async function loadLatest() {
         await disposeRealm(superseded.frame)
     }
     const frame = createRealm(backend)
-    let cancel
+    // The edits the realm is given; later ones are sent once it is shown.
+    let sentEdits = null
     const outcome = await new Promise(resolve => {
-        cancel = () => {
+        let timer = null
+        const finish = result => {
+            clearTimeout(timer)
             window.removeEventListener('message', onMessage)
-            resolve({ error: 'superseded by a newer revision' })
+            resolve(result)
         }
-        candidate = { frame, revision, cancel }
         const onMessage = event => {
             if (event.source !== frame.contentWindow || event.origin !== location.origin) return
             const message = event.data
             if (message?.source !== SOURCE) return
             if (message.type === 'ready') {
                 const entries = [...files].map(([path, buffer]) => [path, buffer.slice(0)])
+                sentEdits = edits
                 frame.contentWindow.postMessage({ source: SOURCE, type: 'load', revision, files: entries, edits },
                     location.origin, entries.map(([, buffer]) => buffer))
             } else if (message.type === 'accepted' && message.revision === revision) {
-                window.removeEventListener('message', onMessage)
-                resolve({ ok: true, func: message.func, backend: message.backend })
-            } else if (message.type === 'failed' && message.revision === revision) {
-                window.removeEventListener('message', onMessage)
-                resolve({ error: message.error })
+                finish({ ok: true, func: message.func, backend: message.backend })
+            } else if (message.type === 'failed' && (message.revision === revision || message.revision === null)) {
+                finish({ error: message.error })
             }
         }
+        candidate = { frame, revision, cancel: () => finish(SUPERSEDED) }
+        timer = setTimeout(() => finish({ error: 'The viewer frame did not start or report on the package in time' }), REALM_TIMEOUT_MS)
         window.addEventListener('message', onMessage)
-        frame.addEventListener('error', () => {
-            window.removeEventListener('message', onMessage)
-            resolve({ error: 'the realm did not load' })
-        })
     })
     if (candidate?.frame === frame) candidate = null
     // A final revision check: only the latest revision replaces the visible realm.
-    if (revision !== latestRevision || outcome.error === 'superseded by a newer revision') {
-        if (frame.isConnected) await disposeRealm(frame)
-        return { error: 'superseded by a newer revision' }
+    if (outcome === SUPERSEDED || revision !== latestRevision) {
+        await disposeRealm(frame)
+        return SUPERSEDED
     }
     if (outcome.error) {
         await disposeRealm(frame)
@@ -239,6 +262,8 @@ async function loadLatest() {
     visible = { frame, revision }
     frame.classList.add('active')
     currentBackend = outcome.backend
+    // Edits made in the previous realm while this one compiled.
+    if (edits !== sentEdits) frame.contentWindow.postMessage({ source: SOURCE, type: 'edits', edits }, location.origin)
     await disposeRealm(previous?.frame)
     pipelineGeneration++
     setStatus(`Loaded: user.${outcome.func} (${outcome.backend === 'wgsl' ? 'WebGPU' : 'WebGL'})`, 'success')
@@ -295,26 +320,31 @@ async function stampDiffers(url, stored) {
 
 async function checkForChanges() {
     if (reloading) return
+    // The stamps of the revision read last. A newer read replaces the map;
+    // this tick then writes only into the one it is reading.
+    const watched = stamps
+    const seen = headSeen
     try {
-        for (const [href, stored] of stamps) {
+        for (const [href, stored] of watched) {
+            if (watched !== stamps) return
             const url = new URL(href)
             const head = validator(await fetch(url, { method: 'HEAD', cache: 'no-store' }))
             const message = url.pathname.endsWith('/definition.json') || isZip(url)
                 ? 'Changes detected, reloading...'
                 : 'Shader changes detected, reloading...'
-            if (!headSeen.has(href)) {
+            if (!seen.has(href)) {
                 // The first tick after a load: a GET decides whether an edit
                 // landed since the load; header skew is absorbed by rebasing.
-                headSeen.add(href)
+                seen.add(href)
                 if (head !== stored && await stampDiffers(url, stored)) {
-                    reloadOnChange(message)
+                    if (watched === stamps) reloadOnChange(message)
                     return
                 }
-                stamps.set(href, head)
+                watched.set(href, head)
                 continue
             }
             if (head !== stored) {
-                reloadOnChange(message)
+                if (watched === stamps) reloadOnChange(message)
                 return
             }
         }
@@ -357,5 +387,5 @@ window.__portableSetBackend = async backend => {
 }
 
 setStatus('Loading effect...')
-await runLoad()
 setInterval(checkForChanges, POLL_MS)
+runLoad()

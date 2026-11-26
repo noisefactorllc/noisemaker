@@ -892,6 +892,11 @@
                 console.error('Initialization failed:', err);
                 loadingEl.textContent = `error: ${err.message}`;
                 loadingEl.style.color = '#d44';
+                // A realm of the package viewer tells the viewer it did not start.
+                if (params.has('package') && window.parent !== window) {
+                    window.parent.postMessage({ source: 'portable-viewer', type: 'failed', revision: null,
+                        error: `The viewer frame did not start: ${err.message}` }, location.origin);
+                }
             }
         }
 
