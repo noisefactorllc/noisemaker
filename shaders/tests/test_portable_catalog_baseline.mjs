@@ -57,14 +57,24 @@ const UNKNOWN_COMMIT = 'c'.repeat(40)
 
 let observed
 
+// The commits the real baseline's explainedDifferences name, which are on main.
+const onRealMain = new Set((baseline.explainedDifferences || []).map(entry => entry.commit).filter(sha => {
+    try {
+        execFileSync('git', ['-C', REPO_ROOT, 'merge-base', '--is-ancestor', sha, 'origin/main'], { stdio: 'ignore' })
+        return true
+    } catch {
+        return false
+    }
+}))
+
 function context(overrides = {}) {
     return {
         mergeBaseIds: baseline.effectIds,
         closed: false,
         commitOn: sha => ({
-            main: sha === MAIN_COMMIT,
-            published: sha === MAIN_COMMIT || sha === baseline.sourceSha,
-            line: sha === LINE_COMMIT || sha === MAIN_COMMIT || sha === baseline.sourceSha,
+            main: sha === MAIN_COMMIT || onRealMain.has(sha),
+            published: sha === MAIN_COMMIT || sha === baseline.sourceSha || onRealMain.has(sha),
+            line: sha === LINE_COMMIT || sha === MAIN_COMMIT || sha === baseline.sourceSha || onRealMain.has(sha),
         }),
         ...overrides,
     }
