@@ -1516,6 +1516,60 @@ the two descriptors state the same data, and refused when they differ
 (``conflicting-descriptor``). The definition's diagnostics come before those
 of the descriptor files.
 
-**Registration.** This core has no way to register a provider, so
-``registerPortableEffect()`` refuses a version 2 package that declares a
-capability (``missing-provider``), and changes no registry.
+**Providers.** A host registers the code that runs a capability with
+``registerPortableCapability({ id, version, descriptor, create })``
+(``shaders/src/portable/capabilities.js``). The descriptor is the
+capability's data, read as above, and must name the same ID and version. A
+second provider of one ID and version is refused (``duplicate-provider``). A
+package cannot install a provider: its descriptor files are data.
+``createCapabilityRegistry()`` makes a registry of the host's own, which
+``registerPortableEffect(definition, { capabilities })`` then reads in place
+of the engine's. The engine registers its own providers,
+``noisemaker/worm-overlay`` and ``noisemaker/media-dimensions``, version 1.
+
+``create({ options, bindings, uniforms, host, signal })`` runs once for each
+effect that registers with the capability. ``options`` and ``bindings`` are
+copies of the declaration's, ``uniforms`` names the shader uniform of each
+bound parameter role, ``host`` is the services the host passes to
+``registerPortableEffect(definition, { host })``, and ``signal`` aborts when
+the effect's registration fails after ``create`` ran. ``create`` returns the
+provider's lifecycle: any of ``onInit``, ``onUpdate``, ``asyncInit`` and
+``onDestroy``, and in ``methods`` one function for each method that the
+descriptor names. A lifecycle of another form is refused
+(``invalid-provider``), and so is a ``create`` that throws
+(``failed-provider``).
+
+**Registration.** ``registerPortableEffect()`` finds the provider of each
+capability a version 2 package declares, and checks each declaration
+against its provider's descriptor, before any registry changes. A capability
+that no registered provider serves is ``missing-provider``, and one provided
+only for other versions is ``incompatible-provider``. Then each provider's
+``create`` runs, in declaration order, and their lifecycles compose onto the
+one registered effect, under the lifecycle contract of every effect
+(Section 5):
+
+- ``onInit`` runs once per effect per pipeline, and ``onUpdate`` once per
+  effect per frame, each provider's in declaration order. When two providers
+  return the same uniform from ``onUpdate``, the later one's value binds, and
+  a returned uniform binds only where a pass does not resolve it.
+- ``asyncInit`` runs once for each node of the effect, again when the
+  pipeline is resized or recompiled, and when a dependency changes value. Its
+  context carries ``updateTexture``, ``width``, ``height``, ``params`` and
+  ``isCancelled``, and two signals: ``signal`` aborts when the next
+  regeneration of the node starts, and ``lifetimeSignal`` when the node ends,
+  because a recompile replaced the graph or the pipeline was disposed. A
+  resize keeps the node. ``updateTexture`` uploads in the descriptor's
+  ``uploadOrientation``, and an upload after the regeneration was cancelled
+  is dropped.
+- ``onDestroy`` runs when a pipeline is disposed, in the reverse order.
+- Each hook and method runs with the registered effect as its receiver, so
+  every node of the effect, in every pipeline, shares its ``state``. A
+  provider keeps state for one node in a cache keyed by the context's
+  ``lifetimeSignal``, which is the same object until the node ends.
+
+A dependency is a bound parameter whose value starts a regeneration. Its
+value is compared with the value the node was last drawn with, by value, so
+the same vector in a new array is no change. An automation (an oscillator,
+MIDI or audio) is not a value: the node is drawn at the parameter's default,
+and a change of automation starts no regeneration. A bound texture that a
+resize reallocates starts one, as every ``asyncInit`` does on resize.

@@ -1,5 +1,6 @@
 import { Effect } from '../../../src/runtime/effect.js'
-import { traceWorms } from '../../../src/cpu/wormTracer.js'
+import { providerContext, setCapabilityUse } from '../../../src/portable/capabilities.js'
+import { WORM_OVERLAY_DESCRIPTOR, WORM_OVERLAY_RECIPES, drawWormOverlay } from '../../../src/portable/providers/worm-overlay.js'
 
 /**
  * Scratches - film scratch overlay
@@ -50,50 +51,13 @@ class Scratches extends Effect {
                 }
             ]
         })
+        // The overlay is drawn again when seed or density changes value.
+        setCapabilityUse(this, { dependencies: ['seed', 'density'] })
     }
 
-    async asyncInit({ updateTexture, width, height, params, isCancelled }) {
-        const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
-        // willReadFrequently pins the overlay to the software rasterizer:
-        // GPU-accelerated 2D canvases (Skia Graphite on Metal, Skia Ganesh on
-        // GL) rasterize the same strokes differently, so the overlay pixels
-        // would depend on the host. Refs #313.
-        const ctx = canvas.getContext('2d', { willReadFrequently: true })
-        ctx.clearRect(0, 0, width, height)
-        updateTexture('overlayTex', canvas)
-
-        const seed = params.seed || 1
-        const density = params.density !== undefined ? params.density : 0.3
-
-        // Python reference: 4 layers, behavior alternates obedient/unruly
-        // Low kink (0.125-0.25) for nearly-straight scratches
-        // Density param scales scratch count: 0.1 to 0.5
-        for (let layer = 0; layer < 4; layer++) {
-            if (isCancelled()) return
-
-            const layerSeed = seed * 1000 + layer * 251
-            const isObedient = (layerSeed % 2) === 0
-
-            await traceWorms(ctx, {
-                width, height,
-                seed: layerSeed,
-                density: 0.1 + density * 0.4,
-                kink: 0.125 + (layerSeed % 50) / 400,
-                stride: 0.75,
-                strideDeviation: 0.5,
-                duration: 2 + (layerSeed % 3),
-                behavior: isObedient ? 'obedient' : 'unruly',
-                flowFreq: 2 + (layerSeed % 3),
-                lineWidth: Math.max(0.5, width / 1024),
-                colorFn: () => ({
-                    r: 255, g: 255, b: 255, a: 1.0
-                }),
-                isCancelled,
-                onProgress: (c) => updateTexture('overlayTex', c)
-            })
-        }
+    async asyncInit(context) {
+        return drawWormOverlay(WORM_OVERLAY_RECIPES.scratches, { seed: 'seed', density: 'density' }, 'overlayTex',
+            providerContext(context, WORM_OVERLAY_DESCRIPTOR))
     }
 }
 

@@ -1,5 +1,6 @@
 import { Effect } from '../../../src/runtime/effect.js'
-import { traceWorms } from '../../../src/cpu/wormTracer.js'
+import { providerContext, setCapabilityUse } from '../../../src/portable/capabilities.js'
+import { WORM_OVERLAY_DESCRIPTOR, WORM_OVERLAY_RECIPES, drawWormOverlay } from '../../../src/portable/providers/worm-overlay.js'
 
 /**
  * Stray Hair - sparse dark curved lines over the image
@@ -49,49 +50,13 @@ class StrayHair extends Effect {
                 }
             ]
         })
+        // The overlay is drawn again when seed or density changes value.
+        setCapabilityUse(this, { dependencies: ['seed', 'density'] })
     }
 
-    async asyncInit({ updateTexture, width, height, params, isCancelled }) {
-        const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
-        // willReadFrequently pins the overlay to the software rasterizer:
-        // GPU-accelerated 2D canvases (Skia Graphite on Metal, Skia Ganesh on
-        // GL) rasterize the same strokes differently, so the overlay pixels
-        // would depend on the host. Refs #313.
-        const ctx = canvas.getContext('2d', { willReadFrequently: true })
-        ctx.clearRect(0, 0, width, height)
-        updateTexture('overlayTex', canvas)
-
-        const seed = params.seed || 1
-        const density = params.density !== undefined ? params.density : 0.5
-
-        // Python reference: single layer of sparse unruly worms
-        // Density param scales hair count: base 0.001 to 0.005
-        // High kink: 5-50
-        // Dark strands: brightness * 0.333, mask * 0.666
-        const layerSeed = seed * 1000 + 42
-
-        await traceWorms(ctx, {
-            width, height,
-            seed: layerSeed,
-            density: 0.001 + density * 0.004,
-            kink: 5 + (layerSeed % 45),
-            stride: 0.5,
-            strideDeviation: 0.25,
-            duration: 8 + (layerSeed % 8),
-            behavior: 'unruly',
-            flowFreq: 4,
-            lineWidth: Math.max(1, width / 400),
-            colorFn: (rng) => ({
-                r: Math.floor(rng.float() * 30),
-                g: Math.floor(rng.float() * 30),
-                b: Math.floor(rng.float() * 30),
-                a: 0.666
-            }),
-            isCancelled,
-            onProgress: (c) => updateTexture('overlayTex', c)
-        })
+    async asyncInit(context) {
+        return drawWormOverlay(WORM_OVERLAY_RECIPES.strayHair, { seed: 'seed', density: 'density' }, 'overlayTex',
+            providerContext(context, WORM_OVERLAY_DESCRIPTOR))
     }
 }
 

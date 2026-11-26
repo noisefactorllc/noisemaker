@@ -16,6 +16,7 @@ import { DiagnosticCollector } from './backends/diagnostics.js'
 import { SRGB, configureWebGL2Canvas, configureWebGPUCanvas } from './color-output.js'
 import { SimulationClock } from './simulation-clock.js'
 import { SCENE_COLOR_TEXTURE } from '../rendering/scene-compiler.js'
+import { capabilityUseOf } from '../portable/capabilities.js'
 
 // A uniform scoped to one element by its `_id:` (expander elementStateKey()).
 const ELEMENT_SCOPED = new RegExp(`_id_${ELEMENT_IDENTITY}@[^@]+$`)
@@ -186,6 +187,13 @@ function isAutomationValue(value) {
     return value && typeof value === 'object' &&
         (value.type === 'Oscillator' || value.type === 'Midi' || value.type === 'Audio' ||
          value._ast?.type === 'Oscillator' || value._ast?.type === 'Midi' || value._ast?.type === 'Audio')
+}
+
+// A declared dependency's value, for comparison by value: a number, a
+// string, a boolean or a vector compares equal to the same value, whatever
+// object holds it.
+function dependencyValueKey(value) {
+    return JSON.stringify(value)
 }
 
 function scaleAutomationValue(value, range) {
@@ -670,6 +678,10 @@ export class Pipeline {
         // Track effect instances for asyncInit lifecycle
         this._asyncRenders = new Map()  // nodeId → cancel function
         this._asyncInitPromises = new Map()  // nodeId → in-flight asyncInit promise
+        // nodeId → the AbortController of the node's lifetime, which ends when
+        // a recompile replaces the graph or the pipeline is disposed. Each
+        // regeneration has its own cancellation besides (_asyncRenders).
+        this._asyncLifetimes = new Map()
 
         // Production lifecycle hooks: effects in the current graph
         // that carry onInit/onUpdate/onDestroy, keyed by effectKey. Rebuilt
@@ -1069,6 +1081,14 @@ export class Pipeline {
             this._asyncDebounceTimers.clear()
         }
         this._asyncParamCache?.clear()
+        // A recompile gives a new graph, whose nodes are new: every node's
+        // lifetime ends. A resize keeps the graph, and its nodes go on.
+        if (!this._asyncLifetimes) this._asyncLifetimes = new Map()
+        if (this._asyncLifetimeGraph !== this.graph) {
+            for (const lifetime of this._asyncLifetimes.values()) lifetime.abort()
+            this._asyncLifetimes.clear()
+            this._asyncLifetimeGraph = this.graph
+        }
 
         // Find unique effects with asyncInit by scanning passes
         const seen = new Set()
@@ -1096,11 +1116,31 @@ export class Pipeline {
         if (!effectDef) return
         if (!effectDef._configAsyncInit && effectDef.asyncInit === Effect.prototype.asyncInit) return
 
-        // Check if any non-alpha param actually changed
         if (!this._asyncParamCache) this._asyncParamCache = new Map()
         const cache = this._asyncParamCache.get(nodeId) || {}
         let changed = false
 
+        // An effect whose capabilities declare their dependencies regenerates
+        // when one of those changes value, whatever its type. An automation
+        // (oscillator, MIDI, audio) is not a value: the overlay is drawn at
+        // the parameter's default, and a change of automation is not compared.
+        const use = capabilityUseOf(effectDef)
+        if (use) {
+            for (const paramName of use.dependencies) {
+                const value = stepValues[paramName]
+                if (value === undefined || value === null || isAutomationValue(value)) continue
+                const key = dependencyValueKey(value)
+                if (cache[paramName] !== key) {
+                    changed = true
+                    cache[paramName] = key
+                }
+            }
+            this._asyncParamCache.set(nodeId, cache)
+            if (changed) this._startAsyncInit(nodeId, effectDef, { debounce: true, params: stepValues })
+            return
+        }
+
+        // Check if any non-alpha param actually changed
         for (const [paramName, value] of Object.entries(stepValues)) {
             if (paramName === 'alpha' || paramName.startsWith('_')) continue
             if (value === undefined || value === null) continue
@@ -1135,11 +1175,12 @@ export class Pipeline {
             const effectDef = getEffect(pass.effectKey)
             if (!effectDef?.globals) continue
             if (!effectDef._configAsyncInit && effectDef.asyncInit === Effect.prototype.asyncInit) continue
+            const dependencies = capabilityUseOf(effectDef)?.dependencies
             const params = {}
             let reads = false
             for (const [paramName, spec] of Object.entries(effectDef.globals)) {
                 const uniform = spec.uniform || paramName
-                if (uniform === uniformName) reads = true
+                if (uniform === uniformName && (!dependencies || dependencies.includes(paramName))) reads = true
                 const value = pass.uniforms?.[uniform] ?? this.globalUniforms[uniform]
                 if (value !== undefined) params[paramName] = value
             }
@@ -1166,8 +1207,21 @@ export class Pipeline {
         const prevCancel = this._asyncRenders.get(nodeId)
         if (prevCancel) prevCancel()
 
+        // Two cancellations: this regeneration's, which the next regeneration
+        // of the node cancels, and the node's lifetime, which ends when a
+        // recompile replaces the graph or the pipeline is disposed.
         let cancelled = false
-        this._asyncRenders.set(nodeId, () => { cancelled = true })
+        const regeneration = new AbortController()
+        this._asyncRenders.set(nodeId, () => {
+            cancelled = true
+            regeneration.abort()
+        })
+        if (!this._asyncLifetimes) this._asyncLifetimes = new Map()
+        let lifetime = this._asyncLifetimes.get(nodeId)
+        if (!lifetime) {
+            lifetime = new AbortController()
+            this._asyncLifetimes.set(nodeId, lifetime)
+        }
 
         // An automated param (oscillator, MIDI, audio) is a config object, not
         // a number; an overlay drawn once cannot follow it, so it is drawn at
@@ -1182,14 +1236,26 @@ export class Pipeline {
         // other values (a step value, a stale host value) redraws it.
         if (!this._asyncParamCache) this._asyncParamCache = new Map()
         const drawn = {}
-        for (const [paramName, spec] of Object.entries(effectDef.globals || {})) {
-            const value = drawParams[paramName] ?? drawParams[spec.uniform]
-            if (value !== undefined && value !== null && typeof value !== 'object') drawn[paramName] = value
+        const use = capabilityUseOf(effectDef)
+        if (use) {
+            // Declared dependencies are compared by value, whatever their type.
+            for (const paramName of use.dependencies) {
+                const spec = effectDef.globals?.[paramName]
+                const value = drawParams[paramName] ?? (spec ? drawParams[spec.uniform] : undefined)
+                if (value !== undefined && value !== null && !isAutomationValue(value)) drawn[paramName] = dependencyValueKey(value)
+            }
+        } else {
+            for (const [paramName, spec] of Object.entries(effectDef.globals || {})) {
+                const value = drawParams[paramName] ?? drawParams[spec.uniform]
+                if (value !== undefined && value !== null && typeof value !== 'object') drawn[paramName] = value
+            }
         }
         this._asyncParamCache.set(nodeId, drawn)
 
         const context = {
-            updateTexture: (texName, canvas) => {
+            // orientation: 'flipY' (the default) turns the canvas over, so that
+            // its top row is the texture's last row; 'none' uploads it as it is.
+            updateTexture: (texName, canvas, { orientation = 'flipY' } = {}) => {
                 if (cancelled) return
                 // Map effect-local texture name to graph-scoped name
                 const texId = `${this.stateIdOf(nodeId)}_${texName}`
@@ -1197,12 +1263,14 @@ export class Pipeline {
                 // context tells WebGPU to upload a willReadFrequently overlay
                 // with the bytes WebGL2 uploads. Other sources (an
                 // ImageBitmap) have no context to pass.
-                this.backend.updateTextureFromSource(texId, canvas, { flipY: true, context2d: canvas.getContext?.('2d') })
+                this.backend.updateTextureFromSource(texId, canvas, { flipY: orientation !== 'none', context2d: canvas.getContext?.('2d') })
             },
             width: this.width,
             height: this.height,
             params: drawParams,
-            isCancelled: () => cancelled
+            isCancelled: () => cancelled,
+            signal: regeneration.signal,
+            lifetimeSignal: lifetime.signal
         }
 
         const run = Promise.resolve(effectDef.asyncInit(context))
@@ -3785,7 +3853,7 @@ export class Pipeline {
             this._lifecycleEffects.clear()
         }
 
-        // Cancel all async renders
+        // Cancel all async renders, and end every node's lifetime
         for (const cancel of this._asyncRenders.values()) {
             try {
                 cancel()
@@ -3794,6 +3862,14 @@ export class Pipeline {
             }
         }
         this._asyncRenders.clear()
+        for (const lifetime of this._asyncLifetimes?.values() ?? []) {
+            try {
+                lifetime.abort()
+            } catch (error) {
+                captureError(error)
+            }
+        }
+        this._asyncLifetimes?.clear()
 
         // Pending debounced regens would fire _startAsyncInit after dispose —
         // a full CPU worm trace whose uploads all no-op on the dead backend.

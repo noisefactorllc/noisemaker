@@ -1,4 +1,9 @@
 import { Effect } from '../../../src/runtime/effect.js'
+import { createMediaDimensions } from '../../../src/portable/providers/media-dimensions.js'
+
+// The noisemaker/media-dimensions capability keeps the media's size, bound
+// each frame to imageSize.
+const mediaDimensions = createMediaDimensions({ uniforms: { size: 'imageSize' } })
 
 /**
  * Media - Video/camera input with transform controls
@@ -196,8 +201,7 @@ export default class Media extends Effect {
    * Called when effect is initialized. Set up default image size.
    */
   onInit() {
-    this.state.imageWidth = 1
-    this.state.imageHeight = 1
+    return mediaDimensions.onInit.call(this)
   }
 
   /**
@@ -205,16 +209,13 @@ export default class Media extends Effect {
    * Updates imageSize uniform from current media dimensions.
    */
   onUpdate() {
-    return {
-      imageSize: [this.state.imageWidth || 1, this.state.imageHeight || 1]
-    }
+    return mediaDimensions.onUpdate.call(this)
   }
 
   /**
    * Update media dimensions - called when video/image source changes
    */
   setMediaDimensions(width, height) {
-    this.state.imageWidth = width
-    this.state.imageHeight = height
+    return mediaDimensions.methods.setMediaDimensions.call(this, width, height)
   }
 }

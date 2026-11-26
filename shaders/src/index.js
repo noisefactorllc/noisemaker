@@ -72,6 +72,22 @@ export { detectSoftwareRendering, classifySoftwareRendering } from './renderer/s
 // Stability registry
 export { featureStability, listFeatures } from './stability.js'
 
+// Portable effect packages and capability providers. The engine registers
+// its own providers (noisemaker/worm-overlay, noisemaker/media-dimensions)
+// in the engine's registry when this module loads.
+export { normalizePortableDefinition, toPortablePackage } from './portable/definition.js'
+export { loadPortablePackage, packageFiles, fileMapFromZip, readFileMap, normalizePackagePath } from './portable/package.js'
+export { normalizeCapabilityDescriptor, checkCapabilityDeclarations } from './portable/descriptor.js'
+export {
+    registerPortableCapability,
+    getPortableCapability,
+    createCapabilityRegistry,
+    resolvePortableCapabilities,
+    defaultCapabilityRegistry
+} from './portable/capabilities.js'
+export { instantiatePortableEffect } from './portable/instantiate.js'
+export { wormOverlayProvider, mediaDimensionsProvider } from './portable/providers/index.js'
+
 // ProgramState & UI Utilities
 // Re-export for downstream use (noisedeck, shade, etc.)
 export { ProgramState } from '../../demo/shaders/lib/program-state.js'

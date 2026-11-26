@@ -1,11 +1,13 @@
 import { Effect } from '../../../src/runtime/effect.js'
-import { traceWorms } from '../../../src/cpu/wormTracer.js'
+import { providerContext, setCapabilityUse } from '../../../src/portable/capabilities.js'
+import { WORM_OVERLAY_DESCRIPTOR, WORM_OVERLAY_RECIPES, drawWormOverlay } from '../../../src/portable/providers/worm-overlay.js'
 
 /**
  * Fibers - chaotic fiber texture overlay
  *
  * One-shot CPU rendering: traces worms on a canvas, uploads as overlay texture.
  * Matches Python reference: 4 layers of chaotic worms with colored strands.
+ * The noisemaker/worm-overlay capability draws it, from the fibers recipe.
  */
 class Fibers extends Effect {
     constructor() {
@@ -49,52 +51,13 @@ class Fibers extends Effect {
                 }
             ]
         })
+        // The overlay is drawn again when seed or density changes value.
+        setCapabilityUse(this, { dependencies: ['seed', 'density'] })
     }
 
-    async asyncInit({ updateTexture, width, height, params, isCancelled }) {
-        const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
-        // willReadFrequently pins the overlay to the software rasterizer:
-        // GPU-accelerated 2D canvases (Skia Graphite on Metal, Skia Ganesh on
-        // GL) rasterize the same strokes differently, so the overlay pixels
-        // would depend on the host. Refs #313.
-        const ctx = canvas.getContext('2d', { willReadFrequently: true })
-        ctx.clearRect(0, 0, width, height)
-        updateTexture('overlayTex', canvas)
-
-        const seed = params.seed || 1
-        const density = params.density !== undefined ? params.density : 0.5
-
-        // Python reference: 4 layers of chaotic worms
-        // Density param scales worm count: 0.5 + density * 2.0
-        const baseDensity = 0.5 + density * 2.0
-        for (let layer = 0; layer < 4; layer++) {
-            if (isCancelled()) return
-
-            const layerSeed = seed * 1000 + layer * 137
-
-            await traceWorms(ctx, {
-                width, height,
-                seed: layerSeed,
-                density: baseDensity,
-                kink: 5 + (layerSeed % 5),
-                stride: 0.75,
-                strideDeviation: 0.125,
-                duration: 1,
-                behavior: 'chaotic',
-                flowFreq: 4,
-                lineWidth: Math.max(1.5, width / 384),
-                colorFn: (rng) => ({
-                    r: Math.floor(rng.float() * 200 + 55),
-                    g: Math.floor(rng.float() * 200 + 55),
-                    b: Math.floor(rng.float() * 200 + 55),
-                    a: 0.5
-                }),
-                isCancelled,
-                onProgress: (c) => updateTexture('overlayTex', c)
-            })
-        }
+    async asyncInit(context) {
+        return drawWormOverlay(WORM_OVERLAY_RECIPES.fibers, { seed: 'seed', density: 'density' }, 'overlayTex',
+            providerContext(context, WORM_OVERLAY_DESCRIPTOR))
     }
 }
 

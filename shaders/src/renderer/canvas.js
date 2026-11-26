@@ -38,6 +38,9 @@ import { MidiState, AudioState, MidiInputManager, AudioInputManager, ExternalInp
 import { expandPalette } from '../runtime/palette-expansion.js'
 import { SCENE_COLOR_TEXTURE } from '../rendering/scene-compiler.js'
 import { normalizePortableDefinition } from '../portable/definition.js'
+import { defaultCapabilityRegistry } from '../portable/capabilities.js'
+import { instantiatePortableEffect } from '../portable/instantiate.js'
+import '../portable/providers/index.js'
 
 let sceneModules = null
 async function loadSceneModules() {
@@ -2370,11 +2373,18 @@ export class CanvasRenderer {
      * verifying a replacement; duplicate names must not change accepted effects.
      * This checks registration inputs and the language of the backend that will
      * run the effect, not shader compilation.
+     * A version 2 package that declares capabilities is composed from their
+     * providers; a missing or incompatible provider, or a declaration that
+     * does not fit its provider's descriptor, refuses it before any registry
+     * changes.
      * @param {object} definition - Raw Portable JSON plus shaders[program]: glsl, or
      *   vertex and fragment, and wgsl
+     * @param {object} [options]
+     * @param {object} [options.capabilities] - The provider registry; the engine's by default
+     * @param {object} [options.host] - Host services that providers may use
      * @returns {Promise<object>} Cached user effect with an Effect instance
      */
-    async registerPortableEffect(definition) {
+    async registerPortableEffect(definition, { capabilities, host } = {}) {
         const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value)
         const fail = message => { throw new Error(`Portable effect: ${message}`) }
         if (!isRecord(definition)) fail('expected a definition object')
@@ -2387,17 +2397,10 @@ export class CanvasRenderer {
                 ? entry.message : `${entry.message} (${entry.path})`).join('; '))
         }
         definition = normalized.definition
-        // A declared capability is behavior the effect needs from the host. No
-        // provider can be registered with this core, so the package is refused
-        // rather than registered without that behavior. A legacy package has
-        // no capabilities, and registers as before.
-        if (normalized.profile === 'v2' && Array.isArray(definition.capabilities) && definition.capabilities.length > 0) {
-            const [first] = definition.capabilities
-            const message = `no provider is registered for capability ${first.id} version ${first.version}`
-            const error = new Error(`Portable effect: ${message} (capabilities.0)`)
-            error.diagnostics = [{ code: 'missing-provider', path: 'capabilities.0', message }]
-            throw error
-        }
+        // A declared capability is behavior the effect needs from the host's
+        // providers. A legacy package has no capabilities, and registers as before.
+        const declaresCapabilities = normalized.profile === 'v2' &&
+            Array.isArray(definition.capabilities) && definition.capabilities.length > 0
         const { namespace, passes, shaders, globals, starter } = definition
         const func = definition.func ?? definition.name
         if (typeof func !== 'string' || !isValidIdentifier(func)) fail('func must be a DSL identifier')
@@ -2489,7 +2492,13 @@ export class CanvasRenderer {
         if (definition.paramAliases !== undefined) fail('paramAliases is no longer supported')
         if (getEffect(`user.${func}`) || getEffect(`user/${func}`)) fail(`user.${func} is already registered`)
 
-        const instance = new Effect({ ...definition, func, namespace: 'user' })
+        // A package that declares capabilities is composed from its providers,
+        // which are all resolved, and its declarations checked against their
+        // descriptors, before any registry changes (../portable/instantiate.js).
+        const instance = declaresCapabilities
+            ? instantiatePortableEffect({ definition: { ...definition, func, namespace: 'user' }, shaders },
+                { capabilities: capabilities ?? defaultCapabilityRegistry, host })
+            : new Effect({ ...definition, func, namespace: 'user' })
         instance.shaders = shaders
         const pipelineInputs = ['inputTex', 'inputTex3d', 'inputGeo', 'inputXyz', 'inputVel', 'inputRgba', 'src', 'o0', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7']
         instance.starter = starter ?? !passes.some(pass =>
