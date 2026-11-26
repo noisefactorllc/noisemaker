@@ -683,6 +683,74 @@ the image from ``imageSize``:
     uploadMediaStep(renderer.getMediaSteps()[0], frame)
     frame.close()
 
+.. _host-inputs:
+
+Host Inputs: Media, Text and Meshes
+-----------------------------------
+
+An effect that shows a camera, a video, an image, text or a mesh declares what
+the host fills, and the host fills it. Neither a definition nor a Portable
+package opens a camera, draws text or loads a mesh by itself; a capability
+provider (:ref:`portable-capabilities`) does not either. Three declarations
+name what a host provides.
+
+**External textures** (``externalTexture: "<uniform>"``, as ``synth/media``
+declares ``imageTex`` and ``filter/text`` declares ``textTex``):
+
+- *Texture ids.* Each step of such an effect binds its own texture, with the
+  ids of the Media Inputs section above. ``renderer.getMediaSteps()`` lists
+  them for the current program; the ids follow each ``compile()``, and
+  ``renderer.moveState()`` carries an upload to a step's new id.
+- *Updates.* ``renderer.updateTextureFromSource(textureId, source, options)``
+  uploads an image, a video, a canvas, an ``ImageBitmap`` or a ``VideoFrame``
+  at once, and returns the source's ``{ width, height }``. The texture takes
+  the size of each upload.
+- *Orientation and alpha.* ``options.flipY``, true by default, turns the
+  source over, so that its top row is the texture's last row. The texture
+  holds the source's colors with straight alpha, not premultiplied, on both
+  backends. ``options.context2d``, the source canvas's 2D context, makes
+  WebGPU upload a ``willReadFrequently`` canvas with the bytes WebGL2 uploads.
+- *Size.* The host publishes each upload's size into the step's size
+  parameter: ``imageSize`` for ``synth/media``, with
+  ``renderer.applyStepParameterValues()`` as shown above.
+  ``synth/media`` also has ``setMediaDimensions(width, height)``, which sets
+  the registered effect's own state. Every node of the effect, in every
+  pipeline, shares that state. Its ``onUpdate`` returns that size as
+  ``imageSize``, which binds only where a pass does not resolve
+  ``imageSize``, and ``synth/media``'s passes resolve it from the parameter.
+  So the step's parameter is the host's path.
+- *Resize.* A step's upload texture is the host's, not one of the graph's
+  textures, so a resize leaves it as it is, at the size of its last upload.
+- *Ownership and release.* The host owns each source. A ``VideoFrame`` is
+  copied while ``updateTextureFromSource()`` runs, and the host may close it
+  right after. For any other source, the renderer keeps the last one of each
+  texture. After a compile that changes the ``gamut`` directive, it uploads
+  that source again, so the texture holds the new decode. A source that can
+  no longer be read keeps its old decode. The textures belong to the
+  pipeline's backend: after ``switchBackend()``, the host uploads its sources
+  again.
+- *Text.* ``filter/text`` draws no text. The host draws the step's text on a
+  canvas of its own, from the step's parameters (``text``, ``font``,
+  ``size``, ``color`` and the others), and uploads that canvas to the step's
+  ``textTex`` id. The demo viewer does this in ``demo/shaders/lib/demo-ui.js``.
+
+**External meshes** (``externalMesh: "mesh0"`` to ``"mesh7"``, as
+``render/meshLoader`` declares):
+
+- ``renderer.loadOBJFromURL(url, meshId)`` and
+  ``renderer.loadOBJFromString(objText, meshId)`` parse an OBJ file and upload
+  it to the mesh surface ``meshId``, as the textures
+  ``global_<meshId>_positions``, ``_normals`` and ``_uvs``. Each returns
+  ``{ success, vertexCount, error }``.
+- The renderer keeps the data of each mesh it loaded, and uploads it again
+  after a backend switch and after a lost WebGL context is restored.
+
+**Built-in meshes** (``builtinMeshes``: a name to a path, as
+``render/meshLoader``'s ``sphere: "share/meshes/sphere.obj"``): the renderer
+does not read them. A host offers the names, and loads the one it picks with
+``loadOBJFromURL()`` from the path joined to its base path. The demo viewer
+joins it to the renderer's ``basePath``.
+
 Undo/Redo
 ---------
 
