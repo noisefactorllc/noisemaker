@@ -274,6 +274,39 @@ test('a package or a descriptor nested too deep is refused, and reading it never
     assert.ok(codes(definition).includes('too-deep'), 'a deep definition.json is a diagnostic')
 })
 
+test('an object used again deep in a caller\'s descriptor counts at the depth where it is used', () => {
+    // Each option's schema chain ends in the previous option's chain, so the
+    // shared objects nest far deeper than any one chain.
+    const chained = (length) => {
+        const options = {}
+        let previous = { type: 'number' }
+        for (let index = 0; index < 400; index++) {
+            let schema = previous
+            for (let level = 0; level < length; level++) schema = { type: 'array', items: schema }
+            options[`option${index}`] = schema
+            previous = schema
+        }
+        return descriptor({ options })
+    }
+    const read = normalizeCapabilityDescriptor(chained(30))
+    assert.ok(codes(read).includes('too-deep'), 'the shared chain is refused where it nests too deep')
+    const enums = {}
+    let previous = 'soft'
+    for (let index = 0; index < 400; index++) {
+        let value = previous
+        for (let level = 0; level < 55; level++) value = [value]
+        enums[`option${index}`] = { type: 'array', enum: [value] }
+        previous = value
+    }
+    const definition = normalizePortableDefinition(pkg()).definition
+    const checked = checkCapabilityDeclarations(definition, [descriptor({ options: enums }), descriptor({ options: enums })])
+    assert.ok(codes(checked).includes('too-deep'), 'comparing two such descriptors is a diagnostic, not a throw')
+
+    // An error from a nested Proxy is reported where it was read.
+    const nested = normalizeCapabilityDescriptor(descriptor({ options: new Proxy({}, { ownKeys() { throw new Error('trap') } }) }))
+    has(nested, 'invalid-value', 'options')
+})
+
 test('an option schema is checked as the values it describes will be', () => {
     const option = schema => normalizeCapabilityDescriptor(descriptor({ options: { value: schema } }))
     has(option({ type: 'string', minimum: 3 }), 'invalid-value', 'options.value.minimum')

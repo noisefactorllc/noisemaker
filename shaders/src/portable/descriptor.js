@@ -83,7 +83,7 @@ const MAX_DEPTH = 64
  * An object used in two places is read once; one that contains itself is
  * refused.
  */
-function readData(value, path, diagnostics, state = { copies: new Map(), open: new Set() }, depth = 0) {
+function readData(value, path, diagnostics, state = { copies: new Map(), heights: new Map(), open: new Set() }, depth = 0) {
     if (value === null || typeof value === 'boolean') return value
     if (typeof value === 'string') {
         if (FUNCTION_SOURCE.test(value)) {
@@ -105,6 +105,23 @@ function readData(value, path, diagnostics, state = { copies: new Map(), open: n
         diagnostics.push(diagnostic('invalid-value', path, `${path || 'the descriptor'} is a ${typeof value}, which is not JSON data`))
         return undefined
     }
+    // A caller's Proxy runs its traps here; an error from one is a diagnostic
+    // at the path where it was read.
+    try {
+        return readObject(value, path, diagnostics, state, depth)
+    } catch (error) {
+        state.open.delete(value)
+        diagnostics.push(diagnostic('invalid-value', path, `${path || 'the descriptor'} could not be read: ${error?.message ?? error}`))
+        return undefined
+    }
+}
+
+// The levels an object's copy nests, below it.
+function heightOf(value, state) {
+    return value !== null && typeof value === 'object' ? (state.heights.get(value) ?? 0) : 0
+}
+
+function readObject(value, path, diagnostics, state, depth) {
     const prototype = Object.getPrototypeOf(value)
     const array = Array.isArray(value)
     if (!array && prototype !== Object.prototype && prototype !== null) {
@@ -115,11 +132,13 @@ function readData(value, path, diagnostics, state = { copies: new Map(), open: n
         diagnostics.push(diagnostic('invalid-value', path, `${path || 'the descriptor'} refers to itself`))
         return undefined
     }
-    if (state.copies.has(value)) return state.copies.get(value)
-    if (depth >= MAX_DEPTH) {
+    // An object already read is used again, here as deep as its copy nests.
+    const height = state.copies.has(value) ? state.heights.get(value) : 0
+    if (depth + height >= MAX_DEPTH) {
         diagnostics.push(diagnostic('too-deep', path, `${path || 'the descriptor'} nests deeper than ${MAX_DEPTH} levels`))
         return undefined
     }
+    if (state.copies.has(value)) return state.copies.get(value)
     state.open.add(value)
     const copy = array ? [] : {}
     const keys = Reflect.ownKeys(value)
@@ -151,7 +170,14 @@ function readData(value, path, diagnostics, state = { copies: new Map(), open: n
         if (child !== undefined) copy[key] = child
     }
     state.open.delete(value)
+    let below = 0
+    for (const child of Object.values(copy)) {
+        if (child !== null && typeof child === 'object') below = Math.max(below, 1 + heightOf(child, state))
+    }
     state.copies.set(value, copy)
+    // Heights are kept for the copies, which are what a later read returns.
+    state.heights.set(value, below)
+    state.heights.set(copy, below)
     return copy
 }
 
