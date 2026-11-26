@@ -14,10 +14,12 @@
 //                 reaches the output
 //   mrt-dynamic   one pass writing two textures sized by screenDivide, then a
 //                 pass combining them: red from one target, green from the other
-//   compute-storage  a compute pass writing a texture the effect declares
-//                 through a storage binding, then a compute pass reading it and
-//                 writing outputTex through one, with a fragment form of each
-//                 for WebGL2: each pixel's position times spacing reaches the output
+//   compute-storage
+//                 a compute pass writing a texture the effect declares through
+//                 a storage binding, then a compute pass reading it and writing
+//                 outputTex through one, each dispatched over the screen, with a
+//                 fragment form of each for WebGL2: each pixel's position times
+//                 spacing reaches the output
 // The two backends' frames must also agree exactly, compared in texture row
 // order. The package loader's GPU-free tests are in test_portable_package.mjs.
 import assert from 'node:assert/strict'

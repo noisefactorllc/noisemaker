@@ -21,14 +21,12 @@
     "fill": {
       "program": "fill",
       "type": "compute",
-      "workgroups": [8, 8, 1],
       "storageTextures": { "workTex": "work" },
       "inputs": {}
     },
     "shade": {
       "program": "shade",
       "type": "compute",
-      "workgroups": [8, 8, 1],
       "storageTextures": { "outputBuffer": "outputTex" },
       "inputs": { "work": "work" }
     }
