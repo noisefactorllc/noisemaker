@@ -217,6 +217,38 @@ test('a package with paramAliases is refused at that path', () => {
     assert.notDeepEqual(validateSchema(aliasPackage), [])
 })
 
+test('version 2 refuses inputOverride at each size path and legacy keeps its dimension expressions', () => {
+    for (const container of ['textures', 'textures3d', 'viewport']) {
+        const dimensions = container === 'viewport' ? ['width', 'height'] : ['width', 'height', 'depth']
+        for (const dimension of dimensions) {
+            const legacy = normalizePortableDefinition(minimal()).definition
+            const spec = { width: 32, height: 32 }
+            if (container === 'viewport') legacy.passes[0].viewport = spec
+            else legacy[container] = { volume: spec }
+            const path = container === 'viewport' ? 'passes.main.viewport' : `${container}.volume`
+            spec[dimension] = { param: 'speed', inputOverride: 'inputTex3d' }
+            const pkg = toPortablePackage(legacy)
+            const result = normalizePortableDefinition(pkg)
+            assert.deepEqual(codes(result), ['unsupported-field'], path)
+            assert.deepEqual(paths(result), [`${path}.${dimension}.inputOverride`])
+            assert.equal(result.definition, null)
+            assert.notDeepEqual(validateSchema(pkg), [], path)
+
+            // Legacy textures require numeric depth. Width and height accept expressions.
+            if (dimension === 'depth') {
+                spec.depth = 32
+            } else {
+                assert.equal(normalizePortableDefinition(legacy).definition, legacy)
+                assert.deepEqual(validateEffectDefinition(legacy), [], path)
+                delete spec[dimension].inputOverride
+            }
+            const supported = toPortablePackage(legacy)
+            assert.deepEqual(normalizePortableDefinition(supported).diagnostics, [], path)
+            assert.deepEqual(validateSchema(supported), [], path)
+        }
+    }
+})
+
 test('a package holds data only: functions, function source, lifecycle hooks and reserved keys are refused', () => {
     const withFunction = { ...minimal(), defaultProgram: () => 'x' }
     assert.ok(codes(normalizePortableDefinition(withFunction)).includes('function-value'))

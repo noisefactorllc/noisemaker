@@ -62,9 +62,9 @@ export const RESOURCE_FORMS = Object.freeze([
 // Fields the runtime accepts and then reads nowhere. A legacy definition keeps
 // them; a version 2 package refuses them, because they have no effect. A
 // uniform name in `workgroups` is the same: the dispatch size is never
-// resolved from it. (`inputOverride` in a size object has no effect either,
-// but catalog definitions carry it, so version 2 still accepts it.)
+// resolved from it.
 export const INERT_PASS_KEYS = Object.freeze(['storageBuffers'])
+export const INERT_DIM_SPEC_KEYS = Object.freeze(['inputOverride'])
 // A pipeline input that nothing writes, so a pass reads a blank texture from it.
 export const INERT_PIPELINE_INPUTS = Object.freeze(['noise'])
 
@@ -96,7 +96,7 @@ export const LAYOUT_ENTRY_KEYS = Object.freeze(['name', 'slot', 'components'])
 
 export const BYTE_LAYOUT_KEYS = Object.freeze(['name', 'offset', 'size', 'type'])
 
-export const DIM_SPEC_KEYS = Object.freeze(['param', 'power', 'multiply', 'default', 'paramDefault', 'screenDivide', 'scale', 'clamp', 'inputOverride', 'inherit'])
+export const DIM_SPEC_KEYS = Object.freeze(['param', 'power', 'multiply', 'default', 'paramDefault', 'screenDivide', 'scale', 'clamp', ...INERT_DIM_SPEC_KEYS, 'inherit'])
 
 // Every top-level field a definition may carry. The lifecycle names and the
 // runtime state belong to JS definitions only: a Portable package is data

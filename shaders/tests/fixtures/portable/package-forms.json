@@ -200,6 +200,12 @@
       "expect": { "code": "invalid-declaration", "path": "passes.main" }
     },
     {
+      "id": "pass-viewport-input-override", "kind": "negative", "covers": ["pass:viewport"],
+      "definition": { "passes": { "main": { "program": "main", "viewport": { "width": { "param": "volumeSize", "default": 32, "inputOverride": "inputTex3d" } }, "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
+      "shaders": { "main": ["glsl", "wgsl"] },
+      "expect": { "code": "unsupported-field", "path": "passes.main.viewport.width.inputOverride" }
+    },
+    {
       "id": "pass-viewport-word", "kind": "negative", "covers": ["pass:viewport"],
       "definition": { "passes": { "main": { "program": "main", "viewport": "all", "inputs": {}, "outputs": { "fragColor": "outputTex" } } } },
       "shaders": { "main": ["glsl", "wgsl"] },

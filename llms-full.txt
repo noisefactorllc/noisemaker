@@ -2294,7 +2294,8 @@ taking priority. `clear` reaches the WebGPU render-pass loadOp and
 `samplerTypes` the WebGPU per-binding sampler selection. `name` and `type`
 are queryable pass labels: backend shader-kind dispatch remains
 source-derived, so `type` has no behavioral consumer on the expanded pass.
-`inputOverride` on dimension specs is accepted but unconsumed.
+Legacy definitions accept `inputOverride` on dimension specs and ignore it.
+Version 2 Portable packages report `unsupported-field` at the field's path.
 
 Sources: `shaders/src/runtime/pipeline.js` - `compilePrograms()`, `render()`,
 `shouldSkipPass()`; backend `executePass()` implementations;

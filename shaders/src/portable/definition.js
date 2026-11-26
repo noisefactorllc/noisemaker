@@ -27,7 +27,7 @@ const {
     PORTABLE_FORMAT, PORTABLE_VERSION, MARKER_KEYS, DECLARATIVE_TOP_LEVEL_KEYS,
     LIFECYCLE_KEYS, RUNTIME_STATE_KEYS, GLOBAL_SPEC_KEYS, GLOBAL_TYPES, UI_KEYS,
     UI_CONTROLS, PASS_KEYS, PASS_TYPES, DRAW_MODES, TEXTURE_SPEC_KEYS, FORMATS,
-    TEXTURE_FILTERS, RESERVED_KEYS, IDENTIFIER_PATTERN, INERT_PASS_KEYS, INERT_PIPELINE_INPUTS,
+    TEXTURE_FILTERS, RESERVED_KEYS, IDENTIFIER_PATTERN, INERT_PASS_KEYS, INERT_DIM_SPEC_KEYS, INERT_PIPELINE_INPUTS,
     CAPABILITY_ID_PATTERN, CAPABILITY_KEYS, BINDING_KINDS, PACKAGE_ONLY_KEYS,
 } = grammar
 
@@ -157,6 +157,18 @@ function checkGlobals(globals, diagnostics) {
     }
 }
 
+function checkSizeFields(spec, dimensions, path, diagnostics) {
+    for (const dimension of dimensions) {
+        const size = spec[dimension]
+        if (!isRecord(size)) continue
+        for (const key of INERT_DIM_SPEC_KEYS) {
+            if (!Object.hasOwn(size, key)) continue
+            const field = `${path}.${dimension}.${key}`
+            diagnostics.push(diagnostic('unsupported-field', field, `${field} has no effect on the resolved size. Remove this field.`))
+        }
+    }
+}
+
 function checkTextures(textures, field, diagnostics) {
     if (textures === undefined) return
     if (!isRecord(textures)) {
@@ -170,6 +182,7 @@ function checkTextures(textures, field, diagnostics) {
             continue
         }
         unknownFields(spec, TEXTURE_SPEC_KEYS, path, diagnostics)
+        checkSizeFields(spec, ['width', 'height', 'depth'], path, diagnostics)
         checkEnum(spec.format, FORMATS, `${path}.format`, diagnostics)
         checkEnum(spec.filter, TEXTURE_FILTERS, `${path}.filter`, diagnostics)
     }
@@ -317,6 +330,7 @@ function normalizePasses(passes, diagnostics) {
             continue
         }
         unknownFields(pass, PASS_KEYS, path, diagnostics)
+        if (isRecord(pass.viewport)) checkSizeFields(pass.viewport, ['width', 'height'], `${path}.viewport`, diagnostics)
         for (const key of INERT_PASS_KEYS) {
             if (pass[key] !== undefined) {
                 diagnostics.push(diagnostic('unsupported-field', `${path}.${key}`,

@@ -560,7 +560,6 @@
             "screenDivide": {},
             "scale": {},
             "clamp": {},
-            "inputOverride": {},
             "inherit": {}
           },
           "additionalProperties": false

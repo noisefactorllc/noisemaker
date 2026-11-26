@@ -47,7 +47,9 @@ const dimension = {
         { type: 'number', exclusiveMinimum: 0 },
         { enum: [...grammar.DIM_KEYWORDS] },
         { type: 'string', pattern: '^[0-9]+(\\.[0-9]+)?%$' },
-        closedObject(grammar.DIM_SPEC_KEYS, { param: { type: 'string', minLength: 1 }, power: NUMBER, multiply: NUMBER }),
+        closedObject(grammar.DIM_SPEC_KEYS.filter(key => !grammar.INERT_DIM_SPEC_KEYS.includes(key)), {
+            param: { type: 'string', minLength: 1 }, power: NUMBER, multiply: NUMBER,
+        }),
     ],
 }
 

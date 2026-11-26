@@ -1261,12 +1261,11 @@ Limitations:
   work, as the built-in volume effects do with their atlas.
 - Vertex data comes only from textures: the particle state, the mesh
   surfaces or the pass's own inputs. A package has no vertex buffers.
-- Some fields have no effect, and version 2 refuses them with the diagnostic
-  code ``unsupported-field``: ``storageBuffers``, a uniform name in
-  ``workgroups``, and the ``noise`` pipeline input, which nothing writes, so
-  it always reads blank. A legacy definition still loads with them.
-- ``inputOverride`` in a size object has no effect either. Version 2 accepts
-  it, because built-in definitions carry it.
+- Version 2 reports ``unsupported-field`` for ``inputOverride`` in texture or
+  viewport size objects, for ``storageBuffers``, and for uniform names in
+  ``workgroups``. These declarations have no effect. The same diagnostic
+  applies to the ``noise`` pipeline input, which always reads blank because
+  nothing writes it. Legacy definitions still load with these fields.
 - Version 2 does not accept the top-level ``outputXyz``, ``outputVel``,
   ``outputRgba`` and ``outputTex`` fields. An effect made from a declaration
   does not carry them yet, so they would not hand anything on. A package hands
