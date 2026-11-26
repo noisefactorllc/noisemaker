@@ -43,6 +43,7 @@ import {
     runsTarget,
     perfBudget,
     pinPath,
+    recordEffects,
     pinTargets,
     RENDER_CASES_RELATIVE,
     rewriteEffects,
@@ -333,6 +334,27 @@ test('a difference from the published list passes only when explainedDifferences
     const notOnMain = structuredClone(next)
     notOnMain.explainedDifferences.at(-1).commit = UNKNOWN_COMMIT
     assert.ok(compareCatalog(notOnMain, mutated, withoutMergeBase).some(problem => problem.includes(`names ${UNKNOWN_COMMIT}`)))
+})
+
+test('an explainedDifferences entry has no source, or the source "runtime"', () => {
+    const entry = baseline.explainedDifferences.find(old => old.source === 'runtime')
+    assert.ok(entry, 'the baseline records a definition runtime change')
+    assert.deepEqual(compareCatalog(baseline, copy(), context()), [])
+    const unknown = structuredClone(baseline)
+    unknown.explainedDifferences.find(old => old.source === 'runtime').source = 'loader'
+    assert.deepEqual(compareCatalog(unknown, copy(), context()),
+        [`explainedDifferences entry for ${entry.effectId} has an unknown source "loader"`])
+})
+
+// The record refuses these before it checks the tree or writes the baseline.
+test('the record refuses a commit that changes neither the effect nor the definition runtime, and a runtime commit that leaves the effect alone', async () => {
+    const sha = short => execFileSync('git', ['-C', REPO_ROOT, 'rev-parse', `${short}^{commit}`], { encoding: 'utf8' }).trim()
+    const unrelated = sha('4c3c599d')
+    await assert.rejects(() => recordEffects(REPO_ROOT, { ids: ['points/attractor'], commit: unrelated }),
+        { message: `${unrelated} changes nothing under shaders/effects/points/attractor/ nor in the definition runtime (shaders/src/runtime/effect.js, shaders/src/renderer/canvas.js)` })
+    const noChange = sha('726ee22d')
+    await assert.rejects(() => recordEffects(REPO_ROOT, { ids: ['points/attractor'], commit: noChange }),
+        { message: `${noChange} changes the definition runtime, but not the metadata of points/attractor` })
 })
 
 test('until the migration is closed, the IDs must equal the merge base\'s; once closed, a 2.x commit needs a reason', () => {

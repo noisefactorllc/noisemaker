@@ -50,8 +50,8 @@ export const LINE_REF = 'origin/2.x'
 
 const CHANGES = ['added', 'removed', 'changed']
 
-function git(repo, args) {
-    return execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+function git(repo, args, env = process.env) {
+    return execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, env })
 }
 
 /** True when `ancestor` is an ancestor of (or equal to) `descendant`. */
@@ -192,9 +192,9 @@ function asStored(value) {
 }
 
 /** Where an effect's definition, shaders and help are attached: its tracked files. */
-function effectFiles(repo, id) {
+function effectFiles(repo, id, env) {
     const prefix = `shaders/effects/${id}/`
-    return git(repo, ['ls-files', '--', prefix]).split('\n').filter(Boolean)
+    return git(repo, ['ls-files', '--', prefix], env).split('\n').filter(Boolean)
         .map(file => file.slice(prefix.length))
         .filter(file => !PARITY_FILES.has(file))
         .sort(compareIds)
@@ -205,7 +205,7 @@ function effectFiles(repo, id) {
  * the renderer does. An ID that does not load or register fails the run.
  * Returns the export kinds and the metadata snapshots, in ID order.
  */
-export async function loadCatalog(repo, ids) {
+export async function loadCatalog(repo, ids, { gitEnv } = {}) {
     const engine = await loadEngine(repo)
     const renderer = new engine.CanvasRenderer({ basePath: pathToFileURL(path.join(repo, 'shaders')).href })
     const manifest = readManifest(repo)
@@ -226,7 +226,7 @@ export async function loadCatalog(repo, ids) {
             } finally {
                 console.error = quiet
             }
-            metadata[id] = asStored(metadataSnapshot({ id, effect, manifestEntry: manifest[id], files: effectFiles(repo, id), engine }))
+            metadata[id] = asStored(metadataSnapshot({ id, effect, manifestEntry: manifest[id], files: effectFiles(repo, id, gitEnv), engine }))
             renderer.registerEffectWithRuntime(effect)
             if (engine.getEffect(id) !== effect.instance) throw new Error('the loader did not register it under its ID')
             exportKinds.push([id, kind])
@@ -414,6 +414,9 @@ export function compareCatalog(baseline, observed, context) {
     const entries = baseline.explainedDifferences || []
     for (const entry of entries) {
         if (!CHANGES.includes(entry.change)) problems.push(`explainedDifferences entry for ${entry.effectId} has an unknown change ${JSON.stringify(entry.change)}`)
+        if (entry.source !== undefined && !ENTRY_SOURCES.includes(entry.source)) {
+            problems.push(`explainedDifferences entry for ${entry.effectId} has an unknown source ${JSON.stringify(entry.source)}`)
+        }
         const on = context.commitOn(entry.commit)
         const accepted = on.main || (context.closed && on.line && typeof entry.reason === 'string' && entry.reason.trim() !== '')
         if (!accepted) {
@@ -578,7 +581,7 @@ export async function recordConsumers(repo, ids) {
  * HEAD, with an `explainedDifferences` entry for each that names `commit`.
  * A commit that is not on `origin/main` is a 2.x commit, and needs a reason.
  */
-export function rewriteEffects(baseline, { ids, commit, reason, onMain, present, exportKinds, metadata, sources = {} }) {
+export function rewriteEffects(baseline, { ids, commit, reason, onMain, present, exportKinds, metadata, sources = {}, keep = new Set() }) {
     if (!onMain && !(typeof reason === 'string' && reason.trim())) {
         throw new Error(`${commit} is a 2.x commit: --record --effects needs --reason <text>, the public reason of every entry it adds`)
     }
@@ -591,6 +594,8 @@ export function rewriteEffects(baseline, { ids, commit, reason, onMain, present,
     const next = structuredClone(baseline)
     const reference = new Set(next.referenceEffectIds)
     for (const id of ids) {
+        // An entry recorded already for this commit stays as it is, in its place.
+        if (keep.has(id)) continue
         const has = present.has(id)
         const ids = new Set(next.effectIds)
         if (has) ids.add(id)
@@ -628,44 +633,66 @@ export const DEFINITION_RUNTIME_SOURCES = Object.freeze(['shaders/src/runtime/ef
 // The trees the engine loads from: the catalog, the engine and what it imports.
 const ENGINE_TREE_PATHS = ['shaders', 'share', 'demo/shaders/lib']
 
+// The values an explainedDifferences entry's `source` may take. An entry with
+// no source names a commit that changed the effect's own directory.
+export const ENTRY_SOURCES = Object.freeze(['runtime'])
+
+/**
+ * An environment for git commands that must not see the caller's git state:
+ * no GIT_* variable (GIT_DIR, GIT_INDEX_FILE, GIT_DIFF_OPTS and the others),
+ * and no system, global or XDG configuration, ignore or attributes file.
+ */
+function isolatedGitEnv(home) {
+    const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')))
+    return { ...env, GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_NOSYSTEM: '1', HOME: home, XDG_CONFIG_HOME: home }
+}
+
+const ISOLATED_CONFIG = ['-c', 'core.excludesFile=', '-c', 'core.attributesFile=']
+
 /**
  * The metadata `commit` gives the listed effects through the definition
- * runtime alone, as `{ before, after }`: HEAD's tree with the commit's change to
- * DEFINITION_RUNTIME_SOURCES taken back, and HEAD's tree as it is. Refuses
- * when that change does not apply in reverse to HEAD.
+ * runtime alone, as `{ before, after }`. Both come from temporary copies of
+ * HEAD's committed tree: `after` as it is, `before` with the commit's change to
+ * DEFINITION_RUNTIME_SOURCES taken back. For a merge commit the change is its
+ * first-parent diff, as on the effect-directory path. When that change does not
+ * apply in reverse to HEAD, this throws: nothing is loaded from a partial tree.
  */
 export async function runtimeMetadata(repo, commit, ids) {
-    // The temporary trees are repositories of their own: no GIT_* variable or
-    // user configuration of the caller may reach the commands run in them.
-    const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')))
-    Object.assign(env, { GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_NOSYSTEM: '1' })
-    const inTree = (tree, args, input) => spawnSync('git', ['-c', 'core.excludesFile=', ...args], { cwd: tree, env, input })
     const scratch = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'portable-runtime-'))
     try {
+        const home = path.join(scratch, 'home')
+        fs.mkdirSync(home)
+        const env = isolatedGitEnv(home)
+        const run = (cwd, args, input) => {
+            const result = spawnSync('git', [...ISOLATED_CONFIG, ...args], { cwd, env, input, maxBuffer: 1 << 30 })
+            if (result.status !== 0) throw Object.assign(new Error(`git ${args[0]} failed: ${result.stderr}`), { stderr: String(result.stderr) })
+            return result.stdout
+        }
+        const parents = run(repo, ['rev-list', '--parents', '-n', '1', commit]).toString().trim().split(' ').slice(1)
+        if (!parents.length) throw new Error(`${commit} is a root commit: it has no earlier definition runtime to compare with`)
+        const change = run(repo, ['-c', 'diff.noprefix=false', '-c', 'diff.mnemonicPrefix=false', 'diff', '--no-color', '--no-ext-diff', '--no-textconv',
+            '--unified=3', '--src-prefix=a/', '--dst-prefix=b/', parents[0], commit, '--', ...DEFINITION_RUNTIME_SOURCES])
         const trees = {}
         for (const side of ['before', 'after']) {
             const tree = path.join(scratch, side)
             fs.mkdirSync(tree)
-            const archive = spawnSync('git', ['-C', repo, 'archive', '--format=tar', 'HEAD', '--', ...ENGINE_TREE_PATHS], { maxBuffer: 1 << 30 })
-            if (archive.status !== 0) throw new Error(`git archive failed: ${archive.stderr}`)
-            const extract = spawnSync('tar', ['-x', '-C', tree], { input: archive.stdout })
+            const archive = run(repo, ['archive', '--format=tar', 'HEAD', '--', ...ENGINE_TREE_PATHS])
+            const extract = spawnSync('tar', ['-x', '-C', tree], { input: archive })
             if (extract.status !== 0) throw new Error(`tar failed: ${extract.stderr}`)
             // The catalog lists an effect's files from the git index.
-            for (const args of [['init', '-q', '--template='], ['add', '-A', '-f']]) {
-                const run = inTree(tree, args)
-                if (run.status !== 0) throw new Error(`git ${args[0]} failed: ${run.stderr}`)
-            }
+            run(tree, ['init', '-q', '--template='])
+            run(tree, ['add', '-A', '-f'])
             trees[side] = tree
         }
-        const parents = git(repo, ['rev-list', '--parents', '-n', '1', commit]).trim().split(' ').slice(1)
-        if (!parents.length) throw new Error(`${commit} is a root commit: it has no earlier definition runtime to compare with`)
-        const change = git(repo, ['-c', 'diff.noprefix=false', '-c', 'diff.mnemonicPrefix=false', 'diff', '--no-color', '--no-ext-diff', '--no-textconv',
-            '--src-prefix=a/', '--dst-prefix=b/', parents[0], commit, '--', ...DEFINITION_RUNTIME_SOURCES])
-        const reverse = inTree(trees.before, ['apply', '-R', '--whitespace=nowarn', '-'], change)
-        if (reverse.status !== 0) {
-            throw new Error(`${commit}'s change to the definition runtime does not apply in reverse to HEAD:\n${reverse.stderr}`)
+        try {
+            run(trees.before, ['apply', '-R', '--whitespace=nowarn', '-'], change)
+        } catch (err) {
+            throw new Error(`${commit}'s change to the definition runtime does not apply in reverse to HEAD:\n${err.stderr}`)
         }
-        return { before: (await loadCatalog(trees.before, ids)).metadata, after: (await loadCatalog(trees.after, ids)).metadata }
+        return {
+            before: (await loadCatalog(trees.before, ids, { gitEnv: env })).metadata,
+            after: (await loadCatalog(trees.after, ids, { gitEnv: env })).metadata,
+        }
     } finally {
         fs.rmSync(scratch, { recursive: true, force: true })
     }
@@ -676,7 +703,6 @@ export async function recordEffects(repo, { ids, commit, reason }) {
     if (!ids.length) throw new Error('--effects needs at least one effect ID')
     if (!/^[0-9a-f]{40}$/.test(commit || '')) throw new Error('--commit needs a full 40-character commit SHA')
     if (!isAncestor(repo, commit, 'HEAD')) throw new Error(`${commit} is not an ancestor of HEAD`)
-    requireClean(repo)
     // The commit an entry names must be the one that changed that effect: in
     // the effect's own directory, or in the definition runtime, where the
     // change must account for the whole difference from the baseline.
@@ -684,40 +710,49 @@ export async function recordEffects(repo, { ids, commit, reason }) {
     const file = path.join(repo, BASELINE_RELATIVE)
     const baseline = readJson(file)
     const present = new Set(treeEffectIds(repo))
+    const known = new Set(baseline.effectIds)
     const throughRuntime = []
     for (const id of ids) {
         if (changedPaths([`shaders/effects/${id}/`])) continue
-        // An effect the runtime changes is in the tree; rewriteEffects names one that is in neither.
-        if (!present.has(id)) continue
-        if (!changedPaths(DEFINITION_RUNTIME_SOURCES)) {
+        // rewriteEffects refuses an ID that neither the tree nor the baseline has.
+        if (!present.has(id) && !known.has(id)) continue
+        if (!present.has(id) || !changedPaths(DEFINITION_RUNTIME_SOURCES)) {
             throw new Error(`${commit} changes nothing under shaders/effects/${id}/ nor in the definition runtime (${DEFINITION_RUNTIME_SOURCES.join(', ')})`)
         }
         throughRuntime.push(id)
     }
     const loadable = ids.filter(id => present.has(id))
     const { exportKinds, metadata } = await loadCatalog(repo, loadable)
+    // Recording a runtime commit again, once its entry holds, changes nothing.
+    const keep = new Set()
+    for (const id of throughRuntime) {
+        const entry = (baseline.explainedDifferences || []).find(old => old.effectId === id && old.commit === commit && old.source === 'runtime')
+        if (!entry || !isDeepStrictEqual(baseline.metadata?.[id], metadata[id])) continue
+        if (reason !== undefined && reason !== null && reason.trim() !== entry.reason) {
+            throw new Error(`${id} is recorded already for ${commit} with another reason`)
+        }
+        keep.add(id)
+    }
     const sources = {}
-    if (throughRuntime.length) {
-        const { before, after } = await runtimeMetadata(repo, commit, throughRuntime)
-        for (const id of throughRuntime) {
-            // Recording the same commit again leaves its entry as it is.
-            const recorded = (baseline.explainedDifferences || []).some(entry => entry.effectId === id && entry.commit === commit && entry.source === 'runtime')
-            if (recorded && isDeepStrictEqual(baseline.metadata?.[id], after[id]) && isDeepStrictEqual(metadata[id], after[id])) {
-                sources[id] = 'runtime'
-                continue
-            }
+    const unrecorded = throughRuntime.filter(id => !keep.has(id))
+    if (unrecorded.length) {
+        const { before, after } = await runtimeMetadata(repo, commit, unrecorded)
+        for (const id of unrecorded) {
             if (isDeepStrictEqual(before[id], after[id])) {
                 throw new Error(`${commit} changes the definition runtime, but not the metadata of ${id}`)
             }
+            // `after` is HEAD's committed tree and `metadata` is the working
+            // tree's; requireClean below makes them the same, and this compares them.
             if (!isDeepStrictEqual(baseline.metadata?.[id], before[id]) || !isDeepStrictEqual(metadata[id], after[id])) {
                 throw new Error(`${commit}'s change to the definition runtime does not account for the whole difference of ${id} from the baseline`)
             }
             sources[id] = 'runtime'
         }
     }
+    requireClean(repo)
     const next = rewriteEffects(baseline, {
         ids, commit, reason, onMain: isAncestor(repo, commit, MAIN_REF), present,
-        exportKinds: new Map(exportKinds), metadata, sources,
+        exportKinds: new Map(exportKinds), metadata, sources, keep,
     })
     writeJson(file, next)
     const projectionsFile = path.join(repo, SHADE_PROJECTION_RELATIVE)
