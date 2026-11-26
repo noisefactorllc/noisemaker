@@ -190,6 +190,10 @@ export function loadPortablePackage(files, { backend, capabilityDescriptors = []
     if (backend !== undefined && !Object.hasOwn(BACKEND_LANGUAGE, backend)) {
         return failed([diagnostic('unsupported-backend', '', `backend must be ${Object.keys(BACKEND_LANGUAGE).join(' or ')}`)])
     }
+    const given = capabilityDescriptors ?? []
+    if (!Array.isArray(given)) {
+        return failed([diagnostic('invalid-value', 'capabilityDescriptors', 'capabilityDescriptors must be a list of capability descriptors')])
+    }
     const read = readFileMap(files)
     if (!read.files) return failed(read.diagnostics)
 
@@ -213,14 +217,19 @@ export function loadPortablePackage(files, { backend, capabilityDescriptors = []
         if (help === null) diagnostics.push(diagnostic('invalid-encoding', HELP, `${HELP} must be UTF-8`))
     }
 
+    // A version 2 package (one with a format marker) carries its capability
+    // descriptors under capabilities/. A legacy package has no capabilities,
+    // and keeps every file there as an asset, as before.
+    const versioned = declared !== null && typeof declared === 'object' && !Array.isArray(declared) && declared.format !== undefined
     const shaders = {}
     const assets = new Map()
     const carried = []
+    const descriptorDiagnostics = []
     for (const [path, bytes] of read.files) {
         if (path === DEFINITION || path === HELP) continue
-        if (path.startsWith(DESCRIPTOR_DIRECTORY)) {
-            const descriptor = readDescriptorFile(path, bytes, diagnostics)
-            if (descriptor) carried.push(descriptor)
+        if (versioned && path.startsWith(DESCRIPTOR_DIRECTORY)) {
+            const descriptor = readDescriptorFile(path, bytes, descriptorDiagnostics)
+            if (descriptor) carried.push({ path, descriptor })
             continue
         }
         const stage = stageOf(path)
@@ -250,11 +259,22 @@ export function loadPortablePackage(files, { backend, capabilityDescriptors = []
     if (diagnostics.length > 0) return failed(diagnostics)
 
     const normalized = normalizePortableDefinition(declared)
-    if (normalized.diagnostics.length > 0) return failed(normalized.diagnostics, normalized.profile)
+    if (normalized.diagnostics.length > 0) return failed([...normalized.diagnostics, ...descriptorDiagnostics], normalized.profile)
+    if (descriptorDiagnostics.length > 0) return failed(descriptorDiagnostics, normalized.profile)
     const passes = Array.isArray(normalized.definition.passes) ? normalized.definition.passes : null
     if (!passes || passes.length === 0) {
         return failed([diagnostic('missing-field', 'passes', 'a package declares its passes; each names the program it runs')], normalized.profile)
     }
+
+    // The declarations, against the descriptors the caller gave and those the
+    // package carries, which must agree where both describe one capability.
+    // A declaration with no descriptor here passes the structural check only,
+    // and the result says so. A legacy package declares none, and the
+    // descriptors given are still read.
+    const descriptorList = [...given, ...carried.map(entry => entry.descriptor)]
+    const pathOf = index => (index < given.length ? `capabilityDescriptors.${index}` : carried[index - given.length].path)
+    const checked = checkCapabilityDeclarations(normalized.profile === 'v2' ? normalized.definition : null, descriptorList, pathOf)
+    if (checked.diagnostics.length > 0) return failed(checked.diagnostics, normalized.profile)
 
     for (const [program, stages] of Object.entries(shaders)) {
         if (stages.glsl && (stages.vertex || stages.fragment)) {
@@ -301,20 +321,10 @@ export function loadPortablePackage(files, { backend, capabilityDescriptors = []
     }
     if (diagnostics.length > 0) return failed(diagnostics, normalized.profile)
 
-    // The declarations, against the descriptors the caller gave and those the
-    // package carries. A declaration with no descriptor here passes the
-    // structural check only, and the result says so.
-    // A legacy package is read as before, and has no capability declarations.
-    const descriptors = [...(Array.isArray(capabilityDescriptors) ? capabilityDescriptors : [capabilityDescriptors]), ...carried]
-    const checked = normalized.profile === 'v2'
-        ? checkCapabilityDeclarations(normalized.definition, descriptors)
-        : { diagnostics: [], complete: true, unresolved: [] }
-    if (checked.diagnostics.length > 0) return failed(checked.diagnostics, normalized.profile)
-
     return {
         profile: normalized.profile, definition: declared, shaders, assets, help, files: read.files,
         capabilities: { complete: checked.complete, unresolved: checked.unresolved },
-        capabilityDescriptors: descriptors.map(descriptor => structuredClone(descriptor)),
+        capabilityDescriptors: checked.descriptors,
         diagnostics: [],
     }
 }

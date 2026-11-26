@@ -552,6 +552,7 @@
       ]
     },
     "capability": {
+      "description": "A capability declaration. This schema checks its structure only. Its options and bindings are checked against the capability's descriptor, which this schema does not hold, so a check with the schema alone is incomplete. The runtime also refuses an ID declared twice, and a binding to a global or texture the package does not declare.",
       "type": "object",
       "properties": {
         "id": {

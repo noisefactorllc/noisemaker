@@ -2389,8 +2389,9 @@ export class CanvasRenderer {
         definition = normalized.definition
         // A declared capability is behavior the effect needs from the host. No
         // provider can be registered with this core, so the package is refused
-        // rather than registered without that behavior.
-        if (Array.isArray(definition.capabilities) && definition.capabilities.length > 0) {
+        // rather than registered without that behavior. A legacy package has
+        // no capabilities, and registers as before.
+        if (normalized.profile === 'v2' && Array.isArray(definition.capabilities) && definition.capabilities.length > 0) {
             const [first] = definition.capabilities
             const message = `no provider is registered for capability ${first.id} version ${first.version}`
             const error = new Error(`Portable effect: ${message} (capabilities.0)`)

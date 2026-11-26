@@ -28,7 +28,7 @@ const {
     LIFECYCLE_KEYS, RUNTIME_STATE_KEYS, GLOBAL_SPEC_KEYS, GLOBAL_TYPES, UI_KEYS,
     UI_CONTROLS, PASS_KEYS, PASS_TYPES, DRAW_MODES, TEXTURE_SPEC_KEYS, FORMATS,
     TEXTURE_FILTERS, RESERVED_KEYS, IDENTIFIER_PATTERN, INERT_PASS_KEYS, INERT_PIPELINE_INPUTS,
-    CAPABILITY_ID_PATTERN, CAPABILITY_KEYS, BINDING_KINDS,
+    CAPABILITY_ID_PATTERN, CAPABILITY_KEYS, BINDING_KINDS, PACKAGE_ONLY_KEYS,
 } = grammar
 
 const IDENTIFIER = new RegExp(IDENTIFIER_PATTERN)
@@ -57,14 +57,8 @@ function join(path, key) {
     return path ? `${path}.${key}` : String(key)
 }
 
-/**
- * Report reserved keys and executable values (functions and function source)
- * at any depth of a value that must be data.
- * @param {*} value
- * @param {string} path - The value's path, for the diagnostics
- * @param {Array} diagnostics - Receives a diagnostic for each finding
- */
-export function scanValues(value, path, diagnostics, seen = new Set()) {
+// Reserved keys and executable values, at any depth.
+function scanValues(value, path, diagnostics, seen = new Set()) {
     if (typeof value === 'function') {
         diagnostics.push(diagnostic('function-value', path, `${path || 'the package'} is a function; a package holds data only`))
         return
@@ -103,18 +97,18 @@ function editDistance(a, b) {
 }
 
 // "is not a field", with the nearest known field when one is close.
-function unknownFieldMessage(path, key, known) {
+function unknownFieldMessage(path, key, known, of = 'a version 2 package') {
     const nearest = known
         .map((candidate) => [candidate, editDistance(key.toLowerCase(), candidate.toLowerCase())])
         .filter(([, distance]) => distance <= 2)
         .sort((x, y) => x[1] - y[1])[0]
-    return `${path} is not a field of a version 2 package${nearest ? `; did you mean ${nearest[0]}?` : ''}`
+    return `${path} is not a field of ${of}${nearest ? `; did you mean ${nearest[0]}?` : ''}`
 }
 
-function unknownFields(value, known, path, diagnostics) {
+function unknownFields(value, known, path, diagnostics, of) {
     for (const key of Object.keys(value)) {
         if (!known.includes(key) && !RESERVED_KEYS.includes(key)) {
-            diagnostics.push(diagnostic('unknown-field', join(path, key), unknownFieldMessage(join(path, key), key, known)))
+            diagnostics.push(diagnostic('unknown-field', join(path, key), unknownFieldMessage(join(path, key), key, known, of)))
         }
     }
 }
@@ -195,7 +189,7 @@ function checkCapabilities(capabilities, declared, diagnostics) {
             diagnostics.push(diagnostic('invalid-value', path, `${path} must be a capability declaration object`))
             return
         }
-        unknownFields(entry, CAPABILITY_KEYS, path, diagnostics)
+        unknownFields(entry, CAPABILITY_KEYS, path, diagnostics, 'a capability declaration')
         if (entry.id === undefined) {
             diagnostics.push(diagnostic('missing-field', `${path}.id`, `${path}.id is required: the capability's <owner>/<name>`))
         } else if (typeof entry.id !== 'string' || !CAPABILITY_ID.test(entry.id)) {
@@ -219,7 +213,7 @@ function checkCapabilities(capabilities, declared, diagnostics) {
             diagnostics.push(diagnostic('invalid-value', `${path}.bindings`, `${path}.bindings must be an object`))
             return
         }
-        unknownFields(entry.bindings, BINDING_KINDS, `${path}.bindings`, diagnostics)
+        unknownFields(entry.bindings, BINDING_KINDS, `${path}.bindings`, diagnostics, 'capability bindings')
         for (const kind of BINDING_KINDS) {
             const roles = entry.bindings[kind]
             if (roles === undefined) continue
@@ -363,8 +357,9 @@ export function normalizePortableDefinition(pkg, { loadedShaders = false } = {})
     if (diagnostics.length > 0) return { profile: 'v2', definition: null, diagnostics }
 
     const definition = { ...omit(declared, MARKER_KEYS), passes }
-    // starter is a package field that registration reads; an effect definition has none.
-    for (const message of validateEffectDefinition(omit(definition, ['starter']))) {
+    // starter and capabilities are package fields that registration reads; an
+    // effect definition has neither.
+    for (const message of validateEffectDefinition(omit(definition, ['starter', ...PACKAGE_ONLY_KEYS]))) {
         const pass = /^Pass (\d+)((?:\.[A-Za-z]+)*)(?:: | )(.*)$/s.exec(message)
         const name = pass ? passes[Number(pass[1])]?.name : undefined
         const global = /^Global '([^']+)': (.*)$/s.exec(message)

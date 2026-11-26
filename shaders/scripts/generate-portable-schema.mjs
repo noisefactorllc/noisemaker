@@ -124,6 +124,9 @@ export function buildPortableSchema() {
     // bindings is stated by the capability's descriptor, not by this schema.
     const roleMap = { type: 'object', propertyNames: { pattern: grammar.IDENTIFIER_PATTERN }, additionalProperties: NAME }
     const capability = {
+        description: 'A capability declaration. This schema checks its structure only. Its options and bindings are checked ' +
+            'against the capability\'s descriptor, which this schema does not hold, so a check with the schema alone is incomplete. ' +
+            'The runtime also refuses an ID declared twice, and a binding to a global or texture the package does not declare.',
         ...closedObject(grammar.CAPABILITY_KEYS, {
             id: { type: 'string', pattern: grammar.CAPABILITY_ID_PATTERN },
             version: POSITIVE_INTEGER,

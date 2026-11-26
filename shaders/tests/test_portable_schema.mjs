@@ -318,6 +318,13 @@ const AGREEMENT = {
     'an unknown capability field': { ...minimal(), capabilities: [{ id: 'example/pulse', version: 1, provider: 'pulse.js' }] },
     'an unknown binding kind': { ...minimal(), capabilities: [{ id: 'example/pulse', version: 1, bindings: { meshes: {} } }] },
     'options that are not an object': { ...minimal(), capabilities: [{ id: 'example/pulse', version: 1, options: [2] }] },
+    'an empty list of capabilities': { ...minimal(), capabilities: [] },
+    'a texture binding': {
+        ...minimal(),
+        textures: { _overlay: { width: 'screen', height: 'screen', format: 'rgba8' } },
+        capabilities: [{ id: 'example/pulse', version: 1, bindings: { textures: { target: '_overlay' } } }],
+    },
+    'a texture role bound to a number': { ...minimal(), capabilities: [{ id: 'example/pulse', version: 1, bindings: { textures: { target: 3 } } }] },
 }
 
 test('the schema and the normalizer agree', () => {

@@ -20,6 +20,7 @@ import { normalizePortableDefinition } from '../src/portable/definition.js'
 import { checkCapabilityDeclarations, normalizeCapabilityDescriptor } from '../src/portable/descriptor.js'
 import { loadPortablePackage } from '../src/portable/package.js'
 import { PORTABLE_FORMAT, PORTABLE_VERSION } from '../src/portable/grammar.js'
+import { validateEffectDefinition } from '../src/runtime/effect-validator.js'
 
 const FRAGMENT = '#version 300 es\nprecision highp float;\nuniform sampler2D inputTex;\nuniform sampler2D overlayTex;\nout vec4 fragColor;\nvoid main() { fragColor = texelFetch(overlayTex, ivec2(gl_FragCoord.xy), 0); }\n'
 
@@ -73,7 +74,11 @@ const descriptor = (overrides = {}) => ({
 })
 
 const codes = result => result.diagnostics.map(entry => entry.code)
-const paths = result => result.diagnostics.map(entry => entry.path)
+// One diagnostic with both the code and the path.
+function has(result, code, path) {
+    assert.ok(result.diagnostics.some(entry => entry.code === code && entry.path === path),
+        `expected ${code} at ${path}, got ${JSON.stringify(result.diagnostics.map(entry => [entry.code, entry.path]))}`)
+}
 const encoder = new TextEncoder()
 const files = map => new Map(Object.entries(map).map(([name, value]) => [name, encoder.encode(typeof value === 'string' ? value : JSON.stringify(value))]))
 
@@ -110,8 +115,7 @@ test('a malformed capability declaration is refused at its path', () => {
     for (const [overrides, code, path] of cases) {
         const result = normalizePortableDefinition(pkg(overrides))
         assert.equal(result.definition, null, `${path} ${code}: refused`)
-        assert.ok(codes(result).includes(code), `${path}: expected ${code}, got ${JSON.stringify(result.diagnostics)}`)
-        assert.ok(paths(result).includes(path), `${code}: expected the path ${path}, got ${JSON.stringify(paths(result))}`)
+        has(result, code, path)
     }
 })
 
@@ -138,8 +142,7 @@ test('a descriptor is data: it normalizes, and a malformed one is refused at its
     for (const [raw, code, path] of cases) {
         const result = normalizeCapabilityDescriptor(raw)
         assert.equal(result.descriptor, null, `${path} ${code}: refused`)
-        assert.ok(codes(result).includes(code), `${path}: expected ${code}, got ${JSON.stringify(result.diagnostics)}`)
-        assert.ok(paths(result).includes(path), `${code}: expected the path ${path}, got ${JSON.stringify(paths(result))}`)
+        has(result, code, path)
     }
     assert.equal(called, 0, 'normalizing a descriptor calls nothing in it')
 })
@@ -168,8 +171,7 @@ test('declarations are checked against descriptors, running no provider code', (
     ]
     for (const [declaration, code, path] of cases) {
         const result = check(declaration)
-        assert.ok(codes(result).includes(code), `${path}: expected ${code}, got ${JSON.stringify(result.diagnostics)}`)
-        assert.ok(paths(result).includes(path), `${code}: expected the path ${path}, got ${JSON.stringify(paths(result))}`)
+        has(result, code, path)
     }
 })
 
@@ -217,4 +219,87 @@ test('a package loads its descriptors from package files or from the caller, and
     const badOption = loadPortablePackage(files({ ...base, 'definition.json': pkg({ capabilities: [{ ...pkg().capabilities[0], options: { count: 99 } }] }) }),
         { capabilityDescriptors: [descriptor()] })
     assert.ok(codes(badOption).includes('invalid-option'))
+    assert.deepEqual(loadPortablePackage(files(base), { capabilityDescriptors: null }).diagnostics, [], 'no descriptors is an empty list')
+})
+
+test('a descriptor is read through its data properties only: an accessor, a symbol or an object of another kind is refused, and nothing is called', () => {
+    let reads = 0
+    const withGetter = descriptor()
+    Object.defineProperty(withGetter, 'description', { enumerable: true, get() { reads++; return 'drawn' } })
+    has(normalizeCapabilityDescriptor(withGetter), 'accessor-value', 'description')
+    assert.equal(reads, 0, 'the getter is never called')
+    has(normalizeCapabilityDescriptor(descriptor({ options: { style: { type: 'string', enum: [Symbol('soft')] } } })), 'invalid-value', 'options.style.enum.0')
+    has(normalizeCapabilityDescriptor(descriptor({ options: new Map() })), 'invalid-value', 'options')
+    has(normalizeCapabilityDescriptor(descriptor({ version: Infinity })), 'invalid-value', 'version')
+    const looped = descriptor()
+    looped.options.self = looped.options
+    has(normalizeCapabilityDescriptor(looped), 'invalid-value', 'options.self')
+    const read = normalizeCapabilityDescriptor(descriptor())
+    assert.notEqual(read.descriptor.options, descriptor().options, 'the descriptor read is a copy')
+    assert.deepEqual(read.descriptor, descriptor())
+})
+
+test('an option schema is checked as the values it describes will be', () => {
+    const option = schema => normalizeCapabilityDescriptor(descriptor({ options: { value: schema } }))
+    has(option({ type: 'string', minimum: 3 }), 'invalid-value', 'options.value.minimum')
+    has(option({ type: 'integer', minimum: 5, maximum: 2 }), 'invalid-value', 'options.value.minimum')
+    has(option({ type: 'number', enum: ['a'] }), 'invalid-value', 'options.value.enum.0')
+    has(option({ type: 'object', properties: { '2nd': { type: 'number' } } }), 'invalid-name', 'options.value.properties.2nd')
+    has(normalizeCapabilityDescriptor(descriptor({ methods: ['setStripeCount', 'setStripeCount'] })), 'duplicate-name', 'methods.1')
+    has(normalizeCapabilityDescriptor(descriptor({ methods: ['capabilities'] })), 'invalid-name', 'methods.0')
+    has(normalizeCapabilityDescriptor(descriptor({ dependencies: { parameters: ['seed', 'seed'], resources: [] } })), 'duplicate-name', 'dependencies.parameters.1')
+    // An enum compares values whatever the order of their keys.
+    const keyed = descriptor({ options: { count: { type: 'integer' }, shape: { type: 'object', properties: { a: { type: 'number' }, b: { type: 'number' } }, enum: [{ a: 1, b: 2 }] } } })
+    const definition = normalizePortableDefinition(pkg({ capabilities: [{ ...pkg().capabilities[0], options: { count: 2, shape: { b: 2, a: 1 } } }] })).definition
+    assert.deepEqual(checkCapabilityDeclarations(definition, [keyed]).diagnostics, [])
+})
+
+test('a list of descriptors: one capability described twice is accepted when the two agree, refused when they differ', () => {
+    const definition = normalizePortableDefinition(pkg()).definition
+    assert.deepEqual(checkCapabilityDeclarations(definition, [descriptor(), descriptor()]).diagnostics, [])
+    has(checkCapabilityDeclarations(definition, [descriptor(), descriptor({ description: 'other' })]), 'conflicting-descriptor', 'capabilityDescriptors.1')
+    has(checkCapabilityDeclarations(definition, ['not a descriptor']), 'invalid-value', 'capabilityDescriptors.0')
+
+    const base = { 'definition.json': pkg(), 'glsl/blend.glsl': FRAGMENT, 'capabilities/example/stripes/v1.json': descriptor() }
+    const agreeing = loadPortablePackage(files(base), { capabilityDescriptors: [descriptor()] })
+    assert.deepEqual(agreeing.diagnostics, [], 'the package carries the descriptor that the host gives')
+    assert.deepEqual(agreeing.capabilityDescriptors, [descriptor()], 'the result holds each descriptor once, as read')
+    const differing = loadPortablePackage(files(base), { capabilityDescriptors: [descriptor({ description: 'the host\'s' })] })
+    has(differing, 'conflicting-descriptor', 'capabilities/example/stripes/v1.json')
+    assert.match(differing.diagnostics[0].message, /capabilityDescriptors\.0/, 'the message names the descriptor it differs from')
+})
+
+test('a package reports its definition and its descriptor files together, the definition first', () => {
+    const result = loadPortablePackage(files({
+        'definition.json': pkg({ colour: 'red' }),
+        'glsl/blend.glsl': FRAGMENT,
+        'capabilities/example/stripes.json': descriptor(),
+    }))
+    assert.equal(result.profile, 'v2')
+    assert.deepEqual(result.diagnostics.map(entry => [entry.code, entry.path]),
+        [['unknown-field', 'colour'], ['invalid-descriptor', 'capabilities/example/stripes.json']])
+})
+
+test('a legacy package and a JS definition are unchanged: capabilities belong to version 2 packages', async () => {
+    const legacy = {
+        'definition.json': { func: 'legacyIcons', passes: [{ program: 'blend', inputs: {}, outputs: { fragColor: 'outputTex' } }] },
+        'glsl/blend.glsl': FRAGMENT,
+        'capabilities/icon.png': 'png bytes',
+    }
+    const loaded = loadPortablePackage(files(legacy))
+    assert.deepEqual(loaded.diagnostics, [])
+    assert.equal(loaded.profile, 'legacy')
+    assert.ok(loaded.assets.has('capabilities/icon.png'), 'a legacy package keeps a file under capabilities/ as an asset')
+
+    const renderer = new CanvasRenderer()
+    await renderer.registerPortableEffect({
+        namespace: 'user', func: 'legacyCapabilityField', globals: {},
+        passes: [{ name: 'main', program: 'main', inputs: {}, outputs: { fragColor: 'outputTex' } }],
+        shaders: { main: { glsl: FRAGMENT } },
+        capabilities: [{ id: 'example/stripes', version: 1 }],
+    })
+    assert.ok(getEffect('user.legacyCapabilityField'), 'a legacy package registers as before')
+
+    const errors = validateEffectDefinition({ name: 'Plain', func: 'plain', passes: [{ program: 'p', inputs: {}, outputs: { fragColor: 'outputTex' } }], capabilities: [] })
+    assert.ok(errors.includes("Unknown definition field 'capabilities'"), `a JS definition declares no capabilities: ${JSON.stringify(errors)}`)
 })

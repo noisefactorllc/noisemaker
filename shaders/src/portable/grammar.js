@@ -106,7 +106,6 @@ export const TOP_LEVEL_KEYS = Object.freeze([
     'textures', 'textures3d', 'shaders', 'uniformLayout', 'uniformLayouts',
     'paramAliases', 'openCategories', 'defaultProgram', 'hidden', 'deprecatedBy',
     'externalTexture', 'externalMesh', 'builtinMeshes', 'outputTex3d', 'outputGeo',
-    'capabilities',
     'state', 'uniforms', 'onInit', 'onUpdate', 'onDestroy', 'asyncInit'
 ])
 
@@ -132,8 +131,13 @@ export const FEEDBACK_PREFIX = 'feedback_'
 // The shaders a host has loaded travel beside a package, not in it.
 export const MARKER_KEYS = Object.freeze(['format', 'version'])
 
-export const DECLARATIVE_TOP_LEVEL_KEYS = Object.freeze(TOP_LEVEL_KEYS.filter(key =>
-    !LIFECYCLE_KEYS.includes(key) && !RUNTIME_STATE_KEYS.includes(key) && key !== 'shaders' && key !== 'paramAliases'))
+// Fields that only a version 2 package has. A JS definition has its lifecycle
+// in code, so it declares no capabilities.
+export const PACKAGE_ONLY_KEYS = Object.freeze(['capabilities'])
+
+export const DECLARATIVE_TOP_LEVEL_KEYS = Object.freeze([...TOP_LEVEL_KEYS.filter(key =>
+    !LIFECYCLE_KEYS.includes(key) && !RUNTIME_STATE_KEYS.includes(key) && key !== 'shaders' && key !== 'paramAliases'),
+...PACKAGE_ONLY_KEYS])
 
 // A DSL identifier: the form of func, of a version 2 pass name, and of a global's name.
 export const IDENTIFIER_PATTERN = '^[A-Za-z_][A-Za-z0-9_]*$'

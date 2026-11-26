@@ -961,8 +961,9 @@ A package is a directory or ZIP archive:
 - ``help.md`` is optional documentation.
 - ``capabilities/<owner>/<name>/v<version>.json`` is the descriptor of a
   capability the package declares, as data (Section 8.10). Its path names its
-  own ID and version, and any other file under ``capabilities/`` is refused
-  (``invalid-descriptor``).
+  own ID and version. In a version 2 package, any other file under
+  ``capabilities/`` is refused (``invalid-descriptor``). A legacy package has
+  no capabilities, and keeps a file there as an asset.
 - Every other file is an asset. The package keeps its bytes, and a host
   uploads it, for example a mesh through ``loadOBJFromString()``. No pass
   binds an asset by declaration.
@@ -1139,7 +1140,8 @@ version, independent of these profiles.
      - array
      - ``[]``
      - Version 2 only. Capability declarations, in composition order
-       (Section 8.10)
+       (Section 8.10). A legacy package's ``capabilities`` field is not read,
+       and a JS definition has none.
 
 At least one of ``name`` and ``func`` must be present. When ``func`` is
 absent, ``name`` is the function name and must be a valid DSL identifier.
@@ -1389,7 +1391,7 @@ accepts. Its provider is the host's code that runs it.
 ``capabilities``, in the order the host composes them. Each declaration has
 these fields:
 
-- ``id`` and ``version``, both required.
+- ``id`` and ``version``, which are required.
 - ``options``: an object that the capability's descriptor describes.
 - ``bindings``: ``parameters`` maps each of the capability's parameter roles
   to a global of the package, and ``textures`` maps each texture role to a
@@ -1422,11 +1424,15 @@ bindings are data, under Section 8.8.
 
 - ``id`` and ``version``, the capability it describes.
 - ``description``, a string.
-- ``options``: each option's schema. A schema has a ``type`` (``number``,
-  ``integer``, ``string``, ``boolean``, ``object`` or ``array``) and may give
-  ``enum``, ``minimum``, ``maximum``, ``required`` and ``description``.
-  An ``object`` option lists its ``properties``, and accepts no other, and an
-  ``array`` option gives the schema of its ``items``.
+- ``options``: each option's schema, which is modelled on JSON Schema with
+  ``required`` as a flag on the option itself. A schema has a ``type``
+  (``number``, ``integer``, ``string``, ``boolean``, ``object`` or
+  ``array``) and may give ``enum``, whose values are of that type,
+  ``required`` and ``description``. A ``number`` or ``integer`` option may
+  give ``minimum`` and ``maximum``. An ``object`` option lists its
+  ``properties``, and accepts no other, and an ``array`` option gives the
+  schema of its ``items``. An ``enum`` compares values whatever the order of
+  their keys.
 - ``bindings``: for each role in ``parameters`` and ``textures``, whether a
   declaration must bind it (``required``). A parameter role also lists the
   global ``types`` it takes.
@@ -1439,6 +1445,9 @@ bindings are data, under Section 8.8.
 - ``methods``: the methods the capability adds to the effect. A method name
   is an identifier, and it cannot be a lifecycle hook or a field of an
   effect.
+
+A list of ``dependencies`` or ``methods`` names each entry once. A texture
+role binds a texture of the package's ``textures`` or ``textures3d``.
 
 .. code-block:: json
 
@@ -1462,10 +1471,12 @@ bindings are data, under Section 8.8.
    }
 
 ``normalizeCapabilityDescriptor()`` in ``shaders/src/portable/descriptor.js``
-reads a descriptor. It refuses a function or function source in it, an
-unknown field, and any field of another form. It also refuses a dependency
-on a role that ``bindings`` does not list. It calls nothing in the
-descriptor.
+reads a descriptor through its own data properties, and returns a copy. It
+refuses a function, function source, an accessor, a symbol and any value
+that is not JSON data (a plain object, an array, a string, a finite number,
+a boolean or ``null``), so it calls nothing the descriptor holds. It also
+refuses an unknown field, any field of another form, and a dependency on a
+role that ``bindings`` does not list.
 
 **Checking declarations.** ``checkCapabilityDeclarations(definition,
 descriptors)`` checks each declaration of a normalized definition against
@@ -1486,12 +1497,20 @@ A declaration whose ID has no descriptor passes the structural check only.
 The result is then incomplete: ``complete`` is false, and ``unresolved``
 names the declaration's ID and version. The check runs no provider code.
 
+The generated schema checks a declaration's structure only, so a check with
+the schema alone is incomplete in the same way. It also cannot state the
+refusal of an ID declared twice, or of a binding to a global or texture the
+package does not declare.
+
 ``loadPortablePackage()`` checks a package's declarations against the
 descriptors the package carries and those the caller gives in
 ``capabilityDescriptors``, and returns the result as ``capabilities``:
-``{ complete, unresolved }``.
+``{ complete, unresolved }``, with the descriptors read in
+``capabilityDescriptors``. One capability described twice is accepted when
+the two descriptors state the same data, and refused when they differ
+(``conflicting-descriptor``). The definition's diagnostics come before those
+of the descriptor files.
 
-**Registration.** A capability needs a provider, which only the host can
-register. ``registerPortableEffect()`` refuses a package that declares a
-capability that no registered provider serves (``missing-provider``), and
-changes no registry.
+**Registration.** This core has no way to register a provider, so
+``registerPortableEffect()`` refuses a version 2 package that declares a
+capability (``missing-provider``), and changes no registry.
