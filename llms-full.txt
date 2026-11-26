@@ -1988,9 +1988,9 @@ otherwise. A `global_`-prefixed reference resolves through the scope chain,
 and an
 effect-local reference scopes under the pass node and adds `storage` to that
 texture's usage. A pass that declares `storageTextures` but no `outputs` gets
-no `outputs` map. `extractTextureSpecs` allocates its storage targets that no
-effect declares, such as the pass node's own output texture, with `storage`
-usage.
+no `outputs` map. `extractTextureSpecs` gives each of its non-`global_` storage
+targets that no effect declares, such as the pass node's own output texture, a
+`graph.textures` spec with `storage` usage.
 
 Passes are appended in DSL plan order, effect-step order, and definition pass
 array order. Builtin read/write/blit passes are inserted at the point the
