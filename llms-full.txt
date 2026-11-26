@@ -2002,10 +2002,11 @@ ID. An `outputTex` reference resolves to the chain's write target when the
 chain writes at that point, and to the pass node's own output texture
 otherwise. A `global_`-prefixed reference resolves through the scope chain,
 and an
-effect-local reference scopes under the pass node and adds `storage` to that
-texture's usage. A pass that declares `storageTextures` but no `outputs` gets
-no `outputs` map, so allocation falls back from render outputs to storage
-outputs.
+effect-local reference scopes under the element's state key, as its sampled
+inputs and render outputs do (`id_<id>@<op>` for an element with an `_id:`), and
+adds `storage` to that texture's usage. A pass that declares `storageTextures`
+but no `outputs` gets no `outputs` map, so allocation falls back from render
+outputs to storage outputs.
 
 Passes are appended in DSL plan order, effect-step order, and definition pass
 array order. Builtin read/write/blit passes are inserted at the point the

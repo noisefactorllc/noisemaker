@@ -1194,7 +1194,7 @@ export function expand(compilationResult, options = {}) {
                         } else if (texRef.startsWith('global_')) {
                             pass.storageTextures[binding] = scopeChainTex(texRef)
                         } else {
-                            pass.storageTextures[binding] = `${nodeId}_${texRef}`
+                            pass.storageTextures[binding] = `${stateId}_${texRef}`
                             const storageSpec = textureSpecs[pass.storageTextures[binding]]
                             if (storageSpec) {
                                 storageSpec.usage = [...new Set([

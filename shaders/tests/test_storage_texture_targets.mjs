@@ -50,31 +50,35 @@ function definition(func, target) {
 }
 
 try {
-    for (const [func, target] of [['storageDirectProbe', 'outputTex'], ['storageNamedProbe', 'work']]) {
+    // An element with an `_id:` keys its effect-local textures by its state key, so its storage
+    // target must take the same key as the texture spec and the copy pass's input.
+    for (const [func, target, args] of [['storageDirectProbe', 'outputTex', ''], ['storageNamedProbe', 'work', ''],
+        ['storageNamedProbe', 'work', '_id: "probe"']]) {
+        const call = `${func}(${args})`
         const page = await browser.newPage({ viewport: { width: 64, height: 64 } })
         const diagnostics = []
         page.on('pageerror', error => diagnostics.push(error.message))
         page.on('console', message => { if (['warning', 'error'].includes(message.type())) diagnostics.push(message.text()) })
         await page.goto(`${baseUrl}/shaders/effects/manifest.json`)
         await page.setContent('<canvas width="64" height="64"></canvas>')
-        const result = await page.evaluate(async ({ baseUrl, raw, func, preferWebGPU }) => {
+        const result = await page.evaluate(async ({ baseUrl, raw, call, preferWebGPU }) => {
             const { CanvasRenderer } = await import(`${baseUrl}/shaders/src/index.js`)
             const canvas = document.querySelector('canvas')
             const renderer = new CanvasRenderer({ canvas, width: 64, height: 64,
                 basePath: `${baseUrl}/shaders`, preferWebGPU })
             await renderer.registerPortableEffect(raw)
-            await renderer.compile(`search user\n${func}().write(o0)\nrender(o0)`)
+            await renderer.compile(`search user\n${call}.write(o0)\nrender(o0)`)
             await renderer.render(0); await renderer.render(0)
             await renderer.pipeline.backend.device?.queue?.onSubmittedWorkDone?.()
             return { backend: renderer.pipeline.backend.getName().toLowerCase(), png: canvas.toDataURL('image/png') }
-        }, { baseUrl, raw: definition(func, target), func, preferWebGPU: backend === 'webgpu' })
-        assert.ok(result.backend.includes(backend), `${func}: expected ${backend}, got ${result.backend}`)
-        assert.deepEqual(diagnostics, [], `${func}: browser diagnostics`)
+        }, { baseUrl, raw: definition(func, target), call, preferWebGPU: backend === 'webgpu' })
+        assert.ok(result.backend.includes(backend), `${call}: expected ${backend}, got ${result.backend}`)
+        assert.deepEqual(diagnostics, [], `${call}: browser diagnostics`)
         const png = PNG.sync.read(Buffer.from(result.png.split(',')[1], 'base64'))
         for (let i = 0; i < png.data.length; i += 4) {
             const pixel = Array.from(png.data.subarray(i, i + 4))
             assert.ok(pixel.every((value, channel) => Math.abs(value - [255, 128, 64, 255][channel]) <= 1),
-                `${func}: unexpected pixel ${pixel} at ${i / 4}`)
+                `${call}: unexpected pixel ${pixel} at ${i / 4}`)
         }
         await page.close()
     }
