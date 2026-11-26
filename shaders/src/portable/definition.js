@@ -57,8 +57,12 @@ function join(path, key) {
     return path ? `${path}.${key}` : String(key)
 }
 
-// Reserved keys and executable values, at any depth.
-function scanValues(value, path, diagnostics, seen = new Set()) {
+// The deepest nesting a package may have. A declaration nests a few levels;
+// a limit keeps a deep file from exhausting the stack.
+const MAX_DEPTH = 64
+
+// Reserved keys and executable values, at any depth up to MAX_DEPTH.
+function scanValues(value, path, diagnostics, seen = new Set(), depth = 0) {
     if (typeof value === 'function') {
         diagnostics.push(diagnostic('function-value', path, `${path || 'the package'} is a function; a package holds data only`))
         return
@@ -70,6 +74,10 @@ function scanValues(value, path, diagnostics, seen = new Set()) {
         return
     }
     if (!value || typeof value !== 'object' || seen.has(value)) return
+    if (depth >= MAX_DEPTH) {
+        diagnostics.push(diagnostic('too-deep', path, `${path || 'the package'} nests deeper than ${MAX_DEPTH} levels`))
+        return
+    }
     seen.add(value)
     for (const key of Object.keys(value)) {
         const childPath = join(path, key)
@@ -77,7 +85,7 @@ function scanValues(value, path, diagnostics, seen = new Set()) {
             diagnostics.push(diagnostic('reserved-key', childPath, `${childPath} uses the reserved key ${key}`))
             continue
         }
-        scanValues(value[key], childPath, diagnostics, seen)
+        scanValues(value[key], childPath, diagnostics, seen, depth + 1)
     }
 }
 

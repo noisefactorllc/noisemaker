@@ -10,10 +10,13 @@
  * so that a package's declarations can be checked where no provider exists.
  *
  * A descriptor is JSON data. It is read through its own data properties: a
- * function, function source, an accessor, a symbol, or any value that is not
- * a plain object, an array, a string, a finite number, a boolean or null is
- * refused, and nothing it holds is called. Whether a host can run a capability
- * is a separate check, made when it registers the effect.
+ * function, function source, an accessor, a symbol, an array with a hole or
+ * a key that is not an index, and any value that is not a plain object, an
+ * array, a string, a finite number, a boolean or null is refused, so no
+ * function or accessor it holds is called. A descriptor file is JSON, so this
+ * covers it entirely. A Proxy that a caller gives has its traps called, as any
+ * read of it does. Whether a host can run a capability is a separate check,
+ * made when it registers the effect.
  *
  * A descriptor:
  *
@@ -67,13 +70,20 @@ function join(path, key) {
     return path ? `${path}.${key}` : String(key)
 }
 
+// The deepest nesting a descriptor may have. A descriptor nests a few levels;
+// a limit keeps a deep file from exhausting the stack.
+const MAX_DEPTH = 64
+
 /**
  * A copy of a value that must be JSON data, read through its own data
  * properties only, or undefined when it is not data. Each problem is a
  * diagnostic: a function or an accessor, function source, a symbol, a key
- * that reaches an object prototype, and a value of another kind.
+ * that reaches an object prototype, an array with a hole or a key that is
+ * not an index, nesting deeper than MAX_DEPTH, and a value of another kind.
+ * An object used in two places is read once; one that contains itself is
+ * refused.
  */
-function readData(value, path, diagnostics, seen = new Set()) {
+function readData(value, path, diagnostics, state = { copies: new Map(), open: new Set() }, depth = 0) {
     if (value === null || typeof value === 'boolean') return value
     if (typeof value === 'string') {
         if (FUNCTION_SOURCE.test(value)) {
@@ -101,13 +111,27 @@ function readData(value, path, diagnostics, seen = new Set()) {
         diagnostics.push(diagnostic('invalid-value', path, `${path || 'the descriptor'} is not a plain object`))
         return undefined
     }
-    if (seen.has(value)) {
+    if (state.open.has(value)) {
         diagnostics.push(diagnostic('invalid-value', path, `${path || 'the descriptor'} refers to itself`))
         return undefined
     }
-    seen.add(value)
+    if (state.copies.has(value)) return state.copies.get(value)
+    if (depth >= MAX_DEPTH) {
+        diagnostics.push(diagnostic('too-deep', path, `${path || 'the descriptor'} nests deeper than ${MAX_DEPTH} levels`))
+        return undefined
+    }
+    state.open.add(value)
     const copy = array ? [] : {}
-    for (const key of Reflect.ownKeys(value)) {
+    const keys = Reflect.ownKeys(value)
+    if (array) {
+        const indices = keys.filter(key => key !== 'length')
+        if (indices.length !== value.length || indices.some((key, index) => key !== String(index))) {
+            diagnostics.push(diagnostic('invalid-value', path, `${path || 'the descriptor'} is an array with a hole or a key that is not an index`))
+            state.open.delete(value)
+            return undefined
+        }
+    }
+    for (const key of keys) {
         if (typeof key === 'symbol') {
             diagnostics.push(diagnostic('invalid-value', path, `${path || 'the descriptor'} has a symbol key, which is not JSON data`))
             continue
@@ -123,10 +147,11 @@ function readData(value, path, diagnostics, seen = new Set()) {
             diagnostics.push(diagnostic('accessor-value', childPath, `${childPath} is an accessor; a descriptor holds data only`))
             continue
         }
-        const child = readData(property.value, childPath, diagnostics, seen)
+        const child = readData(property.value, childPath, diagnostics, state, depth + 1)
         if (child !== undefined) copy[key] = child
     }
-    seen.delete(value)
+    state.open.delete(value)
+    state.copies.set(value, copy)
     return copy
 }
 
@@ -303,13 +328,20 @@ function checkDependencies(raw, diagnostics) {
 }
 
 /**
- * Read a capability descriptor. Never throws, and calls nothing the input holds.
+ * Read a capability descriptor. Never throws, and calls no function or
+ * accessor the input holds. A caller's Proxy has its traps called, as any
+ * read of it does, and an error from one is a diagnostic.
  * @param {object} raw - The descriptor, as data
  * @returns {{descriptor: object|null, diagnostics: Array<{code: string, path: string, message: string}>}}
  */
 export function normalizeCapabilityDescriptor(raw) {
     const diagnostics = []
-    const data = readData(raw, '', diagnostics)
+    let data
+    try {
+        data = readData(raw, '', diagnostics)
+    } catch (error) {
+        return { descriptor: null, diagnostics: [diagnostic('invalid-value', '', `the descriptor could not be read: ${error?.message ?? error}`)] }
+    }
     if (diagnostics.length > 0) return { descriptor: null, diagnostics }
     if (!isRecord(data)) return { descriptor: null, diagnostics: [diagnostic('invalid-value', '', 'a capability descriptor is an object')] }
     unknownFields(data, DESCRIPTOR_KEYS, '', diagnostics, 'a capability descriptor')

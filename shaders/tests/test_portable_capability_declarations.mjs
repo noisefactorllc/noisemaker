@@ -237,6 +237,37 @@ test('a descriptor is read through its data properties only: an accessor, a symb
     const read = normalizeCapabilityDescriptor(descriptor())
     assert.notEqual(read.descriptor.options, descriptor().options, 'the descriptor read is a copy')
     assert.deepEqual(read.descriptor, descriptor())
+
+    // An array is its indices only: a hole, or a key that is not an index, is refused.
+    has(normalizeCapabilityDescriptor(descriptor({ options: { style: { type: 'string', enum: ['soft', , 'hard'] } } })), 'invalid-value', 'options.style.enum')
+    const extra = ['soft', 'hard']
+    extra.foo = 'bar'
+    has(normalizeCapabilityDescriptor(descriptor({ options: { style: { type: 'string', enum: extra } } })), 'invalid-value', 'options.style.enum')
+
+    // A Proxy's traps run, as any read of it does; an error from one is a diagnostic, not a throw.
+    const hostile = new Proxy({}, { ownKeys() { throw new Error('trap') } })
+    assert.deepEqual(codes(normalizeCapabilityDescriptor(hostile)), ['invalid-value'])
+
+    // An object used in two places is read once, so sharing costs nothing.
+    let shared = ['soft']
+    for (let level = 0; level < 40; level++) shared = [shared, shared]
+    const started = Date.now()
+    const sharing = normalizeCapabilityDescriptor(descriptor({ options: { style: { type: 'array', enum: [shared] } } }))
+    assert.deepEqual(sharing.diagnostics, [])
+    assert.ok(Date.now() - started < 1000, 'a shared value is read once, not once per use')
+})
+
+test('a package or a descriptor nested too deep is refused, and reading it never throws', () => {
+    let deep = 'soft'
+    for (let level = 0; level < 5000; level++) deep = [deep]
+    const nested = normalizeCapabilityDescriptor(descriptor({ options: { style: { type: 'array', enum: [deep] } } }))
+    assert.deepEqual(codes(nested), ['too-deep'])
+    assert.ok(nested.diagnostics[0].path.startsWith('options.style.enum.0.0'), nested.diagnostics[0].path)
+    const base = { 'definition.json': pkg(), 'glsl/blend.glsl': FRAGMENT }
+    const carried = loadPortablePackage(files({ ...base, 'capabilities/example/stripes/v1.json': descriptor({ options: { style: { type: 'array', enum: [deep] } } }) }))
+    assert.ok(codes(carried).includes('too-deep'), 'a deep descriptor file is a diagnostic')
+    const definition = loadPortablePackage(files({ ...base, 'definition.json': pkg({ description: deep }) }))
+    assert.ok(codes(definition).includes('too-deep'), 'a deep definition.json is a diagnostic')
 })
 
 test('an option schema is checked as the values it describes will be', () => {

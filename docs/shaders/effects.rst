@@ -1342,6 +1342,8 @@ and none of its keys can reach object prototypes (``prototype`` and every own
 key of ``Object.prototype``). The lifecycle methods of Section 5 are not
 available to packages: a package that needs lifecycle behavior declares a
 capability that the host provides (Section 8.10). ``paramAliases`` is retired.
+A package, and a capability descriptor, that nests deeper than 64 levels is
+refused (``too-deep``).
 
 8.9 Validation
 ^^^^^^^^^^^^^^
@@ -1472,11 +1474,14 @@ role binds a texture of the package's ``textures`` or ``textures3d``.
 
 ``normalizeCapabilityDescriptor()`` in ``shaders/src/portable/descriptor.js``
 reads a descriptor through its own data properties, and returns a copy. It
-refuses a function, function source, an accessor, a symbol and any value
-that is not JSON data (a plain object, an array, a string, a finite number,
-a boolean or ``null``), so it calls nothing the descriptor holds. It also
-refuses an unknown field, any field of another form, and a dependency on a
-role that ``bindings`` does not list.
+refuses a function, function source, an accessor, a symbol, an array with a
+hole or a key that is not an index, and any value that is not JSON data (a
+plain object, an array, a string, a finite number, a boolean or ``null``),
+so it calls no function or accessor the descriptor holds. A descriptor file
+is JSON, so this covers it entirely. A Proxy that a caller gives has its
+traps called, as any read of it does, and an error from one is a diagnostic.
+It also refuses an unknown field, any field of another form, and a
+dependency on a role that ``bindings`` does not list.
 
 **Checking declarations.** ``checkCapabilityDeclarations(definition,
 descriptors)`` checks each declaration of a normalized definition against
