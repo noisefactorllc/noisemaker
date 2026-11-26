@@ -185,7 +185,9 @@ console.log('Testing package-portable.mjs...');
         await chmod(zipPath, 0o000);
         const result = runPackager([effectDir, zipPath]);
         assert(result.status === 1, `open failure exits 1 (got ${result.status})`);
-        assert(/EACCES|permission denied/i.test(result.stderr || ''),
+        // Windows reports a read-only destination as EPERM, not EACCES.
+        const openError = process.platform === 'win32' ? /EACCES|EPERM|permission denied/i : /EACCES|permission denied/i;
+        assert(openError.test(result.stderr || ''),
             'open failure reports the stream open error');
         let priorContent = null;
         try {
