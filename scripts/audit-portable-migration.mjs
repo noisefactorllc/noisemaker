@@ -34,6 +34,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { isDeepStrictEqual } from 'node:util'
 
 export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const BASELINE_RELATIVE = 'shaders/tests/fixtures/portable/catalog-baseline.json'
@@ -577,7 +578,7 @@ export async function recordConsumers(repo, ids) {
  * HEAD, with an `explainedDifferences` entry for each that names `commit`.
  * A commit that is not on `origin/main` is a 2.x commit, and needs a reason.
  */
-export function rewriteEffects(baseline, { ids, commit, reason, onMain, present, exportKinds, metadata }) {
+export function rewriteEffects(baseline, { ids, commit, reason, onMain, present, exportKinds, metadata, sources = {} }) {
     if (!onMain && !(typeof reason === 'string' && reason.trim())) {
         throw new Error(`${commit} is a 2.x commit: --record --effects needs --reason <text>, the public reason of every entry it adds`)
     }
@@ -609,7 +610,7 @@ export function rewriteEffects(baseline, { ids, commit, reason, onMain, present,
         }
         next.metadata = meta
         const change = has && !reference.has(id) ? 'added' : !has && reference.has(id) ? 'removed' : 'changed'
-        const entry = { effectId: id, change, commit, ...(onMain ? {} : { reason: reason.trim() }) }
+        const entry = { effectId: id, change, commit, ...(sources[id] ? { source: sources[id] } : {}), ...(onMain ? {} : { reason: reason.trim() }) }
         next.explainedDifferences = [
             ...next.explainedDifferences.filter(old => !(old.effectId === id && old.commit === commit)),
             entry,
@@ -618,25 +619,89 @@ export function rewriteEffects(baseline, { ids, commit, reason, onMain, present,
     return next
 }
 
+// The engine sources that turn a definition into what the catalog records: the
+// Effect class and the renderer's definition loader. A commit that changes one
+// of them can change an effect's recorded metadata without touching the
+// effect's own directory.
+export const DEFINITION_RUNTIME_SOURCES = Object.freeze(['shaders/src/runtime/effect.js', 'shaders/src/renderer/canvas.js'])
+
+// The trees the engine loads from: the catalog, the engine and what it imports.
+const ENGINE_TREE_PATHS = ['shaders', 'share', 'demo/shaders/lib']
+
+/**
+ * The metadata `commit` gives the listed effects through the definition
+ * runtime alone, as `{ before, after }`: HEAD's tree with the commit's change to
+ * DEFINITION_RUNTIME_SOURCES taken back, and HEAD's tree as it is. Refuses
+ * when that change does not apply in reverse to HEAD.
+ */
+export async function runtimeMetadata(repo, commit, ids) {
+    const scratch = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'portable-runtime-'))
+    try {
+        const trees = {}
+        for (const side of ['before', 'after']) {
+            const tree = path.join(scratch, side)
+            fs.mkdirSync(tree)
+            const archive = spawnSync('git', ['-C', repo, 'archive', '--format=tar', 'HEAD', '--', ...ENGINE_TREE_PATHS], { maxBuffer: 1 << 30 })
+            if (archive.status !== 0) throw new Error(`git archive failed: ${archive.stderr}`)
+            const extract = spawnSync('tar', ['-x', '-C', tree], { input: archive.stdout })
+            if (extract.status !== 0) throw new Error(`tar failed: ${extract.stderr}`)
+            // The catalog lists an effect's files from the git index.
+            for (const args of [['init', '-q'], ['add', '-A']]) {
+                const run = spawnSync('git', args, { cwd: tree })
+                if (run.status !== 0) throw new Error(`git ${args[0]} failed: ${run.stderr}`)
+            }
+            trees[side] = tree
+        }
+        const change = git(repo, ['diff', `${commit}^1`, commit, '--', ...DEFINITION_RUNTIME_SOURCES])
+        const reverse = spawnSync('git', ['apply', '-R', '--whitespace=nowarn', '-'], { cwd: trees.before, input: change })
+        if (reverse.status !== 0) {
+            throw new Error(`${commit}'s change to the definition runtime does not apply in reverse to HEAD:\n${reverse.stderr}`)
+        }
+        return { before: (await loadCatalog(trees.before, ids)).metadata, after: (await loadCatalog(trees.after, ids)).metadata }
+    } finally {
+        fs.rmSync(scratch, { recursive: true, force: true })
+    }
+}
+
 /** `--record --effects <IDs> --commit <sha> [--reason <text>]`. */
 export async function recordEffects(repo, { ids, commit, reason }) {
     if (!ids.length) throw new Error('--effects needs at least one effect ID')
     if (!/^[0-9a-f]{40}$/.test(commit || '')) throw new Error('--commit needs a full 40-character commit SHA')
     if (!isAncestor(repo, commit, 'HEAD')) throw new Error(`${commit} is not an ancestor of HEAD`)
     requireClean(repo)
-    // The commit an entry names must be the one that changed that effect.
+    // The commit an entry names must be the one that changed that effect: in
+    // the effect's own directory, or in the definition runtime, where the
+    // change must account for the whole difference from the baseline.
+    const changedPaths = paths => git(repo, ['diff-tree', '--no-commit-id', '--name-only', '-r', '--diff-merges=first-parent', '--root', commit, '--', ...paths]).trim()
+    const throughRuntime = []
     for (const id of ids) {
-        const touched = git(repo, ['diff-tree', '--no-commit-id', '--name-only', '-r', '--diff-merges=first-parent', '--root', commit, '--', `shaders/effects/${id}/`]).trim()
-        if (!touched) throw new Error(`${commit} changes nothing under shaders/effects/${id}/`)
+        if (changedPaths([`shaders/effects/${id}/`])) continue
+        if (!changedPaths(DEFINITION_RUNTIME_SOURCES)) {
+            throw new Error(`${commit} changes nothing under shaders/effects/${id}/ nor in the definition runtime (${DEFINITION_RUNTIME_SOURCES.join(', ')})`)
+        }
+        throughRuntime.push(id)
     }
     const file = path.join(repo, BASELINE_RELATIVE)
     const baseline = readJson(file)
     const present = new Set(treeEffectIds(repo))
     const loadable = ids.filter(id => present.has(id))
     const { exportKinds, metadata } = await loadCatalog(repo, loadable)
+    const sources = {}
+    if (throughRuntime.length) {
+        const { before, after } = await runtimeMetadata(repo, commit, throughRuntime)
+        for (const id of throughRuntime) {
+            if (isDeepStrictEqual(before[id], after[id])) {
+                throw new Error(`${commit} changes the definition runtime, but not the metadata of ${id}`)
+            }
+            if (!isDeepStrictEqual(baseline.metadata?.[id], before[id]) || !isDeepStrictEqual(metadata[id], after[id])) {
+                throw new Error(`${commit}'s change to the definition runtime does not account for the whole difference of ${id} from the baseline`)
+            }
+            sources[id] = 'runtime'
+        }
+    }
     const next = rewriteEffects(baseline, {
         ids, commit, reason, onMain: isAncestor(repo, commit, MAIN_REF), present,
-        exportKinds: new Map(exportKinds), metadata,
+        exportKinds: new Map(exportKinds), metadata, sources,
     })
     writeJson(file, next)
     const projectionsFile = path.join(repo, SHADE_PROJECTION_RELATIVE)

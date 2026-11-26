@@ -428,7 +428,74 @@
     "synth3d/reactionDiffusion3d",
     "synth3d/shape3d"
   ],
-  "explainedDifferences": [],
+  "explainedDifferences": [
+    {
+      "effectId": "render/pointsEmit",
+      "change": "changed",
+      "commit": "fdcd69b5912576d7f4c49835fd72538fb493b22f",
+      "source": "runtime"
+    },
+    {
+      "effectId": "points/physarum",
+      "change": "changed",
+      "commit": "fdcd69b5912576d7f4c49835fd72538fb493b22f",
+      "source": "runtime"
+    },
+    {
+      "effectId": "points/buddhabrot",
+      "change": "changed",
+      "commit": "fdcd69b5912576d7f4c49835fd72538fb493b22f",
+      "source": "runtime"
+    },
+    {
+      "effectId": "points/dla",
+      "change": "changed",
+      "commit": "fdcd69b5912576d7f4c49835fd72538fb493b22f",
+      "source": "runtime"
+    },
+    {
+      "effectId": "points/physical",
+      "change": "changed",
+      "commit": "fdcd69b5912576d7f4c49835fd72538fb493b22f",
+      "source": "runtime"
+    },
+    {
+      "effectId": "points/life",
+      "change": "changed",
+      "commit": "fdcd69b5912576d7f4c49835fd72538fb493b22f",
+      "source": "runtime"
+    },
+    {
+      "effectId": "points/attractor",
+      "change": "changed",
+      "commit": "fdcd69b5912576d7f4c49835fd72538fb493b22f",
+      "source": "runtime"
+    },
+    {
+      "effectId": "points/hydraulic",
+      "change": "changed",
+      "commit": "fdcd69b5912576d7f4c49835fd72538fb493b22f",
+      "source": "runtime"
+    },
+    {
+      "effectId": "points/flock",
+      "change": "changed",
+      "commit": "fdcd69b5912576d7f4c49835fd72538fb493b22f",
+      "source": "runtime"
+    },
+    {
+      "effectId": "points/lenia",
+      "change": "changed",
+      "commit": "fdcd69b5912576d7f4c49835fd72538fb493b22f",
+      "source": "runtime"
+    },
+    {
+      "effectId": "points/flow",
+      "change": "changed",
+      "commit": "fdcd69b5912576d7f4c49835fd72538fb493b22f",
+      "source": "runtime"
+    }
+  ],
   "exportKinds": [
     [
       "classicNoisedeck/bitEffects",
@@ -29951,7 +30018,10 @@
             },
             "format": "rgba8"
           }
-        }
+        },
+        "outputXyz": "global_xyz",
+        "outputVel": "global_vel",
+        "outputRgba": "global_rgba"
       }
     },
     "points/buddhabrot": {
@@ -30216,6 +30286,9 @@
             "format": "rgba32float"
           }
         },
+        "outputXyz": "global_xyz",
+        "outputVel": "global_vel",
+        "outputRgba": "global_rgba",
         "openCategories": [
           "fractal"
         ],
@@ -30554,6 +30627,9 @@
             "format": "rgba16f"
           }
         },
+        "outputXyz": "global_xyz",
+        "outputVel": "global_vel",
+        "outputRgba": "global_rgba",
         "paramAliases": {
           "fieldTex": "heightTex"
         }
@@ -30832,7 +30908,10 @@
             },
             "format": "rgba8"
           }
-        }
+        },
+        "outputXyz": "global_xyz",
+        "outputVel": "global_vel",
+        "outputRgba": "global_rgba"
       }
     },
     "points/flow": {
@@ -31074,6 +31153,9 @@
             "format": "rgba8"
           }
         },
+        "outputXyz": "global_xyz",
+        "outputVel": "global_vel",
+        "outputRgba": "global_rgba",
         "paramAliases": {
           "fieldTex": "heightTex"
         }
@@ -31444,7 +31526,10 @@
             },
             "format": "rgba8"
           }
-        }
+        },
+        "outputXyz": "global_xyz",
+        "outputVel": "global_vel",
+        "outputRgba": "global_rgba"
       }
     },
     "points/lenia": {
@@ -31768,7 +31853,10 @@
             "height": "50%",
             "format": "rgba16f"
           }
-        }
+        },
+        "outputXyz": "global_xyz",
+        "outputVel": "global_vel",
+        "outputRgba": "global_rgba"
       }
     },
     "points/life": {
@@ -32087,7 +32175,10 @@
             "height": 8,
             "format": "rgba16f"
           }
-        }
+        },
+        "outputXyz": "global_xyz",
+        "outputVel": "global_vel",
+        "outputRgba": "global_rgba"
       }
     },
     "points/physarum": {
@@ -32414,6 +32505,9 @@
             "format": "rgba16f"
           }
         },
+        "outputXyz": "global_xyz",
+        "outputVel": "global_vel",
+        "outputRgba": "global_rgba",
         "paramAliases": {
           "fieldTex": "heightTex"
         }
@@ -32643,7 +32737,10 @@
             },
             "format": "rgba8"
           }
-        }
+        },
+        "outputXyz": "global_xyz",
+        "outputVel": "global_vel",
+        "outputRgba": "global_rgba"
       }
     },
     "render/loopBegin": {
@@ -35610,7 +35707,10 @@
             },
             "format": "rgba8"
           }
-        }
+        },
+        "outputXyz": "global_xyz",
+        "outputVel": "global_vel",
+        "outputRgba": "global_rgba"
       }
     },
     "render/pointsRender": {
