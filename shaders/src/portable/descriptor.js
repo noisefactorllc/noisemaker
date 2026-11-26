@@ -53,7 +53,8 @@ const CAPABILITY_ID = new RegExp(CAPABILITY_ID_PATTERN)
 const IDENTIFIER = new RegExp(IDENTIFIER_PATTERN)
 // A method a capability adds must not stand in for a lifecycle hook or for a
 // field of the effect.
-const RESERVED_METHODS = new Set([...LIFECYCLE_KEYS, ...TOP_LEVEL_KEYS, ...PACKAGE_ONLY_KEYS, ...RESERVED_KEYS])
+// starter is a field registration sets on the effect.
+const RESERVED_METHODS = new Set([...LIFECYCLE_KEYS, ...TOP_LEVEL_KEYS, ...PACKAGE_ONLY_KEYS, ...RESERVED_KEYS, 'starter'])
 // Source text of a function, which data must not carry.
 const FUNCTION_SOURCE = /^\s*(async\s+)?function\b|^\s*(async\s*)?\([^)]*\)\s*=>|^\s*(async\s+)?[A-Za-z_$][\w$]*\s*=>/
 const NUMERIC = new Set(['number', 'integer'])

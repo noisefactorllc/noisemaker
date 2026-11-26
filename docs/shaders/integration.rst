@@ -691,7 +691,7 @@ Host Inputs: Media, Text and Meshes
 An effect that shows a camera, a video, an image, text or a mesh declares what
 the host fills, and the host fills it. Neither a definition nor a Portable
 package opens a camera, draws text or loads a mesh by itself; a capability
-provider (:ref:`portable-capabilities`) does not either. Three declarations
+provider (:ref:`portable-capabilities`) does not either. These declarations
 name what a host provides.
 
 **External textures** (``externalTexture: "<uniform>"``, as ``synth/media``

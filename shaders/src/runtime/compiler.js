@@ -414,12 +414,16 @@ export function compileGraphFor(pipeline, newSource, options = {}) {
  * @returns {boolean} False when the pipeline could not take the graph
  */
 export function swapGraph(pipeline, newGraph) {
+    pipeline.swapRefusal = null
     try {
         // The candidate's effects run their onInit before anything changes, so
-        // one that throws leaves the accepted graph running as it was.
+        // one that throws refuses the candidate and leaves the accepted graph
+        // running as it was. The refusal is kept for the caller: the program
+        // is refused, which no new pipeline would change.
         pipeline.runPendingLifecycleInits?.(newGraph)
     } catch (error) {
         console.error('Recompilation failed:', formatError(error))
+        pipeline.swapRefusal = error
         return false
     }
     try {
@@ -447,10 +451,11 @@ export function swapGraph(pipeline, newGraph) {
         // otherwise only runs from resize() — so a hot-recompiled program
         // containing an asyncInit effect rendered a blank overlay (the effect
         // silently passed its input through unchanged).
-        pipeline.initAsyncEffects()
         // A stub pipeline in tests may implement initAsyncEffects without the
         // production lifecycle hooks; skip them instead of failing recompile.
+        // onInit runs before a node's first asyncInit, as on a first init.
         pipeline.initLifecycleEffects?.()
+        pipeline.initAsyncEffects()
 
         return true
     } catch (error) {

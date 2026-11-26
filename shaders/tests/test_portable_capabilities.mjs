@@ -779,15 +779,24 @@ test('a fixture host registers its provider in the engine\'s registry, and an un
     const effect = await first.registerPortableEffect({ ...loaded.definition, func: 'gradientWashHost', shaders: loaded.shaders }, { host })
     const second = new CanvasRenderer()
     assert.equal(getEffect('user.gradientWashHost'), effect.instance, 'every renderer of the realm finds the registered effect')
-    assert.ok(second)
-    const uploads = []
-    for (let index = 0; index < 2; index++) {
-        const { pipeline, backend } = await pipelineFor('search user, synth\nsolid().gradientWashHost().write(o0)\nrender(o0)')
+    // Each renderer runs its own pipeline of the program. A step parameter
+    // that one renderer applies draws its own node again, and not the other's.
+    const program = 'search user, synth\nsolid().gradientWashHost().write(o0)\nrender(o0)'
+    const runs = []
+    for (const renderer of [first, second]) {
+        const { pipeline, backend } = await pipelineFor(program)
+        renderer._pipeline = pipeline
         await pipeline.whenAsyncInitsSettled()
-        uploads.push(backend.uploads.filter(upload => upload.id.endsWith('_washTex')).length)
-        pipeline.dispose()
+        runs.push({ renderer, pipeline, backend })
     }
-    assert.deepEqual(uploads, [1, 1], 'each pipeline draws the package\'s node')
+    const washed = ({ backend }) => backend.uploads.filter(upload => upload.id.endsWith('_washTex')).length
+    assert.deepEqual(runs.map(washed), [1, 1], 'each renderer\'s pipeline draws the package\'s node')
+    const step = runs[0].pipeline.graph.passes.find(pass => pass.effectKey === 'user.gradientWashHost')
+    first.applyStepParameterValues({ [`step_${step.stepIndex ?? 1}`]: { top: [1, 1, 1], bottom: [0, 0, 0] } })
+    await runs[0].pipeline.whenAsyncInitsSettled()
+    await runs[1].pipeline.whenAsyncInitsSettled()
+    assert.deepEqual(runs.map(washed), [2, 1], 'the renderer that applied new colors draws again; the other does not')
+    for (const { pipeline } of runs) pipeline.dispose()
     assert.deepEqual(catalog(), before, 'the catalog is as it was')
 })
 
@@ -864,4 +873,70 @@ test('under the pipeline: NaN regenerates each time, the infinities are values, 
     await pipeline.whenAsyncInitsSettled()
     assert.equal(events.runs.length, after, 'a disposed pipeline draws nothing')
     assert.equal(pipeline._asyncLifetimes.size, 0, 'and starts no lifetime')
+})
+
+test('the renderer\'s compile() rejects a candidate whose provider fails to init, keeps its pipeline, and builds no other', async () => {
+    const registry = createCapabilityRegistry()
+    const events = freshEvents()
+    registry.register(recordingProvider('example/kept', events))
+    registry.register(recordingProvider('example/refusing', events, { onInit: () => { throw new Error('no device for this') } }))
+    await new CanvasRenderer().registerPortableEffect(pkg('capabilityKept', [recordingDeclaration('example/kept')]), { capabilities: registry })
+    await new CanvasRenderer().registerPortableEffect(pkg('capabilityRefusing', [recordingDeclaration('example/refusing')]), { capabilities: registry })
+    const { pipeline } = await pipelineFor('search user\ncapabilityKept().write(o0)\nrender(o0)')
+    await pipeline.whenAsyncInitsSettled()
+    const accepted = pipeline.graph
+    const renderer = new CanvasRenderer()
+    renderer._pipeline = pipeline
+    let built = 0
+    renderer._createRuntime = async () => { built++; throw new Error('a new runtime was built') }
+    const error = console.error
+    console.error = () => {}
+    try {
+        await assert.rejects(() => renderer.compile('search user\ncapabilityRefusing().write(o0)\nrender(o0)'), /no device for this/)
+    } finally {
+        console.error = error
+    }
+    assert.equal(built, 0, 'no other pipeline is built')
+    assert.equal(renderer._pipeline, pipeline, 'the renderer keeps its pipeline')
+    assert.equal(pipeline.graph, accepted, 'which runs the accepted graph')
+    assert.equal(pipeline.isCompiling, false)
+    pipeline.dispose()
+})
+
+test('onInit runs before a node\'s first asyncInit, on a first init and on a recompile', async () => {
+    const registry = createCapabilityRegistry()
+    const order = []
+    const ordered = id => ({
+        id, version: 1,
+        descriptor: { id, version: 1, bindings: { parameters: { tint: { types: ['vec3'] } }, textures: { target: {} } }, uploadOrientation: 'flipY' },
+        create: () => ({ onInit() { order.push(`${id} onInit`) }, async asyncInit() { order.push(`${id} asyncInit`) } }),
+    })
+    registry.register(ordered('example/first-init'))
+    registry.register(ordered('example/later-init'))
+    await new CanvasRenderer().registerPortableEffect(pkg('capabilityFirstInit', [recordingDeclaration('example/first-init')]), { capabilities: registry })
+    await new CanvasRenderer().registerPortableEffect(pkg('capabilityLaterInit', [recordingDeclaration('example/later-init')]), { capabilities: registry })
+    const { pipeline } = await pipelineFor('search user\ncapabilityFirstInit().write(o0)\nrender(o0)')
+    await pipeline.whenAsyncInitsSettled()
+    recompile(pipeline, 'search user\ncapabilityLaterInit().write(o0)\nrender(o0)')
+    await pipeline.whenAsyncInitsSettled()
+    assert.deepEqual(order, ['example/first-init onInit', 'example/first-init asyncInit', 'example/later-init onInit', 'example/later-init asyncInit'])
+    pipeline.dispose()
+})
+
+test('a method named starter is refused, and a recipe\'s duration is bounded', async () => {
+    const events = freshEvents()
+    assert.throws(() => createCapabilityRegistry().register(recordingProvider('example/starter', events, { methods: ['starter'] })), error => {
+        assert.deepEqual(error.diagnostics.map(entry => [entry.code, entry.path]), [['invalid-name', 'descriptor.methods.0']])
+        return true
+    })
+    const { WORM_OVERLAY_RECIPES } = await import('../src/portable/providers/worm-overlay.js')
+    await assert.rejects(() => new CanvasRenderer().registerPortableEffect(pkg('capabilityEndless', [{
+        id: 'noisemaker/worm-overlay', version: 1,
+        options: { recipe: { ...WORM_OVERLAY_RECIPES.fibers, duration: { base: 10000000 } } },
+        bindings: { parameters: { seed: 'seed' }, textures: { overlay: 'overlayTex' } },
+    }])), error => {
+        assert.ok(error.diagnostics.some(entry => entry.code === 'invalid-option' && entry.path === 'capabilities.0.options.recipe.duration.base'),
+            JSON.stringify(error.diagnostics))
+        return true
+    })
 })

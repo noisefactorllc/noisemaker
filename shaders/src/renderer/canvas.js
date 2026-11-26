@@ -1878,7 +1878,15 @@ export class CanvasRenderer {
                         return null
                     }
                 }
-                if (!newGraph || !swapGraph(compilationPipeline, newGraph)) {
+                const swapped = Boolean(newGraph) && swapGraph(compilationPipeline, newGraph)
+                if (!swapped && newGraph && compilationPipeline.swapRefusal) {
+                    // An effect of the candidate refused it in its onInit, before
+                    // anything changed: the accepted program keeps running, and a
+                    // new pipeline would only meet the same refusal.
+                    compilationPipeline.isCompiling = false
+                    throw compilationPipeline.swapRefusal
+                }
+                if (!swapped) {
                     // Recompile failed, need to create a new pipeline from scratch.
                     // This is a first pipeline in every respect except that one
                     // already existed, so it takes the same graph handoff — the

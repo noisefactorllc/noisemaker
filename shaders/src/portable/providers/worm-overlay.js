@@ -38,6 +38,17 @@ const formula = {
     },
 }
 
+// The duration multiplies the tracer's steps, so it is bounded; the catalog's
+// overlays stay well within it.
+const durationFormula = {
+    type: 'object',
+    properties: {
+        base: { type: 'number', minimum: 0, maximum: 64, required: true },
+        modulus: { type: 'integer', minimum: 1, maximum: 64 },
+        divide: { type: 'number' },
+    },
+}
+
 /** The descriptor: what a declaration of this capability may give, as data. */
 export const WORM_OVERLAY_DESCRIPTOR = Object.freeze({
     id: 'noisemaker/worm-overlay',
@@ -68,7 +79,7 @@ export const WORM_OVERLAY_DESCRIPTOR = Object.freeze({
                 kink: { ...formula, required: true },
                 stride: { type: 'number', required: true },
                 strideDeviation: { type: 'number', required: true },
-                duration: { ...formula, required: true },
+                duration: { ...durationFormula, required: true },
                 behavior: {
                     type: 'object',
                     required: true,
@@ -192,11 +203,6 @@ export async function drawWormOverlay(recipe, parameters, texture, context, host
 }
 
 /**
- * The provider: create() runs once per registered effect, and gives the
- * effect its asyncInit.
- * @param {{options: {recipe: object}, bindings: object, host: object}} input
- */
-/**
  * What a recipe must hold beyond its descriptor's schema, which a schema of
  * this form cannot state. A recipe that fails is refused when the effect
  * registers, rather than failing on every draw.
@@ -220,6 +226,11 @@ export function checkWormOverlayRecipe(recipe) {
     if (problems.length) throw new Error(`the worm overlay recipe is refused: ${problems.join('; ')}`)
 }
 
+/**
+ * The provider: create() runs once per registered effect, and gives the
+ * effect its asyncInit.
+ * @param {{options: {recipe: object}, bindings: object, host: object}} input
+ */
 export function createWormOverlay({ options, bindings, host = {} }) {
     const { recipe } = options
     checkWormOverlayRecipe(recipe)

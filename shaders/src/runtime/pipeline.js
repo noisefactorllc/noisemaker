@@ -958,8 +958,9 @@ export class Pipeline {
         // Collect default uniforms from passes for parameter-based texture sizing
         const defaultUniforms = this.collectDefaultUniforms()
         this.recreateTextures(defaultUniforms)
-        this.initAsyncEffects()
+        // onInit runs before a node's first asyncInit, as on a recompile.
         this.initLifecycleEffects()
+        this.initAsyncEffects()
 
         // A simulation texture recreated without its contents makes the next
         // render a start, so its state is seeded at once.

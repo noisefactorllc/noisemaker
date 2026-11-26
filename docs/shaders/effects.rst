@@ -1584,5 +1584,10 @@ regeneration: when a parameter that sizes the texture changes, and the
 texture is allocated again at its new size, the node is drawn again. A
 resize or a recompile draws every node.
 
-A failed ``onInit`` refuses a recompile before the graph changes, so the
-accepted graph, its nodes and their lifetimes stay as they were.
+``onInit`` runs before a node's first ``asyncInit``, on a first init and on
+a recompile. A failed ``onInit`` refuses a recompile before the graph
+changes, so the accepted graph, its nodes and their lifetimes stay as they
+were, and the renderer's ``compile()`` rejects with that error without
+building another pipeline. An ``onInit`` of the candidate that ran before the
+failure is not run again in that pipeline, as each effect's ``onInit`` runs
+once per pipeline.
