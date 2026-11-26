@@ -963,7 +963,7 @@ export function caseVariants(id, renderCase) {
     if (renderCase.withoutTarget !== null) {
         variants.withoutTarget = { ...renderCase, dsl: renderCase.withoutTarget, textureInputs: (renderCase.textureInputs || []).filter(texture => texture.effect !== id) }
     }
-    if (renderCase.midiMessages || renderCase.midiInputs?.length || renderCase.audio) {
+    if (renderCase.midiMessages?.length || renderCase.midiInputs?.length || renderCase.audio) {
         const { midiMessages, midiInputs, audio, ...rest } = renderCase
         variants.withoutInputs = rest
     }
@@ -1081,8 +1081,9 @@ export async function pins(repo, { mode, listed, log = () => {} }) {
 // a backend may not exceed its budget, which is this factor times the largest
 // median of the recording's rounds, and never less than the floor. A frame is
 // one stepFrame() of the stopped loop: one simulation step for a stateful
-// effect. A timed case runs at its timeline's loop duration, and every input of
-// a case is applied after its first render. The round medians are evidence, so
+// effect. A timed case runs at its timeline's loop duration. A case's untimed
+// notes (midiInputs) go in before its first render, and every other input after
+// it. The round medians are evidence, so
 // only the budgets are stored.
 export const PERF_POLICY = Object.freeze({ warmupFrames: 10, measuredFrames: 30, rounds: 3, frame: 'stepFrame', budgetFactor: 3, budgetFloorMs: 2 })
 

@@ -47,6 +47,12 @@
  *                          [{ channel 1-16, key, velocity }] }], fed before
  *                          the first render
  *
+ * Both MIDI forms send their notes as note-on messages, so every reader of the
+ * MIDI state sees them, and each note takes the time it arrives. A midi()
+ * binding in a mode that decays from a note's time (velocity or trigger)
+ * therefore depends on when the page renders; a case should show notes through
+ * the note grid, as synth/roll does.
+ *
  * An untimed case feeds its midiInputs, renders once at time 0, then uploads
  * its textures and loads its meshes, then captures. Its attestation never has a timeline block, and
  * has a control block only if the case has a control.
