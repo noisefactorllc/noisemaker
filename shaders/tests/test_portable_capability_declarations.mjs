@@ -263,10 +263,14 @@ test('a package or a descriptor nested too deep is refused, and reading it never
     const nested = normalizeCapabilityDescriptor(descriptor({ options: { style: { type: 'array', enum: [deep] } } }))
     assert.deepEqual(codes(nested), ['too-deep'])
     assert.ok(nested.diagnostics[0].path.startsWith('options.style.enum.0.0'), nested.diagnostics[0].path)
+    // The files hold the deep value as JSON text, written out level by level.
+    const deepText = `${'['.repeat(5000)}"soft"${']'.repeat(5000)}`
     const base = { 'definition.json': pkg(), 'glsl/blend.glsl': FRAGMENT }
-    const carried = loadPortablePackage(files({ ...base, 'capabilities/example/stripes/v1.json': descriptor({ options: { style: { type: 'array', enum: [deep] } } }) }))
+    const descriptorText = JSON.stringify(descriptor({ options: { style: { type: 'array', enum: ['DEEP'] } } })).replace('"DEEP"', deepText)
+    const carried = loadPortablePackage(files({ ...base, 'capabilities/example/stripes/v1.json': descriptorText }))
     assert.ok(codes(carried).includes('too-deep'), 'a deep descriptor file is a diagnostic')
-    const definition = loadPortablePackage(files({ ...base, 'definition.json': pkg({ description: deep }) }))
+    const definitionText = JSON.stringify(pkg({ description: 'DEEP' })).replace('"DEEP"', deepText)
+    const definition = loadPortablePackage(files({ ...base, 'definition.json': definitionText }))
     assert.ok(codes(definition).includes('too-deep'), 'a deep definition.json is a diagnostic')
 })
 
