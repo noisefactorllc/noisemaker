@@ -1087,7 +1087,7 @@ export const PROVIDERS_RELATIVE = 'shaders/tests/fixtures/portable/providers'
 const PROVIDER_CASE_FIELDS = ['dsl', 'surface', 'resolution', 'settleMs', 'textureInputs', 'meshInputs', 'timeline', 'midiMessages', 'midiInputs', 'audio']
 
 /**
- * The render case of each provider fixture: its effect's Task 1 case, with
+ * The render case of each provider fixture: its effect's render case, with
  * the package registered in the user namespace and found first, in place of
  * the catalog's effect. Its frames must equal the effect's pins, which the
  * inline implementation produced.
