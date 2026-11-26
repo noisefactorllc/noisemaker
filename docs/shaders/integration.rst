@@ -1140,6 +1140,12 @@ The core bundle (``noisemaker-shaders-core.esm.js``) exports:
        ``MidiInputManager``, ``AudioInputManager``, ``ExternalInputManager``
    * - **State**
      - ``ProgramState``, ``Emitter``, ``extractEffectsFromDsl``, ``extractEffectNamesFromDsl``
+   * - **Portable**
+     - ``normalizePortableDefinition``, ``toPortablePackage``, ``loadPortablePackage``, ``packageFiles``,
+       ``fileMapFromZip``, ``readFileMap``, ``normalizePackagePath``, ``normalizeCapabilityDescriptor``,
+       ``checkCapabilityDeclarations``, ``registerPortableCapability``, ``getPortableCapability``,
+       ``createCapabilityRegistry``, ``resolvePortableCapabilities``, ``defaultCapabilityRegistry``,
+       ``instantiatePortableEffect``, ``wormOverlayProvider``, ``mediaDimensionsProvider``
 
 .. note::
 
