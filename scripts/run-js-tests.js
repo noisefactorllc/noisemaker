@@ -126,6 +126,7 @@ const testEntries = [
   // Compiler, expander, resource allocation
   { file: 'shaders/tests/test_compiler_phase2.js', parity: false },
   { file: 'shaders/tests/test_expander.js', parity: false },
+  { file: 'shaders/tests/test_effect_config_outputs.js', parity: false },
   { file: 'shaders/tests/test_integration.js', parity: false },
   { file: 'shaders/tests/test_resources.js', parity: false },
   { file: 'shaders/tests/test_phase2_integration.js', parity: false },
