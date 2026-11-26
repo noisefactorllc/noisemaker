@@ -855,7 +855,8 @@ A version 2 Portable package that names anything else is refused with
 pipeline name, a ``feedback_`` name and the other field's passthrough value,
 even when a pass writes it or the effect declares it. ``outputTex3d`` has no
 effect when a pass writes the pipeline output ``outputTex3d``, so version 2
-refuses that pair too. A legacy package keeps its earlier behavior and accepts
+refuses the field beside that pass output, whatever its value, ``inputTex3d``
+included. A legacy package keeps its earlier behavior and accepts
 the name.
 
 The meaning of ``inputGeo`` depends on the preceding stage. Geometry from a

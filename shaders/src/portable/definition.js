@@ -262,8 +262,8 @@ const PASSTHROUGH = Object.freeze({ outputTex3d: 'inputTex3d', outputGeo: 'input
  *   effect reads it blank unless an effect in the chain provides it. outputGeo
  *   is always node-local, so it takes no global_ name.
  * A pipeline name or a feedback_ name is never one. The expander ignores
- * outputTex3d when a pass writes the pipeline output outputTex3d, so that pair
- * is refused too. The legacy profile accepts any name, as it did before
+ * outputTex3d, the passthrough included, when a pass writes the pipeline
+ * output outputTex3d, so a field beside that pass output is refused too. The legacy profile accepts any name, as it did before
  * version 2.
  */
 function checkHandedOn(declared, passes, diagnostics) {
@@ -275,20 +275,27 @@ function checkHandedOn(declared, passes, diagnostics) {
     const writesOut3d = passes.some(pass => isRecord(pass.outputs) && Object.values(pass.outputs).includes('outputTex3d'))
     for (const [field, passthrough] of Object.entries(PASSTHROUGH)) {
         const value = declared[field]
-        if (typeof value !== 'string' || value.trim() === '' || value === passthrough) continue
+        if (typeof value !== 'string' || value.trim() === '') continue
+        // The expander ignores outputTex3d, passthrough or not, when a pass writes outputTex3d.
         if (field === 'outputTex3d' && writesOut3d) {
             diagnostics.push(diagnostic('unsupported-field', field,
                 'outputTex3d has no effect when a pass writes outputTex3d; remove the field or that pass output'))
             continue
         }
+        if (value === passthrough) continue
         const global = value.startsWith('global_')
         if (field === 'outputTex3d' && global && value.length > 'global_'.length && !textures3d.has(value)) continue
         if (!global && declared2d.has(value)) continue
-        diagnostics.push(diagnostic('unsupported-field', field, field === 'outputTex3d'
-            ? `outputTex3d names ${JSON.stringify(value)}, which is not a 2D texture the effect declares in textures; ` +
-                'name one, a global_ texture of the chain, or inputTex3d to pass the input through'
-            : `outputGeo names ${JSON.stringify(value)}, which is not a 2D texture the effect declares in textures ` +
-                'without a global_ or feedback_ prefix; name one, or inputGeo to pass the input through'))
+        const reason = pipeline.has(value) ? 'a pipeline name'
+            : value.startsWith(grammar.FEEDBACK_PREFIX) ? 'a feedback_ texture'
+                : textures3d.has(value) ? 'declared in textures3d, a 3D texture'
+                    : global && field === 'outputGeo' ? 'a global_ texture, and outputGeo is node-local'
+                        : global ? 'the global_ prefix alone'
+                            : 'not a texture the effect declares in textures'
+        const remedy = field === 'outputTex3d'
+            ? 'name a 2D texture declared in textures, a global_ texture of the chain, or inputTex3d to pass the input through'
+            : 'name a 2D texture declared in textures, or inputGeo to pass the input through'
+        diagnostics.push(diagnostic('unsupported-field', field, `${field} names ${JSON.stringify(value)}, which is ${reason}; ${remedy}`))
     }
 }
 
