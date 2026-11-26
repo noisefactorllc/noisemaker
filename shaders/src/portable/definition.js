@@ -245,31 +245,39 @@ function checkCapabilities(capabilities, declared, diagnostics) {
     })
 }
 
-// Version 2 passes: an object keyed by DSL identifier, in declaration order.
 // The chain input each handed-on field may pass through unchanged.
 const PASSTHROUGH = Object.freeze({ outputTex3d: 'inputTex3d', outputGeo: 'inputGeo' })
 
 /**
- * In version 2, outputTex3d and outputGeo name a texture of the effect: one
- * declared in textures or textures3d (handed on as its contents, blank when no
- * pass writes it), one a pass writes, or the field's own chain input, which
- * passes through. Any other name hands on nothing, so it is refused. The
- * legacy profile accepts it, as it did before version 2.
+ * In version 2, outputTex3d and outputGeo name what the expander can hand on
+ * (shaders/src/runtime/expander.js), and any other name is refused:
+ * - the field's own chain input, which passes through;
+ * - for outputTex3d, a global_ texture, which is scoped to the chain, so this
+ *   effect or another one in the chain writes it;
+ * - a texture the effect declares in textures or textures3d, which is handed
+ *   on as its contents, blank when no pass writes it. A pass writes only a
+ *   declared texture, a global_ one or a pipeline name, so a node-local texture
+ *   a pass writes is a declared one. outputGeo is always node-local, so a
+ *   declared global_ texture does not count for it.
+ * The legacy profile accepts any name, as it did before version 2.
  */
-function checkHandedOn(declared, passes, diagnostics) {
-    const produced = new Set([
-        ...passes.flatMap(pass => isRecord(pass.outputs) ? Object.values(pass.outputs) : []),
-        ...['textures', 'textures3d'].flatMap(table => isRecord(declared[table]) ? Object.keys(declared[table]) : []),
-    ])
+function checkHandedOn(declared, diagnostics) {
+    const ownTextures = ['textures', 'textures3d'].flatMap(table => isRecord(declared[table]) ? Object.keys(declared[table]) : [])
     for (const [field, passthrough] of Object.entries(PASSTHROUGH)) {
         const value = declared[field]
-        if (typeof value !== 'string' || value.trim() === '' || value === passthrough || produced.has(value)) continue
-        diagnostics.push(diagnostic('unsupported-field', field,
-            `${field} names ${JSON.stringify(value)}, which is neither a declared texture nor one a pass writes; ` +
-            `name a texture of the effect, or ${passthrough} to pass the input through`))
+        if (typeof value !== 'string' || value.trim() === '' || value === passthrough) continue
+        const global = value.startsWith('global_')
+        if (field === 'outputTex3d' && global) continue
+        if (!global && ownTextures.includes(value)) continue
+        diagnostics.push(diagnostic('unsupported-field', field, field === 'outputTex3d'
+            ? `outputTex3d names ${JSON.stringify(value)}, which is not a texture the effect declares; ` +
+                'name a declared texture, a global_ texture of the chain, or inputTex3d to pass the input through'
+            : `outputGeo names ${JSON.stringify(value)}, which is not a texture the effect declares without the global_ prefix; ` +
+                'name one, or inputGeo to pass the input through'))
     }
 }
 
+// Version 2 passes: an object keyed by DSL identifier, in declaration order.
 function normalizePasses(passes, diagnostics) {
     if (!isRecord(passes) || Object.keys(passes).length === 0) {
         diagnostics.push(diagnostic('invalid-passes', 'passes',
@@ -386,7 +394,7 @@ export function normalizePortableDefinition(pkg, { loadedShaders = false } = {})
     checkTextures(declared.textures3d, 'textures3d', diagnostics)
     checkCapabilities(declared.capabilities, declared, diagnostics)
     const passes = normalizePasses(declared.passes, diagnostics)
-    checkHandedOn(declared, passes, diagnostics)
+    checkHandedOn(declared, diagnostics)
     if (diagnostics.length > 0) return { profile: 'v2', definition: null, diagnostics }
 
     const definition = { ...omit(declared, MARKER_KEYS), passes }
