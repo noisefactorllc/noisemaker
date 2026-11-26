@@ -837,24 +837,26 @@ passes the upstream geometry through; passthrough does not require an unused
 shader sampler. In a legacy Portable package (Section 8.2), ``null`` for
 either field means the field is absent.
 
-Each field names what the next effect receives:
+Each field names the 2D texture that the next effect receives:
 
 * the field's own passthrough value;
-* a node-local texture of the effect: one declared in ``textures``, handed on
-  as its contents, or one that a compute pass writes through
-  ``storageTextures``. A declared texture that no pass writes is handed on
-  blank. A ``textures3d`` entry is a 3D texture, and the chain carries volumes
-  and geometry as 2D atlases, so it is not one;
-* for ``outputTex3d`` only, a ``global_`` texture. It is scoped to the chain
-  and is not checked: the next effect reads it blank unless an effect in the
-  chain provides it. ``outputGeo`` is always node-local, so it takes no
-  ``global_`` name.
+* a texture the effect declares in ``textures``, handed on as its contents.
+  The declaration sets its size. A declared texture that no pass writes is
+  handed on blank. The chain carries volumes and geometry as 2D atlases, so a
+  name declared in ``textures3d`` is not one, and neither is an undeclared
+  ``storageTextures`` target, which is sized to the screen;
+* for ``outputTex3d`` only, a ``global_`` texture that the effect does not
+  declare in ``textures3d``. It is scoped to the chain and is not checked: the
+  next effect reads it blank unless an effect in the chain provides it.
+  ``outputGeo`` is always node-local, so it takes no ``global_`` name.
 
 A version 2 Portable package that names anything else is refused with
 ``unsupported-field`` at ``outputTex3d`` or ``outputGeo``. That includes a
-pipeline name, a ``feedback_`` texture and the other field's passthrough value,
-even when a pass writes it or the effect declares it. A legacy package keeps
-its earlier behavior and accepts the name.
+pipeline name, a ``feedback_`` name and the other field's passthrough value,
+even when a pass writes it or the effect declares it. ``outputTex3d`` has no
+effect when a pass writes the pipeline output ``outputTex3d``, so version 2
+refuses that pair too. A legacy package keeps its earlier behavior and accepts
+the name.
 
 The meaning of ``inputGeo`` depends on the preceding stage. Geometry from a
 volume generator is an atlas; geometry from a volume renderer is a screen

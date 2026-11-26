@@ -249,38 +249,46 @@ function checkCapabilities(capabilities, declared, diagnostics) {
 const PASSTHROUGH = Object.freeze({ outputTex3d: 'inputTex3d', outputGeo: 'inputGeo' })
 
 /**
- * In version 2, outputTex3d and outputGeo name what the expander can hand on
- * (shaders/src/runtime/expander.js), and any other name is refused:
+ * In version 2, outputTex3d and outputGeo name a 2D texture the expander can
+ * hand on (shaders/src/runtime/expander.js), and any other name is refused:
  * - the field's own chain input, which passes through;
- * - a node-local texture: one declared in textures, handed on as its contents
- *   (blank when no pass writes it), or one a compute pass writes through
- *   storageTextures, which the compiler allocates. The expander resolves both
- *   as the node's own texture. A textures3d entry is a 3D texture, and the
- *   chain carries volumes and geometry as 2D atlases, so it is not one;
- * - for outputTex3d only, a global_ texture. It is scoped to the chain and not
- *   checked here: the next effect reads it blank unless an effect in the chain
- *   provides it. outputGeo is always node-local, so it takes no global_ name.
- * A pipeline name or a feedback_ texture is never one, declared or written:
- * the expander routes a pass that writes one elsewhere. The legacy profile
- * accepts any name, as it did before version 2.
+ * - a texture the effect declares in textures, handed on as its contents
+ *   (blank when no pass writes it). The declaration sets its size. The chain
+ *   carries volumes and geometry as 2D atlases, so a name declared in
+ *   textures3d is not one, and neither is an undeclared storageTextures
+ *   target, which the compiler sizes to the screen;
+ * - for outputTex3d only, a global_ texture that the effect does not declare
+ *   in textures3d. It is scoped to the chain and not checked here: the next
+ *   effect reads it blank unless an effect in the chain provides it. outputGeo
+ *   is always node-local, so it takes no global_ name.
+ * A pipeline name or a feedback_ name is never one. The expander ignores
+ * outputTex3d when a pass writes the pipeline output outputTex3d, so that pair
+ * is refused too. The legacy profile accepts any name, as it did before
+ * version 2.
  */
 function checkHandedOn(declared, passes, diagnostics) {
+    const names = table => isRecord(declared[table]) ? Object.keys(declared[table]) : []
+    const textures3d = new Set(names('textures3d'))
     const pipeline = new Set([...grammar.PIPELINE_INPUTS, ...grammar.PIPELINE_OUTPUTS])
-    const special = name => pipeline.has(name) || name.startsWith(grammar.FEEDBACK_PREFIX) || name.startsWith('global_')
-    const nodeLocal = new Set([
-        ...(isRecord(declared.textures) ? Object.keys(declared.textures) : []),
-        ...passes.flatMap(pass => isRecord(pass.storageTextures) ? Object.values(pass.storageTextures) : []),
-    ].filter(name => typeof name === 'string' && !special(name)))
+    const declared2d = new Set(names('textures').filter(name =>
+        !textures3d.has(name) && !pipeline.has(name) && !name.startsWith(grammar.FEEDBACK_PREFIX)))
+    const writesOut3d = passes.some(pass => isRecord(pass.outputs) && Object.values(pass.outputs).includes('outputTex3d'))
     for (const [field, passthrough] of Object.entries(PASSTHROUGH)) {
         const value = declared[field]
         if (typeof value !== 'string' || value.trim() === '' || value === passthrough) continue
-        if (field === 'outputTex3d' && value.startsWith('global_') && value.length > 'global_'.length) continue
-        if (nodeLocal.has(value)) continue
+        if (field === 'outputTex3d' && writesOut3d) {
+            diagnostics.push(diagnostic('unsupported-field', field,
+                'outputTex3d has no effect when a pass writes outputTex3d; remove the field or that pass output'))
+            continue
+        }
+        const global = value.startsWith('global_')
+        if (field === 'outputTex3d' && global && value.length > 'global_'.length && !textures3d.has(value)) continue
+        if (!global && declared2d.has(value)) continue
         diagnostics.push(diagnostic('unsupported-field', field, field === 'outputTex3d'
-            ? `outputTex3d names ${JSON.stringify(value)}, which the effect does not produce; ` +
-                'name a texture in textures or a storageTextures target, a global_ texture of the chain, or inputTex3d to pass the input through'
-            : `outputGeo names ${JSON.stringify(value)}, which the effect does not produce; ` +
-                'name a texture in textures or a storageTextures target, or inputGeo to pass the input through'))
+            ? `outputTex3d names ${JSON.stringify(value)}, which is not a 2D texture the effect declares in textures; ` +
+                'name one, a global_ texture of the chain, or inputTex3d to pass the input through'
+            : `outputGeo names ${JSON.stringify(value)}, which is not a 2D texture the effect declares in textures ` +
+                'without a global_ or feedback_ prefix; name one, or inputGeo to pass the input through'))
     }
 }
 
@@ -400,10 +408,8 @@ export function normalizePortableDefinition(pkg, { loadedShaders = false } = {})
     checkTextures(declared.textures, 'textures', diagnostics)
     checkTextures(declared.textures3d, 'textures3d', diagnostics)
     checkCapabilities(declared.capabilities, declared, diagnostics)
-    const before = diagnostics.length
     const passes = normalizePasses(declared.passes, diagnostics)
-    // The handed-on fields are read against the passes, so they wait for valid ones.
-    if (diagnostics.length === before) checkHandedOn(declared, passes, diagnostics)
+    checkHandedOn(declared, passes, diagnostics)
     if (diagnostics.length > 0) return { profile: 'v2', definition: null, diagnostics }
 
     const definition = { ...omit(declared, MARKER_KEYS), passes }
