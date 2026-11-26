@@ -1622,7 +1622,8 @@ export class WebGL2Backend extends Backend {
                 if (typeof uniformValue === 'number' && uniformValue > 0) {
                     count = uniformValue
                 }
-            } else if (count === 'auto' || count === 'input') {
+            }
+            if (count === 'auto' || count === 'screen' || count === 'input') {
                 // Derive vertex count from mesh position texture
                 let refTex = null
                 if (effectivePass.inputs) {

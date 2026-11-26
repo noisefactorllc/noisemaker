@@ -2943,7 +2943,7 @@ export class WebGPUBackend extends Backend {
         }
 
         // Auto-detect from mesh texture dimensions
-        if (count === 'auto' || count === 'input' || count <= 0) {
+        if (count === 'auto' || count === 'screen' || count === 'input' || count <= 0) {
             let refTex = null
 
             if (pass.inputs) {
