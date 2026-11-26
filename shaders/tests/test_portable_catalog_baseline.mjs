@@ -10,6 +10,10 @@
  * an enum value changed, choices reordered, and a class export turned into an
  * instance. The assertions compare identity sets and ordered structures,
  * never counts.
+ *
+ * The parity cases, the attestations and the IDs that the attestation
+ * verifier registers must each equal the baseline ID set. A deleted case or
+ * attestation, and an ID put in place of another, must fail that comparison.
  */
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
@@ -20,7 +24,7 @@ import { pathToFileURL } from 'node:url'
 import { before, test } from 'node:test'
 
 import { CanvasRenderer } from '../src/index.js'
-import { timelineTimes } from '../../scripts/lib/shader-parity-attestation.mjs'
+import { registeredParityEffectIds, timelineTimes } from '../../scripts/lib/shader-parity-attestation.mjs'
 import { pinCaseErrors } from '../scripts/pin-baselines.mjs'
 import {
     BASELINE_RELATIVE,
@@ -31,6 +35,7 @@ import {
     firstDifference,
     loadCatalog,
     manifestEffectIds,
+    parityGateProblems,
     PERF_POLICY,
     caseVariants,
     describeCase,
@@ -41,6 +46,7 @@ import {
     pinTargets,
     RENDER_CASES_RELATIVE,
     rewriteEffects,
+    treeEffectFileIds,
     treeEffectIds,
 } from '../../scripts/audit-portable-migration.mjs'
 
@@ -132,6 +138,67 @@ test('every baseline ID has a render case, and every render case is a baseline I
     const { [dropped]: _gone, ...rest } = renderCases
     assert.deepEqual(pinTargets({ baselineIds: baseline.effectIds, cases: rest }).problems, [`${dropped} has no render case`])
     assert.deepEqual(pinTargets({ baselineIds: baseline.effectIds, cases: renderCases, listed: ['filter/noSuchEffect'] }).problems, ['filter/noSuchEffect is listed and has no render case'])
+})
+
+function parityLists(root = REPO_ROOT, rev = 'HEAD') {
+    return {
+        cases: treeEffectFileIds(root, 'parity-case.json', rev),
+        attestations: treeEffectFileIds(root, 'parity-attestation.json', rev),
+        registered: registeredParityEffectIds(root),
+    }
+}
+
+const PARITY_LABELS = {
+    cases: 'The list of parity cases',
+    attestations: 'The list of parity attestations',
+    registered: 'The list of IDs that the attestation verifier registers',
+}
+
+test('the parity cases, the attestations and the IDs that the verifier registers each equal the baseline ID set', () => {
+    const lists = parityLists()
+    assert.deepEqual(lists.cases, baseline.effectIds)
+    assert.deepEqual(lists.attestations, baseline.effectIds)
+    assert.deepEqual(lists.registered, baseline.effectIds)
+    assert.deepEqual(parityGateProblems(baseline.effectIds, lists), [])
+})
+
+test('deleting a parity case or an attestation, or putting one ID in place of another, fails the parity gate', () => {
+    const lists = parityLists()
+    const removed = baseline.effectIds[0]
+    const inserted = `${removed}Substitute`
+    for (const [field, label] of Object.entries(PARITY_LABELS)) {
+        const deleted = { ...lists, [field]: lists[field].filter(id => id !== removed) }
+        assert.deepEqual(parityGateProblems(baseline.effectIds, deleted), [`${label} differs from the baseline's effectIds: missing ${removed}`])
+        const substituted = { ...lists, [field]: lists[field].map(id => (id === removed ? inserted : id)).sort() }
+        assert.deepEqual(new Set(substituted[field]).size, new Set(lists[field]).size)
+        assert.deepEqual(parityGateProblems(baseline.effectIds, substituted), [`${label} differs from the baseline's effectIds: missing ${removed}; not in the baseline ${inserted}`])
+    }
+    assert.deepEqual(parityGateProblems(baseline.effectIds, parityLists()), [])
+})
+
+test('the parity lists are read from the tree: a missing case and a missing attestation fail the gate', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'portable-parity-'))
+    try {
+        const [noCase, noAttestation] = baseline.effectIds
+        for (const id of baseline.effectIds) {
+            const dir = path.join(root, 'shaders/effects', ...id.split('/'))
+            fs.mkdirSync(dir, { recursive: true })
+            fs.writeFileSync(path.join(dir, 'definition.js'), '')
+            if (id !== noCase) fs.writeFileSync(path.join(dir, 'parity-case.json'), '{}')
+            if (id !== noAttestation) fs.writeFileSync(path.join(dir, 'parity-attestation.json'), '{}')
+        }
+        execFileSync('git', ['-C', root, 'init', '-q'])
+        execFileSync('git', ['-C', root, 'add', '-A'])
+        const tree = execFileSync('git', ['-C', root, 'write-tree'], { encoding: 'utf8' }).trim()
+        assert.deepEqual(treeEffectIds(root, tree), baseline.effectIds)
+        assert.deepEqual(parityGateProblems(baseline.effectIds, parityLists(root, tree)), [
+            `${PARITY_LABELS.cases} differs from the baseline's effectIds: missing ${noCase}`,
+            `${PARITY_LABELS.attestations} differs from the baseline's effectIds: missing ${noAttestation}`,
+            `${PARITY_LABELS.registered} differs from the baseline's effectIds: missing ${noCase}`,
+        ])
+    } finally {
+        fs.rmSync(root, { recursive: true, force: true })
+    }
 })
 
 test('a performance budget is the frozen factor times the worst round median, never below the floor', () => {

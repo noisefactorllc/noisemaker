@@ -66,9 +66,16 @@ function compareIds(a, b) {
 
 /** The `definition.js` IDs of a commit's tree, in JavaScript's default sort order. */
 export function treeEffectIds(repo, rev = 'HEAD') {
+    return treeEffectFileIds(repo, 'definition.js', rev)
+}
+
+/** The IDs of the effects whose directory holds `file` in a commit's tree, sorted as treeEffectIds sorts. */
+export function treeEffectFileIds(repo, file, rev = 'HEAD') {
+    const suffix = `/${file}`
     return git(repo, ['ls-tree', '-r', '--name-only', rev, '--', 'shaders/effects'])
         .split('\n')
-        .map(line => line.match(/^shaders\/effects\/([^/]+\/[^/]+)\/definition\.js$/)?.[1])
+        .filter(line => line.endsWith(suffix))
+        .map(line => line.slice(0, -suffix.length).match(/^shaders\/effects\/([^/]+\/[^/]+)$/)?.[1])
         .filter(Boolean)
         .sort(compareIds)
 }
@@ -338,6 +345,19 @@ function listProblems(label, actual, expected) {
     if (extra.length) parts.push(`not in the baseline ${extra.join(', ')}`)
     if (!parts.length) parts.push('the same IDs in another order')
     return [`${label} differs from the baseline's effectIds: ${parts.join('; ')}`]
+}
+
+/**
+ * The cross-backend parity gate against the baseline: the effects with a
+ * parity case, the effects with an attestation, and the IDs that the
+ * attestation verifier registers each equal the baseline's effectIds.
+ */
+export function parityGateProblems(baselineIds, { cases, attestations, registered }) {
+    return [
+        ...listProblems('The list of parity cases', cases, baselineIds),
+        ...listProblems('The list of parity attestations', attestations, baselineIds),
+        ...listProblems('The list of IDs that the attestation verifier registers', registered, baselineIds),
+    ]
 }
 
 /** The first path at which two JSON values differ, key order included. */
