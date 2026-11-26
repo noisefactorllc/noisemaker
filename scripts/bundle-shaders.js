@@ -51,15 +51,17 @@ function relPath(target) {
 
 /**
  * Generate the core runtime entry point (includes CanvasRenderer and UI libraries)
+ * @param {Function} [pathOf] - The import path of a source file, from where the
+ *   module is written; relative to the build's temp directory by default
  */
-function generateCoreModule() {
-    const srcPath = relPath(path.join(srcDir, 'index.js'))
-    const demoUiPath = relPath(path.join(demoDir, 'demo-ui.js'))
-    const programStatePath = relPath(path.join(demoDir, 'program-state.js'))
-    const emitterPath = relPath(path.join(demoDir, 'emitter.js'))
-    const dslUtilsPath = relPath(path.join(demoDir, 'dsl-utils.js'))
-    const effectSelectPath = relPath(path.join(demoDir, 'effect-select.js'))
-    const toggleSwitchPath = relPath(path.join(demoDir, 'toggle-switch.js'))
+export function generateCoreModule(pathOf = relPath) {
+    const srcPath = pathOf(path.join(srcDir, 'index.js'))
+    const demoUiPath = pathOf(path.join(demoDir, 'demo-ui.js'))
+    const programStatePath = pathOf(path.join(demoDir, 'program-state.js'))
+    const emitterPath = pathOf(path.join(demoDir, 'emitter.js'))
+    const dslUtilsPath = pathOf(path.join(demoDir, 'dsl-utils.js'))
+    const effectSelectPath = pathOf(path.join(demoDir, 'effect-select.js'))
+    const toggleSwitchPath = pathOf(path.join(demoDir, 'toggle-switch.js'))
     return `
 // Noisemaker Shader Runtime - Core Module
 // Includes: Core runtime + CanvasRenderer + UIController + ProgramState + EffectSelect + ToggleSwitch
@@ -226,8 +228,11 @@ async function main() {
     }
 }
 
-main().catch((err) => {
-    console.error(err)
-    cleanup()
-    process.exit(1)
-})
+// Build only when run as a script, so that a test can read the core module.
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+    main().catch((err) => {
+        console.error(err)
+        cleanup()
+        process.exit(1)
+    })
+}
