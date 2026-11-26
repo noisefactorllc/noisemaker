@@ -1871,6 +1871,10 @@ export class CanvasRenderer {
                 // accepted graph, its programs and its surfaces in place, so
                 // the next frames render the accepted program.
                 const newGraph = compileGraphFor(compilationPipeline, dsl, { shaderOverrides, graph })
+                // The accepted graph's programs, which a refused candidate gives back:
+                // the candidate's programs can share their ids.
+                const backendPrograms = compilationPipeline.backend?.programs
+                const acceptedPrograms = backendPrograms instanceof Map ? new Map(backendPrograms) : null
                 if (newGraph) {
                     await compilationPipeline.compilePrograms(newGraph)
                     if (!this._isLifecycleCurrent(lifecycleGeneration) ||
@@ -1881,8 +1885,10 @@ export class CanvasRenderer {
                 const swapped = Boolean(newGraph) && swapGraph(compilationPipeline, newGraph)
                 if (!swapped && newGraph && compilationPipeline.swapRefusal) {
                     // An effect of the candidate refused it in its onInit, before
-                    // anything changed: the accepted program keeps running, and a
-                    // new pipeline would only meet the same refusal.
+                    // the graph changed: the accepted program keeps running, with
+                    // its own programs back, and a new pipeline would only meet
+                    // the same refusal.
+                    if (acceptedPrograms) compilationPipeline.restorePrograms(acceptedPrograms)
                     compilationPipeline.isCompiling = false
                     throw compilationPipeline.swapRefusal
                 }

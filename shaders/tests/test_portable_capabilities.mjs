@@ -365,7 +365,12 @@ class RecordingBackend extends Backend {
     createTexture(id, spec) { this.textures.set(id, { id, width: spec.width, height: spec.height, format: spec.format, usage: spec.usage }); return this.textures.get(id) }
     createTexture3D(id, spec) { this.textures.set(id, { id, ...spec }); return this.textures.get(id) }
     destroyTexture() {}
-    async compileProgram(id, spec) { return { handle: id, type: spec.type } }
+    // A program is kept by its id, as a backend keeps it, with its source.
+    async compileProgram(id, spec) {
+        const program = { handle: id, type: spec.type, source: spec.fragment ?? spec.source ?? spec.glsl ?? null }
+        this.programs.set(id, program)
+        return program
+    }
     executePass(pass) { this.executed?.push(pass) }
     beginFrame() {}
     endFrame() {}
@@ -881,10 +886,15 @@ test('the renderer\'s compile() rejects a candidate whose provider fails to init
     registry.register(recordingProvider('example/kept', events))
     registry.register(recordingProvider('example/refusing', events, { onInit: () => { throw new Error('no device for this') } }))
     await new CanvasRenderer().registerPortableEffect(pkg('capabilityKept', [recordingDeclaration('example/kept')]), { capabilities: registry })
-    await new CanvasRenderer().registerPortableEffect(pkg('capabilityRefusing', [recordingDeclaration('example/refusing')]), { capabilities: registry })
-    const { pipeline } = await pipelineFor('search user\ncapabilityKept().write(o0)\nrender(o0)')
+    // The refused package's shader differs, and its program takes the same id as the accepted one's.
+    const refusingShader = FRAGMENT.replace('vec4(1.0)', 'vec4(0.0, 0.0, 1.0, 1.0)')
+    await new CanvasRenderer().registerPortableEffect(pkg('capabilityRefusing', [recordingDeclaration('example/refusing')],
+        { shaders: { main: { glsl: refusingShader } } }), { capabilities: registry })
+    const { pipeline, backend } = await pipelineFor('search user\ncapabilityKept().write(o0)\nrender(o0)')
     await pipeline.whenAsyncInitsSettled()
     const accepted = pipeline.graph
+    const acceptedPrograms = new Map(backend.programs)
+    assert.ok(acceptedPrograms.size > 0)
     const renderer = new CanvasRenderer()
     renderer._pipeline = pipeline
     let built = 0
@@ -899,6 +909,8 @@ test('the renderer\'s compile() rejects a candidate whose provider fails to init
     assert.equal(built, 0, 'no other pipeline is built')
     assert.equal(renderer._pipeline, pipeline, 'the renderer keeps its pipeline')
     assert.equal(pipeline.graph, accepted, 'which runs the accepted graph')
+    assert.deepEqual([...backend.programs], [...acceptedPrograms], 'with the accepted graph\'s programs')
+    assert.ok(![...backend.programs.values()].some(program => program.source?.includes('0.0, 0.0, 1.0, 1.0')), 'and none of the refused one\'s')
     assert.equal(pipeline.isCompiling, false)
     pipeline.dispose()
 })
@@ -936,6 +948,15 @@ test('a method named starter is refused, and a recipe\'s duration is bounded', a
         bindings: { parameters: { seed: 'seed' }, textures: { overlay: 'overlayTex' } },
     }])), error => {
         assert.ok(error.diagnostics.some(entry => entry.code === 'invalid-option' && entry.path === 'capabilities.0.options.recipe.duration.base'),
+            JSON.stringify(error.diagnostics))
+        return true
+    })
+    await assert.rejects(() => new CanvasRenderer().registerPortableEffect(pkg('capabilityDivided', [{
+        id: 'noisemaker/worm-overlay', version: 1,
+        options: { recipe: { ...WORM_OVERLAY_RECIPES.fibers, duration: { base: 1, modulus: 64, divide: 1e-9 } } },
+        bindings: { parameters: { seed: 'seed' }, textures: { overlay: 'overlayTex' } },
+    }])), error => {
+        assert.ok(error.diagnostics.some(entry => entry.code === 'invalid-option' && entry.path === 'capabilities.0.options.recipe.duration.divide'),
             JSON.stringify(error.diagnostics))
         return true
     })

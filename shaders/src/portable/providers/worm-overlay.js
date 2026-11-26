@@ -45,7 +45,7 @@ const durationFormula = {
     properties: {
         base: { type: 'number', minimum: 0, maximum: 64, required: true },
         modulus: { type: 'integer', minimum: 1, maximum: 64 },
-        divide: { type: 'number' },
+        divide: { type: 'number', minimum: 1 },
     },
 }
 
