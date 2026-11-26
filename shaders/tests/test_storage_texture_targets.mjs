@@ -49,29 +49,47 @@ function definition(func, target) {
     }
 }
 
+// A filter that copies its chain input, so a storage write that is not the chain's last write
+// must reach the next step through the node's own output texture.
+const copyFilter = {
+    namespace: 'user', name: 'storageCopyFilter', func: 'storageCopyFilter', globals: {},
+    shaders: { copy: { glsl: copyGlsl, wgsl: copyWgsl } },
+    passes: [{ name: 'copy', program: 'copy', inputs: { workTex: 'inputTex' }, outputs: { fragColor: 'outputTex' } }]
+}
+
 try {
+    // Each case compiles its programs in order on one renderer and checks the last one. The last
+    // case recompiles at the same size: the node's output texture, first created by solid's render
+    // pass without storage usage, must be recreated with it, or the copy shows solid's grey.
     // An element with an `_id:` keys its effect-local textures by its state key, so its storage
     // target must take the same key as the texture spec and the copy pass's input.
-    for (const [func, target, args] of [['storageDirectProbe', 'outputTex', ''], ['storageNamedProbe', 'work', ''],
-        ['storageNamedProbe', 'work', '_id: "probe"']]) {
-        const call = `${func}(${args})`
+    for (const [calls, raws] of [[['storageDirectProbe()'], [definition('storageDirectProbe', 'outputTex')]],
+        [['storageNamedProbe()'], [definition('storageNamedProbe', 'work')]],
+        [['storageNamedProbe(_id: "probe")'], [definition('storageNamedProbe', 'work')]],
+        [['storageDirectProbe().storageCopyFilter()'], [definition('storageDirectProbe', 'outputTex'), copyFilter]],
+        [['solid().storageCopyFilter()', 'storageDirectProbe().storageCopyFilter()'],
+            [definition('storageDirectProbe', 'outputTex'), copyFilter]]]) {
+        const call = calls.join(' then ')
         const page = await browser.newPage({ viewport: { width: 64, height: 64 } })
         const diagnostics = []
         page.on('pageerror', error => diagnostics.push(error.message))
         page.on('console', message => { if (['warning', 'error'].includes(message.type())) diagnostics.push(message.text()) })
         await page.goto(`${baseUrl}/shaders/effects/manifest.json`)
         await page.setContent('<canvas width="64" height="64"></canvas>')
-        const result = await page.evaluate(async ({ baseUrl, raw, call, preferWebGPU }) => {
+        const result = await page.evaluate(async ({ baseUrl, raws, calls, preferWebGPU }) => {
             const { CanvasRenderer } = await import(`${baseUrl}/shaders/src/index.js`)
             const canvas = document.querySelector('canvas')
             const renderer = new CanvasRenderer({ canvas, width: 64, height: 64,
                 basePath: `${baseUrl}/shaders`, preferWebGPU })
-            await renderer.registerPortableEffect(raw)
-            await renderer.compile(`search user\n${call}.write(o0)\nrender(o0)`)
-            await renderer.render(0); await renderer.render(0)
+            await renderer.loadManifest(); await renderer.loadEffects(['synth/solid'])
+            for (const raw of raws) await renderer.registerPortableEffect(raw)
+            for (const call of calls) {
+                await renderer.compile(`search user, synth\n${call}.write(o0)\nrender(o0)`)
+                await renderer.render(0); await renderer.render(0)
+            }
             await renderer.pipeline.backend.device?.queue?.onSubmittedWorkDone?.()
             return { backend: renderer.pipeline.backend.getName().toLowerCase(), png: canvas.toDataURL('image/png') }
-        }, { baseUrl, raw: definition(func, target), call, preferWebGPU: backend === 'webgpu' })
+        }, { baseUrl, raws, calls, preferWebGPU: backend === 'webgpu' })
         assert.ok(result.backend.includes(backend), `${call}: expected ${backend}, got ${result.backend}`)
         assert.deepEqual(diagnostics, [], `${call}: browser diagnostics`)
         const png = PNG.sync.read(Buffer.from(result.png.split(',')[1], 'base64'))

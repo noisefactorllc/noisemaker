@@ -191,7 +191,7 @@ Strings use double or single quotes: ``"hello"`` or ``'hello'``. A backslash and
 Arrow functions currently support only zero-argument expression lambdas: ``() => expr``. Their primary use is deferred evaluation in control structures or future callbacks.
 
 **Comments and separators:**
-``//`` starts a line comment. ``/* ... */`` is a block comment, and block comments do not nest. Comments can go before ``search``, between statements, after ``render()``, and before or after the ``.`` in a chain. A comment inside an argument list is a parser error (``P001``). Comments inside an ``if``, ``elif`` or ``else`` block can appear before a statement or before the closing brace. The parser accepts them, and the unparser preserves them. A ``;`` can come before ``search`` and after ``search``, a statement or ``render()``. It is optional.
+``//`` starts a line comment. ``/* ... */`` is a block comment, and block comments do not nest. Comments can go before ``search``, between statements, after ``render()``, and before or after the ``.`` in a chain. The parser accepts comments inside argument lists, arrays, and objects. Comments inside an ``if``, ``elif`` or ``else`` block can appear before a statement or before the closing brace. The parser accepts them, and the unparser preserves them. A ``;`` can come before ``search`` and after ``search``, a statement or ``render()``. It is optional.
 
 Language Features
 -----------------
@@ -258,11 +258,9 @@ over once every slot is filled would bind to nothing, so the validator reports
 the error ``S009``: ``Too many positional arguments for blur(): 'blur' takes
 3``, and the program does not compile.
 
-``//`` comments may appear inside an argument list, an array literal or an
-object literal, between arguments. They are skipped by the parser, so a
-program re-emitted from its parsed form (as the demo does when a parameter is
-changed) comes back without them; comments on their own lines between
-statements survive that round trip.
+The parser accepts line and block comments inside call arguments, arrays, and
+objects, but skips them. Re-emitted DSL omits those comments. Comments on their
+own lines between statements survive that round trip.
 
 Numeric arguments support inline arithmetic (``+``, ``-``, ``*``, ``/``) and constants like ``Math.PI``. Color arguments accept unquoted ``#RGB`` or ``#RRGGBB`` hex codes.
 
