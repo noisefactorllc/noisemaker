@@ -225,8 +225,8 @@ export default new Effect({
       name: "diffuse",
       program: "diffuse",
       viewport: {
-        width: { param: 'volumeSize', default: 32, inputOverride: 'inputTex3d' },
-        height: { param: 'volumeSize', power: 2, default: 1024, inputOverride: 'inputTex3d' }
+        width: { param: 'volumeSize', default: 32 },
+        height: { param: 'volumeSize', power: 2, default: 1024 }
       },
       inputs: {
         sourceTex: "global_flow3d_trail"
@@ -244,8 +244,8 @@ export default new Effect({
       name: "copy",
       program: "copy",
       viewport: {
-        width: { param: 'volumeSize', default: 32, inputOverride: 'inputTex3d' },
-        height: { param: 'volumeSize', power: 2, default: 1024, inputOverride: 'inputTex3d' }
+        width: { param: 'volumeSize', default: 32 },
+        height: { param: 'volumeSize', power: 2, default: 1024 }
       },
       inputs: {
         sourceTex: "global_flow3d_trail"
@@ -261,8 +261,8 @@ export default new Effect({
       count: 262144,
       blend: true,
       viewport: {
-        width: { param: 'volumeSize', default: 32, inputOverride: 'inputTex3d' },
-        height: { param: 'volumeSize', power: 2, default: 1024, inputOverride: 'inputTex3d' }
+        width: { param: 'volumeSize', default: 32 },
+        height: { param: 'volumeSize', power: 2, default: 1024 }
       },
       inputs: {
         stateTex1: "global_flow3d_state1",
@@ -280,8 +280,8 @@ export default new Effect({
       name: "blend",
       program: "blend",
       viewport: {
-        width: { param: 'volumeSize', default: 32, inputOverride: 'inputTex3d' },
-        height: { param: 'volumeSize', power: 2, default: 1024, inputOverride: 'inputTex3d' }
+        width: { param: 'volumeSize', default: 32 },
+        height: { param: 'volumeSize', power: 2, default: 1024 }
       },
       inputs: {
         mixerTex: "inputTex3d",

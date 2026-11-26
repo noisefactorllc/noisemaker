@@ -112,8 +112,8 @@ export default new Effect({
       name: "render",
       program: "palette3d",
       viewport: {
-        width: { param: 'volumeSize', default: 64, inputOverride: 'inputTex3d' },
-        height: { param: 'volumeSize', power: 2, default: 4096, inputOverride: 'inputTex3d' }
+        width: { param: 'volumeSize', default: 64 },
+        height: { param: 'volumeSize', power: 2, default: 4096 }
       },
       inputs: {
         inputTex3d: "inputTex3d"
