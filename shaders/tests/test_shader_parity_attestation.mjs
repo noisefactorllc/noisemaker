@@ -14,6 +14,7 @@ import {
     computeParitySourceHash,
     isReadbackPerformanceWarning,
     matchesTargetEffectPass,
+    midiNoteOnMessages,
     registeredParityEffectIds,
     validateWgslTextureBindings,
     validateFrameEvidence,
@@ -119,13 +120,30 @@ try {
     }
     const midiInput = { effect: 'filter/example', notes: [{ channel: 1, key: 40, velocity: 110 }] }
     assert.deepEqual(validateParityCase({ ...completeParityCase, midiInputs: [midiInput] }, 'filter/example'), [])
+    // MidiState keys its channels 1 to 16, as MIDI names them.
+    assert.deepEqual(validateParityCase({ ...completeParityCase, midiInputs: [{ ...midiInput, notes: [{ channel: 16, key: 40, velocity: 110 }] }] }, 'filter/example'), [])
     for (const change of [{ effect: 'unknown/effect' }, { notes: [] }, { notes: undefined },
-        { notes: [{ channel: 16, key: 40, velocity: 110 }] },
+        { notes: [{ channel: 0, key: 40, velocity: 110 }] },
+        { notes: [{ channel: 17, key: 40, velocity: 110 }] },
         { notes: [{ channel: 1, key: 128, velocity: 110 }] },
         { notes: [{ channel: 1, key: 40, velocity: 0 }] }]) {
         assert.ok(validateParityCase({ ...completeParityCase, midiInputs: [{ ...midiInput, ...change }] },
             'filter/example').some(error => error.includes('midi')), 'invalid midi evidence must be rejected')
     }
+    // The recorder feeds each note as a note-on message, in case order, so every reader of the MIDI state sees it:
+    // a zone reader too, which reads the port-scoped state that only messages reach.
+    const messages = midiNoteOnMessages([{ effect: 'synth/roll', notes: [{ channel: 1, key: 40, velocity: 110 }, { channel: 2, key: 60, velocity: 75 }] },
+        { effect: 'synth/roll', notes: [{ channel: 16, key: 84, velocity: 100 }] }])
+    assert.deepEqual(messages, [[0x90, 40, 110], [0x91, 60, 75], [0x9f, 84, 100]])
+    const { MidiState } = await import(new URL('../src/runtime/external-input.js', import.meta.url))
+    const midi = new MidiState()
+    for (const bytes of messages) midi.handleMessage(new Uint8Array(bytes))
+    assert.equal(midi.getZoneVoice({ zone: 0, members: 15 })?.key, 84, 'a zone reader sees the newest fed note')
+    assert.equal(midi.channels[1].heldNotes.size, 1, 'a channel reader sees its note')
+    const recorder = fs.readFileSync(new URL('../../scripts/attest-shader-parity.mjs', import.meta.url), 'utf8')
+    assert.match(recorder, /midiNoteOnMessages\(\[midiInput\]\)/, 'the recorder feeds each midi input through midiNoteOnMessages')
+    assert.match(recorder, /midi\.handleMessage\(new Uint8Array\(bytes\)\)/, 'the recorder feeds each note as a MIDI message')
+    assert.doesNotMatch(recorder, /\.noteOn\(/, 'the recorder does not write channel state directly')
     assert.deepEqual(validateParityCase({ ...completeParityCase, tiles: { size: [4, 8], renderScale: 2 } }, 'filter/example'), [])
     for (const tiles of [{ size: [3, 8] }, { size: [8, 8] }, { size: [4] }, { size: [0, 8] }, { size: [4, 4], renderScale: 0 },
         { size: [4, 4], renderScale: 'x' }, null]) {

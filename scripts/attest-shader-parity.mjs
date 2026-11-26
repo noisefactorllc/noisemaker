@@ -13,6 +13,7 @@ import {
     effectDirectory,
     isReadbackPerformanceWarning,
     matchesTargetEffectPass,
+    midiNoteOnMessages,
     PARITY_ATTESTATION_SCHEMA_VERSION,
     validateFrameEvidence,
     validateParityCase,
@@ -111,9 +112,10 @@ for (const mesh of ${JSON.stringify(parityCase.meshInputs || [])}) {
     const loaded = await renderer.loadOBJFromURL('${baseUrl}/' + mesh.path, mesh.mesh);
     if (!loaded.success || !loaded.vertexCount) throw new Error('Mesh fixture did not load: ' + mesh.path + ' ' + (loaded.error || ''));
 }
-for (const midiInput of ${JSON.stringify(parityCase.midiInputs || [])}) {
+// Each note goes in as a note-on message, so every reader of the MIDI state sees it.
+for (const messages of ${JSON.stringify((parityCase.midiInputs || []).map((midiInput) => midiNoteOnMessages([midiInput])))}) {
     const midi = renderer.setMidiState();
-    midiInput.notes.forEach((note, index) => midi.channels[note.channel].noteOn(note.key, note.velocity, { time: 0, order: index + 1 }));
+    for (const bytes of messages) midi.handleMessage(new Uint8Array(bytes));
 }
 const settleMs = ${JSON.stringify(parityCase.settleMs || 0)};
 const surface = renderer.pipeline.surfaces.get(${JSON.stringify(parityCase.surface || 'o0')});

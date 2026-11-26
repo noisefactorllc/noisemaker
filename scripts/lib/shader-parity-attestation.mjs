@@ -169,6 +169,16 @@ export function registeredParityEffectIds(repoRoot) {
     return [...new Set(effectIds)].sort()
 }
 
+/**
+ * The note-on messages that feed a parity case's midiInputs, in case order:
+ * [status, key, velocity] for each note, on its channel 1 to 16. Fed through
+ * MidiState.handleMessage, they reach every reader of the MIDI state, as a
+ * real note-on message does.
+ */
+export function midiNoteOnMessages(midiInputs = []) {
+    return midiInputs.flatMap((midiInput) => midiInput.notes.map((note) => [0x90 | (note.channel - 1), note.key, note.velocity]))
+}
+
 export function validateParityCase(parityCase, effectId) {
     const errors = []
     if (parityCase?.schemaVersion !== 1) errors.push('parity case schemaVersion must equal 1')
@@ -239,9 +249,10 @@ export function validateParityCase(parityCase, effectId) {
                     continue
                 }
                 for (const note of midiInput.notes) {
-                    if (!note || !integerInRange(note.channel, 0, 15) || !integerInRange(note.key, 0, 127) ||
+                    // MidiState keys its channels 1 to 16, as MIDI names them.
+                    if (!note || !integerInRange(note.channel, 1, 16) || !integerInRange(note.key, 0, 127) ||
                         !integerInRange(note.velocity, 1, 127)) {
-                        errors.push('parity case midi note must give channel 0-15, key 0-127 and velocity 1-127')
+                        errors.push('parity case midi note must give channel 1-16, key 0-127 and velocity 1-127')
                     }
                 }
             }
