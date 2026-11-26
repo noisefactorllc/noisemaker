@@ -22439,7 +22439,7 @@ async function runDslProgram(session, dsl, options = {}) {
             const lastFrame = warmupFrames2 + captureFrames2.at(-1);
             for (let absoluteFrame = 1; absoluteFrame <= lastFrame; absoluteFrame++) {
               const previousFrame = renderer.frameCount;
-              renderer.render(absoluteFrame / 60 % 10 / 10);
+              await renderer.render(absoluteFrame / 60 % 10 / 10);
               if (renderFailure) throw new Error(`Render failed at frame ${absoluteFrame}: ${renderFailure}`);
               if (renderer.frameCount !== previousFrame + 1) {
                 throw new Error(`Renderer did not advance at frame ${absoluteFrame}`);
