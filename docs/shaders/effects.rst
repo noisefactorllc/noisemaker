@@ -1266,11 +1266,6 @@ Limitations:
   ``workgroups``. These declarations have no effect. The same diagnostic
   applies to the ``noise`` pipeline input, which always reads blank because
   nothing writes it. Legacy definitions still load with these fields.
-- Version 2 does not accept the top-level ``outputXyz``, ``outputVel``,
-  ``outputRgba`` and ``outputTex`` fields. An effect made from a declaration
-  does not carry them yet, so they would not hand anything on. A package hands
-  on particle state through the shared ``global_xyz``, ``global_vel`` and
-  ``global_rgba`` surfaces.
 
 Effects without input use ``"inputs": {}``. A filter binds its input
 explicitly, for example ``"inputs": { "inputTex": "inputTex" }``. Section 7.1
