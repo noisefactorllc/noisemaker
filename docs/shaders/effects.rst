@@ -1133,6 +1133,15 @@ version, independent of these profiles.
      -
      - Internal geometry texture exposed to the next effect, or ``inputGeo``
        for passthrough. In a legacy package ``null`` means absent.
+   * - ``outputTex``
+     - string
+     -
+     - Texture handed on to the next effect as its 2D input
+   * - ``outputXyz``, ``outputVel``, ``outputRgba``
+     - string
+     -
+     - Textures handed on to the next effect as agent positions, velocities
+       and colors, such as ``global_xyz`` in a particle chain
    * - ``uniformLayout``
      - object or array
      -
