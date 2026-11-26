@@ -1753,12 +1753,15 @@ export class Pipeline {
                 const storageId = this._textureAliases.get(texId)
                 if (storageId && storageId !== texId) continue
 
-                // Reuse only when dimensions, format, and depth all match.
+                // Reuse only when dimensions, format, and depth all match, and
+                // the texture's usage covers the spec's (a recompile can make a
+                // node's output a storage target at the same size).
                 const existingTex = this.backend.textures?.get?.(texId)
                 if (existingTex &&
                     existingTex.width === width &&
                     existingTex.height === height &&
-                    existingTex.format === spec.format) {
+                    existingTex.format === spec.format &&
+                    this.textureUsageCovers(existingTex, spec.usage)) {
                     // For 3D textures, also check depth
                     if (!spec.is3D || existingTex.depth === this.resolveDimension(spec.depth, width, uniforms)) {
                         continue  // No change needed
@@ -1787,6 +1790,21 @@ export class Pipeline {
         }
         this.applyTextureAliases()
         this.refreshMipTargets()
+    }
+
+    /**
+     * Whether a backend texture was created with every usage a spec asks for.
+     * WebGPU records its usage flags; a backend that records none (WebGL2)
+     * covers any usage.
+     * @param {object} texture - Backend texture record
+     * @param {string[]} [usage] - Spec usage names
+     * @returns {boolean}
+     */
+    textureUsageCovers(texture, usage) {
+        if (!Array.isArray(usage) || typeof texture.usage !== 'number' ||
+            typeof this.backend.resolveUsage !== 'function') return true
+        const needed = this.backend.resolveUsage(usage)
+        return (texture.usage & needed) === needed
     }
 
     /**
