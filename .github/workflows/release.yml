@@ -12,12 +12,43 @@ jobs:
   verify-source:
     name: Verify release source
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     steps:
     - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         fetch-depth: 0
     - name: Require the release commit on main
       run: git merge-base --is-ancestor "$GITHUB_SHA^{commit}" refs/remotes/origin/main
+    # A release tag comes only from the release automation, after shaders.yml
+    # passed on main for the same commit. Refuse a release whose commit has no
+    # passed shaders.yml push run on main. Wait, bounded, for a run that is
+    # still finishing: the automation tags while that run's last jobs end.
+    - name: Require a passed shaders.yml run on main for the release commit
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        sha=$(git rev-parse "$GITHUB_SHA^{commit}")
+        deadline=$((SECONDS + 600))
+        while :; do
+          runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/shaders.yml/runs?head_sha=$sha&event=push&per_page=50" \
+            --jq '[.workflow_runs[] | select(.head_branch == "main") | {status, conclusion}]')
+          if [ "$(jq '[.[] | select(.conclusion == "success")] | length' <<<"$runs")" -gt 0 ]; then
+            echo "shaders.yml passed on main for $sha"
+            exit 0
+          fi
+          if [ "$(jq '[.[] | select(.status != "completed")] | length' <<<"$runs")" -eq 0 ]; then
+            echo "::error::No passed shaders.yml run on main for $sha. A release needs shaders.yml to pass on that commit first."
+            exit 1
+          fi
+          if [ "$SECONDS" -ge "$deadline" ]; then
+            echo "::error::shaders.yml on main for $sha did not finish within the wait."
+            exit 1
+          fi
+          sleep 15
+        done
 
   build-js-bundles:
     needs: [verify-source]
@@ -198,9 +229,20 @@ jobs:
       with:
         path: dist/artifacts
 
+    # The release app publishes the release, so the release carries the same
+    # identity as its tag.
+    - name: Mint release GitHub App token
+      id: app-token
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      with:
+        client-id: Iv23liy6T6BW0BXuZRzx
+        private-key: ${{ secrets.EHSRE_APP_PRIVATE_KEY }}
+        owner: noisefactorllc
+        repositories: ${{ github.event.repository.name }}
+
     - name: Publish release
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ steps.app-token.outputs.token }}
         TAG: ${{ github.ref_name }}
       run: |
         set -euo pipefail
@@ -246,7 +288,7 @@ jobs:
     - name: Prune old releases
       # Keep the tags: ports pin releases by tag and read them back.
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ steps.app-token.outputs.token }}
         TAG: ${{ github.ref_name }}
       run: |
         MAJOR="${TAG%%.*}"
