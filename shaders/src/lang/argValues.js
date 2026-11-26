@@ -1,7 +1,8 @@
 /**
- * A text for a compiled argument value that tells any two different values
- * apart: numbers keep NaN, the infinities and -0, and object keys are sorted,
- * so the same value rebuilt in another key order gives the same text. The
+ * A text for a compiled argument value, as JSON with these changes: numbers
+ * keep NaN, the infinities and -0, and object keys are sorted, so the same
+ * value rebuilt in another key order gives the same text. As in JSON,
+ * undefined reads as null, and undefined and function members are left out. The
  * validator records it for the values a let call compiled to, and the
  * unparser compares it to find a value a host changed in place.
  */
