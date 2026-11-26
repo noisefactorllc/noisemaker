@@ -22578,7 +22578,26 @@ function normalizePass(p) {
 }
 
 // src/formats/definition-json.ts
+var PORTABLE_FORMAT = "noisemaker-portable-effect";
+var PORTABLE_VERSION = 2;
+var PACKAGE_FIELDS = [
+  "feature",
+  "hidden",
+  "deprecatedBy",
+  "openCategories",
+  "textures",
+  "textures3d",
+  "uniformLayout",
+  "uniformLayouts",
+  "defaultProgram",
+  "externalTexture",
+  "externalMesh",
+  "builtinMeshes",
+  "outputTex3d",
+  "outputGeo"
+];
 function parseDefinitionJson(json2, effectDir) {
+  if (json2.format !== void 0) return parsePortablePackage(json2, effectDir);
   const globals = {};
   const rawGlobals = json2.globals || {};
   for (const [key, spec] of Object.entries(rawGlobals)) {
@@ -22598,6 +22617,58 @@ function parseDefinitionJson(json2, effectDir) {
     format: "json",
     effectDir
   };
+}
+function isRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+var RESERVED_NAMES = [...Object.getOwnPropertyNames(Object.prototype), "prototype"];
+function declaredFields(value) {
+  return Object.fromEntries(Object.entries(value).filter(([, field]) => field !== void 0));
+}
+function parsePortablePackage(json2, effectDir) {
+  if (json2.format !== PORTABLE_FORMAT) {
+    throw new Error(`definition.json: format ${JSON.stringify(json2.format)} is not supported; a version ${PORTABLE_VERSION} package states "format": "${PORTABLE_FORMAT}"`);
+  }
+  if (json2.version === void 0) {
+    throw new Error(`definition.json: a package with a format marker states version ${PORTABLE_VERSION}`);
+  }
+  if (json2.version !== PORTABLE_VERSION) {
+    throw new Error(`definition.json: version ${JSON.stringify(json2.version)} is not supported; this reader reads version ${PORTABLE_VERSION}`);
+  }
+  if (!isRecord(json2.passes)) {
+    throw new Error(`definition.json: passes must be an object keyed by pass name in a version ${PORTABLE_VERSION} package`);
+  }
+  const globals = {};
+  const rawGlobals = json2.globals === void 0 ? {} : json2.globals;
+  if (!isRecord(rawGlobals)) throw new Error("definition.json: globals must be an object of parameters");
+  for (const [key, spec] of Object.entries(rawGlobals)) {
+    if (RESERVED_NAMES.includes(key)) throw new Error(`definition.json: globals.${key}: a parameter name may not be a reserved name`);
+    if (!isRecord(spec)) throw new Error(`definition.json: globals.${key} must be a parameter object`);
+    globals[key] = declaredFields({ ...spec, ...normalizeGlobal(key, spec) });
+  }
+  const passes = [];
+  for (const [name, pass] of Object.entries(json2.passes)) {
+    if (RESERVED_NAMES.includes(name)) throw new Error(`definition.json: passes.${name}: a pass name may not be a reserved name`);
+    if (!isRecord(pass)) throw new Error(`definition.json: passes.${name} must be a pass object`);
+    passes.push(declaredFields({ ...pass, ...normalizePass({ ...pass, name }) }));
+  }
+  const fields = {};
+  for (const field of PACKAGE_FIELDS) {
+    if (Object.hasOwn(json2, field)) fields[field] = json2[field];
+  }
+  return declaredFields({
+    func: json2.func ?? json2.name,
+    name: json2.name,
+    namespace: json2.namespace,
+    description: json2.description,
+    starter: json2.starter,
+    tags: json2.tags,
+    globals,
+    passes,
+    ...fields,
+    format: "json",
+    effectDir
+  });
 }
 
 // src/formats/definition-js.ts
