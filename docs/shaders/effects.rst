@@ -942,24 +942,60 @@ A package is a directory or ZIP archive:
    effect-name/
    ├── definition.json           # REQUIRED: Effect metadata
    ├── glsl/                     # At least one of glsl/ or wgsl/ REQUIRED
-   │   ├── main.glsl             # Primary fragment shader
-   │   └── *.glsl                # Additional shaders (multi-pass)
+   │   ├── main.glsl             # A program as one fragment stage
+   │   ├── deposit.vert          # A program as split stages: vertex ...
+   │   └── deposit.frag          # ... and fragment
    ├── wgsl/                     # At least one of glsl/ or wgsl/ REQUIRED
-   │   ├── main.wgsl             # Primary fragment shader
-   │   └── *.wgsl                # Additional shaders (multi-pass)
+   │   ├── main.wgsl
+   │   └── deposit.wgsl
+   ├── assets/                   # OPTIONAL: any other files, kept as bytes
+   │   └── mesh.obj
    └── help.md                   # OPTIONAL: Documentation
 
-- ``definition.json`` is required.
+- ``definition.json`` is required, at the root of the package, in UTF-8.
 - At least one of ``glsl/`` and ``wgsl/`` is required. An effect with only
   one shader language runs only on the corresponding backend: GLSL on WebGL2,
   WGSL on WebGPU. Provide both for use across Noise Factor applications.
 - ``help.md`` is optional documentation.
+- Every other file is an asset. The package keeps its bytes, and a host
+  uploads it, for example a mesh through ``loadOBJFromString()``. No pass
+  binds an asset by declaration.
 
 A shader file's name, without its directory and extension, is its program
 name. A pass's ``program`` value ``blur`` names ``glsl/blur.glsl`` and
 ``wgsl/blur.wgsl``. When a package provides both directories, every program
 needs a file in each, so that a backend never meets a missing shader in the
 middle of a pipeline.
+
+A GLSL program is ``glsl/<program>.glsl``, which the backend runs as the
+fragment stage with its own full-screen vertex stage, or the split stages
+``glsl/<program>.vert`` and ``glsl/<program>.frag``. A points, billboards or
+triangles pass needs a vertex stage, so its GLSL program uses the split form.
+A ``.frag`` file alone runs with the default vertex stage. A ``.vert`` file
+without its ``.frag`` file is refused (``missing-stage``), and so is a
+``.glsl`` file beside split stages of the same program (``duplicate-stage``).
+A WGSL program is one file that holds all of its entry points.
+
+**Paths.** Paths are relative to the package root, with ``/`` between
+segments; a ``\`` counts as one. Names compare in Unicode NFC. A path that is
+absolute, names a drive, has an empty or ``..`` segment, or holds a control
+character is refused (``invalid-path``). Two paths for one file, including
+two that differ only in case, are refused (``duplicate-path``), because one
+would overwrite the other on a disk. A ``.DS_Store`` file and a ``__MACOSX``
+directory are not package files and are left out.
+
+**ZIP archives.** A ZIP package holds the same files at the archive root.
+Stored and deflated entries are read, and each entry's size and CRC-32 must
+match its record. An encrypted entry, a ZIP64 or multi-disk archive, a link,
+another compression method and a damaged record are refused, each with its
+own diagnostic code. Directory entries carry no file.
+
+**Loading.** ``loadPortablePackage()`` (:ref:`portable-registration`) reads
+the files of a package and nothing else: it fetches nothing and runs no code
+from the package. With a backend it requires that backend's language for
+every program (``missing-backend``); without one it requires one complete
+language. It keeps every file's bytes, so ``packageFiles()`` gives back the
+same files.
 
 .. _portable-format-versions:
 
@@ -1145,40 +1181,35 @@ application then generated a single pass from the shader files.
 ``registerPortableEffect`` requires passes, so a host that calls it supplies
 them.
 
-.. list-table::
-   :header-rows: 1
-   :widths: 18 14 68
+The tables below list every pass property and every resource form that the
+runtime supports, the values the validator accepts, and the backends that act
+on each. They are generated from the shared grammar. A property that names a
+single backend has no effect on the other. Legacy loading accepts a pass
+without a ``name``, and the pass properties other than ``program`` may be
+left out.
 
-   * - Property
-     - Type
-     - Description
-   * - ``program``
-     - string
-     - Required. Shader program name (Section 8.1).
-   * - ``name``
-     - string
-     - Legacy only: unique pass identifier. In version 2 the key is the name.
-       Legacy loading accepts a pass without a name.
-   * - ``inputs``
-     - object
-     - Sampler name to texture name. Each value is a nonempty texture
-       reference.
-   * - ``outputs``
-     - object
-     - Fragment output to texture name. Each value is a nonempty texture
-       reference.
-   * - ``viewport``
-     - object
-     - Pass width and height. Volume passes use the atlas dimensions
-       (Section 8.6).
-   * - ``drawBuffers``
-     - integer
-     - Number of color attachments for a multi-output pass
-   * - ``type``
-     - string
-     - ``render`` (default) or ``compute``. State updates use ``compute``;
-       the value labels the pass, and backend shader-kind dispatch remains
-       source-derived.
+.. include:: portable-grammar.inc
+
+Limitations:
+
+- WebGL2 has no compute passes and cannot write a 3D texture. A package that
+  needs either runs on WebGPU, or gives WebGL2 a fragment form of the same
+  work, as the built-in volume effects do with their atlas.
+- A ``storageTextures`` binding writes only ``outputTex``, and only on WebGPU.
+  A binding to a declared texture is not found on WebGPU, and WebGL2 writes
+  nothing for a pass with ``storageTextures``.
+- Vertex data comes only from textures: the particle state, the mesh
+  surfaces or the pass's own inputs. A package has no vertex buffers.
+- Some fields have no effect, and version 2 refuses them with the diagnostic
+  code ``unsupported-field``: ``storageBuffers``, and a uniform name in
+  ``workgroups``. A legacy definition still loads with them.
+- ``inputOverride`` in a size object has no effect either. Version 2 accepts
+  it, because built-in definitions carry it.
+- Version 2 does not accept the top-level ``outputXyz``, ``outputVel``,
+  ``outputRgba`` and ``outputTex`` fields. An effect made from a declaration
+  does not carry them yet, so they would not hand anything on. A package hands
+  on particle state through the shared ``global_xyz``, ``global_vel`` and
+  ``global_rgba`` surfaces.
 
 Effects without input use ``"inputs": {}``. A filter binds its input
 explicitly, for example ``"inputs": { "inputTex": "inputTex" }``. Section 7.1
@@ -1242,6 +1273,28 @@ channel and use RGB for color. Upstream volume geometry can separately carry
 density in A and encoded normals in RGB. A renderer that uses that
 independent density implements that interpretation explicitly; changing an
 RGB palette does not change the built-in renderers' threshold convention.
+
+**Sizing, resizing and persistence.** A texture whose size is not a plain
+number is resolved again when the canvas resizes or a size parameter changes,
+and the texture is created again at the new size. Its contents start blank,
+unless it is ``persistent``: a persistent texture keeps its contents across
+that recreation and across a simulation reset. A size the runtime cannot
+resolve falls back to the screen size, with the diagnostic
+``ERR_DIMENSION_FALLBACK``.
+
+**Points and geometry.** A points or billboards pass reads its vertex data
+from the particle state (``xyzTex`` on ``global_xyz``, with ``global_vel``
+and ``global_rgba``), and a triangles pass from a mesh surface
+(``global_mesh0_positions`` and its normals and uvs). ``outputGeo`` and
+``inputGeo`` carry a geometry buffer from one effect to the next, as
+``outputTex3d`` and ``inputTex3d`` carry a volume.
+
+**Semantic types and storage.** A parameter's semantic type (``volume``,
+``geometry``, ``surface``) says what the value means, not how a backend
+stores it. A volume is a 3D texture on WebGPU where a pass writes one, and an
+atlas in a 2D texture where the effect declares one; both are volumes.
+Version 2 packages declare 2D effects, particle effects, mesh effects, volume
+generators, volume filters and volume renderers alike.
 
 Existing generators support cubic resolutions such as 16, 32, 64 and 128,
 subject to the device's maximum texture dimension. A wide rectangular world

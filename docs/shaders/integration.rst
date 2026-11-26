@@ -873,6 +873,39 @@ references:
     const effect = await renderer.registerPortableEffect(definition);
     await renderer.compile('search user\nmyEffect().write(o0)');
 
+A GLSL program is one fragment stage under ``glsl``, or split stages under
+``vertex`` and ``fragment``, the keys the built-in loader uses:
+
+.. code-block:: javascript
+
+    definition.shaders = {
+      deposit: { vertex: vertexSource, fragment: fragmentSource, wgsl: wgslSource }
+    };
+
+A host that holds the package files loads them with ``loadPortablePackage()``
+from ``shaders/src/portable/package.js``. It takes a map of package paths to
+bytes or text, which a host reads from a directory, or from a ZIP archive
+with ``fileMapFromZip()``. It reads that map and nothing else: it fetches
+nothing and runs no code from the package (:ref:`portable-format`, Section
+8.1):
+
+.. code-block:: javascript
+
+    import { fileMapFromZip, loadPortablePackage, packageFiles } from './shaders/src/portable/package.js';
+
+    const report = diagnostics => diagnostics.map(d => `${d.path}: ${d.message}`).join('\n');
+    const archive = await fileMapFromZip(zipBytes);
+    if (!archive.files) throw new Error(report(archive.diagnostics));
+    const loaded = loadPortablePackage(archive.files, { backend: 'webgpu' });
+    if (loaded.diagnostics.length) throw new Error(report(loaded.diagnostics));
+    await renderer.registerPortableEffect({ ...loaded.definition, shaders: loaded.shaders });
+    await renderer.loadOBJFromString(new TextDecoder().decode(loaded.assets.get('assets/mesh.obj')), 'mesh0');
+
+Each diagnostic has a ``code``, a ``path`` and a ``message``. ``loaded.assets``
+holds every file that is not the definition, a shader stage or ``help.md``, as
+bytes. No pass binds an asset by declaration: the host uploads it, as the mesh
+above. ``packageFiles(loaded)`` gives back the package files, byte for byte.
+
 Registration returns the cached user effect with a live ``Effect``
 instance. ``renderer.loadEffect('user/<func>')`` returns that effect again
 afterwards.
@@ -913,14 +946,23 @@ code ``unsupported-version``, and nothing is registered.
   texture references.
 - Every referenced program needs nonempty shader source. If any pass
   carries a GLSL (or WGSL) source, every pass must carry that language's
-  source, so a backend never encounters a missing shader mid-pipeline.
+  source, so a backend never encounters a missing shader mid-pipeline. A
+  GLSL source is ``glsl``, or ``fragment`` with an optional ``vertex``.
+- A program that gives ``glsl`` beside ``vertex`` or ``fragment`` is refused
+  with the diagnostic code ``duplicate-stage``, and a ``vertex`` without its
+  ``fragment`` with ``missing-stage``.
+- The renderer's backend needs its language for every program: GLSL on
+  WebGL2, WGSL on WebGPU. A package without it is refused with the diagnostic
+  code ``missing-backend``, at the path ``shaders/<program>``. A package with
+  one complete language is valid; built-in effects carry both.
 - ``globals`` must contain parameter objects. ``choices`` must map names to
   numbers — or strings for string-typed parameters — or null.
 - ``paramAliases`` is retired and causes registration to fail.
 
-Registration does not compile shaders or verify backend support: a package
-that passes registration can still fail at ``compile()`` time like any
-other effect.
+A refusal that has a diagnostic code carries it in the error's
+``diagnostics`` array. Registration does not compile shaders: a package that
+passes registration can still fail at ``compile()`` time like any other
+effect.
 
 Effect registries are shared within a JavaScript realm, so registration:
 
