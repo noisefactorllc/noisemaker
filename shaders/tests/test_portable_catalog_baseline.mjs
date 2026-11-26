@@ -33,6 +33,7 @@ import {
     compareCatalog,
     exportReferenceSource,
     firstDifference,
+    isolatedGitEnv,
     loadCatalog,
     manifestEffectIds,
     parityGateProblems,
@@ -346,6 +347,22 @@ test('an explainedDifferences entry has no source, or the source "runtime"', () 
         [`explainedDifferences entry for ${entry.effectId} has an unknown source "loader"`])
 })
 
+// Every platform's git must run in the isolated environment: a null device
+// path such as Windows' \\.\nul is not a configuration file git can read.
+test('git runs in the isolated environment on this platform, and reads no configuration of the caller', () => {
+    const home = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'isolated-git-'))
+    try {
+        const env = isolatedGitEnv(home)
+        assert.ok(fs.statSync(env.GIT_CONFIG_GLOBAL).isFile(), 'the global configuration is a regular file')
+        assert.equal(Object.keys(env).filter(key => key.startsWith('GIT_') && !['GIT_CONFIG_GLOBAL', 'GIT_CONFIG_NOSYSTEM'].includes(key)).length, 0)
+        const repo = path.join(home, 'repo')
+        execFileSync('git', ['init', '-q', '--template=', repo], { env })
+        assert.equal(execFileSync('git', ['config', '--list', '--show-origin', '--global'], { cwd: repo, env, encoding: 'utf8' }), '')
+    } finally {
+        fs.rmSync(home, { recursive: true, force: true })
+    }
+})
+
 // The record refuses these before it checks the tree or writes the baseline.
 test('the record refuses a commit that changes neither the effect nor the definition runtime', async () => {
     const unrelated = execFileSync('git', ['-C', REPO_ROOT, 'rev-parse', '4c3c599d^{commit}'], { encoding: 'utf8' }).trim()
@@ -358,7 +375,9 @@ test('the record refuses a commit that changes neither the effect nor the defini
 // rewrites the first one's context, so the first no longer applies in reverse.
 test('the record refuses a runtime commit that leaves the effect alone, and one that does not apply in reverse to HEAD', async () => {
     const scratch = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'catalog-runtime-'))
-    const env = { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_'))), GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_NOSYSTEM: '1' }
+    const home = path.join(scratch, 'home')
+    fs.mkdirSync(home)
+    const env = isolatedGitEnv(home)
     const clone = path.join(scratch, 'clone')
     const git = (...args) => execFileSync('git', ['-c', 'user.name=catalog test', '-c', 'user.email=catalog-test@example.invalid', '-c', 'commit.gpgsign=false', ...args],
         { cwd: clone, env, encoding: 'utf8' }).trim()

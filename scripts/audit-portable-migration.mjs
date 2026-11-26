@@ -641,10 +641,14 @@ export const ENTRY_SOURCES = Object.freeze(['runtime'])
  * An environment for git commands that must not see the caller's git state:
  * no GIT_* variable (GIT_DIR, GIT_INDEX_FILE, GIT_DIFF_OPTS and the others),
  * and no system, global or XDG configuration, ignore or attributes file.
+ * The global configuration is an empty file in `home`, which must be an
+ * empty directory: git for Windows cannot read the null device as one.
  */
-function isolatedGitEnv(home) {
+export function isolatedGitEnv(home) {
     const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')))
-    return { ...env, GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_NOSYSTEM: '1', HOME: home, XDG_CONFIG_HOME: home }
+    const global = path.join(home, 'gitconfig')
+    fs.writeFileSync(global, '')
+    return { ...env, GIT_CONFIG_GLOBAL: global, GIT_CONFIG_NOSYSTEM: '1', HOME: home, XDG_CONFIG_HOME: home }
 }
 
 const ISOLATED_CONFIG = ['-c', 'core.excludesFile=', '-c', 'core.attributesFile=']
