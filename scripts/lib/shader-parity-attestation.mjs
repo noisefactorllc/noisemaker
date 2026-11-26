@@ -274,9 +274,10 @@ export function validateParityCase(parityCase, effectId) {
                     continue
                 }
                 for (const note of midiInput.notes) {
-                    if (!note || !integerInRange(note.channel, 0, 15) || !integerInRange(note.key, 0, 127) ||
+                    // MidiState keys its channels 1 to 16, as MIDI names them.
+                    if (!note || !integerInRange(note.channel, 1, 16) || !integerInRange(note.key, 0, 127) ||
                         !integerInRange(note.velocity, 1, 127)) {
-                        errors.push('parity case midi note must give channel 0-15, key 0-127 and velocity 1-127')
+                        errors.push('parity case midi note must give channel 1-16, key 0-127 and velocity 1-127')
                     }
                 }
             }
@@ -358,6 +359,10 @@ function validateScheduledInputs(parityCase) {
         if (!frames || !frames.includes(texture.afterFrame)) {
             errors.push('parity case texture input afterFrame must be one of the timeline frames')
         }
+    }
+    // A timed case gives its notes as midiMessages, at the frames they reach.
+    if (parityCase?.midiInputs !== undefined && parityCase?.timeline !== undefined) {
+        errors.push('parity case midi inputs are the untimed form; a timed case gives its notes as midiMessages')
     }
     if (parityCase?.midiMessages === undefined) return errors
     if (!frames) return [...errors, 'parity case MIDI messages need a timeline']

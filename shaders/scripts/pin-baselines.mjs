@@ -1,7 +1,7 @@
 import { validateParityCase } from '../../scripts/lib/shader-parity-attestation.mjs'
 
 // The fields a pin case shares with a parity case, which mean what they mean there.
-const PARITY_FIELDS = ['effects', 'dsl', 'surface', 'resolution', 'settleMs', 'tiles', 'textureInputs', 'meshInputs', 'timeline', 'control', 'midiMessages']
+const PARITY_FIELDS = ['effects', 'dsl', 'surface', 'resolution', 'settleMs', 'tiles', 'textureInputs', 'meshInputs', 'timeline', 'control', 'midiMessages', 'midiInputs']
 
 /**
  * The problems of a pin case, checked as the attestation checks a parity case:

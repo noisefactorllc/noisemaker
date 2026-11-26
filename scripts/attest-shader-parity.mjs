@@ -43,9 +43,12 @@
  *                          untimed case may have one.
  *   midiMessages           optional, timed cases only: a non-empty array of
  *                          { afterFrame, data }
+ *   midiInputs             optional, untimed cases only: [{ effect, notes:
+ *                          [{ channel 1-16, key, velocity }] }], fed before
+ *                          the first render
  *
- * An untimed case renders once at time 0, then uploads its textures and loads
- * its meshes, then captures. Its attestation never has a timeline block, and
+ * An untimed case feeds its midiInputs, renders once at time 0, then uploads
+ * its textures and loads its meshes, then captures. Its attestation never has a timeline block, and
  * has a control block only if the case has a control.
  *
  * A timed case steps the 2.x fixed-step simulation clock
@@ -262,8 +265,9 @@ function applyInputs(frame) {
 // render: on the fixed-step clock only that render steps a stateful effect at
 // time 0, so a note fed later would never reach its history. A timed case
 // gives its notes as midiMessages instead.
+let midiOrder = 0;
 for (const midiInput of midiInputs) {
-    midiInput.notes.forEach((note, index) => midi.channels[note.channel].noteOn(note.key, note.velocity, { time: 0, order: index + 1 }));
+    for (const note of midiInput.notes) midi.channels[note.channel].noteOn(note.key, note.velocity, { time: 0, order: ++midiOrder });
 }
 // A scene program renders asynchronously, so a timed case awaits each frame
 // before its inputs. An untimed case renders as it did before.

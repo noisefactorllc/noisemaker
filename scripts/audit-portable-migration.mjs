@@ -950,7 +950,7 @@ export async function runsTarget(repo, id, dsl) {
  *     target's own texture fixtures (without the target they bind to
  *     nothing); none when withoutTarget is null, for a target that makes the
  *     frame;
- *   - withoutInputs: a case with midiMessages or audio, without them, so the
+ *   - withoutInputs: a case with midiMessages, midiInputs or audio, without them, so the
  *     inputs reach the frame;
  *   - firstFrames: a timed case cut to its first two frames, so its timeline
  *     changes the frame. It keeps every input, so each input must arrive by
@@ -963,8 +963,8 @@ export function caseVariants(id, renderCase) {
     if (renderCase.withoutTarget !== null) {
         variants.withoutTarget = { ...renderCase, dsl: renderCase.withoutTarget, textureInputs: (renderCase.textureInputs || []).filter(texture => texture.effect !== id) }
     }
-    if (renderCase.midiMessages || renderCase.audio) {
-        const { midiMessages, audio, ...rest } = renderCase
+    if (renderCase.midiMessages || renderCase.midiInputs || renderCase.audio) {
+        const { midiMessages, midiInputs, audio, ...rest } = renderCase
         variants.withoutInputs = rest
     }
     if (renderCase.timeline) {

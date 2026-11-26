@@ -112,6 +112,7 @@ const frames = timeline ? timeline.frames : [0];
 const times = timeline ? timeline.times : [0];
 const textureInputs = ${JSON.stringify(pinCase.textureInputs || [])};
 const midiMessages = ${JSON.stringify(pinCase.midiMessages || [])};
+const midiInputs = ${JSON.stringify(pinCase.midiInputs || [])};
 await renderer.loadManifest();
 await renderer.loadEffects(${JSON.stringify(pinCase.effects)});
 if (timeline) renderer.setLoopDuration(timeline.loopSeconds);
@@ -121,7 +122,7 @@ if (${JSON.stringify(pinCase.audio || null)} === 'ramps') {
     audio.spectrum.set(Float32Array.from({ length: 128 }, (_, i) => (127 - i) / 127));
 }
 // Note activity goes through the engine's own MIDI state, as the recorder sends it.
-const midi = midiMessages.length ? renderer.setMidiState() : null;
+const midi = midiMessages.length || midiInputs.length ? renderer.setMidiState() : null;
 await renderer.compile(${JSON.stringify(pinCase.dsl)});
 renderer.stop();
 const matchesTargetEffectPass = ${matchesTargetEffectPass.toString()};
@@ -149,6 +150,12 @@ function applyInputs(frame) {
     for (const message of midiMessages) {
         if (message.afterFrame === frame) midi.handleMessage(new Uint8Array(message.data));
     }
+}
+// Untimed note activity is fed before the first render, as the recorder
+// feeds it.
+let midiOrder = 0;
+for (const midiInput of midiInputs) {
+    for (const note of midiInput.notes) midi.channels[note.channel].noteOn(note.key, note.velocity, { time: 0, order: ++midiOrder });
 }
 // A scene program renders asynchronously, so every render is awaited.
 await renderer.render(times[0]);

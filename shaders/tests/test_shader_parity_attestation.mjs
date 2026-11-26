@@ -120,11 +120,17 @@ try {
     const midiInput = { effect: 'filter/example', notes: [{ channel: 1, key: 40, velocity: 110 }] }
     assert.deepEqual(validateParityCase({ ...completeParityCase, midiInputs: [midiInput] }, 'filter/example'), [])
     for (const change of [{ effect: 'unknown/effect' }, { notes: [] }, { notes: undefined },
-        { notes: [{ channel: 16, key: 40, velocity: 110 }] },
+        { notes: [{ channel: 0, key: 40, velocity: 110 }] },
+        { notes: [{ channel: 17, key: 40, velocity: 110 }] },
         { notes: [{ channel: 1, key: 128, velocity: 110 }] },
         { notes: [{ channel: 1, key: 40, velocity: 0 }] }]) {
         assert.ok(validateParityCase({ ...completeParityCase, midiInputs: [{ ...midiInput, ...change }] },
             'filter/example').some(error => error.includes('midi')), 'invalid midi evidence must be rejected')
+    }
+    assert.deepEqual(validateParityCase({ ...completeParityCase, midiInputs: [{ ...midiInput, notes: [{ channel: 16, key: 40, velocity: 110 }] }] }, 'filter/example'), [])
+    for (const midiInputs of [[{ ...midiInput, port: 'a' }], [{ ...midiInput, notes: [{ ...midiInput.notes[0], time: 0 }] }]]) {
+        assert.ok(validateParityCase({ ...completeParityCase, midiInputs }, 'filter/example').some(error => error.includes('unknown field')),
+            'an unknown midi input or note field must be rejected')
     }
     assert.deepEqual(validateParityCase({ ...completeParityCase, tiles: { size: [4, 8], renderScale: 2 } }, 'filter/example'), [])
     for (const tiles of [{ size: [3, 8] }, { size: [8, 8] }, { size: [4] }, { size: [0, 8] }, { size: [4, 4], renderScale: 0 },
