@@ -30,9 +30,13 @@
  * case renders its frames in order on the fixed-step clock, applies each
  * frame's inputs after it, and is read at its last frame. A case's tiles are
  * not honoured: a pin compares the untiled frame. A pin reads no control, so a
- * timed case needs none here. One field is the pin tool's own: audio,
+ * timed case needs none here. Two fields are the pin tool's own: audio,
  * "ramps", fills the waveform and the spectrum with the cross-backend
- * agreement harness's ramps, for an effect that draws audio input.
+ * agreement harness's ramps, for an effect that draws audio input; and
+ * portablePackages, [{ id, path }], names Portable package directories in the
+ * repository, which the page loads with loadPortablePackage() and registers
+ * through registerPortableEffect() before it compiles. An effect a package
+ * registers is not loaded from the catalog.
  *
  * --allow-blank accepts a frame with no lit pixel, as a render of a case with
  * its target or its inputs taken away may have, instead of failing it.
@@ -82,6 +86,20 @@ const timelinePlan = pinCase.timeline ? {
 } : null
 const [width, height] = pinCase.resolution
 
+// A package directory as [path, text] entries, for the page to load.
+function packageEntries(directory, prefix = '', entries = []) {
+    for (const item of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+        const name = prefix ? `${prefix}/${item.name}` : item.name
+        if (item.isDirectory()) packageEntries(path.join(directory, item.name), name, entries)
+        else entries.push([name, fs.readFileSync(path.join(directory, item.name), 'utf8')])
+    }
+    return entries
+}
+const portablePackages = (pinCase.portablePackages || []).map(({ id, path: directory }) => {
+    if (typeof id !== 'string' || typeof directory !== 'string') throw new Error('pin case portablePackages entries are { id, path }')
+    return { id, entries: packageEntries(path.join(repoRoot, directory)) }
+})
+
 async function renderBackend(browser, baseUrl, preferWebGPU) {
     const page = await browser.newPage({ viewport: { width, height } })
     const consoleMessages = []
@@ -99,7 +117,7 @@ async function renderBackend(browser, baseUrl, preferWebGPU) {
 <link rel="icon" href="data:,">
 <canvas id="canvas" width="${width}" height="${height}"></canvas>
 <script type="module">
-import { CanvasRenderer } from '${baseUrl}/shaders/src/index.js';
+import { CanvasRenderer, loadPortablePackage } from '${baseUrl}/shaders/src/index.js';
 const renderer = new CanvasRenderer({
     canvas: document.getElementById('canvas'),
     width: ${width},
@@ -114,7 +132,15 @@ const textureInputs = ${JSON.stringify(pinCase.textureInputs || [])};
 const midiMessages = ${JSON.stringify(pinCase.midiMessages || [])};
 const midiInputs = ${JSON.stringify(pinCase.midiInputs || [])};
 await renderer.loadManifest();
-await renderer.loadEffects(${JSON.stringify(pinCase.effects)});
+const portablePackages = ${JSON.stringify(portablePackages)};
+const encoder = new TextEncoder();
+for (const portable of portablePackages) {
+    const loaded = loadPortablePackage(new Map(portable.entries.map(([name, text]) => [name, encoder.encode(text)])));
+    if (loaded.diagnostics.length) throw new Error('Portable package ' + portable.id + ' is refused: ' + JSON.stringify(loaded.diagnostics));
+    await renderer.registerPortableEffect({ ...loaded.definition, shaders: loaded.shaders });
+}
+const packaged = new Set(portablePackages.map((portable) => portable.id));
+await renderer.loadEffects(${JSON.stringify(pinCase.effects)}.filter((id) => !packaged.has(id)));
 if (timeline) renderer.setLoopDuration(timeline.loopSeconds);
 if (${JSON.stringify(pinCase.audio || null)} === 'ramps') {
     const audio = renderer.setAudioState();

@@ -1,0 +1,241 @@
+{
+  "format": "noisemaker-portable-effect",
+  "version": 2,
+  "name": "Media",
+  "namespace": "user",
+  "func": "media",
+  "description": "Video/camera/image input",
+  "tags": [
+    "image",
+    "video"
+  ],
+  "globals": {
+    "position": {
+      "type": "int",
+      "default": 4,
+      "uniform": "position",
+      "choices": {
+        "topLeft": 0,
+        "topCenter": 1,
+        "topRight": 2,
+        "midLeft": 3,
+        "midCenter": 4,
+        "midRight": 5,
+        "bottomLeft": 6,
+        "bottomCenter": 7,
+        "bottomRight": 8
+      },
+      "ui": {
+        "label": "position",
+        "control": "dropdown",
+        "category": "orientation"
+      }
+    },
+    "tiling": {
+      "type": "int",
+      "default": 0,
+      "uniform": "tiling",
+      "choices": {
+        "none": 0,
+        "horizAndVert": 1,
+        "horizOnly": 2,
+        "vertOnly": 3
+      },
+      "ui": {
+        "label": "tiling",
+        "control": "dropdown",
+        "category": "orientation"
+      }
+    },
+    "flip": {
+      "type": "int",
+      "default": 0,
+      "uniform": "flip",
+      "choices": {
+        "none": 0,
+        "all": 1,
+        "horizontal": 2,
+        "vertical": 3,
+        "mirrorLtoR": 11,
+        "mirrorRtoL": 12,
+        "mirrorUtoD": 13,
+        "mirrorDtoU": 14,
+        "mirrorLtoRUtoD": 15,
+        "mirrorLtoRDtoU": 16,
+        "mirrorRtoLUtoD": 17,
+        "mirrorRtoLDtoU": 18
+      },
+      "ui": {
+        "label": "flip/mirror",
+        "control": "dropdown",
+        "category": "orientation"
+      }
+    },
+    "scaleAmt": {
+      "type": "float",
+      "default": 100,
+      "min": 25,
+      "max": 400,
+      "uniform": "scaleAmt",
+      "ui": {
+        "label": "scale %",
+        "control": "slider",
+        "category": "transform"
+      }
+    },
+    "rotation": {
+      "type": "float",
+      "default": 0,
+      "min": -180,
+      "max": 180,
+      "uniform": "rotation",
+      "ui": {
+        "label": "rotate",
+        "control": "slider",
+        "category": "transform"
+      }
+    },
+    "offsetX": {
+      "type": "float",
+      "default": 0,
+      "min": -100,
+      "max": 100,
+      "uniform": "offsetX",
+      "ui": {
+        "label": "offset x",
+        "control": "slider",
+        "category": "transform"
+      }
+    },
+    "offsetY": {
+      "type": "float",
+      "default": 0,
+      "min": -100,
+      "max": 100,
+      "uniform": "offsetY",
+      "ui": {
+        "label": "offset y",
+        "control": "slider",
+        "category": "transform"
+      }
+    },
+    "bgColor": {
+      "type": "color",
+      "default": [
+        0,
+        0,
+        0
+      ],
+      "uniform": "bgColor",
+      "ui": {
+        "label": "bg color",
+        "control": "color",
+        "category": "background"
+      }
+    },
+    "bgAlpha": {
+      "type": "float",
+      "default": 0,
+      "min": 0,
+      "max": 1,
+      "uniform": "bgAlpha",
+      "ui": {
+        "label": "bg opacity",
+        "control": "slider",
+        "category": "background"
+      }
+    },
+    "imageSize": {
+      "type": "vec2",
+      "default": [
+        1024,
+        1024
+      ],
+      "uniform": "imageSize",
+      "ui": {
+        "control": false
+      }
+    }
+  },
+  "passes": {
+    "main": {
+      "program": "mediaInput",
+      "inputs": {
+        "imageTex": "imageTex"
+      },
+      "outputs": {
+        "fragColor": "outputTex"
+      }
+    }
+  },
+  "uniformLayout": {
+    "resolution": {
+      "slot": 0,
+      "components": "xy"
+    },
+    "time": {
+      "slot": 0,
+      "components": "z"
+    },
+    "position": {
+      "slot": 1,
+      "components": "x"
+    },
+    "rotation": {
+      "slot": 1,
+      "components": "y"
+    },
+    "scaleAmt": {
+      "slot": 1,
+      "components": "z"
+    },
+    "offsetX": {
+      "slot": 1,
+      "components": "w"
+    },
+    "offsetY": {
+      "slot": 2,
+      "components": "x"
+    },
+    "tiling": {
+      "slot": 2,
+      "components": "y"
+    },
+    "flip": {
+      "slot": 2,
+      "components": "z"
+    },
+    "bgAlpha": {
+      "slot": 2,
+      "components": "w"
+    },
+    "bgColor": {
+      "slot": 3,
+      "components": "xyz"
+    },
+    "imageSize": {
+      "slot": 4,
+      "components": "xy"
+    },
+    "tileOffset": {
+      "slot": 5,
+      "components": "xy"
+    },
+    "fullResolution": {
+      "slot": 5,
+      "components": "zw"
+    }
+  },
+  "externalTexture": "imageTex",
+  "capabilities": [
+    {
+      "id": "noisemaker/media-dimensions",
+      "version": 1,
+      "bindings": {
+        "parameters": {
+          "size": "imageSize"
+        }
+      }
+    }
+  ]
+}

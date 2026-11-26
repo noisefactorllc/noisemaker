@@ -27,15 +27,18 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import {
     CanvasRenderer, createCapabilityRegistry, getEffect, getPortableCapability, instantiatePortableEffect,
-    registerPortableCapability, resolvePortableCapabilities,
+    mergeIntoEnums, registerPortableCapability, resolvePortableCapabilities,
 } from '../src/index.js'
 import { Backend } from '../src/runtime/backend.js'
 import { compileGraph, recompile } from '../src/runtime/compiler.js'
 import { Pipeline } from '../src/runtime/pipeline.js'
 import { CATALOG_CONTEXT } from '../src/portable/instantiate.js'
 import { capabilityUseOf } from '../src/portable/capabilities.js'
-import { isStarterOp } from '../src/lang/validator.js'
-import { exportReferenceSource } from '../../scripts/audit-portable-migration.mjs'
+import { isStarterOp, registerStarterOps } from '../src/lang/validator.js'
+import { exportReferenceSource, providerCases, PROVIDERS_RELATIVE } from '../../scripts/audit-portable-migration.mjs'
+import { pinCaseErrors } from '../scripts/pin-baselines.mjs'
+import { loadPortablePackage, packageFiles } from '../src/portable/package.js'
+import { toPortablePackage, PACKAGE_KEYS } from '../src/portable/definition.js'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const baseline = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'shaders/tests/fixtures/portable/catalog-baseline.json'), 'utf8'))
@@ -494,6 +497,68 @@ test('under the pipeline: an asyncInit that fails leaves the pipeline rendering'
         pipeline.dispose()
     } finally {
         console.error = error
+    }
+})
+
+// ---------------------------------------------------------------------------
+// The provider fixtures that --pins --check --providers renders.
+
+function readPackage(directory, prefix = '', files = new Map()) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+        const name = prefix ? `${prefix}/${entry.name}` : entry.name
+        if (entry.isDirectory()) readPackage(path.join(directory, entry.name), name, files)
+        else files.set(name, new Uint8Array(fs.readFileSync(path.join(directory, entry.name))))
+    }
+    return files
+}
+const text = bytes => new TextDecoder().decode(bytes).replace(/\r\n/g, '\n')
+
+test('each provider fixture is its effect\'s declaration with the provider, and the effect\'s own shaders', async () => {
+    const cases = providerCases(REPO_ROOT)
+    assert.deepEqual(cases.map(entry => entry.effectId), ['filter/fibers', 'filter/scratches', 'filter/strayHair', 'synth/media'])
+    for (const { effectId, packageId, renderCase } of cases) {
+        const directory = path.join(REPO_ROOT, PROVIDERS_RELATIVE, effectId.replace('/', '-'))
+        const files = readPackage(directory)
+        const loaded = loadPortablePackage(files)
+        assert.deepEqual(loaded.diagnostics, [], effectId)
+        assert.equal(loaded.capabilities.complete, false, `${effectId}: the package carries no descriptor; its provider's is the engine's`)
+
+        // The declaration is the effect's, in the version 2 form, with the provider.
+        const mod = await importFrom(REPO_ROOT, `shaders/effects/${effectId}/definition.js`)
+        const instance = typeof mod.default === 'function' ? new mod.default() : mod.default
+        const declaration = {}
+        for (const key of PACKAGE_KEYS) if (instance[key] !== undefined) declaration[key] = instance[key]
+        const { capabilities, namespace, ...rest } = JSON.parse(text(files.get('definition.json')))
+        const expected = toPortablePackage(JSON.parse(JSON.stringify(declaration)))
+        delete expected.namespace
+        assert.deepEqual(rest, expected, `${effectId}: the fixture is the effect's declaration`)
+        assert.equal(namespace, 'user')
+        assert.equal(capabilities.length, 1)
+
+        // Its shader files are the effect's own.
+        for (const [name, bytes] of packageFiles(loaded)) {
+            if (name === 'definition.json') continue
+            assert.equal(text(bytes), text(fs.readFileSync(path.join(REPO_ROOT, 'shaders/effects', effectId, name))), `${effectId}: ${name}`)
+        }
+
+        // Its case is valid, and its program runs the package, not the catalog's
+        // effect, which is registered beside it as the page registers it.
+        assert.deepEqual(pinCaseErrors(renderCase, packageId), [], effectId)
+        const renderer = new CanvasRenderer()
+        for (const id of new Set([...renderCase.effects.filter(entry => entry !== packageId), effectId])) {
+            const [catalogNamespace, name] = id.split('/')
+            if (getEffect(`${catalogNamespace}.${name}`)) continue
+            const catalogModule = await importFrom(REPO_ROOT, `shaders/effects/${id}/definition.js`)
+            const catalogInstance = typeof catalogModule.default === 'function' ? new catalogModule.default() : catalogModule.default
+            const choices = renderer.registerEffectWithRuntime({ namespace: catalogNamespace, name, instance: catalogInstance })
+            if (choices) await mergeIntoEnums(choices)
+            if (catalogNamespace === 'synth') registerStarterOps([`synth.${name}`])
+        }
+        await renderer.registerPortableEffect({ ...loaded.definition, shaders: loaded.shaders })
+        const graph = compileGraph(renderCase.dsl)
+        const keys = new Set(graph.passes.map(pass => pass.effectKey).filter(Boolean))
+        assert.ok(keys.has(packageId.replace('/', '.')), `${effectId}: the program runs ${packageId}: ${[...keys]}`)
+        assert.ok(!keys.has(effectId.replace('/', '.')), `${effectId}: and not the catalog's effect`)
     }
 })
 

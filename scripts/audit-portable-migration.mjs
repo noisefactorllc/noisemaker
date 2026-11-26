@@ -16,6 +16,7 @@
  *   node scripts/audit-portable-migration.mjs --check
  *   node scripts/audit-portable-migration.mjs --realms --versions <published versions>
  *   node scripts/audit-portable-migration.mjs --pins (--record | --check) [--effects <IDs>]
+ *   node scripts/audit-portable-migration.mjs --pins --check --providers
  *   node scripts/audit-portable-migration.mjs --perf (--record [--replace-budgets] | --check) [--effects <IDs>]
  *
  * `--record` reads the reference release's `deployment-meta.json` and
@@ -1077,6 +1078,70 @@ export async function pins(repo, { mode, listed, log = () => {} }) {
     return { rendered, problems }
 }
 
+// The provider fixtures: for each effect whose lifecycle a capability
+// provider now carries, a Portable package that declares the provider with
+// that effect's recipe, in the directory <namespace>-<name>.
+export const PROVIDERS_RELATIVE = 'shaders/tests/fixtures/portable/providers'
+
+// The fields of a render case that a provider case renders as they are.
+const PROVIDER_CASE_FIELDS = ['dsl', 'surface', 'resolution', 'settleMs', 'textureInputs', 'meshInputs', 'timeline', 'midiMessages', 'midiInputs', 'audio']
+
+/**
+ * The render case of each provider fixture: its effect's Task 1 case, with
+ * the package registered in the user namespace and found first, in place of
+ * the catalog's effect. Its frames must equal the effect's pins, which the
+ * inline implementation produced.
+ * @param {string} repo
+ * @returns {Array<{effectId: string, packageId: string, renderCase: object}>}
+ */
+export function providerCases(repo) {
+    const root = path.join(repo, PROVIDERS_RELATIVE)
+    const cases = readJson(path.join(repo, RENDER_CASES_RELATIVE)).cases
+    return fs.readdirSync(root, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name).sort().map(name => {
+        const separator = name.indexOf('-')
+        const effectId = `${name.slice(0, separator)}/${name.slice(separator + 1)}`
+        const source = cases[effectId]
+        if (!source) throw new Error(`${PROVIDERS_RELATIVE}/${name} names ${effectId}, which has no render case`)
+        const definition = readJson(path.join(root, name, 'definition.json'))
+        const packageId = `user/${definition.func}`
+        const [first, ...rest] = source.dsl.split('\n')
+        if (!first.startsWith('search ')) throw new Error(`${effectId}: its case's program does not start with a search line`)
+        const renderCase = Object.fromEntries(PROVIDER_CASE_FIELDS.filter(field => source[field] !== undefined).map(field => [field, structuredClone(source[field])]))
+        renderCase.effects = source.effects.map(id => (id === effectId ? packageId : id))
+        renderCase.dsl = [`search user, ${first.slice('search '.length)}`, ...rest].join('\n')
+        for (const input of renderCase.textureInputs ?? []) if (input.effect === effectId) input.effect = packageId
+        renderCase.portablePackages = [{ id: packageId, path: `${PROVIDERS_RELATIVE}/${name}` }]
+        return { effectId, packageId, renderCase }
+    })
+}
+
+/**
+ * `--pins --check --providers`: render each provider fixture's case on both
+ * backends, and compare each backend's frame with the pin of the effect the
+ * provider replaces, for this GPU.
+ * @returns {Promise<{rendered: string[], problems: string[]}>}
+ */
+export async function providerPins(repo, { log = () => {} } = {}) {
+    const rendered = []
+    const problems = []
+    const scratch = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'portable-provider-pins-'))
+    try {
+        for (const { effectId, packageId, renderCase } of providerCases(repo)) {
+            const casesFile = path.join(scratch, `${effectId.replace('/', '__')}.json`)
+            writeJson(casesFile, { cases: { [packageId]: renderCase } })
+            const file = pinPath(repo, effectId)
+            if (!fs.existsSync(file)) { problems.push(`${effectId}: it has no pin baseline`); log(`FAILED ${effectId}`); continue }
+            const checked = runPinTool(repo, casesFile, packageId, '--check', file)
+            if (!checked.ok) { problems.push(`${effectId} through its provider: ${checked.detail}`); log(`FAILED ${effectId}`); continue }
+            rendered.push(effectId)
+            log(`ok ${effectId} through ${packageId}`)
+        }
+    } finally {
+        fs.rmSync(scratch, { recursive: true, force: true })
+    }
+    return { rendered, problems }
+}
+
 // The performance policy, frozen with the cases: a case's median frame time on
 // a backend may not exceed its budget, which is this factor times the largest
 // median of the recording's rounds, and never less than the floor. A frame is
@@ -1256,7 +1321,7 @@ export async function perf(repo, { mode, listed, replace = false, log = () => {}
 }
 
 function parseArgs(argv) {
-    const args = { mode: null, effects: [], commit: null, reason: null, reference: null, versions: [], replace: false, consumers: false, pins: false, perf: false, replaceBudgets: false, effectsGiven: false }
+    const args = { mode: null, effects: [], commit: null, reason: null, reference: null, versions: [], replace: false, consumers: false, pins: false, perf: false, replaceBudgets: false, effectsGiven: false, providers: false }
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i]
         if (arg === '--record' || arg === '--check' || arg === '--realms') {
@@ -1264,6 +1329,8 @@ function parseArgs(argv) {
             args.mode = arg.slice(2)
         } else if (arg === '--pins') {
             args.pins = true
+        } else if (arg === '--providers') {
+            args.providers = true
         } else if (arg === '--perf') {
             args.perf = true
         } else if (arg === '--replace-budgets') {
@@ -1289,6 +1356,8 @@ function parseArgs(argv) {
     if (args.effectsGiven && !args.effects.length) throw new Error('--effects needs at least one effect ID')
     if (args.replaceBudgets && !(args.perf && args.mode === 'record')) throw new Error('--replace-budgets goes with --perf --record')
     if (args.pins && args.perf) throw new Error('Give one of --pins and --perf')
+    // A provider is checked against the pins its effect's inline implementation recorded; it never records one.
+    if (args.providers && !(args.pins && args.mode === 'check' && !args.effects.length)) throw new Error('--providers goes with --pins --check, and takes no --effects')
     if (args.pins || args.perf) {
         if (args.mode === 'realms' || args.commit || args.reason || args.reference || args.versions.length || args.replace || args.consumers) {
             throw new Error('--pins and --perf go with --record or --check, and take only --effects')
@@ -1325,6 +1394,14 @@ async function main() {
                 process.exit(1)
             }
             console.log(`${args.mode === 'record' ? 'Measured and froze the budgets of' : 'Checked the budgets of'} ${measured.length} render cases on both backends`)
+        } else if (args.pins && args.providers) {
+            const { rendered, problems } = await providerPins(REPO_ROOT, { log: line => console.log(line) })
+            if (problems.length) {
+                console.error(`The providers' pins do not hold (${problems.length} of the run's effects):`)
+                for (const problem of problems) console.error(`  - ${problem}`)
+                process.exit(1)
+            }
+            console.log(`Checked the pins of ${rendered.length} effects through their capability providers on both backends`)
         } else if (args.pins) {
             const { rendered, problems } = await pins(REPO_ROOT, { mode: args.mode, listed: args.effects.length ? args.effects : null, log: line => console.log(line) })
             if (problems.length) {

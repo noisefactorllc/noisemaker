@@ -1,0 +1,134 @@
+{
+  "format": "noisemaker-portable-effect",
+  "version": 2,
+  "name": "Scratches",
+  "namespace": "user",
+  "func": "scratches",
+  "description": "Film scratch overlay",
+  "tags": [
+    "noise"
+  ],
+  "globals": {
+    "density": {
+      "type": "float",
+      "default": 0.3,
+      "uniform": "density",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "ui": {
+        "label": "density",
+        "control": "slider"
+      }
+    },
+    "alpha": {
+      "type": "float",
+      "default": 0.75,
+      "uniform": "alpha",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "ui": {
+        "label": "alpha",
+        "control": "slider"
+      }
+    },
+    "seed": {
+      "type": "int",
+      "default": 1,
+      "uniform": "seed",
+      "min": 1,
+      "max": 100,
+      "step": 1,
+      "ui": {
+        "label": "seed",
+        "control": "slider"
+      }
+    }
+  },
+  "passes": {
+    "blend": {
+      "program": "scratchesBlend",
+      "inputs": {
+        "inputTex": "inputTex",
+        "overlayTex": "overlayTex"
+      },
+      "uniforms": {
+        "alpha": "alpha"
+      },
+      "outputs": {
+        "fragColor": "outputTex"
+      }
+    }
+  },
+  "textures": {
+    "overlayTex": {
+      "width": "screen",
+      "height": "screen",
+      "format": "rgba8"
+    }
+  },
+  "defaultProgram": "search filter, synth\n\nsolid(color: #2b2b2b)\n.scratches()\n.write(o0)",
+  "capabilities": [
+    {
+      "id": "noisemaker/worm-overlay",
+      "version": 1,
+      "options": {
+        "recipe": {
+          "layers": 4,
+          "checkEachLayer": true,
+          "layerSeed": {
+            "multiply": 1000,
+            "step": 251,
+            "offset": 0
+          },
+          "densityDefault": 0.3,
+          "density": {
+            "base": 0.1,
+            "scale": 0.4
+          },
+          "kink": {
+            "base": 0.125,
+            "modulus": 50,
+            "divide": 400
+          },
+          "stride": 0.75,
+          "strideDeviation": 0.5,
+          "duration": {
+            "base": 2,
+            "modulus": 3
+          },
+          "behavior": {
+            "even": "obedient",
+            "odd": "unruly"
+          },
+          "flowFreq": {
+            "base": 2,
+            "modulus": 3
+          },
+          "lineWidth": {
+            "minimum": 0.5,
+            "divide": 1024
+          },
+          "color": {
+            "rgb": [
+              255,
+              255,
+              255
+            ],
+            "alpha": 1
+          }
+        }
+      },
+      "bindings": {
+        "parameters": {
+          "seed": "seed",
+          "density": "density"
+        },
+        "textures": {
+          "overlay": "overlayTex"
+        }
+      }
+    }
+  ]
+}
