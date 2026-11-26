@@ -3,28 +3,29 @@
 Portable Effect Viewer
 ======================
 
-The effect viewer is a development environment for testing Portable effect
-packages locally. It is part of the `Portable repository
-<https://github.com/noisefactorllc/portable/tree/486543b4a993f56f1f57d691dc11124c70c3db12>`_,
-in ``viewer/index.html``. The package format it loads is specified in
-:ref:`portable-format`.
+The package viewer is a development environment for testing Portable effect
+packages locally. It is part of the shader demo, at
+``demo/shaders/package.html``, and runs the engine from this repository's
+source. The package format it loads is specified in :ref:`portable-format`.
 
 Features
 --------
 
-- **Full-page canvas:** the effect renders at full viewport resolution.
-- **Parameter controls:** type-appropriate controls for every effect global:
-  sliders for ``float`` and ``int`` (one per component for ``vec2`` and
-  ``vec3``), a dropdown for ``int`` parameters with ``choices``, a checkbox
-  for ``boolean``, and a color picker for ``color``.
+- **The demo's controls:** the package's parameters, and those of the other
+  effects in its program, have the demo's controls for their types: sliders
+  for ``float`` and ``int``, a dropdown for parameters with ``choices``, a
+  switch for ``boolean``, a color picker for ``color``, and vector pickers for
+  ``vec2`` and ``vec3``.
 - **Automatic reload:** the viewer checks ``definition.json`` and the shader
-  files every second and reloads when one changes. **Reload Effect** or a
-  page refresh forces a reload.
-- **Resize handling:** the canvas adapts to window size changes.
-- **Backend auto-detection:** the viewer selects WebGL or WebGPU from the
-  available shader files.
-- **Backend toggle:** switch between WebGL and WebGPU when both shader types
-  are available.
+  files every second and loads the package again when one changes. A page
+  refresh also loads it again.
+- **A fresh realm for each revision:** each revision of the package loads in
+  a new frame, through the public package API, and replaces the visible one
+  only when it has compiled and rendered. A revision that fails leaves the
+  last good one on screen, with its error in the status line.
+- **Backend selection:** the viewer uses WebGL, or WebGPU with
+  ``backend=wgsl``. A package with shaders in one language only runs on that
+  language's backend.
 
 Setup
 -----
@@ -32,11 +33,8 @@ Setup
 Start a Local Server
 ^^^^^^^^^^^^^^^^^^^^
 
-The viewer loads the Noisemaker runtime from ``shaders.noisedeck.app``. No
-local vendor setup is needed, but the viewer needs a local HTTP server: it
-cannot run from a ``file://`` URL.
-
-From the root of the Portable repository:
+The viewer needs a local HTTP server: it cannot run from a ``file://`` URL.
+From the root of this repository:
 
 .. code-block:: bash
 
@@ -49,37 +47,40 @@ Any static file server started from that root also works (for example,
 Open the Viewer
 ^^^^^^^^^^^^^^^
 
-Navigate to ``http://localhost:2999/viewer/``, or the port the server uses.
+Navigate to ``http://localhost:8001/demo/shaders/package.html``, or the port
+the server uses. With no ``package`` parameter the viewer loads the starter
+example, ``shaders/portable/examples/gradient-sweep/``.
 
 Reloading Changes
 -----------------
 
-The viewer reloads within a second of a saved change to ``definition.json``
-or a shader file. To force a reload, click **Reload Effect** or refresh the
-page. Either way, the viewer:
+The viewer loads the package again within a second of a saved change to
+``definition.json`` or a shader file, or on a page refresh. Each time, the
+viewer:
 
-1. Reloads the effect definition
-2. Reloads the shader source
-3. Recompiles the effect
-4. Preserves the current parameter values
+1. Reads the effect definition and the shader sources
+2. Loads them in a new frame and compiles the effect
+3. Shows the new frame once it renders, and keeps the previous one if it fails
+4. Keeps the parameter values you changed
 
-Viewer Structure
-----------------
+A newer change replaces a revision that is still loading.
 
-.. code-block:: text
+How the Viewer Loads a Package
+------------------------------
 
-   viewer/
-   └── index.html              # Main viewer page
+The viewer page reads the package's files: ``definition.json``,
+``help.md``, the shader files that its ``passes`` name, and the descriptor
+files of the capabilities it declares. It sends them as bytes to the demo in
+package mode (``demo/shaders/index.html?package=1``), in a new frame. That
+frame loads them with ``loadPortablePackage()`` and registers them with
+``registerPortableEffect()`` (:ref:`portable-registration`), then compiles
+the package's ``defaultProgram``. Before compiling, the demo loads the
+built-in effects that the program depends on (:ref:`portable-format`,
+Section 8.7). A volume starter without a default program gets a
+``render3d()`` preview; volume filters provide their input program.
 
-The viewer loads the Noisemaker runtime directly from the CDN at
-``shaders.noisedeck.app/<version>/``. It loads the effect from
-``/effect/definition.json`` and its shaders from ``/effect/glsl/`` and/or
-``/effect/wgsl/``.
-
-Before compiling, the viewer loads the built-in effects that the
-``defaultProgram`` depends on (:ref:`portable-format`, Section 8.7). A volume
-starter without a default program gets a ``render3d()`` preview; volume
-filters provide their input program.
+A ZIP archive of a package also loads, and it can carry any other file, such
+as an asset under ``assets/``.
 
 Modifying the Example
 ---------------------
@@ -87,7 +88,7 @@ Modifying the Example
 Change Parameters
 ^^^^^^^^^^^^^^^^^
 
-Edit ``effect/definition.json`` to add or modify parameters
+Edit the package's ``definition.json`` to add or modify parameters
 (:doc:`portable-parameters`):
 
 .. code-block:: json
@@ -102,74 +103,73 @@ Edit ``effect/definition.json`` to add or modify parameters
 Change Shader Logic
 ^^^^^^^^^^^^^^^^^^^
 
-Edit the shader file (for example ``effect/glsl/gradientSweep.glsl``). The
-shader declares uniforms that match the parameters in ``definition.json``
-(:doc:`portable-shaders`).
-
-Click the **Reload Effect** button in the viewer to see the changes.
+Edit the shader file (for example ``glsl/gradientSweep.glsl``). The shader
+declares uniforms that match the parameters in ``definition.json``
+(:doc:`portable-shaders`). The viewer shows the change within a second.
 
 Creating a New Effect
 ---------------------
 
-The viewer loads from the ``effect/`` directory by default. To create a new
-effect, replace the files in place:
+Copy the starter example to a directory of your own and change it:
 
-1. Update ``effect/definition.json``:
+1. Update ``definition.json``:
 
    - Change ``name``, ``func`` and ``description``.
    - Define the ``globals``.
    - Update ``passes`` to reference the shader program name.
 
-2. Replace the shader files in ``effect/glsl/`` and/or ``effect/wgsl/``.
+2. Replace the shader files in ``glsl/`` and/or ``wgsl/``.
 3. Make sure the shader file names match the ``program`` names in
    ``passes``.
+
+Then open the viewer with that directory in the ``package`` parameter.
 
 Troubleshooting
 ---------------
 
-"Failed to load effect definition"
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+"Failed to load definition.json"
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - Check that the local server is running.
-- Check that ``effect/definition.json`` exists and is valid JSON.
+- Check that the package's ``definition.json`` exists and is valid JSON.
 
-"Failed to load GLSL shader"
+A compile error in the status line
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- Check that the shader path matches the pass's ``program`` + ``.glsl``.
+- Check the browser console for GLSL syntax errors. The previous revision
+  stays on screen until the error is fixed.
+
+"No shader file for program"
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-- Check that the shader path matches ``passes[0].program`` + ``.glsl``.
-- Check the browser console for GLSL syntax errors.
-
-Effect does not update
-^^^^^^^^^^^^^^^^^^^^^^
-
-- Click the **Reload Effect** button.
-- Clear the browser cache and reload.
-
-"No shader found for program"
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - Check that at least one shader directory exists (``glsl/`` or ``wgsl/``).
 - Check that the shader file names match the ``program`` names in
   ``passes``.
+
+Effect does not update
+^^^^^^^^^^^^^^^^^^^^^^
+
+- Refresh the page.
+- Clear the browser cache and reload.
 
 WebGPU not available
 ^^^^^^^^^^^^^^^^^^^^
 
 - WebGPU requires a compatible browser (Chrome 113+, Edge 113+).
 - Some systems need flags enabled.
-- The viewer falls back to WebGL automatically if GLSL shaders are available.
 
 Loading Other Effects
 ---------------------
 
-By default the viewer loads ``../effect/``, relative to the viewer page. To
-load another effect, pass its directory (the one that contains
-``definition.json``) in the ``effect`` query parameter, as a path relative to
-the viewer page or a URL:
+To load another package, pass its directory (the one that contains
+``definition.json``) or its ZIP archive in the ``package`` query parameter,
+as a path relative to the viewer page or a URL, and add ``backend=wgsl`` for
+WebGPU:
 
 .. code-block:: text
 
-   http://localhost:2999/viewer/?effect=../my-other-effect/
+   http://localhost:8001/demo/shaders/package.html?package=/path/to/my-effect/
+   http://localhost:8001/demo/shaders/package.html?package=../../shaders/portable/examples/portable-block-3d/&backend=wgsl
 
-For example, ``?effect=../examples/portableBlock3d/`` previews a volume
-package from the repository's examples.
+The second previews a volume package from the repository's examples.

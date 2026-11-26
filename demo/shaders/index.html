@@ -667,10 +667,11 @@
         /**
          * Rebuild pipeline from DSL editor content
          */
-        async function rebuildPipelineFromDsl({ rebuildControls = true } = {}) {
+        async function rebuildPipelineFromDsl({ rebuildControls = true, throwOnError = false } = {}) {
             const dsl = ui.getDsl();
             if (!dsl) {
                 ui.showStatus('DSL is empty', 'error');
+                if (throwOnError) throw new Error('DSL is empty');
                 return;
             }
 
@@ -690,8 +691,10 @@
                 try {
                     await loadEffectsOnDemand(effectIdsToLoad);
                 } catch (err) {
-                    console.error('Failed to load effects for DSL:', err);
                     ui.showStatus(`failed to load effects: ${err.message}`, 'error');
+                    // A caller that asks for the error reports it.
+                    if (throwOnError) throw err;
+                    console.error('Failed to load effects for DSL:', err);
                     return;
                 }
             }
@@ -723,8 +726,10 @@
                 
                 ui.showStatus('compiled successfully', 'success');
             } catch (err) {
-                console.error('DSL compilation error:', ui.formatCompilationError(err));
                 ui.showStatus(`compilation failed: ${ui.formatCompilationError(err)}`, 'error');
+                // A caller that asks for the error reports it.
+                if (throwOnError) throw new Error(ui.formatCompilationError(err));
+                console.error('DSL compilation error:', ui.formatCompilationError(err));
             }
         }
 
@@ -830,10 +835,28 @@
                 if (urlBackend === 'wgsl' || urlBackend === 'glsl') {
                     if (urlBackend === 'wgsl') {
                         await renderer.switchBackend('wgsl');
+                        // The switch replaces the canvas; resize the new one, as
+                        // the backend tabs do.
+                        canvas = document.getElementById('canvas');
+                        renderer._canvas = canvas;
                     }
                     document.querySelectorAll('#backend-tabs .hf-tab').forEach(t => {
                         t.classList.toggle('active', t.dataset.backend === urlBackend);
                     });
+                }
+
+                // Package mode: this page is one realm of the Portable package
+                // viewer (package.html), which sends it a package to show.
+                if (params.has('package')) {
+                    const { startPackageRealm } = await import('./lib/portable-realm.js');
+                    startPackageRealm({
+                        renderer,
+                        ui,
+                        compileDsl: () => rebuildPipelineFromDsl({ throwOnError: true }),
+                        setPaused,
+                        setPausedTime: (t) => window.__noisemakerSetPausedTime(t)
+                    });
+                    return;
                 }
 
                 // Check for effect in URL
