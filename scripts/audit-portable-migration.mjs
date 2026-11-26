@@ -635,6 +635,11 @@ const ENGINE_TREE_PATHS = ['shaders', 'share', 'demo/shaders/lib']
  * when that change does not apply in reverse to HEAD.
  */
 export async function runtimeMetadata(repo, commit, ids) {
+    // The temporary trees are repositories of their own: no GIT_* variable or
+    // user configuration of the caller may reach the commands run in them.
+    const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')))
+    Object.assign(env, { GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_NOSYSTEM: '1' })
+    const inTree = (tree, args, input) => spawnSync('git', ['-c', 'core.excludesFile=', ...args], { cwd: tree, env, input })
     const scratch = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'portable-runtime-'))
     try {
         const trees = {}
@@ -646,14 +651,17 @@ export async function runtimeMetadata(repo, commit, ids) {
             const extract = spawnSync('tar', ['-x', '-C', tree], { input: archive.stdout })
             if (extract.status !== 0) throw new Error(`tar failed: ${extract.stderr}`)
             // The catalog lists an effect's files from the git index.
-            for (const args of [['init', '-q'], ['add', '-A']]) {
-                const run = spawnSync('git', args, { cwd: tree })
+            for (const args of [['init', '-q', '--template='], ['add', '-A', '-f']]) {
+                const run = inTree(tree, args)
                 if (run.status !== 0) throw new Error(`git ${args[0]} failed: ${run.stderr}`)
             }
             trees[side] = tree
         }
-        const change = git(repo, ['diff', `${commit}^1`, commit, '--', ...DEFINITION_RUNTIME_SOURCES])
-        const reverse = spawnSync('git', ['apply', '-R', '--whitespace=nowarn', '-'], { cwd: trees.before, input: change })
+        const parents = git(repo, ['rev-list', '--parents', '-n', '1', commit]).trim().split(' ').slice(1)
+        if (!parents.length) throw new Error(`${commit} is a root commit: it has no earlier definition runtime to compare with`)
+        const change = git(repo, ['-c', 'diff.noprefix=false', '-c', 'diff.mnemonicPrefix=false', 'diff', '--no-color', '--no-ext-diff', '--no-textconv',
+            '--src-prefix=a/', '--dst-prefix=b/', parents[0], commit, '--', ...DEFINITION_RUNTIME_SOURCES])
+        const reverse = inTree(trees.before, ['apply', '-R', '--whitespace=nowarn', '-'], change)
         if (reverse.status !== 0) {
             throw new Error(`${commit}'s change to the definition runtime does not apply in reverse to HEAD:\n${reverse.stderr}`)
         }
@@ -673,23 +681,31 @@ export async function recordEffects(repo, { ids, commit, reason }) {
     // the effect's own directory, or in the definition runtime, where the
     // change must account for the whole difference from the baseline.
     const changedPaths = paths => git(repo, ['diff-tree', '--no-commit-id', '--name-only', '-r', '--diff-merges=first-parent', '--root', commit, '--', ...paths]).trim()
+    const file = path.join(repo, BASELINE_RELATIVE)
+    const baseline = readJson(file)
+    const present = new Set(treeEffectIds(repo))
     const throughRuntime = []
     for (const id of ids) {
         if (changedPaths([`shaders/effects/${id}/`])) continue
+        // An effect the runtime changes is in the tree; rewriteEffects names one that is in neither.
+        if (!present.has(id)) continue
         if (!changedPaths(DEFINITION_RUNTIME_SOURCES)) {
             throw new Error(`${commit} changes nothing under shaders/effects/${id}/ nor in the definition runtime (${DEFINITION_RUNTIME_SOURCES.join(', ')})`)
         }
         throughRuntime.push(id)
     }
-    const file = path.join(repo, BASELINE_RELATIVE)
-    const baseline = readJson(file)
-    const present = new Set(treeEffectIds(repo))
     const loadable = ids.filter(id => present.has(id))
     const { exportKinds, metadata } = await loadCatalog(repo, loadable)
     const sources = {}
     if (throughRuntime.length) {
         const { before, after } = await runtimeMetadata(repo, commit, throughRuntime)
         for (const id of throughRuntime) {
+            // Recording the same commit again leaves its entry as it is.
+            const recorded = (baseline.explainedDifferences || []).some(entry => entry.effectId === id && entry.commit === commit && entry.source === 'runtime')
+            if (recorded && isDeepStrictEqual(baseline.metadata?.[id], after[id]) && isDeepStrictEqual(metadata[id], after[id])) {
+                sources[id] = 'runtime'
+                continue
+            }
             if (isDeepStrictEqual(before[id], after[id])) {
                 throw new Error(`${commit} changes the definition runtime, but not the metadata of ${id}`)
             }

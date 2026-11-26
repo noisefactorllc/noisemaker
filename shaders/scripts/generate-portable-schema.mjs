@@ -31,6 +31,8 @@ const BOOLEAN = { type: 'boolean' }
 const NUMBER_OR_VECTOR = { anyOf: [NUMBER, { type: 'array', items: NUMBER }] }
 const IDENTIFIER = { type: 'string', pattern: grammar.IDENTIFIER_PATTERN }
 const NAME_MAP = (values) => ({ type: 'object', additionalProperties: values })
+// A texture an effect hands on: a name with at least one non-space character.
+const TEXTURE_NAME = { type: 'string', pattern: '\\S' }
 
 function closedObject(keys, overrides = {}) {
     return {
@@ -151,6 +153,10 @@ export function buildPortableSchema() {
         hidden: BOOLEAN,
         capabilities: { type: 'array', items: { $ref: '#/$defs/capability' } },
         starter: BOOLEAN,
+        outputTex: TEXTURE_NAME,
+        outputXyz: TEXTURE_NAME,
+        outputVel: TEXTURE_NAME,
+        outputRgba: TEXTURE_NAME,
     }
     return {
         $schema: 'https://json-schema.org/draft/2020-12/schema',

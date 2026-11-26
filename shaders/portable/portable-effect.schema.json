@@ -75,12 +75,24 @@
     "externalTexture": {},
     "externalMesh": {},
     "builtinMeshes": {},
-    "outputTex": {},
+    "outputTex": {
+      "type": "string",
+      "pattern": "\\S"
+    },
     "outputTex3d": {},
     "outputGeo": {},
-    "outputXyz": {},
-    "outputVel": {},
-    "outputRgba": {},
+    "outputXyz": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "outputVel": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "outputRgba": {
+      "type": "string",
+      "pattern": "\\S"
+    },
     "capabilities": {
       "type": "array",
       "items": {
