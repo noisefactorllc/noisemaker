@@ -1181,6 +1181,25 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-26 — candidate pair: Noisemaker (the publication carrying this
+    entry, above `5596e69fd6e3b9014e9df0f8674e10e70c332e11`) and Shade MCP
+    `4ce50fce68353e4a3c569362f6ee8c0bde6d8acf`. Audited the Noisemaker range
+    `82e8061..5596e69`: `5596e69` drops the unused `inputOverride` entries
+    from the `flow3d` and `palette3d` viewport specs. The validator still
+    accepts `inputOverride`, so the contract statement that it is accepted
+    but unconsumed stands. The contract snapshot's Noisemaker line advances
+    to `5596e69fd` to cover the changed effect behavior. Verified at the
+    published head: the contract delivery-pair, graph-shape,
+    frame-lifetime, and parity-session guards (13 tests pass), the effect
+    config outputs, definition validation, blend factors, and portable
+    registration tests (43 tests pass), the pass-state and MRT pipeline
+    tests (2 pass), the blend factors render test (15 tests pass, on
+    Chromium's SwiftShader Vulkan ICD), and the shader parity attestation
+    test. The vendored `shade-mcp` tree (38 files) is byte-identical to the
+    v0.7.0 release tarball (asset sha256
+    `252524b12d637ce0d91422ef40086ca986679114822d6e56e336489fb24a06fb`).
+    The `.mcp.json` pin stays at v0.5.4 (`1815133b`); moving the pin stays
+    recorded as the delivery blocker below.
   - 2026-11-26 — candidate pair: Noisemaker
     `740601018edb867c564c77aab3d157fa719dea53` (the engine source this
     contract pins is unchanged) and Shade MCP
