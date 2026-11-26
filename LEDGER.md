@@ -1181,6 +1181,19 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-26 — qualified checks at publication `db697bb`; deployment
+    pending: Noisemaker `405557cddfd6292c2f13ed3e55a674556f82ed44` (the
+    audited source end this contract snapshot pins) with Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Exact-source
+    [Site 45817046581](https://github.com/noisefactorllc/noisemaker/actions/runs/45817046581)
+    and [JavaScript 45817046635](https://github.com/noisefactorllc/noisemaker/actions/runs/45817046635)
+    passed at `db697bb`. A full GET of `https://noisemaker.app/llms-full.txt`
+    returned HTTP 200, but the live file matches the `405557c` revision and
+    `deployment-meta.json` serves `git_hash: 405557cddfd6292c2f13ed3e55a674556f82ed44`:
+    the live contract text is behind the published corrections. The
+    checkpoint stays at the last qualified pair until a site deployment
+    again serves the published corrections. The two delivery blockers in the
+    candidate entry below stay recorded.
   - 2026-11-26 — candidate pair: Noisemaker (the publication carrying this
     entry, above `405557cddfd6292c2f13ed3e55a674556f82ed44`) and Shade MCP
     `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Audited the Noisemaker range
