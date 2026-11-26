@@ -1,0 +1,191 @@
+{
+    "source": {
+        "repository": "https://github.com/noisefactorllc/portable",
+        "sha": "6f211e44a0f2eb4baff1b9ae68893fa3b3554085"
+    },
+    "paths": {
+        ".github/dependabot.yml": {
+            "reason": "Portable's dependency updates. Noisemaker's own .github/dependabot.yml updates its dependencies, and Portable's dependencies are not carried: the packager needs no ZIP package, and no relocated tool uses Portable's AI or MCP SDKs."
+        },
+        ".github/workflows/dependabot-auto-merge.yml": {
+            "destination": ".github/workflows/dependabot-auto-merge.yml"
+        },
+        ".github/workflows/docs.yml": {
+            "destination": ".github/workflows/shaders-2x.yml"
+        },
+        ".github/workflows/pull-shade-mcp.yml": {
+            "destination": ".github/workflows/pull-shade-mcp.yml"
+        },
+        ".github/workflows/release-notify.yml": {
+            "reason": "Announces Portable's own releases. Portable stays as it is until it is retired, and the relocated tools are released with Noisemaker, through its existing release process."
+        },
+        ".github/workflows/test.yml": {
+            "destination": ".github/workflows/shaders-2x.yml"
+        },
+        ".gitignore": {
+            "reason": "Portable's ignore list, for its own node_modules and effect.zip. Noisemaker's .gitignore covers its tree."
+        },
+        ".mcp.json": {
+            "reason": "Portable's MCP configuration, which starts its vendored shade-mcp server for test-mcp-config.mjs. It is not relocated: Noisemaker's .mcp.json pins its own shade-mcp, and test-mcp-config.mjs has no destination."
+        },
+        ".vscode/mcp.json": {
+            "reason": "The same MCP configuration for VS Code, not relocated for the same reason as .mcp.json."
+        },
+        "LICENSE": {
+            "destination": "LICENSE"
+        },
+        "README.md": {
+            "destination": "docs/shaders/portable-packages.rst"
+        },
+        "docs/DSL.md": {
+            "destination": "docs/shaders/portable-dsl.rst"
+        },
+        "docs/FORMAT.md": {
+            "destination": "docs/shaders/portable-packages.rst"
+        },
+        "docs/PARAMETERS.md": {
+            "destination": "docs/shaders/portable-parameters.rst"
+        },
+        "docs/SHADERS.md": {
+            "destination": "docs/shaders/portable-shaders.rst"
+        },
+        "docs/VIEWER.md": {
+            "destination": "docs/shaders/portable-viewer.rst"
+        },
+        "docs/hero.jpg": {
+            "destination": "shaders/portable/fixtures/hero.jpg"
+        },
+        "effect/definition.json": {
+            "destination": "shaders/portable/examples/gradient-sweep/definition.json"
+        },
+        "effect/glsl/gradientSweep.glsl": {
+            "destination": "shaders/portable/examples/gradient-sweep/glsl/gradientSweep.glsl"
+        },
+        "effect/help.md": {
+            "destination": "shaders/portable/examples/gradient-sweep/help.md"
+        },
+        "effect/wgsl/gradientSweep.wgsl": {
+            "destination": "shaders/portable/examples/gradient-sweep/wgsl/gradientSweep.wgsl"
+        },
+        "examples/portableBlock3d/definition.json": {
+            "destination": "shaders/portable/examples/portable-block-3d/definition.json"
+        },
+        "examples/portableBlock3d/glsl/fill.glsl": {
+            "destination": "shaders/portable/examples/portable-block-3d/glsl/fill.glsl"
+        },
+        "examples/portableBlock3d/help.md": {
+            "destination": "shaders/portable/examples/portable-block-3d/help.md"
+        },
+        "examples/portableBlock3d/wgsl/fill.wgsl": {
+            "destination": "shaders/portable/examples/portable-block-3d/wgsl/fill.wgsl"
+        },
+        "examples/volumeColor3d/definition.json": {
+            "destination": "shaders/portable/examples/volume-color-3d/definition.json"
+        },
+        "examples/volumeColor3d/glsl/color.glsl": {
+            "destination": "shaders/portable/examples/volume-color-3d/glsl/color.glsl"
+        },
+        "examples/volumeColor3d/help.md": {
+            "destination": "shaders/portable/examples/volume-color-3d/help.md"
+        },
+        "examples/volumeColor3d/wgsl/color.wgsl": {
+            "destination": "shaders/portable/examples/volume-color-3d/wgsl/color.wgsl"
+        },
+        "fixtures/two-effect-workspace.json": {
+            "destination": "shaders/portable/fixtures/two-effect-workspace.json"
+        },
+        "index.html": {
+            "destination": "demo/shaders/package.html"
+        },
+        "logo.svg": {
+            "reason": "The viewer's icon. The viewer is now the Noisemaker demo, which has its own."
+        },
+        "package-lock.json": {
+            "reason": "The lock of Portable's own dependencies, which are not carried. Noisemaker's package-lock.json locks its tree."
+        },
+        "package-portable.mjs": {
+            "destination": "scripts/package-portable.mjs"
+        },
+        "package-portable.sh": {
+            "reason": "Portable's second packager. One packager remains, scripts/package-portable.mjs."
+        },
+        "package.json": {
+            "destination": "package.json"
+        },
+        "pull-shade-mcp": {
+            "destination": "pull-shade-mcp"
+        },
+        "scripts/strict-reporter.mjs": {
+            "reason": "A node:test reporter that failed Portable's run on a skipped test. The relocated tests skip nothing, and test:shaders:portable and test:shaders:portable:gpu fail on any test that does not pass."
+        },
+        "scripts/test": {
+            "reason": "Portable's test entry point, which found an executable location for Playwright's Chromium and ran npm test. Noisemaker's workflow installs Chromium, and the package scripts run the relocated tests."
+        },
+        "test-3d.mjs": {
+            "destination": "shaders/tests/test_portable_viewer_3d.mjs"
+        },
+        "test-definition.mjs": {
+            "destination": "shaders/tests/test_portable_definition.mjs"
+        },
+        "test-docs.mjs": {
+            "destination": "shaders/tests/test_portable_docs.mjs"
+        },
+        "test-globals.mjs": {
+            "reason": "In no script or workflow, and it exits 0 whatever it finds."
+        },
+        "test-hotreload.mjs": {
+            "destination": "shaders/tests/test_portable_viewer_hotreload.mjs"
+        },
+        "test-mcp-config.mjs": {
+            "reason": "Starts Portable's vendored shade-mcp server from Portable's MCP configuration, which is not relocated, and Noisemaker does not vendor the server entry. shade-mcp's authored-DSL smoke takes over its compileEffect and renderEffectFrame calls on the relocated starter effect."
+        },
+        "test-package.mjs": {
+            "destination": "shaders/tests/test_portable_packager.mjs"
+        },
+        "test-params.mjs": {
+            "destination": "shaders/tests/test_portable_viewer_params.mjs"
+        },
+        "test-runtime.mjs": {
+            "reason": "Ran the other suites and failed on an exit other than 0, a SKIP line or a missing completion line. test:shaders:portable and test:shaders:portable:gpu run each relocated test and fail on its exit status, and no relocated test skips."
+        },
+        "test-viewer.mjs": {
+            "destination": "shaders/tests/test_portable_viewer.mjs"
+        },
+        "test-volume-definition.mjs": {
+            "destination": "shaders/tests/test_portable_volume_definition.mjs"
+        },
+        "test-workspace.mjs": {
+            "destination": "shaders/tests/test_portable_workspace.mjs"
+        },
+        "vendor/shade-mcp/": {
+            "destination": "vendor/shade-mcp/"
+        },
+        "viewer/index.html": {
+            "destination": "demo/shaders/package.html"
+        },
+        "workspace.mjs": {
+            "destination": "shaders/portable/workspace.mjs"
+        }
+    },
+    "commands": {
+        "npm run dev": {
+            "destination": "npm run dev",
+            "note": "serves the checkout; open demo/shaders/package.html?package=<package directory URL>"
+        },
+        "npm run package": {
+            "destination": "node scripts/package-portable.mjs"
+        },
+        "npm test": {
+            "destination": "npm run test:shaders:portable && npm run test:shaders:portable:gpu"
+        },
+        "npm run test:docs": {
+            "destination": "node shaders/tests/test_portable_docs.mjs"
+        },
+        "npm run test:runtime": {
+            "destination": "npm run test:shaders:portable && npm run test:shaders:portable:gpu"
+        },
+        "node test-definition.mjs <effect>": {
+            "destination": "node scripts/validate-portable.mjs <package>"
+        }
+    }
+}
