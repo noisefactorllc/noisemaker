@@ -888,6 +888,8 @@ under the effect's own path.
 - ``globals`` must contain parameter objects. ``choices`` must map names to
   numbers — or strings for string-typed parameters — or null.
 - ``paramAliases`` is retired and causes registration to fail.
+- ``outputTex``, ``outputXyz``, ``outputVel`` and ``outputRgba``, when
+  present, must be nonempty texture names.
 
 Registration does not compile shaders or verify backend support: a package
 that passes registration can still fail at ``compile()`` time like any

@@ -93,7 +93,9 @@ test('the validator accepts the four fields as texture names and refuses anythin
     for (const field of Object.keys(FIELDS)) {
         const config = producerConfig('validated', field)
         assert.deepEqual(validateEffectDefinition(config), [], `${field} on a plain definition`)
-        assert.deepEqual(validateEffectDefinition({ ...config, [field]: 42 }), [`"${field}" must be a non-empty string`])
+        for (const value of [42, '', '   ']) {
+            assert.deepEqual(validateEffectDefinition({ ...config, [field]: value }), [`"${field}" must be a non-empty string`], JSON.stringify(value))
+        }
     }
 })
 

@@ -1106,7 +1106,7 @@ export function validateEffectDefinition(def) {
         }
     }
     for (const field of ['outputTex', 'outputTex3d', 'outputGeo', 'outputXyz', 'outputVel', 'outputRgba']) {
-        if (source[field] !== undefined && (typeof source[field] !== 'string' || !source[field])) {
+        if (source[field] !== undefined && (typeof source[field] !== 'string' || !source[field].trim())) {
             errors.push(`"${field}" must be a non-empty string`)
         }
     }

@@ -90,7 +90,7 @@ test('Invalid Portable packages fail before registration and leave a valid name 
         definition('portableInvalid', { passes: [{ program: 'a' }, { program: 'b' }],
             shaders: { a: { glsl: 'source' }, b: { wgsl: 'source' } } }),
         definition('portableInvalid', { globals: { amount: null } }), definition('portableInvalid', { starter: 'false' }),
-        definition('portableInvalid', { outputXyz: 7 }), definition('portableInvalid', { outputTex: '' })]
+    ]
     invalid.push(definition('portableInvalid', { paramAliases: { old: 'mode' }, globals: { mode: { type: 'int' } } }),
         definition('portableInvalid', { paramAliases: 'bad' }),
         definition('portableInvalid', { paramAliases: { old: 42 } }),
@@ -101,6 +101,12 @@ test('Invalid Portable packages fail before registration and leave a valid name 
         await assert.rejects(() => renderer.registerPortableEffect(raw), /Portable/)
         assert.equal(getEffect('user.portableInvalid'), undefined)
         assert.equal(renderer.loadedEffects.size, 0)
+    }
+    // A handed-on texture must be a texture name.
+    for (const [field, value] of [['outputXyz', 7], ['outputTex', ''], ['outputRgba', '   ']]) {
+        await assert.rejects(() => renderer.registerPortableEffect(definition('portableInvalid', { [field]: value })),
+            new RegExp(`${field} must be a nonempty texture name`))
+        assert.equal(getEffect('user.portableInvalid'), undefined)
     }
     await renderer.registerPortableEffect(definition('portableInvalid'))
     assert.ok(getEffect('user.portableInvalid') instanceof Effect)
