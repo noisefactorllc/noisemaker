@@ -151,11 +151,12 @@ test('dependabot merges only pull requests', () => {
   assert.match(jobBlock(workflow('dependabot-auto-merge'), 'auto-merge'), /workflow_run\.event == 'pull_request'/)
 })
 
-// The release gate: the verify-source step that requires a passed shaders.yml run on main for the release commit.
+// The 2.x release gate: the verify-source step that requires a passed shaders-2x.yml run on 2.x for the release
+// commit, from a push or a dispatch.
 // Its own script runs here with stand-ins for git and gh, and a sleep that moves the shell's clock by its argument
 // at once. The gh stand-in answers from a fixture of workflow runs, keeps the runs that the query's event names,
 // and applies the step's own --jq filter.
-const GATE = 'Require a passed shaders.yml run on main for the release commit'
+const GATE = 'Require a passed shaders-2x.yml run on 2.x for the release commit'
 const gateStep = () => jobBlock(workflow('release'), 'verify-source')
   .match(new RegExp(`\\n {4}- name: ${GATE.replaceAll('.', '\\.')}\\n([\\s\\S]*?)(?=\\n {4}- |\\n {4}#|$)`))?.[1] ?? ''
 const gateScript = () => {
@@ -184,10 +185,10 @@ const runGate = (t, fixtures) => {
   return { ...result, why, sha, calls: readFileSync(calls, 'utf8').split('\n').filter(Boolean) }
 }
 
-test('a release needs a passed shaders.yml push run on main for its commit, before any build job', t => {
+test('a 2.x release needs a passed shaders-2x.yml run on 2.x for its commit, from a push or a dispatch, before any build job', t => {
   const text = workflow('release')
   const step = gateStep()
-  assert.ok(gateScript(), 'verify-source must require a passed shaders.yml run on main')
+  assert.ok(gateScript(), 'verify-source must require a passed shaders-2x.yml run on 2.x')
   assert.doesNotMatch(step, /^ {6}(if|continue-on-error):/m, 'the gate runs, and fails the job, on every release')
   assert.doesNotMatch(jobBlock(text, 'verify-source'), /^ {4}(if|continue-on-error):/m, 'verify-source runs, and fails the release, every time')
   assert.match(jobBlock(text, 'verify-source'), /\n {4}permissions:\n {6}contents: read\n {6}actions: read\n/, 'the gate can read workflow runs')
@@ -195,20 +196,22 @@ test('a release needs a passed shaders.yml push run on main for its commit, befo
     assert.match(jobBlock(text, job), /needs:.*verify-source/, `release/${job} must wait for the gate`)
   }
   const run = (head_branch, event, status, conclusion) => ({ head_branch, event, status, conclusion })
-  const passed = runGate(t, [[run('main', 'push', 'completed', 'success')]])
-  assert.equal(passed.status, 0, passed.why)
-  assert.deepEqual(passed.calls, [`repos/owner/repository/actions/workflows/shaders.yml/runs?head_sha=${passed.sha}&event=push&per_page=50`])
-  for (const [name, runs] of [['no run', []], ['a failed run', [run('main', 'push', 'completed', 'failure')]],
-    ['a passed run on another branch', [run('2.x', 'push', 'completed', 'success')]],
-    ['a passed dispatch run, since on main only a push run dispatches the release', [run('main', 'workflow_dispatch', 'completed', 'success')]]]) {
+  for (const event of ['push', 'workflow_dispatch']) {
+    const passed = runGate(t, [[run('2.x', event, 'completed', 'success')]])
+    assert.equal(passed.status, 0, `a passed ${event} run releases: ${passed.why}`)
+    assert.deepEqual(passed.calls, [`repos/owner/repository/actions/workflows/shaders-2x.yml/runs?head_sha=${passed.sha}&per_page=50`])
+  }
+  for (const [name, runs] of [['no run', []], ['a failed run', [run('2.x', 'push', 'completed', 'failure')]],
+    ['a passed run on another branch', [run('main', 'push', 'completed', 'success')]],
+    ['a passed run of another event', [run('2.x', 'pull_request', 'completed', 'success')]]]) {
     const refused = runGate(t, [runs])
     assert.equal(refused.status, 1, `${name} is refused: ${refused.why}`)
-    assert.match(refused.stdout, /No passed shaders\.yml run on main/, name)
+    assert.match(refused.stdout, /No passed shaders-2x\.yml run on 2\.x/, name)
   }
-  const waited = runGate(t, [[run('main', 'push', 'in_progress', null)], [run('main', 'push', 'completed', 'success')]])
+  const waited = runGate(t, [[run('2.x', 'workflow_dispatch', 'in_progress', null)], [run('2.x', 'workflow_dispatch', 'completed', 'success')]])
   assert.equal(waited.status, 0, `a run still finishing is waited for: ${waited.why}`)
   assert.equal(waited.calls.length, 2)
-  const late = runGate(t, [[run('main', 'push', 'in_progress', null)]])
+  const late = runGate(t, [[run('2.x', 'push', 'in_progress', null)]])
   assert.equal(late.status, 1, `a run that does not finish within the wait is refused: ${late.why}`)
   assert.match(late.stdout, /did not finish within the wait/)
   assert.equal(late.calls.length, 41, 'the gate asks every 15 seconds and gives up after 600')
