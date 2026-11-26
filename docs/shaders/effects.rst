@@ -1208,9 +1208,9 @@ Limitations:
 - WebGL2 has no compute passes and cannot write a 3D texture. A package that
   needs either runs on WebGPU, or gives WebGL2 a fragment form of the same
   work, as the built-in volume effects do with their atlas.
-- A ``storageTextures`` binding to a texture the effect declares is not found
-  on WebGPU, which writes ``outputTex`` and the shared surfaces. WebGL2 writes
-  nothing for a pass with ``storageTextures``.
+- A ``storageTextures`` binding to ``outputTex`` is not allocated when another
+  effect follows in the chain, so that effect reads a blank texture. Write a
+  texture the effect declares, and copy it to ``outputTex`` in a last pass.
 - Vertex data comes only from textures: the particle state, the mesh
   surfaces or the pass's own inputs. A package has no vertex buffers.
 - Some fields have no effect, and version 2 refuses them with the diagnostic

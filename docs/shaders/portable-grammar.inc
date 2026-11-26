@@ -59,8 +59,8 @@
      - Legacy only. It has no effect: the WebGPU backend allocates storage buffers from the shader bindings. Version 2 refuses it.
    * - ``storageTextures``
      - object of names to: nonempty string
-     - WebGPU
-     - WGSL storage binding name to the texture a compute pass writes: ``outputTex``, ``o0`` to ``o7`` or a ``global_`` surface. A texture the effect declares is not found yet (Limitations below).
+     - WebGL2, WebGPU
+     - Storage binding name to the texture a compute pass writes: ``outputTex``, a texture the effect declares or a ``global_`` surface. WebGL2 runs the pass's GLSL program as a fragment pass that writes the same texture (Limitations below).
    * - ``viewport``
      - object with ``x``, ``y``, ``w``, ``h``, ``width``, ``height``
      - WebGL2, WebGPU
@@ -136,8 +136,8 @@
      - One pass writes several textures. When the colour attachments exceed the device budget, trailing ``rgba32f`` attachments are allocated as ``rgba16f``.
    * - ``storageTexture``
      - ``storageTextures``
-     - WebGPU
-     - A texture that a WebGPU compute pass writes through a storage binding.
+     - WebGL2, WebGPU
+     - A texture that a compute pass writes through a storage binding on WebGPU, and as a render target on WebGL2.
    * - ``globalSurface``
      - ``o0`` to ``o7``, ``global_<name>``
      - WebGL2, WebGPU

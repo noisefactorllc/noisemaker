@@ -14,6 +14,10 @@
 //                 reaches the output
 //   mrt-dynamic   one pass writing two textures sized by screenDivide, then a
 //                 pass combining them: red from one target, green from the other
+//   compute-storage  a compute pass writing a texture the effect declares
+//                 through a storage binding, then a compute pass reading it and
+//                 writing outputTex through one, with a fragment form of each
+//                 for WebGL2: each pixel's position times spacing reaches the output
 // The two backends' frames must also agree exactly, compared in texture row
 // order. The package loader's GPU-free tests are in test_portable_package.mjs.
 import assert from 'node:assert/strict'
@@ -110,6 +114,24 @@ const FIXTURES = [
             assert.equal(reds.size, 8, `the first target gives each column of cells its red, found ${reds.size} reds`)
             assert.equal(greens.size, 8, `the second target gives each row of cells its green, found ${greens.size} greens`)
             return { reds: reds.size, greens: greens.size }
+        },
+    },
+    {
+        id: 'compute-storage',
+        func: 'computeStorage',
+        dsl: program('computeStorage(spacing: 3)'),
+        // The work texture holds (3x, 3y) out of 255 at pixel (x, y); the
+        // output keeps it and adds the complement of red in blue.
+        expected(x, y) {
+            return [3 * x, 3 * y, 255 - 3 * x, 255]
+        },
+        check(frame) {
+            assert.deepEqual(pixelAt(frame, SIZE - 1, SIZE - 1), [189, 189, 66, 255],
+                'the spacing parameter reaches the first compute pass, and its storage write reaches the output')
+            const reds = new Set()
+            for (let x = 0; x < SIZE; x++) reds.add(pixelAt(frame, x, 0)[0])
+            assert.equal(reds.size, SIZE, `every column of the work texture reaches the output, found ${reds.size}`)
+            return { columns: reds.size }
         },
     },
 ]

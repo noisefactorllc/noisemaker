@@ -48,7 +48,7 @@ export const PASS_KEYS = Object.freeze([
 //   geometry               a geometry buffer handed on by `outputGeo`
 //   particleState          the shared global_xyz, global_vel and global_rgba textures
 //   multipleRenderTargets  several outputs of one pass, with `drawBuffers`
-//   storageTexture         a texture a WebGPU compute pass writes (`storageTextures`)
+//   storageTexture         a texture a compute pass writes (`storageTextures`)
 //   globalSurface          o0-o7 and the global_ surfaces every effect shares
 //   meshSurface            the positions, normals and uvs of mesh0-mesh7
 //   hostTexture            data a host uploads: midiNoteGrid and `externalTexture`

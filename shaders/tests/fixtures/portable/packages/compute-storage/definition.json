@@ -1,0 +1,36 @@
+{
+  "format": "noisemaker-portable-effect",
+  "version": 2,
+  "name": "Compute Storage",
+  "func": "computeStorage",
+  "description": "A compute pass writes a work texture through a storage binding, each pixel its position times spacing. A second compute pass reads the work texture and writes the output through a storage binding",
+  "globals": {
+    "spacing": {
+      "type": "int",
+      "default": 2,
+      "min": 1,
+      "max": 3,
+      "uniform": "spacing",
+      "ui": { "label": "spacing", "control": "slider" }
+    }
+  },
+  "textures": {
+    "work": { "width": "screen", "height": "screen", "format": "rgba8unorm" }
+  },
+  "passes": {
+    "fill": {
+      "program": "fill",
+      "type": "compute",
+      "workgroups": [8, 8, 1],
+      "storageTextures": { "workTex": "work" },
+      "inputs": {}
+    },
+    "shade": {
+      "program": "shade",
+      "type": "compute",
+      "workgroups": [8, 8, 1],
+      "storageTextures": { "outputBuffer": "outputTex" },
+      "inputs": { "work": "work" }
+    }
+  }
+}
