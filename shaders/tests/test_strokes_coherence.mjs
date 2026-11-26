@@ -23,7 +23,7 @@ const filterDir = path.resolve(__dirname, '../effects/filter')
 for (const name of fs.readdirSync(filterDir).sort()) {
     const defPath = path.join(filterDir, name, 'definition.js')
     if (!fs.existsSync(defPath)) continue
-    const { default: def } = await import(defPath)
+    const { default: def } = await import(pathToFileURL(defPath).href)
     for (const pass of def.passes || []) {
         assert.equal(pass.conditions, undefined,
             `filter/${name} pass "${pass.name}" carries a pipeline pass-condition; gate mode-specific passes with a compile-time define inside the shader instead`)

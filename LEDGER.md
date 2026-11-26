@@ -1097,7 +1097,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `847698510fabe64b188bc7481f0b5c01a6feafaf` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-22
+- **Checkpoint:** noisemaker `24250c8c69610017b1413ccb9dc29a627663a790` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-25
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -1181,6 +1181,192 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-25 — candidate pair: Noisemaker (the publication carrying this
+    entry, above `24250c8c69610017b1413ccb9dc29a627663a790`) and Shade MCP
+    `b4883ded01de320563330630ae364079e30fcc54`. Audited the Shade range
+    `0d5042b..b4883de`: it fixes the DSL verb's frame-advance check — the verb
+    now awaits the `renderer.render()` call before checking `frameCount`, so a
+    scene DSL program, whose render is asynchronous, advances its frames
+    instead of failing with `Renderer did not advance at frame 1` — and adds a
+    scene frame-advance check to the browser smoke. The pin stays at
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`; the pinned verb still fails
+    scene programs, and the contract documents that behavior. The publication
+    carrying this entry adds the matching statement to `llms-full.txt` and
+    ships the previous publication's parity-retry record correction with a
+    contract correction, as the assigned exception requires. Verified: Shade
+    `npm run typecheck` (exit 0), Shade `npm run build` (exit 0), Shade
+    `npm test` (548 tests pass), Shade `node scripts/browser-smoke.mjs` with
+    `NOISEMAKER` set (all 15 checks, exit 0, on Chromium's SwiftShader Vulkan
+    ICD), the four contract guard tests (13 tests pass), and a scene DSL
+    verification session at the fixed source returning `status: ok` with a
+    frame-1 capture. Pending: exact-source CI and live readback. The
+    completed checkpoint stays unchanged until those pass.
+  - 2026-11-25 — completed delivery pair: Noisemaker
+    `24250c8c69610017b1413ccb9dc29a627663a790` and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Commit `73234d5` published
+    the contract corrections. The candidate entry below records the audit,
+    the local checks, and the configured-pin session. Exact-source
+    [JavaScript 45674090165](https://github.com/noisefactorllc/noisemaker/actions/runs/45674090165)
+    and [Site 45674090164](https://github.com/noisefactorllc/noisemaker/actions/runs/45674090164)
+    passed at `73234d5`. A full GET of `https://noisemaker.app/llms-full.txt`
+    returned HTTP 200 and exactly matched the committed file, SHA-256
+    `4fa77b2c8c35fc3735a195842c7a9c9c787be609c0934e68084f076b7e1c0333`. The
+    deployment serves `git_hash: 73234d57d4e808bea62725836aa5b26f803d9b1d`
+    per `deployment-meta.json`. The checkpoint and contract snapshot now
+    name this qualified pair. Shade's browser smoke test ran on this pair
+    against the built Shade `0d5042b` source and passed all 14 checks,
+    including a genuine WebGPU render. The parity verb's first attempt
+    lost its adapter page (`OperationError`); the retry ran it and matched
+    the recorded transcript (`maxDiff` 0). The recorded `renderEffectFrame`
+    metrics and the five other transcript matches cover that session.
+  - 2026-11-25 — candidate pair: Noisemaker
+    `24250c8c69610017b1413ccb9dc29a627663a790` and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Audited the Noisemaker range
+    `5d5122e..24250c8`. `9fed01d` diagnoses an argument chain that holds a
+    non-effect-call entry with `S001`, and keeps a let-bound colour's r, g and
+    b components when later keywords override other parameters. `587a21e` and
+    `24250c8` write a `let` binding's expression arguments back as DSL, so a
+    saved program with such a binding recompiles to the same plans.
+    `de2e08e` makes the first frame's delta zero unless `syncTime()` set a
+    reference time, and a loop wrap step `1 - previousTime + time`.
+    `8911903` corrects the renderLit3d camera scale in its help text and
+    shader comments; it changes no contract statement. Contract corrections
+    in `llms-full.txt`: the mixed-arguments statement gains the let-merged
+    index binding rule and the stored-colour rule, the read() roles statement
+    gains the effect-only chain-argument rule, the parameter `S001` list
+    gains the chain-argument use, the lifecycle statement gains the current
+    `delta` semantics, a statement covers the let-binding round-trip, and
+    the snapshot block names this pair. The Shade range `1815133..0d5042b`
+    changes only `package.json` and `package-lock.json`, so the pin and the
+    delivery stay. Verified: the `NM_CHANGED_FILES` selection of `node
+    scripts/run-js-tests.js --skip-parity` (42 modules, exit 0), `npm run
+    lint` (exit 0), `node shaders/tests/test_validator.js` (79 tests pass),
+    `node shaders/tests/test-let-roundtrip.mjs` (29 tests pass),
+    `node shaders/tests/test_loop_seam_steps.js` (exit 0),
+    `node shaders/tests/test_pipeline.js` (exit 0), the four contract guard
+    tests (13 tests pass), and the worked-example `compileGraph()` pass
+    array reproduced from source. One configured-pin session on this pair
+    initialized server `shade-mcp` 0.5.4 / protocol `2025-06-18`, listed
+    21 tools, and ran the worked calls. `checkEffectStructure`,
+    both `compileEffect` calls, `renderEffectFrame` (identical frame
+    metrics), `testUniformResponsiveness` (identical uniform deltas),
+    `testNoPassthrough` (`skipped` as recorded), and `benchmarkEffectFPS`
+    matched the recorded transcript field for field. `testPixelParity`
+    first lost its adapter page (`OperationError`); the retry ran it and
+    matched the recorded transcript (`maxDiff` 0). The two `runDslProgram`
+    calls returned engine errors; both verified against current source as
+    current behavior, not defects. The browser smoke test on the pair is
+    also not yet run. Pending: the browser smoke test, exact-source CI, and
+    live readback. The completed checkpoint stays unchanged until those
+    pass.
+  - 2026-11-25 — completed delivery pair: Noisemaker
+    `5d5122e5065608942729c3f2c289304111d549d9` and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Commit `6f6153d` published
+    the contract corrections. The candidate entry below records the audit,
+    the local checks, and the configured-pin session. Exact-source
+    [JavaScript 45572221201](https://github.com/noisefactorllc/noisemaker/actions/runs/45572221201)
+    and [Site 45572221353](https://github.com/noisefactorllc/noisemaker/actions/runs/45572221353)
+    passed at `6f6153d`. A full GET of `https://noisemaker.app/llms-full.txt`
+    returned HTTP 200 and exactly matched the committed file, SHA-256
+    `928fc43ca83da461e52a94d7fa695eb647da7ba4b003e1da2e36bf4e0aa01ae4`. The
+    checkpoint and contract snapshot now name this qualified pair.
+  - 2026-11-25 — candidate pair: Noisemaker
+    `5d5122e5065608942729c3f2c289304111d549d9` and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Audited the Noisemaker range
+    `847698510..5d5122e`. The observed delivered range `2537747..5d5122e`
+    holds both of its commits. `2537747` adds the loop-seam measurement tool
+    (`scripts/loop-seam.mjs`, `scripts/lib/loop-seam.mjs`, and tests). It is
+    additive and invalidates no contract statement. `5d5122e` keeps a chain
+    element's `_id:` on 1.x. The parser keeps it on effect calls, inline
+    starters, `read`, `read3d`, `write`, and `write3d`. The validator keeps an
+    id-form string literal in the step. The unparser writes it back first
+    among the keywords. The expander passes no `_id` uniform. Contract
+    corrections in `llms-full.txt`: the program grammar gains the optional
+    `,_id:` element on `write` and `write3d`, a statement covers the kept id
+    form, the id round-trip, and the unchanged compiled graph, and the
+    snapshot block names this pair. Shade range `1815133..0d5042b` changes
+    only `package.json` and `package-lock.json`, so the pin and the delivery
+    stay. Release `v0.5.4` still resolves to the pinned Shade source.
+    `.mcp.json` and `vendor/shade-mcp/` remain unchanged over the Noisemaker
+    range. Shade's parsers and knowledge carry no effect-call keyword
+    statements, so the `_id:` change needs no Shade reconciliation. Verified:
+    the `NM_CHANGED_FILES` selection of `node scripts/run-js-tests.js
+    --skip-parity` (4 modules, exit 0), `npm run lint` (exit 0),
+    `shaders/tests/test_element_ids.mjs` (14 tests, exit 0),
+    `shaders/tests/test_loop_seam_steps.js` (exit 0), the worked-example
+    `compileGraph()` pass array reproduced from source, Shade `npm run
+    typecheck` (exit 0), and Shade `node scripts/browser-smoke.mjs` with
+    `NOISEMAKER` set (all 14 checks, exit 0, on Chromium's SwiftShader Vulkan
+    ICD). One configured-pin session on this pair initialized server
+    `shade-mcp` 0.5.4 / protocol `2025-06-18`, listed 21 tools, and ran the
+    eight worked calls without MCP `isError`. Every constant field matched the
+    recorded transcript, the passthrough call returned `skipped` as recorded,
+    frame metrics and benchmark times held this session's values (53.67 FPS
+    against the 30 FPS target), and five responses carried the software-GL
+    `console_errors` entries the freshness protocol documents. The passing
+    Shade CI runs recorded in the 2026-11-24 completed entry below cover
+    Shade's `npm test` at `0d5042b`. Pending: exact-source CI and live
+    readback. The completed checkpoint stays unchanged until those pass.
+  - 2026-11-24 — completed delivery pair: Noisemaker
+    `f635c0808b555aa75c46786c2e4cd5b8620533a4` and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. The immutable `.mcp.json`
+    pin is that Shade source, delivered release `v0.5.4` resolves to the
+    same source, and the vendored subtrees are unchanged. The audited
+    Noisemaker range `847698510..f635c08` is the scene-graph campaign
+    through the 1.5 release `084176b71`. The candidate entry below records
+    the audit, the tests, and the configured-pin session. Independent
+    review required that delivery recapture before approval plus one
+    contract-statement correction (the volume-atlas declaration names),
+    and both landed before approval. Shade range `1815133..0d5042b` is
+    dependency-only, so the pin and the delivery stay. Exact-source
+    [JavaScript 45318068416](https://github.com/noisefactorllc/noisemaker/actions/runs/45318068416)
+    and [Site 45318068417](https://github.com/noisefactorllc/noisemaker/actions/runs/45318068417)
+    passed at `f635c08`. Shade
+    [CI 45203393772](https://github.com/noisefactorllc/shade-mcp/actions/runs/45203393772),
+    [Quality 45203394080](https://github.com/noisefactorllc/shade-mcp/actions/runs/45203394080)
+    and [Downstream 45203393939](https://github.com/noisefactorllc/shade-mcp/actions/runs/45203393939)
+    passed at `0d5042b`. The live deployment metadata reports `f635c08`,
+    and a full GET of `https://noisemaker.app/llms-full.txt` returned HTTP
+    200 and exactly matched the committed file, SHA-256
+    `3e74415ad2d5e833324c8569850df4ed02055bdb1334613c3aabcca7c22976f0`.
+    The checkpoint and contract snapshot now name that qualified pair.
+  - 2026-11-24 — candidate pair: Noisemaker
+    `af8d54d29d6030a674e1d619313040eed024f6bf` and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Audited the Noisemaker range
+    `847698510..af8d54d2` (the delivered trigger end `084176b7`, the 1.5
+    release commit, sits inside it; the observed delivered range
+    `74be4a66..084176b7` covers the same content, and the three tip commits
+    touch only `docs/`, `AGENTS.md`, `test/scene-graph-ci.test.js`, and the
+    downstream workflow). The range
+    is the scene-graph campaign. Its own commits updated the contract's
+    scene, language, and runtime sections in-band; this pass re-audited the
+    scene statements against source (`compileScene()`, `SCENE_COLOR_TEXTURE`,
+    `graph.sceneIR` with `graph._isScene`, `VOLUME_ATLAS_SIZE` 64 with
+    `ERR_VOLUME_ATLAS_SIZE`, the 64x4096 atlas allocation) and re-ran the
+    four repository contract tests, which re-check the graph shape, delivery
+    pair, parity statement, and frame lifetime against source. Shade range
+    `1815133..0d5042b` changes only `package.json` and `package-lock.json`,
+    so the pin and the delivery stay: release `v0.5.4` still resolves to the
+    pinned Shade source, and `vendor/shade-mcp/` is unchanged over the
+    Noisemaker range. Verified: the `NM_CHANGED_FILES` selection of
+    `node scripts/run-js-tests.js --skip-parity` (5 modules, exit 0),
+    `npm run lint` (exit 0), Shade `npm run typecheck` (exit 0) and
+    `npm test` (46 files, 548 tests, exit 0), and Shade
+    `node scripts/browser-smoke.mjs` with `NOISEMAKER` set (all 14 checks,
+    exit 0, including the genuine WebGPU render on Chromium's SwiftShader
+    Vulkan ICD). The snapshot block above names this candidate pair.
+    One configured-pin session on this pair initialized server `shade-mcp`
+    0.5.4 / protocol `2025-06-18` with SDK 1.32.2, listed 21 tools, and ran
+    the eight worked calls without MCP `isError`. All eight responses
+    matched the recorded transcript on every constant field. The frame
+    metrics and benchmark times hold this session's values (59.47 FPS
+    against the 30 FPS target). Five responses carry a `console_errors`
+    array that the recorded transcript does not have: the container's
+    SwiftShader GL backend made the GL driver log its ReadPixels stall
+    warning, and the tool reports page console messages in that array.
+    Pending: exact-source CI
+    and live readback. The completed checkpoint stays unchanged until those
+    pass.
   - 2026-11-22 — completed delivery pair: Noisemaker
     `847698510fabe64b188bc7481f0b5c01a6feafaf` and Shade MCP
     `1815133b47eaa33aee11d4a677cfea2f3939cf38`. The immutable `.mcp.json`

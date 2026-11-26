@@ -1251,7 +1251,7 @@ Diagnostics
    * - S001
      - Semantic
      - Error
-     - Unknown identifier
+     - Semantic validation error, such as an unknown identifier or a chain argument with a non-call expression
    * - S002
      - Semantic
      - Warning

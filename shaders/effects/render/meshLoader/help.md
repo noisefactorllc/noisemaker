@@ -1,6 +1,6 @@
 # Mesh Loader
 
-Load mesh data into mesh surface textures for GPU rendering. Includes built-in procedural shapes and supports custom OBJ file upload.
+An optional marker and preview stage for mesh rendering. It marks the pipeline as one that uses the `mesh0` mesh, and it shows a preview of that mesh data. The mesh data itself comes from the host, which uploads it into the mesh surface textures. Includes built-in procedural shapes and supports custom OBJ file upload in the demo UI.
 
 ## Usage
 
@@ -8,7 +8,15 @@ Load mesh data into mesh surface textures for GPU rendering. Includes built-in p
 meshLoader().meshRender().write(o0)
 ```
 
-The demo UI shows a shape dropdown and file picker when meshLoader is in the pipeline.
+The demo UI shows a shape dropdown and file picker when meshLoader is in the pipeline, and it uploads the selected mesh to `mesh0`.
+
+## Role in the Pipeline
+
+`meshRender()` draws the mesh from the mesh surface textures. It does not read the output of meshLoader. So meshLoader is optional when the host uploads the mesh with the JavaScript API below, and a chain without it renders the same mesh.
+
+## Preview Output
+
+The output of meshLoader shows the loaded mesh data as colors: vertex positions in the left half and normals in the right half. This output is a preview, and it is visible only when meshLoader is the last stage, for example `meshLoader().write(o0)`.
 
 ## Built-in Shapes
 

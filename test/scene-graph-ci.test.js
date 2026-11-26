@@ -160,9 +160,46 @@ const guardScript = () => {
   return lines.slice(start + 1).filter(line => line.startsWith('          ') || line === '').map(line => line.slice(10)).join('\n')
 }
 
+// The guard reads the version with python3 and tomllib, which Python 3.11 added. CI's python3 has it; a developer's
+// python3 can be older (macOS ships 3.9). The guard runs here with the first interpreter on PATH that has tomllib,
+// under the name python3, so the script under test is the workflow's own.
+const PYTHONS = ['python3', ...Array.from({ length: 10 }, (_, i) => `python3.${20 - i}`)]
+const pythonWithTomllib = (env = process.env) => {
+  for (const name of PYTHONS) {
+    const found = spawnSync('bash', ['-c', `command -v ${name}`], { encoding: 'utf8', env, timeout: 10000 }).stdout?.trim() ?? ''
+    if (found.startsWith('/') && spawnSync(found, ['-c', 'import tomllib'], { env, timeout: 10000 }).status === 0) return found
+  }
+  return null
+}
+
+test('the guard\'s interpreter is the first on PATH that imports tomllib', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'downstream-python-'))
+  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  // Each name the search tries is a stand-in here, so the host's own interpreters are never reached. A stand-in answers
+  // only the probe, `-c import tomllib`, with its status, and any other call with 3.
+  const shim = (name, status) => {
+    writeFileSync(join(dir, name), `#!/bin/sh\n[ "$1" = "-c" ] && [ "$2" = "import tomllib" ] && exit ${status}\nexit 3\n`)
+    chmodSync(join(dir, name), 0o755)
+  }
+  const env = { PATH: `${dir}:/bin` }
+  for (const name of PYTHONS) shim(name, 1)
+  assert.equal(pythonWithTomllib(env), null, 'none has tomllib')
+  shim('python3.12', 127)
+  shim('python3.11', 0)
+  assert.equal(pythonWithTomllib(env), join(dir, 'python3.11'), 'a broken interpreter is passed over')
+  shim('python3.12', 0)
+  assert.equal(pythonWithTomllib(env), join(dir, 'python3.12'), 'the newest that has it, after python3')
+  shim('python3', 0)
+  assert.equal(pythonWithTomllib(env), join(dir, 'python3'), 'python3 first, when it has it')
+})
+
 test('the downstream guard reads the pushed version and refuses any major other than 1', t => {
   const dir = mkdtempSync(join(tmpdir(), 'downstream-guard-'))
   t.after(() => rmSync(dir, { recursive: true, force: true }))
+  const python = pythonWithTomllib()
+  assert.ok(python, `the guard needs Python 3.11 or later, which has tomllib; none of ${PYTHONS.join(', ')} on PATH has it`)
+  writeFileSync(join(dir, 'python3'), `#!/bin/sh\nexec '${python.replaceAll("'", "'\\''")}' "$@"\n`)
+  chmodSync(join(dir, 'python3'), 0o755)
   // A stand-in for curl: it serves the fixture only for pyproject.toml at the pushed commit, and fails as an unreachable file does.
   const sha = 'a'.repeat(40)
   writeFileSync(join(dir, 'curl'), `#!/bin/sh\nfor last; do :; done\n[ "$last" = "https://raw.githubusercontent.com/owner/repository/${sha}/pyproject.toml" ] || exit 22\n[ -f "$FIXTURE" ] || exit 22\ncat "$FIXTURE"\n`)

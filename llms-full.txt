@@ -13,7 +13,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `847698510fabe64b188bc7481f0b5c01a6feafaf`.
+- Noisemaker: `24250c8c69610017b1413ccb9dc29a627663a790`.
 - Shade MCP: `1815133b47eaa33aee11d4a677cfea2f3939cf38`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.5.4`. Its
   lockfile pins `@modelcontextprotocol/sdk` 1.32.2; the `npx` install below
@@ -63,6 +63,13 @@ Before updating this contract to a different Noisemaker or Shade MCP revision:
 4. Re-run the source-level worked-example graph expansion and the backend
    validation calls. Confirm each returned effect and backend identity.
 5. Check the source evidence again before updating the traceability matrix.
+
+Step 3's comparison is over constant fields. A re-captured session matches the
+recorded transcript on every constant field; frame metrics and benchmark times
+hold the new session's values. Page console messages reach the response's
+`console_errors` array (`vendor/shade-mcp/harness/index.js` maps each captured
+message's text into it), so a software-GL host adds entries there that the
+recorded session does not have.
 
 Until all five steps are complete, unchanged sections remain authoritative only
 for the pinned snapshots. Running the separately pinned repository MCP
@@ -420,8 +427,9 @@ which is why the terminal `write(oN)` is the thing that makes a scene
 observable at all.
 
 A `volume()` node marches one of the `vol0`-`vol7` atlases, which are fixed at
-64 cubed (`VOLUME_ATLAS_SIZE`, declared identically in `compiler.js`,
-`volume-renderer.js`, and `pipeline.js`, and allocated as 64x4096 `rgba16f`). A
+64 cubed (`VOLUME_ATLAS_SIZE`, declared in `compiler.js` and
+`volume-renderer.js`; `pipeline.js`'s `createSurfaces()` hardwires the same
+64x4096 `rgba16f` allocation with inline literals). A
 `volume()` node therefore samples a 64-cube whatever `volumeSize` the producing
 chain declares; a mismatch is rejected at compile time rather than rescaled, and
 a runtime `volumeSize` change on a pinned surface is refused with a warning.
@@ -469,10 +477,11 @@ ChainElement     ::= Call | WriteCall | Write3DCall | Subchain
 Call             ::= Identifier "(" [ ArgList ] ")"
 ArgList          ::= Argument { "," Argument } [ "," ]
 Argument         ::= Expr | Identifier ":" Expr
-WriteCall        ::= "write" "(" WriteTarget ")"
+WriteCall        ::= "write" "(" WriteTarget ElementId? ")"
 WriteTarget      ::= OutputRef | XyzRef | VelRef | RgbaRef | MeshRef | "none"
 Write3DCall      ::= "write3d" "(" (Identifier | OutputRef | VolRef) ","
-                     (Identifier | OutputRef | GeoRef) ")"
+                     (Identifier | OutputRef | GeoRef) ElementId? ")"
+ElementId        ::= "," "_id" ":" Expr
 RenderDirective  ::= "render" "(" OutputRef ")"
 Subchain         ::= "subchain" "(" SubchainArgs ")" "{"
                      Comments "." Comments Call
@@ -570,6 +579,17 @@ as `synth.noise()` are rejected. Put the namespace in `search`, or use
 Positional and keyword arguments may be mixed in either order. Keywords claim
 their named fields; positionals fill the remaining fields in source order.
 
+A call whose keywords and positionals met through a `let` binds each positional
+to the parameter at its own source index instead; a positional whose slot a
+keyword holds binds to nothing, without a diagnostic. A colour positional still
+claims the `r`, `g` and `b` parameters at its index and supplies their
+components there, so a later keyword overrides only its own member and the
+stored colour keeps the rest.
+
+An argument value that is a chain expression must hold only effect calls; a
+chain holding any other entry produces `S001`, the parameter binds nothing, and
+an effect-only chain binds the temporary surface of its last effect.
+
 `read(oN)` has two different legal roles:
 
 1. At a chain head it becomes builtin `_read` and establishes the current input.
@@ -580,6 +600,30 @@ their named fields; positionals fill the remaining fields in source order.
 statement must have an explicit terminal `write(...)` or `write3d(...)`. A
 separate `render(oN)` chooses presentation but does not satisfy the write
 requirement. `render()` accepts only an `OUTPUT_REF` token.
+
+A chain element may carry an `_id:` keyword: on an effect call (an inline
+starter included) and on `read`, `read3d`, `write`, and `write3d`
+(`write(o0, _id: "out")`). The id keys the element's state by its id and
+resolved op name, in place of its position. The value must be a quoted string
+literal of letters, digits and `_` that starts with a letter; any other value
+is `S001`. A repeated id is `S010`, and the first element in compile order
+keeps it. An id inside a `let` value that is used more than once is `S011`. A
+`read()` or `read3d()` passed as a value takes no `_id:` (`S001`). The
+unparser writes the id back first among the element's keywords, and `read`
+and `read3d` with an id write their keyword form. The expander passes no
+`_id` uniform. Inside `subchain(...)`, `_id:` is an unknown metadata key,
+reported as `P008`.
+
+A `let` binding keeps the expression form of its value across
+`compile()`/`unparse()`. When the binding's call carries a call, chain, or
+identifier keyword value, `unparse()` writes the whole binding with the AST
+writer, including its sibling arguments, so the saved program recompiles to
+the same plans. An oscillator or function value round-trips only inside such
+a call or chain value. A binding of plain literals keeps the host value
+formatter, which cannot write a bare oscillator, function, or colour keyword
+value; such a value saves only inside a call or chain value. In a program that draws,
+`unparse()` also writes each use of a `let` that holds effects by its name,
+with the arguments written at that use, so its draws are kept.
 
 Numeric arithmetic is constant-folded during parsing. Operators accept only
 `Number` nodes. Applying arithmetic to another expression throws `SyntaxError:
@@ -1222,7 +1266,11 @@ misfire). `Pipeline.render()` calls `onUpdate({time, delta, uniforms:
 globalUniforms})` once per frame per managed effect, and each returned
 uniform binds under fallback semantics: only when the pass does not already
 resolve that key, so DSL/step-provided and authored values (including
-synth/media's returned `imageSize` defaults) keep priority.
+synth/media's returned `imageSize` defaults) keep priority. `delta` is the
+frame-to-frame change of `time` in the same normalized units: zero on the first
+frame unless `syncTime()` has set a reference time, `1 - previousTime + time`
+when the loop wraps, and `time - previousTime` otherwise.
+
 `Pipeline.dispose()` calls `onDestroy()` for every managed effect, with
 hook errors captured into the existing dispose error path.
 
@@ -1807,7 +1855,8 @@ Parameter-related semantic failures use `Diagnostic`:
 
 - `S001`: quoted string for a non-string type, invalid surface/volume/geometry,
   unknown argument, unresolved enum, illegal string parameter, invalid function,
-  automation cycle, or automation depth overflow.
+  a parameter chain holding a non-effect-call entry, automation cycle, or
+  automation depth overflow.
 - `S002`: out-of-range value with `(got <v>, clamped to <c>)`, wrong value form,
   nonnumeric array element, or invalid audio channel.
 - `S003`: undefined variable, variable read before its `let`, enum identifier,
@@ -4016,6 +4065,10 @@ async `readPixels`. The WebGL2 reader returns rows top-down; the verb flips
 the bottom-up WebGPU readback rows to top-down before it computes metrics and
 draws the grid. Both backends therefore return upright captures and grid
 cells, and the same program gives the same orientation on WebGL2 and WebGPU.
+The verb checks frame advancement after every render call: `frameCount` must
+advance by exactly one per frame. `render()` is synchronous for 2D programs and
+asynchronous for scene programs, so at this snapshot a scene DSL program fails
+the check with `Renderer did not advance at frame 1`.
 The whole batch is bounded by `session.timeoutMs`
 (`SHADE_TIMEOUT_MS`, default `120000` ms). Each capture carries the full
 `ImageMetrics` record; `metrics` repeats the final capture of the render

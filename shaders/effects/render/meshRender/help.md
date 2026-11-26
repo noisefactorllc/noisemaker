@@ -2,7 +2,7 @@
 
 **Note:** Mesh rendering is a proof of concept. The mesh loader currently only supports OBJ format.
 
-Renders triangle meshes from mesh surface textures using the triangles draw mode.
+Renders the triangle mesh that the host uploaded to the `mesh0` mesh surface textures, using the triangles draw mode.
 
 ## Usage
 
@@ -58,7 +58,9 @@ in the vertex shader, similar to how `drawMode: "points"` works for particle sys
 
 ## Pipeline Integration
 
-Typically used after `meshLoader()`:
+meshRender draws the mesh in `mesh0`, which the host uploads with `loadOBJFromURL()` or `loadOBJFromString()`, or which the demo UI uploads from its mesh picker. It first fills the frame with the background color, so the image from earlier stages does not show.
+
+`meshLoader()` before it is optional. It marks the pipeline for the demo UI mesh picker, and meshRender does not read its output:
 
 ```
 // Load and render with transform

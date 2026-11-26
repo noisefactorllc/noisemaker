@@ -272,7 +272,7 @@ function build(src) {
   const { tree, bindings } = build(`
     search synth
     scene(
-      mesh("box", pos: [osc(type: oscKind.saw), midi(channel: 2), audio(audioBand.high)])
+      mesh("box", pos: [osc(type: oscKind.saw), midi(channel: 2, sensitivity: 0), audio(audioBand.high)])
     ).write(o0)
   `)
   assert.strictEqual(bindings.length, 3, 'one binding per animated component')
@@ -314,7 +314,7 @@ function build(src) {
   const { tree, bindings } = build(`
     search synth
     scene(
-      mesh("box", pos: [midi(channel: 1), audio(audioBand.vol), 0])
+      mesh("box", pos: [midi(channel: 1, sensitivity: 0), audio(audioBand.vol), 0])
     ).write(o0)
   `)
   const node = tree.getMeshNodes()[0]

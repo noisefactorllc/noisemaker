@@ -79,8 +79,8 @@ The Pipeline executes every frame.
      ``(elapsedSeconds % loopDuration) / loopDuration``. The loop is 10 seconds
      by default, and ``setLoopDuration()`` changes it.
    - ``deltaTime``: frame-to-frame change of ``time``, in the same units. The
-     first frame uses zero unless a reference time was set. When the loop wraps,
-     the change is ``1 - previousTime + time``. In a graph
+     first frame has a step of zero unless ``syncTime()`` set a reference time.
+     When the loop wraps, the step is ``1 - previousTime + time``. In a graph
      with simulation state, a simulation step pass sees ``1 / N`` on every step,
      where a loop of ``L`` seconds has ``N = round(60 * L)`` steps; a draw pass
      sees the loop time since the previous render, with a wrap counted as ``+1``.

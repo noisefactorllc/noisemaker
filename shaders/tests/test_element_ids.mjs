@@ -343,3 +343,30 @@ test('in the corpus, a program without _id: gives no _id in its compiled graph',
         assert.ok(!codes(result).some(code => code === 'S010' || code === 'S011'), entry.id)
     }
 })
+
+// Every effect's own default program, with an id on every chain element.
+for (const id of Object.keys(manifest)) await register(id)
+const defaultPrograms = [...new Set(Object.keys(manifest).map(id => definitions.get(id)?.defaultProgram).filter(dsl => typeof dsl === 'string'))]
+
+test('every default program round-trips with an _id: on every chain element', () => {
+    assert.ok(defaultPrograms.length > 0)
+    let checked = 0
+    for (const dsl of defaultPrograms) {
+        const result = compile(dsl)
+        if (errors(result).length) continue
+        for (const step of steps(result)) if (takesId(step)) step.args = { ...step.args, _id: `e${step.temp}` }
+        const expected = steps(result).filter(takesId).map(step => [step.op, step.args._id])
+        const text = unparse(result, {}, options)
+        const again = compile(text)
+        assert.deepEqual(errors(again), [], `${dsl}\n->\n${text}`)
+        assert.deepEqual(steps(again).filter(takesId).map(step => [step.op, step.args?._id]), expected, text)
+        checked++
+    }
+    assert.ok(checked > 0)
+})
+
+test('a default program without _id: compiles with no _id in its steps', () => {
+    for (const dsl of defaultPrograms) {
+        assert.ok(!steps(compile(dsl)).some(step => step.args && '_id' in step.args), dsl)
+    }
+})
