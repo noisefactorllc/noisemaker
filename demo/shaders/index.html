@@ -835,10 +835,6 @@
                 if (urlBackend === 'wgsl' || urlBackend === 'glsl') {
                     if (urlBackend === 'wgsl') {
                         await renderer.switchBackend('wgsl');
-                        // The switch replaces the canvas; resize the new one, as
-                        // the backend tabs do.
-                        canvas = document.getElementById('canvas');
-                        renderer._canvas = canvas;
                     }
                     document.querySelectorAll('#backend-tabs .hf-tab').forEach(t => {
                         t.classList.toggle('active', t.dataset.backend === urlBackend);
