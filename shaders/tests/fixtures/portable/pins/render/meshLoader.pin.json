@@ -23,12 +23,12 @@
         "width": 64,
         "height": 64,
         "nonzeroRgbPixels": 4096,
-        "uniqueColors": 111,
+        "uniqueColors": 263,
         "alpha": [
           255,
           255
         ],
-        "sha256": "dd882d418efc1f8eb42c071ccb1cdf02c0a10c47cd2478de929e381bc62801f6"
+        "sha256": "ce2cf08ea1d505b096f1d8e8f787dc46fab8b6c51d2245f51a763a92ae5fe529"
       }
     }
   }
