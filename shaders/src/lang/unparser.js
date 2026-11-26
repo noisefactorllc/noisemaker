@@ -1679,9 +1679,16 @@ export function unparse(compiled, overrides = {}, options = {}) {
             const letCallKeys = new Set(asLetCall ? [...step.letCallKeys, ...(step.pinnedSeeds || [])] : [])
             // A value a host changed in place on the step is written at the
             // call, so the edit is kept and the let form with it.
-            if (asLetCall) {
-                for (const [key, value] of Object.entries(step.args || {})) {
-                    if (step.letCallArgs && JSON.stringify(value) !== step.letCallArgs[key]) letCallKeys.add(key)
+            // A value the host deleted is written back as the default.
+            const letCallDeleted = []
+            if (asLetCall && step.letCallArgs) {
+                for (const [key, compiled] of Object.entries(step.letCallArgs)) {
+                    if (!Object.hasOwn(step.args || {}, key)) {
+                        letCallKeys.add(key)
+                        letCallDeleted.push(key)
+                    } else if (formatValue(step.args[key]) !== formatValue(compiled)) {
+                        letCallKeys.add(key)
+                    }
                 }
             }
 
@@ -1736,6 +1743,10 @@ export function unparse(compiled, overrides = {}, options = {}) {
                         }
                     }
                 }
+            }
+            for (const key of letCallDeleted) {
+                const spec = specs[key] ?? schemaSpecs[key]
+                if (spec?.default !== undefined) call.kwargs[key] = spec.default
             }
 
             // Apply overrides - filter to only include valid DSL parameters

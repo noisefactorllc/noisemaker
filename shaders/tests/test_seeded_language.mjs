@@ -434,7 +434,7 @@ test('a save leaves a let\'s own seed in the let, keeps let names for a copy, an
 })
 
 test('a save by a let\'s name keeps a value a host changed in place on the step', () => {
-    const c = compile('search synth\nseed 5\nlet a = noise(octaves: 2)\na().write(o0)\nnoise(scaleY: rand(1, 10)).write(o1)')
+    const c = compile('search synth\nseed 5\nlet a = noise(octaves: 3)\na().write(o0)\nnoise(scaleY: rand(1, 10)).write(o1)')
     const before = allSteps(c.plans).map(step => ({ ...step.args }))
     c.plans[0].chain[0].args.scaleX = 42
     c.plans[0].chain[0].args.octaves = noise.globals.octaves.default
@@ -445,6 +445,10 @@ test('a save by a let\'s name keeps a value a host changed in place on the step'
     assert.equal(args(again).octaves, noise.globals.octaves.default)
     // The other draws do not move.
     assert.deepEqual(allSteps(again.plans).slice(1).map(step => step.args), before.slice(1))
+    // A value the host deleted is written back as the default.
+    const deleted = compile('search synth\nseed 5\nlet a = noise(octaves: 3)\na().write(o0)')
+    delete deleted.plans[0].chain[0].args.octaves
+    assert.equal(args(compile(unparse(deleted))).octaves, noise.globals.octaves.default, unparse(deleted))
     // An unedited program still saves its let call bare.
     assert.match(unparse(compile('search synth\nseed 5\nlet a = noise(octaves: 2)\na().write(o0)')), /\na\(\)\n/)
 })

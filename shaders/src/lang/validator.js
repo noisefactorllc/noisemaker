@@ -2769,7 +2769,13 @@ export function validate(ast) {
                 // The values a let call compiled to, so a save can tell which
                 // a host has changed in place since. Not enumerable.
                 if (step.letCall) {
-                    Object.defineProperty(step, 'letCallArgs', { value: Object.fromEntries(Object.entries(args).map(([key, value]) => [key, JSON.stringify(value)])) })
+                    // Only the values the let supplies: the others are written
+                    // at the call anyway. An array is copied, as a host may
+                    // change its members.
+                    const site = new Set(step.letCallKeys)
+                    Object.defineProperty(step, 'letCallArgs', { value: Object.fromEntries(Object.entries(args)
+                        .filter(([key]) => !site.has(key))
+                        .map(([key, value]) => [key, Array.isArray(value) ? [...value] : value])) })
                 }
                 chain.push(step)
                 current = idx
