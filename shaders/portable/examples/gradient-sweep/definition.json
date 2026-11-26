@@ -1,0 +1,31 @@
+{
+    "name": "Gradient Sweep",
+    "func": "gradientSweep",
+    "description": "A diagonal color gradient that rotates over time",
+    "tags": ["color"],
+    "starter": true,
+
+    "globals": {
+        "speed": {
+            "type": "float",
+            "default": 1.0,
+            "min": 0.0,
+            "max": 4.0,
+            "step": 0.1,
+            "uniform": "speed"
+        }
+    },
+
+    "defaultProgram": "search user\n\ngradientSweep(speed: 1.0)\n  .write(o0)\n\nrender(o0)",
+
+    "passes": [
+        {
+            "name": "main",
+            "program": "gradientSweep",
+            "inputs": {},
+            "outputs": {
+                "color": "outputTex"
+            }
+        }
+    ]
+}

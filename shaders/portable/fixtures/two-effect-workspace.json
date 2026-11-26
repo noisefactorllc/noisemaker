@@ -1,0 +1,50 @@
+{
+  "format": "noisefactor-workspace",
+  "version": 1,
+  "id": "two-effect-demo",
+  "revision": 0,
+  "effects": [
+    {
+      "id": "gradient",
+      "files": {
+        "definition.json": {
+          "encoding": "utf8",
+          "data": "{\n    \"name\": \"Gradient Sweep\",\n    \"func\": \"gradientSweep\",\n    \"description\": \"A diagonal color gradient that rotates over time\",\n    \"tags\": [\"color\"],\n    \"starter\": true,\n\n    \"globals\": {\n        \"speed\": {\n            \"type\": \"float\",\n            \"default\": 1.0,\n            \"min\": 0.0,\n            \"max\": 4.0,\n            \"step\": 0.1,\n            \"uniform\": \"speed\"\n        }\n    },\n\n    \"defaultProgram\": \"search user\\n\\ngradientSweep(speed: 1.0)\\n  .write(o0)\\n\\nrender(o0)\",\n\n    \"passes\": [\n        {\n            \"name\": \"main\",\n            \"program\": \"gradientSweep\",\n            \"inputs\": {},\n            \"outputs\": {\n                \"color\": \"outputTex\"\n            }\n        }\n    ]\n}\n"
+        },
+        "glsl/gradientSweep.glsl": {
+          "encoding": "utf8",
+          "data": "#version 300 es\nprecision highp float;\n\nuniform vec2 resolution;\nuniform float time;\nuniform float speed;\n\nout vec4 fragColor;\n\n#define TAU 6.28318530718\n\n// Etienne Jacob's periodic value: one smooth rise and fall per loop, offset by v\nfloat periodicValue(float t, float v) {\n    return (sin(mod(t - v, 1.0) * TAU) + 1.0) * 0.5;\n}\n\nvoid main() {\n    vec2 uv = gl_FragCoord.xy / resolution;\n\n    // Rotate the gradient direction out and back over each loop\n    // time loops 0\u21921 and the periodic value ends where it starts, so any speed loops cleanly\n    float angle = periodicValue(time, 0.25) * TAU * speed;\n    vec2 dir = vec2(cos(angle), sin(angle));\n\n    // Project UV onto the rotating direction\n    float t = dot(uv - 0.5, dir) + 0.5;\n\n    // Map to a smooth color gradient\n    vec3 color = vec3(t, t * 0.6 + 0.2, 1.0 - t);\n    fragColor = vec4(color, 1.0);\n}\n"
+        },
+        "wgsl/gradientSweep.wgsl": {
+          "encoding": "utf8",
+          "data": "@group(0) @binding(0) var<uniform> resolution: vec2<f32>;\n@group(0) @binding(2) var<uniform> time: f32;\n@group(0) @binding(3) var<uniform> speed: f32;\n\nconst TAU: f32 = 6.28318530718;\n\n// Etienne Jacob's periodic value: one smooth rise and fall per loop, offset by v\nfn periodicValue(t: f32, v: f32) -> f32 {\n    return (sin(((t - v) % 1.0) * TAU) + 1.0) * 0.5;\n}\n\n@fragment\nfn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {\n    let uv = vec2<f32>(position.x, resolution.y - position.y) / resolution;\n\n    // Rotate the gradient direction out and back over each loop\n    // time loops 0\u21921 and the periodic value ends where it starts, so any speed loops cleanly\n    let angle = periodicValue(time, 0.25) * TAU * speed;\n    let dir = vec2<f32>(cos(angle), sin(angle));\n\n    // Project UV onto the rotating direction\n    let t = dot(uv - 0.5, dir) + 0.5;\n\n    // Map to a smooth color gradient\n    let color = vec3<f32>(t, t * 0.6 + 0.2, 1.0 - t);\n    return vec4<f32>(color, 1.0);\n}\n"
+        },
+        "help.md": {
+          "encoding": "utf8",
+          "data": "# gradientSweep\n\nA diagonal color gradient that rotates over time.\n\n## Parameters\n\n| Parameter | Type | Default | Range | Description |\n|-----------|------|---------|-------|-------------|\n| speed | float | 1.0 | 0-4 | Rotation speed multiplier |\n\n## Usage\n\n```\nsearch user\n\ngradientSweep(speed: 1.0)\n  .write(o0)\n\nrender(o0)\n```\n"
+        }
+      }
+    },
+    {
+      "id": "tint",
+      "files": {
+        "definition.json": {
+          "encoding": "utf8",
+          "data": "{\n  \"name\": \"Tint Filter\",\n  \"func\": \"tintFilter\",\n  \"starter\": false,\n  \"globals\": {\n    \"amount\": {\n      \"type\": \"float\",\n      \"default\": 0.4,\n      \"min\": 0,\n      \"max\": 1,\n      \"uniform\": \"amount\"\n    }\n  },\n  \"passes\": [\n    {\n      \"name\": \"main\",\n      \"program\": \"tintFilter\",\n      \"inputs\": {\n        \"inputTex\": \"inputTex\"\n      },\n      \"outputs\": {\n        \"color\": \"outputTex\"\n      }\n    }\n  ]\n}\n"
+        },
+        "glsl/tintFilter.glsl": {
+          "encoding": "utf8",
+          "data": "#version 300 es\nprecision highp float;\nuniform vec2 resolution;\nuniform sampler2D inputTex;\nuniform float amount;\nout vec4 fragColor;\nvoid main() {\n    vec4 source = texture(inputTex, gl_FragCoord.xy / resolution);\n    fragColor = vec4(mix(source.rgb, source.rgb * vec3(1.0, 0.5, 0.8), amount), source.a);\n}\n"
+        }
+      }
+    }
+  ],
+  "assets": {},
+  "composition": {
+    "dsl": "search user\ngradientSweep(speed: 2).tintFilter(amount: 0.4).write(o0)\nrender(o0)",
+    "effectIds": [
+      "gradient",
+      "tint"
+    ]
+  }
+}
