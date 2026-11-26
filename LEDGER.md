@@ -1181,6 +1181,31 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-26 — candidate pair: Noisemaker (the publication carrying this
+    entry, above `405557cddfd6292c2f13ed3e55a674556f82ed44`) and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Audited the Noisemaker range
+    `24250c8c..405557c`: `405557c` fixes declared storage texture targets —
+    `expand()` now maps `storageTextures` bindings into the pass virtual
+    namespace the way it maps inputs and outputs, adds `storage` to a bound
+    internal texture's usage, drops the empty `outputs` map of a storage-only
+    pass, and the WebGL2 backend ignores an empty `outputs` map — and adds a
+    storage texture target test on both backends. No shipped effect uses
+    `storageTextures`. Corrected the two stale `llms-full.txt` statements: the
+    graph's connection surfaces now include `storageTextures`, and a
+    storage-target binding adds `storage` usage. Also audited the Shade range
+    `1815133b..d3d898e` against the pin: the await fix and the smoke scene
+    gate stay unreleased, and the pin and vendor stay at v0.5.4. Verified:
+    Shade `npm run typecheck` (exit 0), Shade `npm test` (548 tests pass),
+    Shade `npm run build` (exit 0), Shade `node scripts/browser-smoke.mjs`
+    with `NOISEMAKER` set (all 15 checks, exit 0, on Chromium's SwiftShader
+    Vulkan ICD), Noisemaker `npm run lint` (exit 0),
+    `scripts/run-js-tests.js --skip-parity` in four shards (all pass), the
+    four contract guard tests, the new storage texture target test on WebGL2
+    and WebGPU (both exit 0), and a configured-pin session (server 0.5.4,
+    21 tools, worked transcript matches). Pending: the pin's scene-DSL defect
+    and the smoke skip stay recorded as delivery blockers needing an
+    authorized Shade release and a workflow ref move; exact-source CI and
+    live readback. The completed checkpoint stays unchanged until those pass.
   - 2026-11-25 — candidate pair: Noisemaker (the publication carrying this
     entry, above `24250c8c69610017b1413ccb9dc29a627663a790`) and Shade MCP
     `b4883ded01de320563330630ae364079e30fcc54`. Audited the Shade range

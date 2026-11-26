@@ -13,7 +13,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `24250c8c69610017b1413ccb9dc29a627663a790`.
+- Noisemaker: `405557cddfd6292c2f13ed3e55a674556f82ed44`.
 - Shade MCP: `1815133b47eaa33aee11d4a677cfea2f3939cf38`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.5.4`. Its
   lockfile pins `@modelcontextprotocol/sdk` 1.32.2; the `npx` install below
@@ -1945,7 +1945,7 @@ type ExpandedPass = {
   blend?: boolean | [string | number, string | number]
   workgroups?: [number, number, number]
   storageBuffers?: Record<string, unknown>
-  storageTextures?: Record<string, string>
+  storageTextures?: Record<string, string>  // shader storage binding -> resolved target ID
   inputs: Record<string, string>      // shader sampler/binding -> virtual texture
   outputs: Record<string, string>     // fragment attachment -> virtual texture
   uniforms: Record<string, unknown>   // shader uniform -> resolved value
@@ -1976,10 +1976,20 @@ const graphView = {
 }
 ```
 
-Current connections are exactly `passes[i].inputs` and `passes[i].outputs`.
-For every input entry, the key is the shader sampler/binding name and the value
-is the resolved virtual texture ID. For every output entry, the key is the
-shader output attachment name and the value is the resolved target ID.
+Current connections are `passes[i].inputs`, `passes[i].outputs`, and
+`passes[i].storageTextures`. For every input entry, the key is the shader
+sampler/binding name and the value is the resolved virtual texture ID. For
+every output entry, the key is the shader output attachment name and the value
+is the resolved target ID. A `storageTextures` entry maps the same way: the
+key is the shader storage binding name and the value is the resolved target
+ID. An `outputTex` reference resolves to the chain's write target when the
+chain writes at that point, and to the pass node's own output texture
+otherwise. A `global_`-prefixed reference resolves through the scope chain,
+and an
+effect-local reference scopes under the pass node and adds `storage` to that
+texture's usage. A pass that declares `storageTextures` but no `outputs` gets
+no `outputs` map, so allocation falls back from render outputs to storage
+outputs.
 
 Passes are appended in DSL plan order, effect-step order, and definition pass
 array order. Builtin read/write/blit passes are inserted at the point the
@@ -2392,7 +2402,9 @@ type TextureSpec = TextureSpec2D | TextureSpec3D
 
 Omitted/falsy definition width or height becomes `screen`. Omitted format
 becomes `rgba16f`. Graph-generated pass outputs also use screen size,
-`rgba16f`, and usage `render/sample/copySrc/copyDst`. A 3D spec gets
+`rgba16f`, and usage `render/sample/copySrc/copyDst`. A pass that binds an
+internal texture as a storage target adds `storage` to that texture's usage.
+A 3D spec gets
 `is3D:true`. Its depth default is `effectSpec.depth || effectSpec.width || 64`
 and usage is `storage/sample/copySrc/copyDst`.
 
