@@ -153,9 +153,10 @@ function applyInputs(frame) {
 }
 // Untimed note activity is fed before the first render, as the recorder
 // feeds it.
-let midiOrder = 0;
+// Each note goes in as a note-on message, as midiMessages do, so every
+// reader of the MIDI state sees it.
 for (const midiInput of midiInputs) {
-    for (const note of midiInput.notes) midi.channels[note.channel].noteOn(note.key, note.velocity, { time: 0, order: ++midiOrder });
+    for (const note of midiInput.notes) midi.handleMessage(new Uint8Array([0x90 | (note.channel - 1), note.key, note.velocity]));
 }
 // A scene program renders asynchronously, so every render is awaited.
 await renderer.render(times[0]);

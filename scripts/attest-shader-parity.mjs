@@ -265,9 +265,10 @@ function applyInputs(frame) {
 // render: on the fixed-step clock only that render steps a stateful effect at
 // time 0, so a note fed later would never reach its history. A timed case
 // gives its notes as midiMessages instead.
-let midiOrder = 0;
+// Each note goes in as a note-on message, as midiMessages do, so every
+// reader of the MIDI state sees it.
 for (const midiInput of midiInputs) {
-    for (const note of midiInput.notes) midi.channels[note.channel].noteOn(note.key, note.velocity, { time: 0, order: ++midiOrder });
+    for (const note of midiInput.notes) midi.handleMessage(new Uint8Array([0x90 | (note.channel - 1), note.key, note.velocity]));
 }
 // A scene program renders asynchronously, so a timed case awaits each frame
 // before its inputs. An untimed case renders as it did before.

@@ -128,6 +128,8 @@ try {
             'filter/example').some(error => error.includes('midi')), 'invalid midi evidence must be rejected')
     }
     assert.deepEqual(validateParityCase({ ...completeParityCase, midiInputs: [{ ...midiInput, notes: [{ channel: 16, key: 40, velocity: 110 }] }] }, 'filter/example'), [])
+    assert.ok(validateParityCase({ ...completeParityCase, midiInputs: [midiInput], timeline: { frames: [0, 1, 2] } }, 'filter/example')
+        .some(error => error.includes('untimed form')), 'midiInputs in a timed case must be rejected')
     for (const midiInputs of [[{ ...midiInput, port: 'a' }], [{ ...midiInput, notes: [{ ...midiInput.notes[0], time: 0 }] }]]) {
         assert.ok(validateParityCase({ ...completeParityCase, midiInputs }, 'filter/example').some(error => error.includes('unknown field')),
             'an unknown midi input or note field must be rejected')

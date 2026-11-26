@@ -963,7 +963,7 @@ export function caseVariants(id, renderCase) {
     if (renderCase.withoutTarget !== null) {
         variants.withoutTarget = { ...renderCase, dsl: renderCase.withoutTarget, textureInputs: (renderCase.textureInputs || []).filter(texture => texture.effect !== id) }
     }
-    if (renderCase.midiMessages || renderCase.midiInputs || renderCase.audio) {
+    if (renderCase.midiMessages || renderCase.midiInputs?.length || renderCase.audio) {
         const { midiMessages, midiInputs, audio, ...rest } = renderCase
         variants.withoutInputs = rest
     }
@@ -1115,12 +1115,16 @@ async function perfInPage({ baseUrl, pinCase, preferWebGPU, policy, matchesSourc
         audio.waveform.set(Float32Array.from({ length: 128 }, (_, i) => i / 127))
         audio.spectrum.set(Float32Array.from({ length: 128 }, (_, i) => (127 - i) / 127))
     }
-    const midi = pinCase.midiMessages?.length ? renderer.setMidiState() : null
+    const midi = pinCase.midiMessages?.length || pinCase.midiInputs?.length ? renderer.setMidiState() : null
     await renderer.compile(pinCase.dsl)
     // stepFrame() returns before a scene program's queued render runs, so a
     // timed frame would not hold the frame's work.
     if (renderer.isScene) throw new Error('perf times stepFrame(), which does not wait for a scene program, so it refuses one')
     renderer.stop()
+    // Untimed notes go in before the first render, as the pin tool feeds them.
+    for (const midiInput of pinCase.midiInputs || []) {
+        for (const note of midiInput.notes) midi.handleMessage(new Uint8Array([0x90 | (note.channel - 1), note.key, note.velocity]))
+    }
     await renderer.render(0)
     for (const texture of pinCase.textureInputs || []) {
         const source = document.createElement('canvas')

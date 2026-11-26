@@ -133,6 +133,10 @@ test('every baseline ID has a render case, and every render case is a baseline I
     assert.match(caseVariants('synth/roll', timed).problem, /at least three frames/)
     assert.match(caseVariants('synth/roll', { ...timed, timeline: { frames: [0, 1, 2] }, midiMessages: [{ afterFrame: 2, data: [0x90, 60, 100] }] }).problem, /after its second frame/)
     assert.deepEqual(Object.keys(caseVariants('synth/roll', { ...timed, timeline: { frames: [0, 1, 2] }, audio: 'ramps' }).variants).sort(), ['firstFrames', 'withoutInputs'])
+    // Untimed notes are an input: the withoutInputs variant drops them. An empty list is none.
+    const untimedNotes = { withoutTarget: null, midiInputs: [{ effect: 'synth/roll', notes: [{ channel: 1, key: 60, velocity: 100 }] }] }
+    assert.equal(caseVariants('synth/roll', untimedNotes).variants.withoutInputs.midiInputs, undefined)
+    assert.equal(caseVariants('synth/roll', { ...untimedNotes, midiInputs: [] }).variants.withoutInputs, undefined)
     // A missing case fails the pin run before any render.
     const dropped = baseline.effectIds[3]
     const { [dropped]: _gone, ...rest } = renderCases
