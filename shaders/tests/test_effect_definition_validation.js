@@ -490,6 +490,17 @@ test('dynamic definition corpus: every tracked effect validates with explicit de
         executed += 1
         try {
             const errors = validateEffectDefinition(def)
+            const sizes = [
+                ...Object.values(def.textures ?? {}),
+                ...Object.values(def.textures3d ?? {}),
+                ...(def.passes ?? []).map(pass => pass.viewport).filter(Boolean)
+            ]
+            for (const size of sizes) {
+                if (Object.values(size).some(dim => dim != null && Object.hasOwn(dim, 'inputOverride'))) {
+                    errors.push('catalog dimensions must not declare the unused inputOverride field')
+                    break
+                }
+            }
             if (errors.length > 0) {
                 failures.push(`${id}: ${errors.length} error(s): ${errors.join(' | ')}`)
             } else {

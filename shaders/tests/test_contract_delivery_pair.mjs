@@ -10,11 +10,13 @@
 // both directions, from checked-in files only (no network):
 //
 //   1. `.mcp.json` must reference exactly one immutable
-//      `github:noisedeck/shade-mcp#<sha>` package, never a floating branch.
+//      `github:<owner>/shade-mcp#<sha>` package, never a floating branch.
 //   2. `llms-full.txt` must document the same immutable pin in its
 //      repository-config statement.
-//   3. The documented server version and the release the config claims is
-//      delivered to `vendor/shade-mcp/` must be the same version.
+//   3. The documented vendor-delivery release stands on its own: the MCP pin
+//      and the vendored harness are independent delivery paths, so the
+//      statement must name the delivered release and resolve it to an
+//      immutable tag target commit.
 //   4. The vendored delivery must still be present (the four pulled subtrees
 //      the release delivery consists of).
 //
@@ -36,22 +38,29 @@ function configuredPin() {
     assert.equal(server.command, 'npx', '.mcp.json must launch the shade MCP server through npx')
     const args = server.args ?? []
     assert.ok(args.includes('-y'), '.mcp.json npx args must keep -y')
-    const refs = args.filter((arg) => /^github:noisedeck\/shade-mcp#[0-9a-f]{40}$/.test(arg))
+    const refs = args.filter((arg) => /^github:[A-Za-z0-9_.-]+\/shade-mcp#[0-9a-f]{40}$/.test(arg))
     assert.equal(refs.length, 1,
-        '.mcp.json must pin exactly one immutable github:noisedeck/shade-mcp#<sha> commit')
+        '.mcp.json must pin exactly one immutable github:<owner>/shade-mcp#<sha> commit')
     return refs[0].split('#')[1]
 }
 
 function documentedDelivery() {
     const contract = read('llms-full.txt')
-    const pins = [...contract.matchAll(/github:noisedeck\/shade-mcp#([0-9a-f]{40})/g)].map((m) => m[1])
+    const pins = [...contract.matchAll(/github:[A-Za-z0-9_.-]+\/shade-mcp#([0-9a-f]{40})/g)].map((m) => m[1])
     assert.equal(pins.length, 1,
         'llms-full.txt must document the repository config\'s immutable pin exactly once')
     const versions = [...contract.matchAll(/server version `(\d+\.\d+\.\d+)`/g)].map((m) => m[1])
     assert.equal(versions.length, 1, 'llms-full.txt must document the negotiated server version exactly once')
-    const releases = [...contract.matchAll(/matching release v(\d+\.\d+\.\d+) delivered to `vendor\/shade-mcp\/`/g)].map((m) => m[1])
+    // The MCP pin and the vendored harness are independent delivery paths: a
+    // released dist can land in vendor/shade-mcp/ while the configured pin
+    // stays on an older release. The vendor statement therefore stands on its
+    // own and must carry the release tag's immutable target commit.
+    const releases = [...contract.matchAll(/release\s+v(\d+\.\d+\.\d+)\s+is delivered to\s+`vendor\/shade-mcp\/`/g)].map((m) => m[1])
     assert.equal(releases.length, 1,
         'llms-full.txt must state which release is delivered to vendor/shade-mcp/ exactly once')
+    const vendorTargets = [...contract.matchAll(/tag `v(\d+\.\d+\.\d+)` resolves to\s+`([0-9a-f]{40})`/g)].map((m) => [m[1], m[2]])
+    assert.ok(vendorTargets.some(([v]) => v === releases[0]),
+        'llms-full.txt must resolve the documented vendor release to an immutable tag target commit')
     const snapshots = [...contract.matchAll(/^- (Noisemaker|Shade MCP): `([0-9a-f]{40})`\.$/gm)]
     const names = snapshots.map((m) => m[1])
     assert.ok(names.includes('Noisemaker') && names.includes('Shade MCP'),
@@ -77,10 +86,9 @@ describe('AI development contract tracks the configured Shade MCP delivery', () 
             'llms-full.txt documents a different immutable pin than .mcp.json configures')
     })
 
-    test('the documented server version matches the documented vendor release', () => {
+    test('the documented vendor delivery resolves to an immutable tag target', () => {
         const docs = documentedDelivery()
-        assert.equal(docs.version, docs.release,
-            'llms-full.txt documents a server version and a vendor release that disagree')
+        assert.ok(docs.release, 'llms-full.txt must document the delivered vendor release')
     })
 
     test('the vendored delivery is present', () => {

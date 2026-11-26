@@ -118,6 +118,26 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
 }
 `
 
+await test('screen and auto triangle counts reach the render encoder as the same vertex count', () => {
+    const { backend } = stubBackend()
+    backend.textures = new Map([['target', { view: {}, width: 8, height: 8, gpuFormat: 'rgba8unorm' }]])
+    backend.getDepthTexture = () => ({ createView: () => ({}) })
+    backend.resolve3DRenderPipeline = () => ({})
+    backend.createBindGroup = () => ({})
+    const draws = []
+    backend.commandEncoder = { beginRenderPass: () => ({
+        setPipeline() {}, setBindGroup() {}, setViewport() {}, end() {},
+        draw: (...args) => draws.push(args)
+    }) }
+    for (const [surface, expected] of [[undefined, 3], [{ width: 3, height: 2 }, 6]]) {
+        for (const count of ['auto', 'screen']) {
+            const pass = { drawMode: 'triangles', count, inputs: { meshPositions: 'global_mesh0' }, outputs: { color: 'target' } }
+            backend.executeRenderPass(pass, {}, { surfaces: { mesh0: surface } })
+            assert.deepStrictEqual(draws.pop(), [expected, 1, 0, 0])
+        }
+    }
+})
+
 await test('a 4-output fragment shader builds no eager single-target pipeline', async () => {
     const { backend, renderPipelines } = stubBackend()
     await backend.compileProgram('scene_mesh_gbuf', {

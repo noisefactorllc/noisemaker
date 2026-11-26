@@ -171,6 +171,39 @@ export function registeredParityEffectIds(repoRoot) {
     return [...new Set(effectIds)].sort()
 }
 
+/**
+ * The note-on messages that feed a parity case's midiInputs, in case order:
+ * [status, key, velocity] for each note, on its channel 1 to 16. Fed through
+ * MidiState.handleMessage, they reach every reader of the MIDI state, as a
+ * real note-on message does.
+ */
+export function midiNoteOnMessages(midiInputs = []) {
+    return midiInputs.flatMap((midiInput) => midiInput.notes.map((note) => [0x90 | (note.channel - 1), note.key, note.velocity]))
+}
+
+/**
+ * Feeds a parity case's midi inputs into a renderer through a shared MIDI state,
+ * each note as a note-on message. A note-on message stamps its note with
+ * Date.now(); a recording must not depend on the clock, so every fed note
+ * carries the fixed time 0 instead. The recorder runs this function's own
+ * source in its page, so it uses no import and no outside name.
+ * @param {{ setMidiState: () => { handleMessage: (data: Uint8Array) => void } }} renderer
+ * @param {number[][][]} inputMessages - midiNoteOnMessages([input]) for each input
+ */
+export function feedMidiInputs(renderer, inputMessages) {
+    if (inputMessages.length === 0) return
+    const now = Date.now
+    Date.now = () => 0
+    try {
+        const midi = renderer.setMidiState()
+        for (const messages of inputMessages) {
+            for (const bytes of messages) midi.handleMessage(new Uint8Array(bytes))
+        }
+    } finally {
+        Date.now = now
+    }
+}
+
 const CASE_KEYS = new Set(['schemaVersion', 'effects', 'dsl', 'surface', 'resolution', 'epsilon',
     'requireColorVariation', 'settleMs', 'tiles', 'textureInputs', 'meshInputs', 'timeline', 'control', 'midiMessages', 'midiInputs'])
 const TEXTURE_INPUT_KEYS = new Set(['effect', 'uniform', 'width', 'height', 'data', 'afterFrame'])

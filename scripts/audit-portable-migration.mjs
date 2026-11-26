@@ -1304,9 +1304,18 @@ async function perfInPage({ baseUrl, pinCase, preferWebGPU, policy, matchesSourc
     // timed frame would not hold the frame's work.
     if (renderer.isScene) throw new Error('perf times stepFrame(), which does not wait for a scene program, so it refuses one')
     renderer.stop()
-    // Untimed notes go in before the first render, as the pin tool feeds them.
-    for (const midiInput of pinCase.midiInputs || []) {
-        for (const note of midiInput.notes) midi.handleMessage(new Uint8Array([0x90 | (note.channel - 1), note.key, note.velocity]))
+    // Untimed notes go in before the first render, as the pin tool feeds them:
+    // one MIDI state for every input, at the fixed time 0.
+    if (pinCase.midiInputs?.length) {
+        const now = Date.now
+        Date.now = () => 0
+        try {
+            for (const midiInput of pinCase.midiInputs) {
+                for (const note of midiInput.notes) midi.handleMessage(new Uint8Array([0x90 | (note.channel - 1), note.key, note.velocity]))
+            }
+        } finally {
+            Date.now = now
+        }
     }
     await renderer.render(0)
     for (const texture of pinCase.textureInputs || []) {

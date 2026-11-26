@@ -51,7 +51,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
-import { matchesTargetEffectPass, timelineTimes, TIMELINE_DEFAULT_LOOP_SECONDS } from '../../scripts/lib/shader-parity-attestation.mjs'
+import { feedMidiInputs, matchesTargetEffectPass, midiNoteOnMessages, timelineTimes, TIMELINE_DEFAULT_LOOP_SECONDS } from '../../scripts/lib/shader-parity-attestation.mjs'
 import { baselineForGpu, pinCaseErrors, withGpuBaseline } from './pin-baselines.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -130,7 +130,6 @@ const frames = timeline ? timeline.frames : [0];
 const times = timeline ? timeline.times : [0];
 const textureInputs = ${JSON.stringify(pinCase.textureInputs || [])};
 const midiMessages = ${JSON.stringify(pinCase.midiMessages || [])};
-const midiInputs = ${JSON.stringify(pinCase.midiInputs || [])};
 await renderer.loadManifest();
 const portablePackages = ${JSON.stringify(portablePackages)};
 const encoder = new TextEncoder();
@@ -148,7 +147,7 @@ if (${JSON.stringify(pinCase.audio || null)} === 'ramps') {
     audio.spectrum.set(Float32Array.from({ length: 128 }, (_, i) => (127 - i) / 127));
 }
 // Note activity goes through the engine's own MIDI state, as the recorder sends it.
-const midi = midiMessages.length || midiInputs.length ? renderer.setMidiState() : null;
+const midi = midiMessages.length ? renderer.setMidiState() : null;
 await renderer.compile(${JSON.stringify(pinCase.dsl)});
 renderer.stop();
 const matchesTargetEffectPass = ${matchesTargetEffectPass.toString()};
@@ -180,10 +179,9 @@ function applyInputs(frame) {
 // Untimed note activity is fed before the first render, as the recorder
 // feeds it.
 // Each note goes in as a note-on message, as midiMessages do, so every
-// reader of the MIDI state sees it.
-for (const midiInput of midiInputs) {
-    for (const note of midiInput.notes) midi.handleMessage(new Uint8Array([0x90 | (note.channel - 1), note.key, note.velocity]));
-}
+// reader of the MIDI state sees it, as the recorder feeds it: one MIDI state
+// for every input, at the fixed time 0.
+(${feedMidiInputs.toString()})(renderer, ${JSON.stringify((pinCase.midiInputs || []).map((midiInput) => midiNoteOnMessages([midiInput])))});
 // A scene program renders asynchronously, so every render is awaited.
 await renderer.render(times[0]);
 applyInputs(frames[0]);

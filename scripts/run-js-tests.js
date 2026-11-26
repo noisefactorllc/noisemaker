@@ -83,6 +83,7 @@ const testEntries = [
   { file: 'shaders/tests/test_lifecycle_hooks.js', parity: false },
   { file: 'shaders/tests/test_resource_pooling.js', parity: false },
   { file: 'shaders/tests/test_backend_diagnostics.js', parity: false },
+  { file: 'shaders/tests/test_blend_factors.js', parity: false },
   { file: 'shaders/tests/test_frame_metrics.js', parity: false },
   { file: 'shaders/tests/test_definition_schema.js', parity: false },
   { file: 'shaders/tests/test_cross_backend_agreement.mjs', parity: false },

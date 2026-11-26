@@ -48,10 +48,11 @@
  *                          the first render
  *
  * Both MIDI forms send their notes as note-on messages, so every reader of the
- * MIDI state sees them, and each note takes the time it arrives. A midi()
- * binding in a mode that decays from a note's time (velocity or trigger)
- * therefore depends on when the page renders; a case should show notes through
- * the note grid, as synth/roll does.
+ * MIDI state sees them. An untimed case's notes all go into one MIDI state at
+ * the fixed time 0 (feedMidiInputs). A timed case's notes take the time they
+ * arrive, so a midi() binding in a mode that decays from a note's time
+ * (velocity or trigger) depends on when the page renders; a timed case should
+ * show notes through the note grid, as synth/roll does.
  *
  * An untimed case feeds its midiInputs, renders once at time 0, then uploads
  * its textures and loads its meshes, then captures. Its attestation never has a timeline block, and
@@ -135,8 +136,10 @@ import {
     computeFileHash,
     computeParitySourceHash,
     effectDirectory,
+    feedMidiInputs,
     isReadbackPerformanceWarning,
     matchesTargetEffectPass,
+    midiNoteOnMessages,
     PARITY_ATTESTATION_SCHEMA_VERSION,
     TIMELINE_DEFAULT_LOOP_SECONDS,
     timelineTimes,
@@ -234,8 +237,7 @@ await renderer.loadEffects(${JSON.stringify(parityCase.effects)});
 if (timeline) renderer.setLoopDuration(timeline.loopSeconds);
 // Note activity goes through the engine's own MIDI state, which the pipeline
 // packs into its note grid texture before each frame.
-const midiInputs = ${JSON.stringify(parityCase.midiInputs || [])};
-const midi = midiMessages.length || midiInputs.length ? renderer.setMidiState() : null;
+const midi = midiMessages.length ? renderer.setMidiState() : null;
 await renderer.compile(${JSON.stringify(dsl)});
 renderer.stop();
 const matchesTargetEffectPass = ${matchesTargetEffectPass.toString()};
@@ -272,10 +274,9 @@ function applyInputs(frame) {
 // time 0, so a note fed later would never reach its history. A timed case
 // gives its notes as midiMessages instead.
 // Each note goes in as a note-on message, as midiMessages do, so every
-// reader of the MIDI state sees it.
-for (const midiInput of midiInputs) {
-    for (const note of midiInput.notes) midi.handleMessage(new Uint8Array([0x90 | (note.channel - 1), note.key, note.velocity]));
-}
+// reader of the MIDI state sees it, through one MIDI state for every input
+// and at the fixed time 0, so a note's age reads the same on every run.
+(${feedMidiInputs.toString()})(renderer, ${JSON.stringify((parityCase.midiInputs || []).map((midiInput) => midiNoteOnMessages([midiInput])))});
 // A scene program renders asynchronously, so a timed case awaits each frame
 // before its inputs. An untimed case renders as it did before.
 if (timeline) await renderer.render(times[0]); else renderer.render(times[0]);

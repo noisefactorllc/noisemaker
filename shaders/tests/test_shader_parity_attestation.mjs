@@ -12,8 +12,10 @@ import {
     comparePixelFrames,
     computeEffectSourceHash,
     computeParitySourceHash,
+    feedMidiInputs,
     isReadbackPerformanceWarning,
     matchesTargetEffectPass,
+    midiNoteOnMessages,
     registeredParityEffectIds,
     validateWgslTextureBindings,
     validateFrameEvidence,
@@ -119,6 +121,8 @@ try {
     }
     const midiInput = { effect: 'filter/example', notes: [{ channel: 1, key: 40, velocity: 110 }] }
     assert.deepEqual(validateParityCase({ ...completeParityCase, midiInputs: [midiInput] }, 'filter/example'), [])
+    // MidiState keys its channels 1 to 16, as MIDI names them.
+    assert.deepEqual(validateParityCase({ ...completeParityCase, midiInputs: [{ ...midiInput, notes: [{ channel: 16, key: 40, velocity: 110 }] }] }, 'filter/example'), [])
     for (const change of [{ effect: 'unknown/effect' }, { notes: [] }, { notes: undefined },
         { notes: [{ channel: 0, key: 40, velocity: 110 }] },
         { notes: [{ channel: 17, key: 40, velocity: 110 }] },
@@ -134,6 +138,58 @@ try {
         assert.ok(validateParityCase({ ...completeParityCase, midiInputs }, 'filter/example').some(error => error.includes('unknown field')),
             'an unknown midi input or note field must be rejected')
     }
+    // The recorder feeds each note as a note-on message, in case order, so every reader of the MIDI state sees it:
+    // a zone reader too, which reads the port-scoped state that only messages reach.
+    const messages = midiNoteOnMessages([{ effect: 'synth/roll', notes: [{ channel: 1, key: 40, velocity: 110 }, { channel: 2, key: 60, velocity: 75 }] },
+        { effect: 'synth/roll', notes: [{ channel: 16, key: 84, velocity: 100 }] }])
+    assert.deepEqual(messages, [[0x90, 40, 110], [0x91, 60, 75], [0x9f, 84, 100]])
+    const { MidiState } = await import(new URL('../src/runtime/external-input.js', import.meta.url))
+    const midi = new MidiState()
+    for (const bytes of messages) midi.handleMessage(new Uint8Array(bytes))
+    assert.equal(midi.getZoneVoice({ zone: 0, members: 15 })?.key, 84, 'a zone reader sees the newest fed note')
+    assert.equal(midi.channels[1].heldNotes.size, 1, 'a channel reader sees its note')
+    // The note grid, which synth/roll reads, holds each fed note on its channel's row.
+    midi.updateNoteGrid()
+    for (const [channel, key, velocity] of [[1, 40, 110], [2, 60, 75], [16, 84, 100]]) {
+        const offset = ((channel - 1) * 128 + key) * 4
+        assert.deepEqual([midi.noteGrid[offset], midi.noteGrid[offset + 1]], [Math.fround(velocity / 127), 1], `the note grid holds channel ${channel} key ${key}`)
+    }
+    // The recorder runs feedMidiInputs in its page. Each fed note carries the fixed time 0, as before the note-on
+    // messages, so a note's age reads the same on both backends and on every run.
+    // The checks run the function rebuilt from its own source, as the page runs it, so it may name nothing outside itself.
+    const pageFeed = new Function(`return ${feedMidiInputs.toString()}`)()
+    const fed = { setMidiState() { this.state = new MidiState(); return this.state } }
+    const realNow = Date.now
+    Date.now = () => 1_000_000
+    try {
+        pageFeed(fed, [midiNoteOnMessages([{ effect: 'synth/roll', notes: [{ channel: 2, key: 60, velocity: 75 }] }])])
+        assert.equal(Date.now(), 1_000_000, 'feeding leaves Date.now as it found it')
+    } finally {
+        Date.now = realNow
+    }
+    assert.equal(fed.state.channels[2].time, 0, 'a fed note is at time 0 for a channel reader')
+    assert.equal(fed.state.getZoneVoice({ zone: 0, members: 15 })?.time, 0, 'a fed note is at time 0 for a zone reader')
+    const { CanvasRenderer } = await import(new URL('../src/renderer/canvas.js', import.meta.url))
+    const combined = Object.create(CanvasRenderer.prototype)
+    const multipleMidiInputs = [
+        { effect: 'filter/example', notes: [{ channel: 1, key: 40, velocity: 110 }] },
+        { effect: 'synth/dependency', notes: [{ channel: 1, key: 60, velocity: 75 }, { channel: 16, key: 84, velocity: 100 }] },
+    ]
+    assert.deepEqual(validateParityCase({ ...completeParityCase, midiInputs: multipleMidiInputs }, 'filter/example'), [])
+    pageFeed(combined, multipleMidiInputs.map(input => midiNoteOnMessages([input])))
+    combined.midiState.updateNoteGrid()
+    for (const [channel, key, velocity] of [[1, 40, 110], [1, 60, 75], [16, 84, 100]]) {
+        const offset = ((channel - 1) * 128 + key) * 4
+        assert.deepEqual([combined.midiState.noteGrid[offset], combined.midiState.noteGrid[offset + 1]],
+            [Math.fround(velocity / 127), 1], `the recorder retains channel ${channel} key ${key} from every MIDI input`)
+    }
+    const existingMidiState = combined.midiState
+    pageFeed(combined, [])
+    assert.equal(combined.midiState, existingMidiState, 'a case without MIDI inputs leaves the state unchanged')
+    const recorder = fs.readFileSync(new URL('../../scripts/attest-shader-parity.mjs', import.meta.url), 'utf8')
+    assert.match(recorder, /\(\$\{feedMidiInputs\.toString\(\)\}\)\(renderer, /, 'the recorder runs feedMidiInputs in its page')
+    assert.match(recorder, /midiNoteOnMessages\(\[midiInput\]\)/, 'the recorder feeds each midi input through midiNoteOnMessages')
+    assert.doesNotMatch(recorder, /\.noteOn\(/, 'the recorder does not write channel state directly')
     assert.deepEqual(validateParityCase({ ...completeParityCase, tiles: { size: [4, 8], renderScale: 2 } }, 'filter/example'), [])
     for (const tiles of [{ size: [3, 8] }, { size: [8, 8] }, { size: [4] }, { size: [0, 8] }, { size: [4, 4], renderScale: 0 },
         { size: [4, 4], renderScale: 'x' }, null]) {

@@ -1181,6 +1181,56 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-26 — candidate pair: Noisemaker
+    `740601018edb867c564c77aab3d157fa719dea53` (the engine source this
+    contract pins is unchanged) and Shade MCP
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38` (the configured pin; its
+    release is v0.5.4). Audited the queued Shade range `d3d898e..c856db5`
+    against the pin: three commits add `getProgramSeed`, `setProgramSeed`,
+    and `reseedProgram`, `runDslProgram` now awaits each render call, so a
+    scene program advances its frames instead of failing with
+    `Renderer did not advance at frame 1`, and the release commit bumps the
+    package version to 0.6.0. shade-mcp published v0.6.0 (tag target
+    `94ecd80`). The vendor delivery moved to the v0.6.0 dist (`a0f166f`), and
+    its four pulled subtrees are byte-identical to the release tarball.
+    shade-mcp then published v0.7.0 (tag target `4ce50fc`, the version-2
+    Portable package reader commits plus the version bump). The vendor
+    delivery moved again to the v0.7.0 dist (pull-shade-mcp at `c4a57c9`), and
+    its four pulled subtrees are byte-identical to the v0.7.0 release
+    tarball. The version-2 reader is additive and changes no
+    contract-described behavior, so no new release was required for it.
+    Contract correction in `llms-full.txt`: the snapshot block's
+    vendor-delivery statement named release v0.5.4, which the vendor no
+    longer holds; it now names the pin's release and, separately, the
+    delivered v0.7.0 vendor dist with its tag target. The delivery-pair
+    guard now checks that vendor statement against its own immutable tag
+    target instead of asserting that the pin's server version and the vendor
+    release are the same version. The configured pin, the negotiated server
+    version, the tool inventory, the `runDslProgram` statements, and the
+    worked transcript stay at the v0.5.4 pin. Verified: the four contract
+    guard tests (13 tests pass) and the MCP config test. Pending: exact-source
+    CI and live readback. Recorded blocker: moving the `.mcp.json` pin past
+    v0.5.4 is a dependency-pin change, which needs the operator.
+    Remote drift integrated: main advanced by three commits (#428) after this
+    audit began — `fdcd69b` copies `outputTex`, `outputXyz`, `outputVel`, and
+    `outputRgba` from an effect's configuration, `726ee22` validates those
+    fields as texture names at registration and in the definition validator,
+    and `78aff2a` refuses a blank handed-on name and lists the Portable
+    check. Their author corrected the two stale `llms-full.txt` statements
+    about the constructor and subclass rule; this audit found no further
+    stale statement, and the snapshot block's Noisemaker line advances to
+    `78aff2a` to cover the changed engine behavior. Main then advanced by
+    five GAP-080 commits (#436) that change only the shader parity
+    attestation tooling and its test; nothing they touch is
+    contract-described, and a later GAP-083 commit (`29af33f`) also changes
+    only that tooling and its test. Two further commits change engine
+    behavior: `550eabe` makes triangle passes accept `count: "screen"` in
+    both backends (the contract's `count` type already listed it), and
+    `82e8061` maps the four WebGPU `*-color` blend aliases (`src-color` to
+    `src` and the three siblings) before device validation — the contract's
+    blend statement names the alias mapping now, and the snapshot block's
+    Noisemaker line advances to `82e8061` to cover the changed engine
+    behavior.
   - 2026-11-26 — completed delivery pair: Noisemaker
     `740601018edb867c564c77aab3d157fa719dea53` and Shade MCP
     `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Commit `028585ec` published

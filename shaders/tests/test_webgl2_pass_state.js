@@ -97,6 +97,26 @@ test('a scene pass that does not set clear keeps its colour target', async () =>
 
 const TRIANGLES = { drawMode: 'triangles', count: 3 }
 
+test('screen and auto triangle counts reach drawArrays as the same vertex count', async () => {
+    for (const [surface, expected] of [[undefined, 3], [{ width: 3, height: 2 }, 6]]) {
+        for (const count of ['auto', 'screen']) {
+            const state = { globalUniforms: {}, surfaces: { mesh0: surface } }
+            const { gl, calls } = await callsOf({
+                drawMode: 'triangles', count, inputs: { meshPositions: 'global_mesh0' }
+            }, state)
+            assert.ok(has(calls, 'drawArrays', gl.TRIANGLES, 0, expected), `count ${count} draws ${expected} vertices`)
+        }
+    }
+})
+
+test('a triangle pass falls back to the mesh when its count uniform is zero', async () => {
+    const { gl, calls } = await callsOf({
+        drawMode: 'triangles', count: 'screen', countUniform: 'vertices',
+        uniforms: { vertices: 0 }, inputs: { meshPositions: 'global_mesh0' }
+    }, { globalUniforms: {}, surfaces: { mesh0: { width: 3, height: 2 } } })
+    assert.ok(has(calls, 'drawArrays', gl.TRIANGLES, 0, 6))
+})
+
 test('a triangle pass of an effect definition culls back faces whatever its cullMode', async () => {
     for (const cullMode of ['none', 'front', 'back', undefined]) {
         const { gl, calls } = await callsOf({ ...TRIANGLES, cullMode }, EFFECT_STATE)

@@ -13,7 +13,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `740601018edb867c564c77aab3d157fa719dea53`.
+- Noisemaker: `5596e69fd6e3b9014e9df0f8674e10e70c332e11`.
 - Shade MCP: `1815133b47eaa33aee11d4a677cfea2f3939cf38`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.5.4`. Its
   lockfile pins `@modelcontextprotocol/sdk` 1.32.2; the `npx` install below
@@ -24,8 +24,10 @@ Source snapshots used for this contract:
   other request; 21 tools are returned by `tools/list`.
 - The repository config runs
   `npx -y github:noisedeck/shade-mcp#1815133b47eaa33aee11d4a677cfea2f3939cf38`,
-  matching release v0.5.4 delivered to `vendor/shade-mcp/`.
-  Tag `v0.5.4` resolves to the Shade MCP snapshot above.
+  which is release v0.5.4; tag `v0.5.4` resolves to the Shade MCP snapshot
+  above. The vendored harness is the independent delivery path: release
+  v0.7.0 is delivered to `vendor/shade-mcp/` (tag `v0.7.0` resolves to
+  `4ce50fce68353e4a3c569362f6ee8c0bde6d8acf`).
 
 Primary source roots:
 
@@ -2153,8 +2155,11 @@ Repeated writes advance frame-local ping-pong bindings after every iteration.
 
 `drawBuffers > 1` or more than one output activates MRT. `blend: true` is
 additive one/one. A two-item blend array selects explicit factors. Unknown
-WebGL factors fall back to `ONE`. WebGPU lowercases/replaces underscores and
-lets device validation reject invalid factors.
+WebGL factors fall back to `ONE`. WebGPU lowercases/replaces underscores, then
+maps the four `*-color` aliases (`src-color` to `src`, `dst-color` to `dst`,
+`one-minus-src-color` to `one-minus-src`, `one-minus-dst-color` to
+`one-minus-dst`) and lets device validation reject the remaining invalid
+factors.
 
 Before surface allocation, the pipeline sums the color-attachment byte cost of every multi-output pass in output insertion order.
 The costs are:
