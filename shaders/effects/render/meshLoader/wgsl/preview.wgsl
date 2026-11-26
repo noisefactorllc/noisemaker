@@ -15,14 +15,18 @@ struct Uniforms {
 
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    let uv = (position.xy + u.tileOffset) / u.fullResolution;
+    let fullRes = select(u.resolution, u.fullResolution, u.fullResolution.x > 0.0);
+    let globalUV = (position.xy + u.tileOffset) / fullRes;
+    let positionsUV = position.xy / vec2<f32>(textureDimensions(positionsTex));
+    let normalsUV = position.xy / vec2<f32>(textureDimensions(normalsTex));
     
-    // Sample mesh textures using UV coordinates
-    let pos = textureSample(positionsTex, positionsSampler, uv);
-    let normal = textureSample(normalsTex, normalsSampler, uv);
+    // Match WebGL2's preview sampling: address the packed mesh textures by
+    // their own dimensions rather than scaling them across the output frame.
+    let pos = textureSample(positionsTex, positionsSampler, positionsUV);
+    let normal = textureSample(normalsTex, normalsSampler, normalsUV);
     
     var color: vec3<f32>;
-    if (uv.x < 0.5) {
+    if (globalUV.x < 0.5) {
         // Position visualization
         color = pos.xyz * 0.5 + 0.5;
     } else {
