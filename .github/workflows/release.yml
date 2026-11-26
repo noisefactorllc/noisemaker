@@ -23,9 +23,11 @@ jobs:
         fetch-depth: 0
     - name: Require the release commit on 2.x
       run: git merge-base --is-ancestor "$GITHUB_SHA^{commit}" refs/remotes/origin/2.x
-    # Refuse a release whose commit has no passed shaders-2x.yml run on 2.x,
-    # from a push or a dispatch. A 2.x release comes from a dispatch of
-    # shaders-2x.yml. Wait, bounded, for a run that is still finishing.
+    # This gate guards a future 2.x stable release tag. No current path creates
+    # a tag it runs for: prerelease tags (v*-pre.*) start no run of this
+    # workflow. It refuses a release whose commit has no passed shaders-2x.yml
+    # run on 2.x, from a push or a dispatch, and waits, bounded, for a run that
+    # is still finishing.
     - name: Require a passed shaders-2x.yml run on 2.x for the release commit
       env:
         GH_TOKEN: ${{ github.token }}
