@@ -349,16 +349,26 @@ test('an explainedDifferences entry has no source, or the source "runtime"', () 
 
 // Every platform's git must run in the isolated environment: a null device
 // path such as Windows' \\.\nul is not a configuration file git can read.
+// The test covers the platform it runs on.
 test('git runs in the isolated environment on this platform, and reads no configuration of the caller', () => {
     const home = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'isolated-git-'))
+    const saved = process.env.GIT_DIR
     try {
+        assert.throws(() => isolatedGitEnv(os.tmpdir()), /needs an empty directory/)
+        process.env.GIT_DIR = path.join(home, 'elsewhere.git')
         const env = isolatedGitEnv(home)
         assert.ok(fs.statSync(env.GIT_CONFIG_GLOBAL).isFile(), 'the global configuration is a regular file')
-        assert.equal(Object.keys(env).filter(key => key.startsWith('GIT_') && !['GIT_CONFIG_GLOBAL', 'GIT_CONFIG_NOSYSTEM'].includes(key)).length, 0)
+        assert.equal(env.GIT_DIR, undefined, 'a GIT_* variable of the caller does not reach git')
         const repo = path.join(home, 'repo')
         execFileSync('git', ['init', '-q', '--template=', repo], { env })
-        assert.equal(execFileSync('git', ['config', '--list', '--show-origin', '--global'], { cwd: repo, env, encoding: 'utf8' }), '')
+        // Every scope: only the new repository's own configuration is read.
+        const origins = execFileSync('git', ['config', '--list', '--show-origin'], { cwd: repo, env, encoding: 'utf8' })
+            .split('\n').filter(Boolean).map(line => line.split('\t')[0])
+        assert.ok(origins.length > 0)
+        assert.deepEqual([...new Set(origins)], ['file:.git/config'])
     } finally {
+        if (saved === undefined) delete process.env.GIT_DIR
+        else process.env.GIT_DIR = saved
         fs.rmSync(home, { recursive: true, force: true })
     }
 })

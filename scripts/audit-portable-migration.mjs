@@ -647,7 +647,8 @@ export const ENTRY_SOURCES = Object.freeze(['runtime'])
 export function isolatedGitEnv(home) {
     const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')))
     const global = path.join(home, 'gitconfig')
-    fs.writeFileSync(global, '')
+    if (fs.readdirSync(home).length > 0) throw new Error(`isolatedGitEnv needs an empty directory, and ${home} is not empty`)
+    fs.writeFileSync(global, '', { flag: 'wx' })
     return { ...env, GIT_CONFIG_GLOBAL: global, GIT_CONFIG_NOSYSTEM: '1', HOME: home, XDG_CONFIG_HOME: home }
 }
 
