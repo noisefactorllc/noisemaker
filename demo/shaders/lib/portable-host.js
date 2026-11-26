@@ -91,12 +91,23 @@ async function fetchFile(url, files, read, path, required) {
 
 /**
  * The files of the package at `url`, by path, as ArrayBuffers, and the
- * stamps of the files read, by URL. The caller watches the stamps only if
- * this read is still the latest one.
+ * stamps of the files read, by URL. A read that fails throws an error that
+ * carries the stamps of what it did read, so that the poll watches the
+ * broken file and reloads once it changes. The caller watches the stamps only
+ * if this read is still the latest one.
  */
 async function readPackage(url) {
     const files = new Map()
     const read = new Map()
+    try {
+        await readFiles(url, files, read)
+    } catch (error) {
+        throw Object.assign(error instanceof Error ? error : new Error(String(error)), { stamps: read })
+    }
+    return { files, stamps: read }
+}
+
+async function readFiles(url, files, read) {
     if (isZip(url)) {
         const response = await fetch(url, { cache: 'no-store' })
         read.set(url.href, validator(response))
@@ -104,7 +115,7 @@ async function readPackage(url) {
         const archive = await fileMapFromZip(new Uint8Array(await response.arrayBuffer()))
         if (!archive.files) throw Object.assign(new Error('the archive does not read'), { diagnostics: archive.diagnostics })
         for (const [path, bytes] of archive.files) files.set(path, bytes.slice().buffer)
-        return { files, stamps: read }
+        return
     }
     await fetchFile(new URL('definition.json', url), files, read, 'definition.json', true)
     let declared
@@ -127,7 +138,6 @@ async function readPackage(url) {
     const split = programs.filter(program => !files.has(`glsl/${program}.glsl`))
         .flatMap(program => [`glsl/${program}.vert`, `glsl/${program}.frag`])
     await Promise.all(split.map(path => fetchFile(new URL(path, url), files, read, path, false)))
-    return { files, stamps: read }
 }
 
 function readDefinition(files) {
@@ -200,6 +210,10 @@ async function loadRevision(revision) {
         read = await readPackage(packageUrl)
     } catch (error) {
         if (revision !== latestRevision) return SUPERSEDED
+        // Watch what this read found, the broken file among it, so the poll
+        // reloads once that file changes and not before.
+        stamps = error.stamps ?? new Map()
+        headSeen = new Set()
         const message = `Failed to load effect: ${errorText(error)}`
         setStatus(message, 'error')
         return { error: message }

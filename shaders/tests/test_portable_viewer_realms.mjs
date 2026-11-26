@@ -30,18 +30,25 @@ async function openViewer(browser) {
     const page = await browser.newPage({ viewport: { width: 384, height: 384 } })
     const errors = []
     page.on('pageerror', error => errors.push(error.message))
-    const state = { definition: DEFINITION, shader: SHADER, version: 1 }
+    // A definition given as a string is served as it is, so it can be broken JSON.
+    const state = { definition: DEFINITION, shader: SHADER, version: 1, definitionGets: 0, holdDefinitionGet: null }
     const serve = (route, body, type) => {
         const headers = { 'Content-Type': type, ETag: `"v${state.version}"` }
         route.fulfill({ status: 200, headers, body: route.request().method() === 'HEAD' ? '' : body })
     }
-    await page.route('**/effect/definition.json', route => serve(route, JSON.stringify(state.definition), 'application/json'))
+    await page.route('**/effect/definition.json', async route => {
+        if (route.request().method() === 'GET') {
+            state.definitionGets++
+            if (state.holdDefinitionGet) await state.holdDefinitionGet
+        }
+        serve(route, typeof state.definition === 'string' ? state.definition : JSON.stringify(state.definition), 'application/json')
+    })
     await page.route('**/effect/glsl/gradientSweep.glsl', route => serve(route, state.shader, 'text/plain'))
     const edit = changes => {
         Object.assign(state, changes)
         state.version++
     }
-    return { page, errors, edit }
+    return { page, errors, edit, state }
 }
 
 async function waitForStatus(page, pattern, className) {
@@ -283,5 +290,61 @@ test('a realm that never reports is refused after the viewer\'s timeout, and the
     block = false
     const selected = await page.evaluate(() => window.__portableSelectEffect('effect', { url: '/effect/' }))
     assert.deepEqual(selected, { ok: true }, 'a later harness call loads the package')
+    await page.close()
+})
+
+test('a revision that succeeds after a newer one has started is never shown', async () => {
+    const { page, errors, edit, state } = await openViewer(browser)
+    await page.goto(`${origin}${VIEWER_PATH}?package=/effect/`)
+    await waitForStatus(page, /^Loaded: user\.gradientSweep/, 'success')
+    const start = await generation(page)
+    const hold = await holdAdjust(page)
+    edit({ definition: WITH_ADJUST, shader: solid([1, 0, 0]) })
+    await hold.reachedHold
+    // Let the poll settle on this revision's files, then start a newer one
+    // whose read is held, so the older one finishes while the newer one runs.
+    await new Promise(resolve => setTimeout(resolve, 2500))
+    let releaseRead
+    state.holdDefinitionGet = new Promise(resolve => { releaseRead = resolve })
+    const readsBefore = state.definitionGets
+    edit({ definition: DEFINITION, shader: solid([0, 1, 0]) })
+    for (let wait = 0; state.definitionGets === readsBefore && wait < 100; wait++) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+    }
+    assert.ok(state.definitionGets > readsBefore, 'the newer revision has started reading')
+    hold.release()
+    await new Promise(resolve => setTimeout(resolve, 3000))
+    assert.equal(await generation(page), start, 'the older revision finished but is not shown')
+    assert.equal(await realms(page), 1, 'and its realm is disposed')
+    state.holdDefinitionGet = null
+    releaseRead()
+    await waitForPixel(page, [0, 255, 0])
+    assert.equal(await generation(page), start + 1, 'the newer revision is shown')
+    assert.deepEqual(errors, [])
+    await page.close()
+})
+
+test('a package that cannot be read is watched until it is fixed, without reloading while broken', async () => {
+    // A package broken on the first load recovers once it is fixed.
+    const first = await openViewer(browser)
+    first.state.definition = '{'
+    await first.page.goto(`${origin}${VIEWER_PATH}?package=/effect/`)
+    await waitForStatus(first.page, /definition\.json is not JSON/, 'error')
+    first.edit({ definition: DEFINITION })
+    await waitForStatus(first.page, /^Loaded: user\.gradientSweep/, 'success')
+    await first.page.close()
+
+    // A package broken after a good load is read again only once it changes.
+    const { page, edit, state } = await openViewer(browser)
+    await page.goto(`${origin}${VIEWER_PATH}?package=/effect/`)
+    await waitForStatus(page, /^Loaded: user\.gradientSweep/, 'success')
+    edit({ definition: '{' })
+    await waitForStatus(page, /definition\.json is not JSON/, 'error')
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    const reads = state.definitionGets
+    await new Promise(resolve => setTimeout(resolve, 4000))
+    assert.equal(state.definitionGets, reads, 'no reload while the file stays broken')
+    edit({ definition: DEFINITION, shader: solid([0, 0, 1]) })
+    await waitForPixel(page, [0, 0, 255])
     await page.close()
 })
