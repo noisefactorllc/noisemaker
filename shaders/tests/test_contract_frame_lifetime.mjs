@@ -72,9 +72,13 @@ describe('AI development contract tracks the frame-lifetime behaviors', () => {
             'webgpu.js no longer takes the getImageData path only from a caller-passed context')
         // The pipeline passes the effect overlay's context, so willReadFrequently
         // overlays keep their byte-exact WebGPU parity.
+        // The upload turns the canvas over unless a capability declares the
+        // orientation 'none'; every built-in overlay takes the default, flipY.
         assert.match(pipeline,
-            /updateTextureFromSource\(texId, canvas, \{ flipY: true, context2d: canvas\.getContext\?\.\('2d'\) \}\)/,
+            /updateTextureFromSource\(texId, canvas, \{ flipY: orientation !== 'none', context2d: canvas\.getContext\?\.\('2d'\) \}\)/,
             'pipeline.js no longer passes the overlay 2D context to the upload')
+        assert.match(pipeline, /updateTexture: \(texName, canvas, \{ orientation = 'flipY' \} = \{\}\) =>/,
+            'pipeline.js no longer defaults an overlay upload to flipY')
         // A canvas without a rendering context uploads as transparent black,
         // as WebGL2 uploads it.
         assert.match(webgpu, /err\?\.name !== 'OperationError'/,
