@@ -3989,6 +3989,10 @@ async `readPixels`. The WebGL2 reader returns rows top-down; the verb flips
 the bottom-up WebGPU readback rows to top-down before it computes metrics and
 draws the grid. Both backends therefore return upright captures and grid
 cells, and the same program gives the same orientation on WebGL2 and WebGPU.
+The verb checks frame advancement after every render call: `frameCount` must
+advance by exactly one per frame. `render()` is synchronous for 2D programs and
+asynchronous for scene programs, so at this snapshot a scene DSL program fails
+the check with `Renderer did not advance at frame 1`.
 The whole batch is bounded by `session.timeoutMs`
 (`SHADE_TIMEOUT_MS`, default `120000` ms). Each capture carries the full
 `ImageMetrics` record; `metrics` repeats the final capture of the render

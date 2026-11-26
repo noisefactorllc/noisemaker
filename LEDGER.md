@@ -1181,6 +1181,26 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-25 — candidate pair: Noisemaker (the publication carrying this
+    entry, above `24250c8c69610017b1413ccb9dc29a627663a790`) and Shade MCP
+    `b4883ded01de320563330630ae364079e30fcc54`. Audited the Shade range
+    `0d5042b..b4883de`: it fixes the DSL verb's frame-advance check — the verb
+    now awaits the `renderer.render()` call before checking `frameCount`, so a
+    scene DSL program, whose render is asynchronous, advances its frames
+    instead of failing with `Renderer did not advance at frame 1` — and adds a
+    scene frame-advance check to the browser smoke. The pin stays at
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38`; the pinned verb still fails
+    scene programs, and the contract documents that behavior. The publication
+    carrying this entry adds the matching statement to `llms-full.txt` and
+    ships the previous publication's parity-retry record correction with a
+    contract correction, as the assigned exception requires. Verified: Shade
+    `npm run typecheck` (exit 0), Shade `npm run build` (exit 0), Shade
+    `npm test` (548 tests pass), Shade `node scripts/browser-smoke.mjs` with
+    `NOISEMAKER` set (all 15 checks, exit 0, on Chromium's SwiftShader Vulkan
+    ICD), the four contract guard tests (13 tests pass), and a scene DSL
+    verification session at the fixed source returning `status: ok` with a
+    frame-1 capture. Pending: exact-source CI and live readback. The
+    completed checkpoint stays unchanged until those pass.
   - 2026-11-25 — completed delivery pair: Noisemaker
     `24250c8c69610017b1413ccb9dc29a627663a790` and Shade MCP
     `1815133b47eaa33aee11d4a677cfea2f3939cf38`. Commit `73234d5` published
