@@ -11,8 +11,8 @@
 //
 //   1. `.mcp.json` must reference exactly one immutable
 //      `github:<owner>/shade-mcp#<sha>` package, never a floating branch.
-//   2. `llms-full.txt` must document the same immutable pin in its
-//      repository-config statement.
+//   2. `llms-full.txt` must pin the same immutable commit in its snapshot
+//      block (the public contract never names the package's private host).
 //   3. The documented vendor-delivery release stands on its own: the MCP pin
 //      and the vendored harness are independent delivery paths, so the
 //      statement must name the delivered release and resolve it to an
@@ -46,9 +46,11 @@ function configuredPin() {
 
 function documentedDelivery() {
     const contract = read('llms-full.txt')
-    const pins = [...contract.matchAll(/github:[A-Za-z0-9_.-]+\/shade-mcp#([0-9a-f]{40})/g)].map((m) => m[1])
+    // The public contract never names the package's private host; the
+    // configured pin is documented through the snapshot block's commit.
+    const pins = [...contract.matchAll(/^- Shade MCP: `([0-9a-f]{40})`\.$/gm)].map((m) => m[1])
     assert.equal(pins.length, 1,
-        'llms-full.txt must document the repository config\'s immutable pin exactly once')
+        'llms-full.txt must pin the configured Shade MCP commit in its snapshot block exactly once')
     const versions = [...contract.matchAll(/server version `(\d+\.\d+\.\d+)`/g)].map((m) => m[1])
     assert.equal(versions.length, 1, 'llms-full.txt must document the negotiated server version exactly once')
     // The MCP pin and the vendored harness are independent delivery paths: a
