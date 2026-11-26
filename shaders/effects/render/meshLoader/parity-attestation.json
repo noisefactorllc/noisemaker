@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "effect": "render/meshLoader",
   "sourceHash": "89a77901a336e38e61553ea3a866cb9eb3ebcc1148953fbc9983e3da69fbdc7e",
-  "caseHash": "a2b613dfe2b76bbbe63ea0590b4c27e708f789c4995d80983ab4832fac68800f",
+  "caseHash": "c23dfda6f5b83fd0aa70d2d7d27f8b2ff582bde294a099323f87240a2e2ba2ec",
   "resolution": [
     64,
     64
@@ -33,5 +33,15 @@
     "meanDiff": 0,
     "mismatchCount": 0,
     "mismatchPercent": 0
+  },
+  "control": {
+    "differs": {
+      "webgl2": true,
+      "webgpu": true
+    },
+    "targetPasses": {
+      "webgl2": 0,
+      "webgpu": 0
+    }
   }
 }

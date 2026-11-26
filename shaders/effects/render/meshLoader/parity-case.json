@@ -16,5 +16,6 @@
       "mesh": "mesh0",
       "path": "share/meshes/cube.obj"
     }
-  ]
+  ],
+  "control": "search render\nread(o1).write(o0)\nrender(o0)"
 }
