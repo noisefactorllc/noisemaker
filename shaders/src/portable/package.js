@@ -28,6 +28,7 @@
  */
 
 import { normalizePortableDefinition } from './definition.js'
+import { RESERVED_KEYS } from './grammar.js'
 
 const DEFINITION = 'definition.json'
 const HELP = 'help.md'
@@ -44,11 +45,17 @@ function diagnostic(code, path, message) {
     return { code, path, message }
 }
 
+// Names a Windows disk cannot hold as a file: reserved devices, with or
+// without an extension.
+const DEVICE_NAME = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\.|$)/i
+
 /**
  * The normal form of a package path, or null when the path cannot be a file of
  * the package. A backslash counts as a separator, "." segments are dropped and
  * the name is in Unicode NFC. An absolute path, a drive letter, an empty
- * segment, a ".." segment or a control character is refused.
+ * segment, a ".." segment or a control character is refused. So is a segment
+ * that a Windows disk would change or cannot hold: one that ends with a dot or
+ * a space, holds one of < > : " | ? *, or names a reserved device.
  * @param {string} path
  * @returns {string|null}
  */
@@ -62,13 +69,21 @@ export function normalizePackagePath(path) {
     for (const segment of unified.split('/')) {
         if (segment === '.') continue
         if (segment === '' || segment === '..') return null
+        if (/[.\s]$/.test(segment) || /[<>:"|?*]/.test(segment) || DEVICE_NAME.test(segment)) return null
         segments.push(segment)
     }
     return segments.length > 0 ? segments.join('/') : null
 }
 
+// The form two names share when a case-insensitive disk holds them as one
+// file. Upper case then lower case also folds letters such as the long s.
+function foldCase(name) {
+    return name.toUpperCase().toLowerCase()
+}
+
+// A copy, so that the loaded package does not change when the caller's bytes do.
 function toBytes(content) {
-    if (content instanceof Uint8Array) return content
+    if (content instanceof Uint8Array) return new Uint8Array(content)
     if (typeof content === 'string') return new TextEncoder().encode(content)
     return null
 }
@@ -106,7 +121,7 @@ export function readFileMap(files) {
             diagnostics.push(diagnostic('invalid-file', name, `${name} must be bytes (a Uint8Array) or text`))
             continue
         }
-        const key = name.toLowerCase()
+        const key = foldCase(name)
         if (folded.has(key)) {
             diagnostics.push(diagnostic('duplicate-path', name, `${JSON.stringify(path)} and ${JSON.stringify(folded.get(key))} name the same file`))
             continue
@@ -130,6 +145,11 @@ function stageOf(path) {
         if (key) return [language, file.slice(0, dot), key]
     }
     return null
+}
+
+// The stages of a program, read only from the package's own entries.
+function stagesOf(shaders, program) {
+    return Object.hasOwn(shaders, program) ? shaders[program] : undefined
 }
 
 function complete(language, stages) {
@@ -187,12 +207,22 @@ export function loadPortablePackage(files, { backend } = {}) {
             continue
         }
         const [, program, key] = stage
+        // A program name is a key of the shader map: one that reaches an
+        // object prototype could write a stage into every object of the realm.
+        if (RESERVED_KEYS.includes(program)) {
+            diagnostics.push(diagnostic('reserved-name', path, `${path}: ${program} is a reserved name and cannot name a program`))
+            continue
+        }
         const text = decodeText(bytes)
         if (text === null) {
             diagnostics.push(diagnostic('invalid-encoding', path, `${path} must be UTF-8`))
             continue
         }
-        const bucket = shaders[program] ?? (shaders[program] = {})
+        if (text.trim().length === 0) {
+            diagnostics.push(diagnostic('empty-stage', path, `${path} holds no shader source`))
+            continue
+        }
+        const bucket = stagesOf(shaders, program) ?? (shaders[program] = {})
         bucket[key] = text
     }
     if (diagnostics.length > 0) return failed(diagnostics)
@@ -215,7 +245,7 @@ export function loadPortablePackage(files, { backend } = {}) {
     }
     const programs = [...new Set(passes.map(pass => pass.program))]
     for (const program of programs) {
-        if (!shaders[program]) {
+        if (!stagesOf(shaders, program)) {
             diagnostics.push(diagnostic('missing-shader', `shaders/${program}`,
                 `no shader file for program ${program}: add glsl/${program}.glsl (or .vert and .frag) or wgsl/${program}.wgsl`))
         }
@@ -223,10 +253,10 @@ export function loadPortablePackage(files, { backend } = {}) {
     if (diagnostics.length > 0) return failed(diagnostics, normalized.profile)
 
     const languages = backend ? [BACKEND_LANGUAGE[backend]] : Object.keys(STAGE_FILES)
-    const covering = languages.filter(language => programs.every(program => complete(language, shaders[program])))
+    const covering = languages.filter(language => programs.every(program => complete(language, stagesOf(shaders, program))))
     if (covering.length === 0) {
         for (const language of languages) {
-            for (const program of programs.filter(name => !complete(language, shaders[name]))) {
+            for (const program of programs.filter(name => !complete(language, stagesOf(shaders, name)))) {
                 diagnostics.push(backend
                     ? diagnostic('missing-backend', `shaders/${program}`, `${backend} runs ${language}, and program ${program} has no complete ${language} source`)
                     : diagnostic('incomplete-language', `shaders/${program}`, `program ${program} has no complete ${language} source, so ${language} does not cover every program`))
@@ -238,11 +268,11 @@ export function loadPortablePackage(files, { backend } = {}) {
     // as registerPortableEffect refuses such a package.
     for (const language of Object.keys(STAGE_FILES).filter(name => !covering.includes(name))) {
         const present = programs.filter(program => {
-            const stages = shaders[program]
+            const stages = stagesOf(shaders, program)
             return language === 'glsl' ? Boolean(stages?.glsl || stages?.vertex || stages?.fragment) : Boolean(stages?.wgsl)
         })
         if (present.length === 0) continue
-        for (const program of programs.filter(name => !complete(language, shaders[name]))) {
+        for (const program of programs.filter(name => !complete(language, stagesOf(shaders, name)))) {
             diagnostics.push(diagnostic('incomplete-language', `shaders/${program}`,
                 `the package gives ${language} for some programs but not for ${program}; give it for every program or for none`))
         }
@@ -289,32 +319,44 @@ function crc32(bytes) {
     return (crc ^ 0xffffffff) >>> 0
 }
 
-// Inflate raw deflate data, reading no more than `size` bytes of output.
+// Deflate's largest expansion: a run of one repeated byte inflates to at most
+// 1032 bytes for each compressed byte (zlib's technical details). A declared
+// size beyond that cannot come from the stored data.
+const DEFLATE_MAX_RATIO = 1032
+
+// Inflate raw deflate data, reading no more than `size` bytes of output. A
+// damaged stream gives null, as a wrong size does.
 async function inflate(data, size) {
-    const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
-    const reader = stream.getReader()
+    const reader = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader()
     const out = new Uint8Array(size)
     let length = 0
-    for (;;) {
-        const { done, value } = await reader.read()
-        if (done) break
-        if (length + value.length > size) {
-            await reader.cancel()
-            return null
+    try {
+        for (;;) {
+            const { done, value } = await reader.read()
+            if (done) break
+            if (length + value.length > size) {
+                await reader.cancel()
+                return null
+            }
+            out.set(value, length)
+            length += value.length
         }
-        out.set(value, length)
-        length += value.length
+    } catch {
+        return null
     }
     return length === size ? out : null
 }
 
 /**
  * Read the files of a ZIP archive into a file map. Stored and deflated entries
- * are read; each entry's size and CRC-32 must match its record. An encrypted,
- * ZIP64, multi-disk or link entry, another compression method, a damaged
- * record, a name that is not UTF-8 or not a relative path inside the package,
- * and two names for one file are refused. Directory entries carry no file and
- * are skipped, as are an archiver's .DS_Store and __MACOSX entries.
+ * are read; each entry's size and CRC-32 must match its record, and its local
+ * header must name the same file with the same method. An encrypted, ZIP64,
+ * multi-disk or link entry, another compression method, a damaged record or
+ * stream, two entries that share archive bytes, a size larger than deflate can
+ * produce from the entry's bytes, a name that is not UTF-8 or not a relative
+ * path inside the package, and two names for one file are refused. So the
+ * files read are never much larger than the archive. Directory entries carry
+ * no file and are skipped, as are an archiver's .DS_Store and __MACOSX entries.
  * @param {Uint8Array|ArrayBuffer} bytes
  * @returns {Promise<{files: Map<string, Uint8Array>|null, diagnostics: Array}>}
  */
@@ -351,6 +393,7 @@ export async function fileMapFromZip(bytes) {
 
     const names = new TextDecoder('utf-8', { fatal: true })
     const files = new Map()
+    const ranges = []
     let offset = centralOffset
     for (let index = 0; index < entries; index++) {
         if (offset + 46 > eocd || u32(offset) !== CENTRAL) return refuse('damaged-archive', '', `central directory entry ${index} is damaged`)
@@ -380,8 +423,25 @@ export async function fileMapFromZip(bytes) {
         if (name.endsWith('/')) continue
         if (method !== STORED && method !== DEFLATED) return refuse('unsupported-compression', name, `${name} uses compression method ${method}; only stored and deflated entries are read`)
         if (localOffset + 30 > centralOffset || u32(localOffset) !== LOCAL) return refuse('damaged-archive', name, `the local header of ${name} is damaged`)
-        const start = localOffset + 30 + u16(localOffset + 26) + u16(localOffset + 28)
+        // The local header must name the same file with the same method, so
+        // that a streaming reader of the archive sees the files this one does.
+        const localNameLength = u16(localOffset + 26)
+        const localName = data.subarray(localOffset + 30, localOffset + 30 + localNameLength)
+        const centralName = data.subarray(offset - commentLength - extraLength - nameLength, offset - commentLength - extraLength)
+        if (u16(localOffset + 8) !== method || localName.length !== centralName.length || localName.some((byte, at) => byte !== centralName[at])) {
+            return refuse('damaged-archive', name, `the local header of ${name} names another file or method than its central record`)
+        }
+        const start = localOffset + 30 + localNameLength + u16(localOffset + 28)
         if (start + compressedSize > centralOffset) return refuse('damaged-archive', name, `the data of ${name} lies outside the archive`)
+        // No two entries share bytes: shared data would let a small archive
+        // give many large files.
+        if (ranges.some(([from, to]) => localOffset < to && start + compressedSize > from)) {
+            return refuse('damaged-archive', name, `${name} shares archive bytes with another entry`)
+        }
+        ranges.push([localOffset, start + compressedSize])
+        if (method === DEFLATED && size > compressedSize * DEFLATE_MAX_RATIO) {
+            return refuse('damaged-archive', name, `${name} declares more data than its compressed bytes can hold`)
+        }
         const raw = data.subarray(start, start + compressedSize)
         const content = method === STORED ? (compressedSize === size ? new Uint8Array(raw) : null) : await inflate(raw, size)
         if (!content || crc32(content) !== crc) return refuse('damaged-archive', name, `${name} does not match its recorded size and CRC-32`)

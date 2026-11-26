@@ -52,23 +52,32 @@ async function zip(entries) {
     const parts = []
     const central = []
     let offset = 0
+    const placed = []
     for (const entry of entries) {
         const name = encoder.encode(entry.name)
         const content = typeof entry.content === 'string' ? encoder.encode(entry.content) : (entry.content ?? new Uint8Array())
         const method = entry.method ?? 8
-        const body = method === 8 ? await deflate(content) : content
+        const body = entry.body ?? (method === 8 ? await deflate(content) : content)
         const crc = entry.crc ?? crc32(content)
         const flags = (entry.flags ?? 0) | 0x800
-        const local = new DataView(new ArrayBuffer(30))
-        local.setUint32(0, 0x04034b50, true)
-        local.setUint16(4, 20, true)
-        local.setUint16(6, flags, true)
-        local.setUint16(8, method, true)
-        local.setUint32(14, crc, true)
-        local.setUint32(18, body.length, true)
-        local.setUint32(22, content.length, true)
-        local.setUint16(26, name.length, true)
-        parts.push(new Uint8Array(local.buffer), name, body)
+        // An alias entry points its central record at an earlier entry's data.
+        const alias = entry.aliasOf !== undefined ? placed[entry.aliasOf] : null
+        const localOffset = alias ? alias.offset : offset
+        if (!alias) {
+            const localName = encoder.encode(entry.localName ?? entry.name)
+            const local = new DataView(new ArrayBuffer(30))
+            local.setUint32(0, 0x04034b50, true)
+            local.setUint16(4, 20, true)
+            local.setUint16(6, flags, true)
+            local.setUint16(8, entry.localMethod ?? method, true)
+            local.setUint32(14, crc, true)
+            local.setUint32(18, body.length, true)
+            local.setUint32(22, content.length, true)
+            local.setUint16(26, localName.length, true)
+            parts.push(new Uint8Array(local.buffer), localName, body)
+            offset += 30 + localName.length + body.length
+        }
+        placed.push({ offset: localOffset })
         const record = new DataView(new ArrayBuffer(46))
         record.setUint32(0, 0x02014b50, true)
         record.setUint16(4, (entry.madeBy ?? 3) << 8 | 20, true)
@@ -80,9 +89,8 @@ async function zip(entries) {
         record.setUint32(24, entry.size ?? content.length, true)
         record.setUint16(28, name.length, true)
         record.setUint32(38, (entry.mode ?? 0o100644) << 16 >>> 0, true)
-        record.setUint32(42, offset, true)
+        record.setUint32(42, localOffset, true)
         central.push(new Uint8Array(record.buffer), name)
-        offset += 30 + name.length + body.length
     }
     const centralSize = central.reduce((sum, part) => sum + part.length, 0)
     const end = new DataView(new ArrayBuffer(22))
@@ -333,6 +341,9 @@ test('every pass property and every resource form of the grammar has a positive 
     }
     for (const entry of inert) {
         assert.ok(!covered.positive.has(entry), `${entry} has no effect, so no version 2 package may declare it`)
+    }
+    // Each value with no effect has a fixture that version 2 refuses.
+    for (const entry of [...inert, 'pass:workgroups', 'pass:inputs']) {
         assert.ok(FORMS.fixtures.some(fixture => fixture.covers.includes(entry) && fixture.expect?.code === 'unsupported-field'), entry)
     }
 })
@@ -350,3 +361,72 @@ for (const fixture of FORMS.fixtures) {
         assert.deepEqual(Object.keys(effect.instance.shaders), Object.keys(fixture.shaders))
     })
 }
+
+test('a program named after a prototype key is refused, and no object of the realm gains a stage', async () => {
+    const definition = v2('protoNames')
+    for (const path of ['wgsl/__proto__.wgsl', 'glsl/__proto__.vert', 'glsl/constructor.glsl', 'wgsl/toString.wgsl']) {
+        refused(loadPortablePackage(files({ 'definition.json': definition, 'glsl/main.glsl': FRAGMENT, [path]: 'POLLUTED' })), 'reserved-name', path)
+    }
+    assert.equal(({}).wgsl, undefined)
+    assert.equal(({}).vertex, undefined)
+    assert.equal(({ ...{ glsl: FRAGMENT } }).vertex, undefined)
+    // A pass whose program is a prototype key has no shader of its own.
+    const constructorPass = v2('protoPass', { main: { program: 'constructor', inputs: {}, outputs: { fragColor: 'outputTex' } } })
+    refused(loadPortablePackage(files({ 'definition.json': constructorPass })), 'missing-shader', 'shaders/constructor')
+    await assert.rejects(new CanvasRenderer().registerPortableEffect({ ...constructorPass, shaders: {} }), /reserved program name constructor/)
+    assert.equal(getEffect('user.protoPass'), undefined)
+})
+
+test('the backend is judged when it is certain: a renderer that prefers WebGPU may still fall back', async () => {
+    const legacyGlsl = {
+        name: 'fallbackGlsl', func: 'fallbackGlsl',
+        passes: [{ program: 'main', inputs: {}, outputs: { fragColor: 'outputTex' } }],
+        shaders: { main: { glsl: FRAGMENT } },
+    }
+    const renderer = new CanvasRenderer({ preferWebGPU: true })
+    const effect = await renderer.registerPortableEffect(legacyGlsl)
+    assert.equal(getEffect('user.fallbackGlsl'), effect.instance, 'a GLSL package registers before the first compile, for the WebGL2 fallback')
+})
+
+test('a stage file that holds only white space is refused', () => {
+    const definition = v2('emptyStage')
+    refused(loadPortablePackage(files({ 'definition.json': definition, 'glsl/main.glsl': '  \n\t' })), 'empty-stage', 'glsl/main.glsl')
+    refused(loadPortablePackage(files({ 'definition.json': definition, 'glsl/main.glsl': '', 'glsl/main.vert': VERTEX, 'glsl/main.frag': FRAGMENT })),
+        'empty-stage', 'glsl/main.glsl', 'an empty combined program beside split stages is not silently dropped')
+})
+
+test('paths a Windows disk would change or cannot hold are refused, and so are names that fold to one file', () => {
+    const base = { 'definition.json': v2('windowsNames'), 'glsl/main.glsl': FRAGMENT }
+    for (const path of ['help.md.', 'assets/a.bin ', 'assets/CON', 'assets/nul.txt', 'definition.json:alt', 'assets/a<b', 'assets/a|b', 'assets/a?b']) {
+        refused(loadPortablePackage(files({ ...base, [path]: 'x' })), 'invalid-path', path)
+    }
+    refused(loadPortablePackage(files({ ...base, 'assets/s.bin': 'a', 'assets/ſ.bin': 'b' })), 'duplicate-path')
+})
+
+test('a loaded package keeps its own copy of the bytes it was given', () => {
+    const asset = Uint8Array.from([1, 2, 3, 4])
+    const loaded = loadPortablePackage(new Map([['definition.json', JSON.stringify(v2('ownBytes'))], ['glsl/main.glsl', FRAGMENT], ['assets/a.bin', asset]]))
+    assert.deepEqual(loaded.diagnostics, [])
+    asset[0] = 99
+    assert.deepEqual([...loaded.assets.get('assets/a.bin')], [1, 2, 3, 4])
+    assert.deepEqual([...packageFiles(loaded).get('assets/a.bin')], [1, 2, 3, 4])
+})
+
+test('a ZIP archive is refused when entries share bytes, a local header disagrees, a stream is damaged or a size is impossible', async () => {
+    const definition = { name: 'definition.json', content: JSON.stringify(v2('zipHardening')) }
+    const big = new Uint8Array(4096)
+    const expectRefused = async (entries, code) => {
+        const read = await fileMapFromZip(await zip(entries))
+        assert.equal(read.files, null, code)
+        assert.ok(read.diagnostics.some(entry => entry.code === code), `${code}: ${JSON.stringify(read.diagnostics)}`)
+    }
+    await expectRefused([definition, { name: 'assets/a.bin', content: big }, { name: 'assets/b.bin', content: big, aliasOf: 1 }], 'damaged-archive')
+    await expectRefused([definition, { name: 'glsl/main.glsl', localName: '../../evil.sh', content: FRAGMENT }], 'damaged-archive')
+    await expectRefused([definition, { name: 'glsl/main.glsl', content: FRAGMENT, localMethod: 0 }], 'damaged-archive')
+    await expectRefused([definition, { name: 'assets/a.bin', content: big, body: Uint8Array.from([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]) }], 'damaged-archive')
+    await expectRefused([definition, { name: 'assets/a.bin', content: Uint8Array.from([1]), size: 0x7ffffff0 }], 'damaged-archive')
+    // An entry that records its sizes in a data descriptor (flag bit 3) reads from its central record.
+    const read = await fileMapFromZip(await zip([definition, { name: 'glsl/main.glsl', content: FRAGMENT, flags: 0x8 }]))
+    assert.deepEqual(read.diagnostics, [])
+    assert.equal(new TextDecoder().decode(read.files.get('glsl/main.glsl')), FRAGMENT)
+})

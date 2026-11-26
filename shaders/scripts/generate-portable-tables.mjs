@@ -38,7 +38,7 @@ const PASS = {
     blend: [BOTH, '``true`` blends additively (one, one). ``[src, dst]`` names the two blend factors.'],
     workgroups: ['WebGPU', 'The compute dispatch size in workgroups, for each dimension. A legacy definition may also give a uniform name, which has no effect; version 2 refuses one.'],
     storageBuffers: ['none', 'Legacy only. It has no effect: the WebGPU backend allocates storage buffers from the shader bindings. Version 2 refuses it.'],
-    storageTextures: ['WebGPU', 'WGSL storage binding name to the texture a compute pass writes. Only ``outputTex`` writes today (Limitations below).'],
+    storageTextures: ['WebGPU', 'WGSL storage binding name to the texture a compute pass writes: ``outputTex``, ``o0`` to ``o7`` or a ``global_`` surface. A texture the effect declares is not found yet (Limitations below).'],
     viewport: [BOTH, 'The pass region: ``x``, ``y``, ``w`` and ``h`` in pixels, or ``width`` and ``height`` in the size grammar. When the pass writes a texture, both backends render to the full size of that texture.'],
     conditions: [BOTH, '``runIf`` and ``skipIf``: lists of ``{ "uniform", "equals" }``. Each compares a declared global with its value by strict equality, each frame.'],
     defines: [BOTH, 'Preprocessor definitions. The pass runs its own build of its program with them.'],

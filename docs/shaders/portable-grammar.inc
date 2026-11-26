@@ -60,7 +60,7 @@
    * - ``storageTextures``
      - object of names to: nonempty string
      - WebGPU
-     - WGSL storage binding name to the texture a compute pass writes. Only ``outputTex`` writes today (Limitations below).
+     - WGSL storage binding name to the texture a compute pass writes: ``outputTex``, ``o0`` to ``o7`` or a ``global_`` surface. A texture the effect declares is not found yet (Limitations below).
    * - ``viewport``
      - object with ``x``, ``y``, ``w``, ``h``, ``width``, ``height``
      - WebGL2, WebGPU

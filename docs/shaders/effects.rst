@@ -979,16 +979,25 @@ A WGSL program is one file that holds all of its entry points.
 **Paths.** Paths are relative to the package root, with ``/`` between
 segments; a ``\`` counts as one. Names compare in Unicode NFC. A path that is
 absolute, names a drive, has an empty or ``..`` segment, or holds a control
-character is refused (``invalid-path``). Two paths for one file, including
-two that differ only in case, are refused (``duplicate-path``), because one
-would overwrite the other on a disk. A ``.DS_Store`` file and a ``__MACOSX``
-directory are not package files and are left out.
+character is refused (``invalid-path``). So is a segment that a Windows disk
+would change or cannot hold: one that ends with a dot or a space, holds one of
+``< > : " | ? *``, or is a reserved device name such as ``CON`` or ``NUL``. Two
+paths for one file, including two that differ only in case, are refused
+(``duplicate-path``), because one would overwrite the other on a disk. A
+``.DS_Store`` file and a ``__MACOSX`` directory are not package files and are
+left out. A program name that is a reserved key (``constructor``,
+``__proto__`` and the other keys of ``Object.prototype``) is refused
+(``reserved-name``), and so is a shader file that holds only white space
+(``empty-stage``).
 
 **ZIP archives.** A ZIP package holds the same files at the archive root.
-Stored and deflated entries are read, and each entry's size and CRC-32 must
-match its record. An encrypted entry, a ZIP64 or multi-disk archive, a link,
-another compression method and a damaged record are refused, each with its
-own diagnostic code. Directory entries carry no file.
+Stored and deflated entries are read. Each entry's size and CRC-32 must match
+its record, and its local header must name the same file with the same
+method. An encrypted entry, a ZIP64 or multi-disk archive, a link, another
+compression method, a damaged record or stream, two entries that share
+archive bytes, and a size larger than deflate can produce from the entry's
+bytes are refused. So the files read are never much larger than the archive.
+Directory entries carry no file.
 
 **Loading.** ``loadPortablePackage()`` (:ref:`portable-registration`) reads
 the files of a package and nothing else: it fetches nothing and runs no code
@@ -1195,8 +1204,8 @@ Limitations:
 - WebGL2 has no compute passes and cannot write a 3D texture. A package that
   needs either runs on WebGPU, or gives WebGL2 a fragment form of the same
   work, as the built-in volume effects do with their atlas.
-- A ``storageTextures`` binding writes only ``outputTex``, and only on WebGPU.
-  A binding to a declared texture is not found on WebGPU, and WebGL2 writes
+- A ``storageTextures`` binding to a texture the effect declares is not found
+  on WebGPU, which writes ``outputTex`` and the shared surfaces. WebGL2 writes
   nothing for a pass with ``storageTextures``.
 - Vertex data comes only from textures: the particle state, the mesh
   surfaces or the pass's own inputs. A package has no vertex buffers.

@@ -2368,8 +2368,10 @@ export class CanvasRenderer {
      * Register a Portable definition whose shader sources have already been loaded.
      * Registries are shared within a JavaScript realm. Use a fresh realm when
      * verifying a replacement; duplicate names must not change accepted effects.
-     * This checks registration inputs, not shader compilation or backend support.
-     * @param {object} definition - Raw Portable JSON plus shaders[program].glsl/wgsl
+     * This checks registration inputs and the language of the backend that will
+     * run the effect, not shader compilation.
+     * @param {object} definition - Raw Portable JSON plus shaders[program]: glsl, or
+     *   vertex and fragment, and wgsl
      * @returns {Promise<object>} Cached user effect with an Effect instance
      */
     async registerPortableEffect(definition) {
@@ -2419,9 +2421,11 @@ export class CanvasRenderer {
         // A GLSL program is one fragment stage (glsl) or split stages (vertex
         // with fragment), as the built-in loader reads them. WGSL is one file.
         const covers = {
-            glsl: source => hasSource(source.glsl) || hasSource(source.fragment),
-            wgsl: source => hasSource(source.wgsl),
+            glsl: source => Boolean(source) && (hasSource(source.glsl) || hasSource(source.fragment)),
+            wgsl: source => Boolean(source) && hasSource(source.wgsl),
         }
+        // A program's stages, read only from the map's own entries.
+        const stagesOf = program => (Object.hasOwn(shaders, program) ? shaders[program] : undefined)
         for (const pass of passes) {
             if (!isRecord(pass) || typeof pass.program !== 'string' || !pass.program) fail('each pass must name a program')
             for (const field of ['inputs', 'outputs']) {
@@ -2429,7 +2433,8 @@ export class CanvasRenderer {
                     fail(`pass ${field} must map names to nonempty texture references`)
                 }
             }
-            const source = shaders[pass.program]
+            if (reserved.includes(pass.program)) fail(`reserved program name ${pass.program}`)
+            const source = stagesOf(pass.program)
             if (!isRecord(source) || !(covers.glsl(source) || covers.wgsl(source))) {
                 fail(`missing shader source for ${pass.program}`)
             }
@@ -2442,17 +2447,21 @@ export class CanvasRenderer {
             }
         }
         for (const language of ['glsl', 'wgsl']) {
-            if (passes.some(pass => covers[language](shaders[pass.program]))) {
+            if (passes.some(pass => covers[language](stagesOf(pass.program)))) {
                 for (const pass of passes) {
-                    if (!covers[language](shaders[pass.program])) fail(`missing ${language} shader source for ${pass.program}`)
+                    if (!covers[language](stagesOf(pass.program))) fail(`missing ${language} shader source for ${pass.program}`)
                 }
             }
         }
         // The backend that will run the effect needs its language for every
         // program. Say so now, before any registry changes, rather than at
         // compile time.
-        const running = this.backend
-        const uncovered = passes.find(pass => !covers[running](shaders[pass.program]))
+        // The backend is certain once a pipeline runs, and before that when
+        // WebGL2 is preferred, which has no fallback. A preferred WebGPU may
+        // still fall back to WebGL2, so it is judged at compile time.
+        const pipelineBackend = this._pipeline?.backend?.getName?.()
+        const running = pipelineBackend ? this.backend : (this.preferredBackend === 'glsl' ? 'glsl' : null)
+        const uncovered = running ? passes.find(pass => !covers[running](stagesOf(pass.program))) : undefined
         if (uncovered) {
             refuse('missing-backend', `shaders/${uncovered.program}`,
                 `${running === 'wgsl' ? 'WebGPU' : 'WebGL2'} runs ${running}, and program ${uncovered.program} has no ${running} source`)
