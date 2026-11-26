@@ -842,7 +842,7 @@ export function expand(compilationResult, options = {}) {
                     conditions: passDef.conditions,
                     workgroups: passDef.workgroups,
                     storageBuffers: passDef.storageBuffers,
-                    storageTextures: passDef.storageTextures,
+                    storageTextures: passDef.storageTextures ? {} : undefined,
                     // Pass labels and per-pass execution controls are
                     // copied verbatim. `name`/`type` stay queryable metadata
                     // (backend shader-kind dispatch remains source-derived);
@@ -1164,6 +1164,50 @@ export function expand(compilationResult, options = {}) {
                             pass.inputs[uniformName] = `${stateId}_${texRef}`
                         }
                     }
+                }
+
+                // Map storage texture targets into the same virtual namespace as
+                // sampled inputs and render outputs. Portable definitions name
+                // effect-local textures, while backends consume scoped IDs.
+                if (passDef.storageTextures) {
+                    for (const [binding, texRef] of Object.entries(passDef.storageTextures)) {
+                        if (texRef === 'outputTex') {
+                            const isLastStep = step === plan.chain[plan.chain.length - 1]
+                            const isLastPass = i === effectPasses.length - 1
+                            const nextStep = plan.chain[plan.chain.indexOf(step) + 1]
+                            const inlineWrite = isLastPass && nextStep?.builtin && nextStep.op === '_write'
+                                ? nextStep.args?.tex : null
+                            if (inlineWrite && inlineWrite.name !== 'none') {
+                                const prefix = inlineWrite.kind === 'feedback' ? 'feedback' : 'global'
+                                pass.storageTextures[binding] = `${prefix}_${inlineWrite.name}`
+                                lastWrittenSurface = inlineWrite.name
+                            } else if (isLastStep && isLastPass && plan.write) {
+                                const outName = typeof plan.write === 'object' ? plan.write.name : plan.write
+                                const outKind = plan.write.kind || 'output'
+                                const prefix = outKind === 'feedback' ? 'feedback' : 'global'
+                                pass.storageTextures[binding] = `${prefix}_${outName}`
+                                lastWrittenSurface = outName
+                            } else {
+                                pass.storageTextures[binding] = `${nodeId}_out`
+                            }
+                            textureMap.set(`${nodeId}_out`, pass.storageTextures[binding])
+                        } else if (texRef.startsWith('global_')) {
+                            pass.storageTextures[binding] = scopeChainTex(texRef)
+                        } else {
+                            pass.storageTextures[binding] = `${nodeId}_${texRef}`
+                            const storageSpec = textureSpecs[pass.storageTextures[binding]]
+                            if (storageSpec) {
+                                storageSpec.usage = [...new Set([
+                                    ...(storageSpec.usage || ['render', 'sample', 'copySrc', 'copyDst']),
+                                    'storage'
+                                ])]
+                            }
+                        }
+                    }
+                    // Pipeline allocation falls back from render outputs to
+                    // storage outputs. Do not mask the latter with the empty
+                    // render-output map created for every pass.
+                    if (!passDef.outputs) delete pass.outputs
                 }
 
                 // Map Outputs
