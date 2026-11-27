@@ -119,7 +119,18 @@ test('shaders-2x.yml runs this test for every workflow change, on 2.x pushes and
   assert.doesNotMatch(text, /STATIC_SITE_RELEASE_WORKFLOW|EXPORT_KIT_RELEASE_WORKFLOW|QUEUE_REPOSITORY|-f site=|\/dispatches\b/,
     'shaders-2x.yml dispatches no site, docs, export-kit or downstream release')
   const prerelease = jobBlock(text, 'prerelease')
-  assert.match(prerelease, /\n {4}needs: \[bundle, docs\]\n/)
+  assert.match(prerelease, /\n {4}needs: \[bundle, gpu-bundles, docs\]\n/, 'no prerelease without both bundle checks')
+  // The bundle contract on the dist/ the bundle job builds, and its render
+  // from the artifact on each GPU backend.
+  assert.match(jobBlock(text, 'bundle'), /\n {6}run: node --test shaders\/tests\/test_portable_bundle_compat\.mjs\n/)
+  const gpuBundles = jobBlock(text, 'gpu-bundles')
+  assert.match(gpuBundles, /\n {4}needs: bundle\n/)
+  assert.match(gpuBundles, /\n {6}group: noisemaker-gpu\n/)
+  assert.match(gpuBundles, /\n {8}name: noisemaker-shaders\n/)
+  for (const backend of ['webgl2', 'webgpu']) {
+    assert.match(gpuBundles, new RegExp(`\\n {6}run: node shaders/tests/test_portable_bundle_render\\.mjs --bundles "\\$RUNNER_TEMP/bundles" --backend ${backend}\\n`))
+  }
+  assert.doesNotMatch(gpuBundles.replace(/^[\s\S]*?\n {4}steps:\n/, ''), /^ {6}if:/m, 'no step of gpu-bundles is conditional')
   assert.match(prerelease, /\[ "\$NAMED" != "\$GITHUB_SHA" \]/, 'the prerelease refuses a SHA other than the one the run checked out')
   assert.match(prerelease, /refs\/heads\/2\.x \| cut -f1\)\n[\s\S]*\[ "\$head" != "\$GITHUB_SHA" \]/, 'the prerelease refuses a SHA that is not the head of 2.x')
   assert.match(prerelease, /-f line=prerelease/)
