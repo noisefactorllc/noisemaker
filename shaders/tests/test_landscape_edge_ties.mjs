@@ -22,12 +22,12 @@ const browser = await chromium.launch(shaderTestBrowserOptions())
 // The default heightmap3d program at volume size x128 on a 257 by 129 frame, as
 // a port's parity run renders it. The frame is an odd number of pixels wide and
 // the program has no horizontal pan, so the rays of its center column cross x
-// and z boundaries at one distance. The measured pixel, x 128 at row 82, is on
-// such an edge: the voxel beside the cell that its ray enters covers that
-// cell's +x face, so the pixel shows the cell's +z face, the wall that the
-// pixels on both sides show.
+// and z boundaries at one distance. The measured pixel is on such an edge: the
+// voxel beside the cell that its ray enters covers that cell's +x face, so the
+// pixel shows the cell's +z face, the wall that the pixels on both sides show.
+// `shows` is the value of that face where it was measured.
 const measured = {
-    width: 257, height: 129, x: 128, y: 82,
+    width: 257, height: 129, x: 128, y: 82, shows: [181, 205, 168],
     dsl: `search synth, synth3d, render
 
 noise(scaleX: 90, scaleY: 90, colorMode: mono, speed: 0).write(o1)
@@ -92,7 +92,6 @@ async function openRenderer(backend, { width, height }) {
 const failures = []
 try {
     const centerColumns = {}
-    const measuredPixels = {}
     for (const backend of ['webgl2', 'webgpu']) {
         // The measured program. On the rows where the pixels on both sides of
         // the center column show one lit wall, the column shows that wall too.
@@ -121,14 +120,14 @@ try {
         if (offWall.length) {
             failures.push(`${backend}: in the measured program the center column looks at a lit wall through voxel edges, and ${offWall.length} of its ${wallRows.length} pixels there show another face, such as ${whole.pixel(wholeFrame, column, offWall[0])}`)
         }
-        // The measured pixel stays on that wall, so a change to the terrain that
-        // moves its edge fails here instead of leaving the pixel unmeasured.
+        // The measured pixel is on that wall and shows the face it was measured
+        // on. A change to the terrain that moves its edge changes that value and
+        // fails here, instead of leaving the pixel unmeasured.
         assert.ok(measured.x === column && wallRows.includes(measured.y),
             `${backend}: the measured pixel ${measured.x},${measured.y} must look at the lit wall`)
-        if (!showsWall(measured.y)) {
-            failures.push(`${backend}: the measured pixel ${measured.x},${measured.y} looks at the lit wall through a voxel edge, and shows ${whole.pixel(wholeFrame, measured.x, measured.y)}`)
+        if (!rgb(measured.x, measured.y).every((value, c) => Math.abs(value - measured.shows[c]) <= 2)) {
+            failures.push(`${backend}: the measured pixel ${measured.x},${measured.y} looks at the lit wall through a voxel edge, and shows ${whole.pixel(wholeFrame, measured.x, measured.y)}, not its +z face ${measured.shows.join(',')}`)
         }
-        measuredPixels[backend] = whole.pixel(wholeFrame, measured.x, measured.y)
         centerColumns[backend] = rows.map(y => whole.pixel(wholeFrame, column, y)).join(' ')
         assert.deepEqual(whole.errors, [], `${backend} console errors`)
         await whole.page.close()
@@ -160,9 +159,6 @@ try {
         }
         assert.deepEqual(diagonal.errors, [], `${backend} console errors`)
         await diagonal.page.close()
-    }
-    if (measuredPixels.webgpu !== measuredPixels.webgl2) {
-        failures.push(`both backends must show the same measured pixel: webgl2 shows ${measuredPixels.webgl2}, webgpu shows ${measuredPixels.webgpu}`)
     }
     if (centerColumns.webgpu !== centerColumns.webgl2) {
         failures.push('both backends must show the same center column in the measured program')
