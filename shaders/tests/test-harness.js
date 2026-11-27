@@ -87,6 +87,7 @@ import {
     isNoAnimation,
 } from './frame-metrics.js'
 import { auditDefinitionLoss } from './definition-schema.js'
+import { readCatalogMetadata } from '../../scripts/lib/portable-catalog.mjs'
 // AI-dependent imports are loaded dynamically to avoid requiring @anthropic-ai/sdk at module level
 let getAIProvider, checkAlgEquiv, analyzeBranching
 async function loadAIDeps() {
@@ -378,7 +379,9 @@ function parseArgs() {
  * Discover all effects from the filesystem.
  * Returns array of effect IDs like "synth/noise", "filter/pixelSort", etc.
  */
-function discoverEffectsFromDisk() {
+const EXTERNAL_INPUT_TAGS = new Set(['audio', 'midi', 'video', 'image'])
+
+async function discoverEffectsFromDisk() {
     const effectsDir = path.join(PROJECT_ROOT, 'shaders', 'effects')
     const effects = []
 
@@ -397,14 +400,12 @@ function discoverEffectsFromDisk() {
             // Verify it has a definition.js
             const defPath = path.join(namespaceDir, effectName, 'definition.js')
             if (fs.existsSync(defPath)) {
-                // Skip deprecated effects and effects requiring external input
-                const content = fs.readFileSync(defPath, 'utf-8')
-                if (/\bdeprecatedBy\s*[:=]/.test(content)) continue
-                const tagsMatch = content.match(/\btags\s*[:=]\s*\[([^\]]*)\]/)
-                if (tagsMatch) {
-                    const tags = tagsMatch[1].toLowerCase()
-                    if (/["'](audio|midi|video|image)["']/.test(tags)) continue
-                }
+                // Skip deprecated effects and effects requiring external
+                // input, from the effect's metadata in either form.
+                const definition = await readCatalogMetadata(path.dirname(defPath))
+                if (definition?.deprecatedBy) continue
+                const tags = (definition?.tags ?? []).map(tag => String(tag).toLowerCase())
+                if (tags.some(tag => EXTERNAL_INPUT_TAGS.has(tag))) continue
                 effects.push(`${namespace}/${effectName}`)
             }
         }
@@ -422,7 +423,7 @@ async function runStructureOnlyMode(args) {
     console.log(`Backend: ${args.backend}\n`)
 
     // Discover effects from filesystem
-    const allEffects = discoverEffectsFromDisk()
+    const allEffects = await discoverEffectsFromDisk()
     console.log(`Found ${allEffects.length} effects on disk.`)
 
     // Match patterns
@@ -984,7 +985,7 @@ async function testEffect(session, effectId, options) {
  * is rejected, and no browser is launched.
  */
 async function runDescribeMode(args) {
-    const allEffects = discoverEffectsFromDisk()
+    const allEffects = await discoverEffectsFromDisk()
     const matchedEffectsSet = new Set()
     for (const pattern of args.effects) {
         for (const m of matchEffects(allEffects, pattern)) {
@@ -1097,7 +1098,7 @@ async function main() {
         }
 
         // Resolve effect patterns from disk
-        const allEffects = discoverEffectsFromDisk()
+        const allEffects = await discoverEffectsFromDisk()
         const matchedEffectsSet = new Set()
 
         for (const pattern of args.effects) {
