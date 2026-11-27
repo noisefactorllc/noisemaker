@@ -69,15 +69,45 @@ export function readShaderFiles(dir) {
     return shaders
 }
 
+const isAliasMap = value => value !== null && typeof value === 'object' && !Array.isArray(value) &&
+    Object.entries(value).every(([from, to]) => typeof from === 'string' && typeof to === 'string' && to.length > 0)
+
 /**
  * The definition JSON of the effect at `dir`, read and checked as a package
  * through the engine's own loader, in the runtime form that registration
  * gives it (normalizePortableDefinition): { definition, shaders, diagnostics }.
+ *
+ * With `catalog`, the JSON is one of the engine's own catalog definitions,
+ * read in the catalog context: it may carry paramAliases, the deprecated
+ * parameter names that keep saved catalog programs working. They are taken
+ * out before the package check and carried on the definition, as the catalog
+ * registers them. A package from anyone else is refused for them.
  */
-export function readDefinitionJson(dir) {
-    const loaded = loadPortablePackage(readPackageDirectory(dir))
+export function readDefinitionJson(dir, { catalog = false } = {}) {
+    const files = readPackageDirectory(dir)
+    let aliases
+    if (catalog && files.has('definition.json')) {
+        let raw = null
+        try {
+            raw = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(files.get('definition.json')))
+        } catch {
+            // The package loader reports what is wrong with it.
+        }
+        if (raw && typeof raw === 'object' && !Array.isArray(raw) && Object.hasOwn(raw, 'paramAliases')) {
+            aliases = raw.paramAliases
+            delete raw.paramAliases
+            files.set('definition.json', new TextEncoder().encode(JSON.stringify(raw)))
+        }
+    }
+    const loaded = loadPortablePackage(files)
     if (loaded.diagnostics.length) return { definition: null, shaders: null, diagnostics: loaded.diagnostics }
     const normalized = normalizePortableDefinition(loaded.definition, { loadedShaders: false })
+    if (aliases !== undefined) {
+        if (!isAliasMap(aliases)) {
+            return { definition: null, shaders: null, diagnostics: [{ code: 'invalid-value', path: 'paramAliases', message: 'paramAliases maps each deprecated parameter name to the name of the parameter it stands for' }] }
+        }
+        normalized.definition.paramAliases = aliases
+    }
     return { definition: normalized.definition, shaders: loaded.shaders, diagnostics: normalized.diagnostics }
 }
 
@@ -86,8 +116,12 @@ export function readDefinitionJson(dir) {
  * behavior, which a definition.json does not hold.
  */
 export function definedMethods(instance) {
+    // The prototypes from the instance's class up to, and not including, its
+    // base class: Effect, from whichever copy of the engine defined it.
+    const chain = []
+    for (let proto = Object.getPrototypeOf(instance); proto && proto !== Object.prototype; proto = Object.getPrototypeOf(proto)) chain.push(proto)
     const names = new Set()
-    for (let proto = Object.getPrototypeOf(instance); proto && proto !== Effect.prototype && proto !== Object.prototype; proto = Object.getPrototypeOf(proto)) {
+    for (const proto of chain.slice(0, -1)) {
         for (const name of Object.getOwnPropertyNames(proto)) {
             if (name !== 'constructor' && typeof Object.getOwnPropertyDescriptor(proto, name).value === 'function') names.add(name)
         }
@@ -149,7 +183,7 @@ export function generateWrapper({ definition, exportKind, className }) {
  */
 export function readEffectDefinition(dir, { exportShapes } = {}) {
     const effectId = path.resolve(dir).split(path.sep).slice(-2).join('/')
-    const read = readDefinitionJson(dir)
+    const read = readDefinitionJson(dir, { catalog: true })
     if (read.diagnostics.length) throw Object.assign(new Error(`${effectId}: definition.json does not load`), { diagnostics: read.diagnostics })
     const shape = (exportShapes ?? baselineExportShapes().shapes).get(effectId) ?? { exportKind: 'instance' }
     const instance = instantiateCatalogDefinition({ definition: read.definition, ...shape })
@@ -203,7 +237,7 @@ export async function readPortableCatalog({ effectsRoot = EFFECTS_ROOT, allowLeg
     for (const { effectId, directory, hasJson, hasJs } of effectDirectories(effectsRoot)) {
         const shape = shapes.get(effectId)
         if (hasJson) {
-            const read = readDefinitionJson(directory)
+            const read = readDefinitionJson(directory, { catalog: true })
             if (read.diagnostics.length) {
                 throw Object.assign(new Error(`${effectId}: definition.json does not load`), { diagnostics: read.diagnostics })
             }

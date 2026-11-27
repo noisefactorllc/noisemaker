@@ -160,8 +160,10 @@ test('each catalog effect that converts reads the same from its version 2 JSON a
             for (const language of ['glsl', 'wgsl']) {
                 if (fs.existsSync(path.join(dir, language))) fs.cpSync(path.join(dir, language), path.join(out, language), { recursive: true })
             }
-            fs.writeFileSync(path.join(out, 'definition.json'), JSON.stringify(toPortablePackage(structuredClone(before)), null, 4))
-            const read = readDefinitionJson(out)
+            const json = toPortablePackage(structuredClone(before))
+            if (before.paramAliases !== undefined) json.paramAliases = before.paramAliases
+            fs.writeFileSync(path.join(out, 'definition.json'), JSON.stringify(json, null, 4))
+            const read = readDefinitionJson(out, { catalog: true })
             if (read.diagnostics.length) { refused[id] = 'does not load'; continue }
             const after = definitionSchema(instantiateCatalogDefinition({ definition: read.definition, ...shapes.get(id) }))
             if (!isDeepStrictEqual(after, before)) {
@@ -175,17 +177,47 @@ test('each catalog effect that converts reads the same from its version 2 JSON a
         fs.rmSync(root, { recursive: true, force: true })
     }
     // What a definition.json cannot hold yet: provider behavior in class
-    // methods, the retired paramAliases, and filter/text's id field.
+    // methods, and filter/text's id field (GAP-085,
+    // https://github.com/noisefactorllc/noisemaker/issues/441).
     assert.deepEqual(refused, {
         'filter/fibers': 'methods',
         'filter/scratches': 'methods',
         'filter/strayHair': 'methods',
         'filter/text': 'id',
-        'points/dla': 'paramAliases',
-        'points/flow': 'paramAliases',
-        'points/physarum': 'paramAliases',
         'synth/media': 'methods',
     })
+})
+
+test('the particle effects convert with their deprecated parameter names, which only the catalog context accepts', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'portable-aliases-'))
+    try {
+        // A copy of the engine's source beside the effects, as their modules import it.
+        fs.cpSync(path.join(ROOT, 'shaders/src'), path.join(root, 'shaders/src'), { recursive: true })
+        const effectsRoot = path.join(root, 'shaders/effects')
+        const ids = ['points/dla', 'points/flow', 'points/physarum']
+        const before = {}
+        for (const id of ids) {
+            copyEffect(effectsRoot, id, path.join(EFFECTS_ROOT, ...id.split('/')))
+            const exported = (await import(pathToFileURL(path.join(EFFECTS_ROOT, ...id.split('/'), 'definition.js')).href)).default
+            before[id] = definitionSchema(typeof exported === 'function' ? new exported() : exported)
+            assert.deepEqual(before[id].paramAliases, { fieldTex: 'heightTex' }, `${id} keeps saved programs that name fieldTex working`)
+        }
+        const { shapes } = baselineExportShapes()
+        assert.deepEqual(await convertEffects(ids, { effectsRoot, shapes }), ids)
+        for (const id of ids) {
+            const dir = path.join(effectsRoot, ...id.split('/'))
+            const json = JSON.parse(fs.readFileSync(path.join(dir, 'definition.json'), 'utf8'))
+            assert.equal(json.version, 2)
+            assert.deepEqual(json.paramAliases, { fieldTex: 'heightTex' }, `${id}: the JSON carries the alias`)
+            const exported = (await import(pathToFileURL(path.join(dir, 'definition.js')).href)).default
+            assert.deepEqual(definitionSchema(typeof exported === 'function' ? new exported() : exported), before[id], `${id}: the generated module is the same effect, aliases included`)
+            assert.deepEqual(readDefinitionJson(dir).diagnostics.map(entry => `${entry.code}@${entry.path}`), ['unsupported-field@paramAliases'],
+                `${id}: as a package from anyone else, it is refused for the alias`)
+        }
+        assert.deepEqual(wrapperDrift({ effectsRoot, shapes }), [])
+    } finally {
+        fs.rmSync(root, { recursive: true, force: true })
+    }
 })
 
 test('a conversion writes a version 2 definition.json and its module, and refuses an effect whose class defines methods', async () => {

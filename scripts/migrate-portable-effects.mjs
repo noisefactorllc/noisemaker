@@ -46,7 +46,7 @@ function jsonEffects(effectsRoot) {
 export function wrapperFor(effectId, directory, shapes) {
     const shape = shapes.get(effectId)
     if (!shape) throw new Error(`${effectId}: no export kind is recorded for it`)
-    const read = readDefinitionJson(directory)
+    const read = readDefinitionJson(directory, { catalog: true })
     if (read.diagnostics.length) throw Object.assign(new Error(`${effectId}: definition.json does not load`), { diagnostics: read.diagnostics })
     return generateWrapper({ definition: read.definition, ...shape })
 }
@@ -95,8 +95,10 @@ export async function convertEffects(ids, { effectsRoot = EFFECTS_ROOT, shapes =
         // The version 2 package of the definition, which Shade's reader and
         // the engine's loader both read in full.
         const json = toPortablePackage(JSON.parse(JSON.stringify(before)))
+        // Deprecated parameter names, which the catalog context keeps.
+        if (before.paramAliases !== undefined) json.paramAliases = before.paramAliases
         fs.writeFileSync(jsonFile, `${JSON.stringify(json, null, 4)}\n`)
-        const read = readDefinitionJson(directory)
+        const read = readDefinitionJson(directory, { catalog: true })
         if (read.diagnostics.length || !isDeepStrictEqual(definitionSchema(instantiateCatalogDefinition({ definition: read.definition, ...shape })), before)) {
             fs.rmSync(jsonFile)
             throw Object.assign(new Error(`${effectId}: its definition.json does not load as the same effect, so it is not converted`), { diagnostics: read.diagnostics })
