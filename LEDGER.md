@@ -1097,7 +1097,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `93fe17aa177e351eae796030ece46d25e4b71af4` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-27
+- **Checkpoint:** noisemaker `688794aca5998d9573afa5601c2b9b023c896007` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-27
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -1181,6 +1181,29 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-27 — completed delivery pair: Noisemaker
+    `688794aca5998d9573afa5601c2b9b023c896007` and Shade MCP at the
+    configured immutable pin (release v0.5.4) with vendor release v0.7.1
+    (tag target `5fdbd18`). This pass audited the checkpoint-to-head range
+    left after the completed pass below: the delivery-pair guard's
+    pending-state checks, the GAP-086 validator change (`688794a`), and the
+    automated vendor delivery (`c1c136a`). Contract corrections in
+    `llms-full.txt`: the `color` and `vec4` rows of the formal value
+    contracts table document the accepted vector constructors and their
+    diagnostics, the snapshot block's Noisemaker line advances to `688794a`
+    to cover the changed validator, and its vendor statement names release
+    v0.7.1 with tag target `5fdbd18`. The configured pin stays at v0.5.4
+    with its recorded delivery blocker. Audited the queued Shade range
+    `bcbe952..5fdbd18`: one commit, `chore: release 0.7.1`, version metadata
+    only. The delivered v0.7.1 dist's only behavioral delta against v0.7.0
+    is the structure check's indexed-name acceptance. Verified:
+    `node shaders/tests/test-unparser.mjs` (41 pass), the four contract
+    suites through the changed-path entrypoint selection (0 failures), the
+    JavaScript and JS lint checks at `d177efd` and `4e1fca4`, the Shade
+    checks ci, quality, and browser at `5fdbd18`, the JavaScript, Shaders,
+    and Docs site workflows at `688794a`, the vendor delivery gate
+    (`scripts/test-shade-mcp` in the pull workflow) at `c1c136a`, and full
+    live GETs of `llms-full.txt` matching both published candidates' blobs.
   - 2026-11-27 — candidate: vendor delivery reconciliation. The v0.7.1 tag
     (target `5fdbd18`) appeared upstream and its release workflow succeeded,
     and the `pull-shade-mcp` automation then delivered that release dist to
