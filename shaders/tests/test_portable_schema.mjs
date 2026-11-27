@@ -152,9 +152,15 @@ test('the generated schema is current', () => {
 
 test('every catalog declaration is written in the version 2 form, validates and reads back unchanged', async () => {
     const checked = []
+    const unrepresentable = []
+    // Trusted catalog JSON also carries aliases for saved programs.
+    const catalogKeys = new Set([...PACKAGE_KEYS, 'paramAliases'])
     for (const id of baseline.effectIds) {
         const mod = await import(pathToFileURL(path.join(REPO_ROOT, 'shaders/effects', id, 'definition.js')).href)
         const instance = typeof mod.default === 'function' ? new mod.default() : mod.default
+        const unknown = Reflect.ownKeys(instance).filter(key =>
+            key !== 'state' && key !== 'uniforms' && !catalogKeys.has(key))
+        if (unknown.length) unrepresentable.push(`${id}: ${unknown.map(String).join(', ')}`)
         const declaration = declarationOf(instance)
         const pkg = toPortablePackage(declaration)
         assert.deepEqual(validateSchema(pkg), [], `${id}: schema`)
@@ -175,6 +181,7 @@ test('every catalog declaration is written in the version 2 form, validates and 
         }
         checked.push(id)
     }
+    assert.deepEqual(unrepresentable, [], 'every catalog own field except runtime state and uniforms is representable in catalog JSON')
     assert.deepEqual(checked, baseline.effectIds, 'every catalog ID is checked')
 })
 
