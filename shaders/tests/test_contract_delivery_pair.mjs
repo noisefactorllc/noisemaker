@@ -9,10 +9,6 @@
 // guard pins the documented delivery identity to the configured delivery in
 // both directions, from checked-in files only (no network):
 //
-// The paired checkpoint record for this contract lives in the LEDGER.md
-// AI-contract section, so a changed LEDGER.md contract section selects this
-// guard too.
-//
 //   1. `.mcp.json` must reference exactly one immutable
 //      `github:<owner>/shade-mcp#<sha>` package, never a floating branch.
 //   2. `llms-full.txt` must pin the same immutable commit in its snapshot
@@ -23,6 +19,9 @@
 //      immutable tag target commit.
 //   4. The vendored delivery must still be present (the four pulled subtrees
 //      the release delivery consists of).
+//   5. The LEDGER.md AI-contract checkpoint names the same two source SHAs
+//      as the snapshot block, which is the freshness rule the contract
+//      section itself states for a completed pass.
 //
 // Run: node shaders/tests/test_contract_delivery_pair.mjs
 
@@ -74,6 +73,19 @@ function documentedDelivery() {
     return { pin: pins[0], version: versions[0], release: releases[0] }
 }
 
+function documentedCheckpoint() {
+    // The AI development contract section's checkpoint records the audited
+    // pair. Its freshness rule requires the checkpoint and the snapshot block
+    // to carry the same two SHAs once a pass completes.
+    const ledger = read('LEDGER.md')
+    const section = ledger.split('## AI development contract (llms-full.txt)')[1]
+    assert.ok(section, 'LEDGER.md must carry the AI development contract section')
+    const lines = [...section.matchAll(/^- \*\*Checkpoint:\*\* noisemaker `([0-9a-f]{40})` \/ shade-mcp `([0-9a-f]{40})`/gm)]
+    assert.equal(lines.length, 1,
+        'LEDGER.md must state the AI-contract checkpoint pair exactly once')
+    return { noisemaker: lines[0][1], shadeMcp: lines[0][2] }
+}
+
 function vendoredDelivery() {
     for (const subdir of ['harness', 'ai', 'formats', 'analysis']) {
         const dir = `${repoRoot}/vendor/shade-mcp/${subdir}`
@@ -99,5 +111,16 @@ describe('AI development contract tracks the configured Shade MCP delivery', () 
 
     test('the vendored delivery is present', () => {
         vendoredDelivery()
+    })
+
+    test('the LEDGER checkpoint pair matches the snapshot block', () => {
+        const checkpoint = documentedCheckpoint()
+        const contract = read('llms-full.txt')
+        const snapshots = [...contract.matchAll(/^- (Noisemaker|Shade MCP): `([0-9a-f]{40})`\.$/gm)]
+        const snapshot = Object.fromEntries(snapshots.map((m) => [m[1], m[2]]))
+        assert.equal(checkpoint.noisemaker, snapshot.Noisemaker,
+            'LEDGER.md checkpoint and llms-full.txt snapshot block must name the same Noisemaker SHA')
+        assert.equal(checkpoint.shadeMcp, snapshot['Shade MCP'],
+            'LEDGER.md checkpoint and llms-full.txt snapshot block must name the same Shade MCP SHA')
     })
 })
