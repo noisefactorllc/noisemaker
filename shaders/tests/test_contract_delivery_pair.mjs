@@ -9,6 +9,10 @@
 // guard pins the documented delivery identity to the configured delivery in
 // both directions, from checked-in files only (no network):
 //
+// The paired checkpoint record for this contract lives in the LEDGER.md
+// AI-contract section, so a changed LEDGER.md contract section selects this
+// guard too.
+//
 //   1. `.mcp.json` must reference exactly one immutable
 //      `github:<owner>/shade-mcp#<sha>` package, never a floating branch.
 //   2. `llms-full.txt` must pin the same immutable commit in its snapshot

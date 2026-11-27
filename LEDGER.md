@@ -1198,9 +1198,11 @@ work, verify it, then update the checkpoint and append a log line.
     0.5.4, protocol 2025-11-25, 21 tools). The worked `synth/testPattern`
     responses reproduced key-for-key, except the capture-varying benchmark
     times and a container GL performance console message. Exact-source Site
-    and JavaScript workflows passed at `3a432f1`, and a full GET of
-    `https://noisemaker.app/llms-full.txt` matched the committed file. The
-    deployment serves `3a432f1`. Moving the `.mcp.json` pin past v0.5.4
+    and JavaScript workflows passed at `3a432f1`. At audit time, a full GET
+    of `https://noisemaker.app/llms-full.txt` matched the `3a432f1` blob, and
+    the deployment then served `3a432f1`. After this publication, the
+    deployment serves the published head, and the live file matches its
+    `llms-full.txt` blob. Moving the `.mcp.json` pin past v0.5.4
     stays recorded as the delivery blocker below.
   - 2026-11-26 — candidate pair: Noisemaker
     `740601018edb867c564c77aab3d157fa719dea53` (the engine source this
