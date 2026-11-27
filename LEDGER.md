@@ -1181,6 +1181,21 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-27 — candidate: vendor delivery reconciliation. The v0.7.1 tag
+    (target `5fdbd18`) appeared upstream and its release workflow succeeded,
+    and the `pull-shade-mcp` automation then delivered that release dist to
+    `vendor/shade-mcp/` (`c1c136a`). The delivered delta against v0.7.0 is
+    the structure check's global naming check, which now also accepts indexed
+    names (`checkIndexedName`), matching the shade-mcp source audited at
+    `5fdbd18`. Every other delivered subtree is byte-identical. Corrected the
+    snapshot block's vendor statement to release v0.7.1 and its tag target.
+    The `checkEffectStructure` result shape, status predicate, and the worked
+    `namingIssues: []` response stay accurate at the delivered harness, and
+    the configured pin stays at v0.5.4 with its recorded delivery blocker.
+    The previous candidate's pending checks passed: the JavaScript and JS
+    lint checks succeeded at `d177efd`, and a full live GET of
+    `llms-full.txt` matched the `d177efd` blob. Pending for this candidate:
+    exact-source CI and the live readback.
   - 2026-11-27 — candidate: contract correction for the GAP-086 validator
     change (`688794a`), which upstream published mid-pass. The shared
     color-parameter constructor branch now accepts `vec3(n,n,n)` and
