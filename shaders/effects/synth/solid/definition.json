@@ -1,0 +1,47 @@
+{
+    "format": "noisemaker-portable-effect",
+    "version": 2,
+    "name": "Solid",
+    "namespace": "synth",
+    "func": "solid",
+    "description": "Solid color fill",
+    "tags": [
+        "color"
+    ],
+    "globals": {
+        "color": {
+            "type": "color",
+            "default": [
+                0.5,
+                0.5,
+                0.5
+            ],
+            "uniform": "color",
+            "ui": {
+                "label": "color",
+                "control": "color"
+            }
+        },
+        "alpha": {
+            "type": "float",
+            "default": 1,
+            "min": 0,
+            "max": 1,
+            "randMin": 0.5,
+            "uniform": "alpha",
+            "ui": {
+                "label": "opacity",
+                "control": "slider"
+            }
+        }
+    },
+    "passes": {
+        "main": {
+            "program": "solid",
+            "inputs": {},
+            "outputs": {
+                "color": "outputTex"
+            }
+        }
+    }
+}

@@ -1,215 +1,6120 @@
+// Generated from definition.json by scripts/migrate-portable-effects.mjs. Do not edit.
 import { Effect } from '../../../src/runtime/effect.js'
 
-/**
- * synth/remap — Polygon-zone router.
- *
- * Renders up to eight polygonal zones, each routed to one engine surface
- * (any of o0..o7, written by an upstream effect). Noisedeck's canvas editor
- * and portable Remap map imports fill the per-zone vertex uniforms here.
- * Each zone declares its source via a `zoneN_tex` surface input,
- * wired in DSL: `remap(zone0_tex: read(o0), zone1_tex: read(o3))`.
- *
- * Zone vertices are packed two per vec4 (xy = vert n, zw = vert n+1) for
- * eight zones × 32 vertex pairs. Zones with vertexCount < 3 or with
- * zoneN_tex unwired (default "none") are skipped, and pixels falling
- * outside every active zone show the background color.
- *
- * Compositing: zones stack in index order — the last (highest-numbered)
- * zone containing a pixel is on top, lower zones show through transparent
- * areas of the zones above, and the background sits under everything.
- * Sources are premultiplied and composited with their own alpha times the
- * zone's alpha. Edge smoothing feathers each zone OUTWARD by
- * `smoothEdge * 0.05 * min(canvas width, height)` pixels and never erodes
- * the interior, so shared edges show no seam and canvas borders stay clean.
- *
- * Geometry correction (warping the rectangular projector output onto a
- * non-rectangular physical surface — e.g. a curved wall or a tilted
- * screen) is intentionally NOT in this effect. Use the projector's
- * keystone or 4-corner correction instead. A future revision may bring
- * back an 8-handle Coons-patch warp for the cases hardware can't handle
- * (curved surfaces, multi-target, multi-projector edge blends).
- */
-
-const MAX_ZONES = 8
-const MAX_VERTS_PER_ZONE = 64
-
-// Build the uniformLayout programmatically so the per-zone slots stay in sync.
-// Layout (275 vec4 slots total):
-//   slot 0:      bgR, bgG, bgB, bgAlpha
-//   slot 1:      zoneCount, smoothEdge, _, time
-//   slot 2..9:   zone meta (xyzw = vertexCount, active, _, alpha) for zones 0..7
-//                `active` is set by the runtime via colorModeUniform: 1 when
-//                the zoneN_tex surface input is wired, 0 when it's "none".
-//   slot 10..265: zone polygons
-//                Each zone gets MAX_VERTS_PER_ZONE/2 = 32 vec4s
-//                packed vec4 = (vert n.x, vert n.y, vert n+1.x, vert n+1.y)
-//   slot 266.xy: resolution (auto-filled by the runtime; needed because
-//                this is a starter effect with no inputTex binding)
-//   slot 267..274: zone bounds [minX, minY, maxX, maxY] for zones 0..7,
-//                normalized. The shader skips a zone for pixels outside
-//                its box (dilated by the feather). The default [0, 0, 1, 1]
-//                never rejects, so maps without bounds render as before,
-//                only slower. Noisedeck's canvas editor writes them.
-const BOUNDS_SLOT = 10 + MAX_ZONES * (MAX_VERTS_PER_ZONE / 2) + 1
-const uniformLayout = (() => {
-    const layout = {
-        bgColor:     { slot: 0, components: 'xyz' },
-        bgAlpha:     { slot: 0, components: 'w' },
-        zoneCount:   { slot: 1, components: 'x' },
-        smoothEdge:  { slot: 1, components: 'y' },
-        time:        { slot: 1, components: 'w' },
-        resolution:  { slot: 10 + MAX_ZONES * (MAX_VERTS_PER_ZONE / 2), components: 'xy' }
-    }
-    for (let z = 0; z < MAX_ZONES; z++) {
-        const metaSlot = 2 + z
-        layout[`zone${z}_count`]  = { slot: metaSlot, components: 'x' }
-        layout[`zone${z}_active`] = { slot: metaSlot, components: 'y' }
-        layout[`zone${z}_alpha`]  = { slot: metaSlot, components: 'w' }
-        layout[`zone${z}_bounds`] = { slot: BOUNDS_SLOT + z, components: 'xyzw' }
-        for (let pair = 0; pair < MAX_VERTS_PER_ZONE / 2; pair++) {
-            const slot = 10 + z * (MAX_VERTS_PER_ZONE / 2) + pair
-            layout[`zone${z}_v${pair}`] = { slot, components: 'xyzw' }
-        }
-    }
-    return layout
-})()
-
-const passInputs = (() => {
-    const inputs = {}
-    for (let z = 0; z < MAX_ZONES; z++) inputs[`zone${z}_tex`] = `zone${z}_tex`
-    return inputs
-})()
-
 export default new Effect({
-  name: "Remap",
-  namespace: "synth",
-  func: "remap",
-  tags: ["geometric", "blend"],
-
-  description: "Polygon zones routed to engine surfaces (companion to the Remap zone-editor app)",
-  openCategories: ["general"],
-
-  uniformLayout,
-
-  globals: {
-    zoneCount: {
-      type: "int",
-      default: 0,
-      uniform: "zoneCount",
-      min: 0,
-      max: MAX_ZONES,
-      step: 1,
-      ui: { label: "zone count", control: "slider" }
-    },
-
-    bgColor: {
-      type: "color",
-      default: [0, 0, 0],
-      uniform: "bgColor",
-      ui: { label: "background", control: "color" }
-    },
-
-    bgAlpha: {
-      type: "float",
-      default: 1.0,
-      uniform: "bgAlpha",
-      min: 0,
-      max: 1,
-      ui: { label: "background alpha", control: "slider" }
-    },
-
-    smoothEdge: {
-      type: "float",
-      default: 0.04,
-      uniform: "smoothEdge",
-      min: 0,
-      max: 1,
-      step: 0.01,
-      ui: { label: "edge smoothing", control: "slider" }
-    },
-
-    ...makeZoneGlobals()
-  },
-
-  // Demo program — proves the effect compiles. Users populate real
-  // zones via canvas editing or portable map import in Noisedeck.
-  defaultProgram: "search synth\n\nnoise(ridges: true).write(o1)\nperlin(scale: 50).write(o2)\n\nremap(bgColor: #336699, bgAlpha: 1, zoneCount: 8, smoothEdge: 0.1,\n  zone0_tex: read(o1), zone0_count: 4, zone0_v0: [0.2, 0.44, 0.04, 0.46], zone0_v1: [0.06, 0.06, 0.22, 0.04],\n  zone1_tex: read(o2), zone1_count: 4, zone1_v0: [0.46, 0.44, 0.28, 0.44], zone1_v1: [0.28, 0.06, 0.46, 0.06],\n  zone2_tex: read(o1), zone2_count: 4, zone2_v0: [0.72, 0.44, 0.52, 0.42], zone2_v1: [0.5, 0.06, 0.7, 0.08],\n  zone3_tex: read(o2), zone3_count: 4, zone3_v0: [0.92, 0.44, 0.76, 0.46], zone3_v1: [0.78, 0.06, 0.94, 0.04],\n  zone4_tex: read(o1), zone4_count: 4, zone4_v0: [0.22, 0.94, 0.04, 0.94], zone4_v1: [0.04, 0.56, 0.22, 0.56],\n  zone5_tex: read(o2), zone5_count: 4, zone5_v0: [0.48, 0.94, 0.28, 0.92], zone5_v1: [0.26, 0.56, 0.46, 0.58],\n  zone6_tex: read(o1), zone6_count: 4, zone6_v0: [0.68, 0.94, 0.52, 0.96], zone6_v1: [0.54, 0.56, 0.7, 0.54],\n  zone7_tex: read(o2), zone7_count: 4, zone7_v0: [0.94, 0.94, 0.76, 0.94], zone7_v1: [0.76, 0.56, 0.94, 0.56]\n).write(o0)\nrender(o0)",
-
-  passes: [
-    {
-      name: "render",
-      program: "remap",
-      inputs: passInputs,
-      outputs: { fragColor: "outputTex" }
-    }
-  ]
-})
-
-// Helper for the per-zone globals. Defined here (after the Effect
-// export) on purpose — function declarations hoist to the top of the
-// module, so the spread `...makeZoneGlobals()` above still works at
-// load time, while the source-text scanner that reads this file looking
-// for top-level `hidden: true` (the manifest-generator's autodetect for
-// "this whole effect is hidden") only sees text up to the `globals: {`
-// substring. Keeping this body AFTER that substring lets us use
-// `hidden: true` on per-param `ui:` blocks without false-positiving the
-// effect itself out of the dropdown. `ui.hidden` (vs. `ui.control:
-// false`) is also what programState's `_buildParameterOverrides` looks
-// for when deciding which params to round-trip through DSL on
-// serialization — required for the loader UI to survive a recompile.
-function makeZoneGlobals() {
-    const out = {}
-    for (let z = 0; z < MAX_ZONES; z++) {
-        // Zone N's UI controls light up only when zoneCount > N — so with
-        // zoneCount = 0 nothing under "zone 1" is interactable, with
-        // zoneCount = 2 zones 1 and 2 are interactable, etc.
-        const enabled = { enabledBy: { param: 'zoneCount', gt: z } }
-        const cat = `zone ${z + 1}`
-        out[`zone${z}_tex`] = {
-            type: 'surface',
-            default: 'none',
-            colorModeUniform: `zone${z}_active`,
-            ui: { label: `zone ${z + 1} source`, category: cat, ...enabled }
-        }
-        out[`zone${z}_count`] = {
-            type: 'int',
-            default: 0,
-            uniform: `zone${z}_count`,
-            min: 0,
-            max: MAX_VERTS_PER_ZONE,
-            ui: { label: 'vertices', control: 'slider', hidden: true, category: cat, ...enabled }
-        }
-        out[`zone${z}_alpha`] = {
-            type: 'float',
-            default: 1.0,
-            uniform: `zone${z}_alpha`,
-            min: 0,
-            max: 1,
-            ui: { label: 'alpha', control: 'slider', category: cat, ...enabled }
-        }
-        // Polygon bounding box, written by the canvas editor so the shader
-        // can skip the zone for pixels it cannot touch. The default box is
-        // the whole canvas, which never skips anything.
-        out[`zone${z}_bounds`] = {
-            type: 'vec4',
-            default: [0, 0, 1, 1],
-            uniform: `zone${z}_bounds`,
-            ui: { label: 'bounds', control: 'slider', hidden: true, format: 'vector', category: cat }
-        }
-        for (let pair = 0; pair < MAX_VERTS_PER_ZONE / 2; pair++) {
-            out[`zone${z}_v${pair}`] = {
-                type: 'vec4',
-                default: [0, 0, 0, 0],
-                uniform: `zone${z}_v${pair}`,
-                ui: {
-                    label: `verts ${pair * 2}–${pair * 2 + 1}`,
-                    control: 'slider',
-                    hidden: true,
-                    format: 'vector',
-                    category: cat
+    "name": "Remap",
+    "namespace": "synth",
+    "func": "remap",
+    "description": "Polygon zones routed to engine surfaces (companion to the Remap zone-editor app)",
+    "tags": [
+        "geometric",
+        "blend"
+    ],
+    "globals": {
+        "zoneCount": {
+            "type": "int",
+            "default": 0,
+            "uniform": "zoneCount",
+            "min": 0,
+            "max": 8,
+            "step": 1,
+            "ui": {
+                "label": "zone count",
+                "control": "slider"
+            }
+        },
+        "bgColor": {
+            "type": "color",
+            "default": [
+                0,
+                0,
+                0
+            ],
+            "uniform": "bgColor",
+            "ui": {
+                "label": "background",
+                "control": "color"
+            }
+        },
+        "bgAlpha": {
+            "type": "float",
+            "default": 1,
+            "uniform": "bgAlpha",
+            "min": 0,
+            "max": 1,
+            "ui": {
+                "label": "background alpha",
+                "control": "slider"
+            }
+        },
+        "smoothEdge": {
+            "type": "float",
+            "default": 0.04,
+            "uniform": "smoothEdge",
+            "min": 0,
+            "max": 1,
+            "step": 0.01,
+            "ui": {
+                "label": "edge smoothing",
+                "control": "slider"
+            }
+        },
+        "zone0_tex": {
+            "type": "surface",
+            "default": "none",
+            "colorModeUniform": "zone0_active",
+            "ui": {
+                "label": "zone 1 source",
+                "category": "zone 1",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 0
                 }
             }
+        },
+        "zone0_count": {
+            "type": "int",
+            "default": 0,
+            "uniform": "zone0_count",
+            "min": 0,
+            "max": 64,
+            "ui": {
+                "label": "vertices",
+                "control": "slider",
+                "hidden": true,
+                "category": "zone 1",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 0
+                }
+            }
+        },
+        "zone0_alpha": {
+            "type": "float",
+            "default": 1,
+            "uniform": "zone0_alpha",
+            "min": 0,
+            "max": 1,
+            "ui": {
+                "label": "alpha",
+                "control": "slider",
+                "category": "zone 1",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 0
+                }
+            }
+        },
+        "zone0_bounds": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                1,
+                1
+            ],
+            "uniform": "zone0_bounds",
+            "ui": {
+                "label": "bounds",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v0": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v0",
+            "ui": {
+                "label": "verts 0–1",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v1": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v1",
+            "ui": {
+                "label": "verts 2–3",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v2": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v2",
+            "ui": {
+                "label": "verts 4–5",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v3": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v3",
+            "ui": {
+                "label": "verts 6–7",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v4": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v4",
+            "ui": {
+                "label": "verts 8–9",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v5": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v5",
+            "ui": {
+                "label": "verts 10–11",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v6": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v6",
+            "ui": {
+                "label": "verts 12–13",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v7": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v7",
+            "ui": {
+                "label": "verts 14–15",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v8": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v8",
+            "ui": {
+                "label": "verts 16–17",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v9": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v9",
+            "ui": {
+                "label": "verts 18–19",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v10": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v10",
+            "ui": {
+                "label": "verts 20–21",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v11": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v11",
+            "ui": {
+                "label": "verts 22–23",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v12": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v12",
+            "ui": {
+                "label": "verts 24–25",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v13": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v13",
+            "ui": {
+                "label": "verts 26–27",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v14": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v14",
+            "ui": {
+                "label": "verts 28–29",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v15": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v15",
+            "ui": {
+                "label": "verts 30–31",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v16": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v16",
+            "ui": {
+                "label": "verts 32–33",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v17": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v17",
+            "ui": {
+                "label": "verts 34–35",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v18": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v18",
+            "ui": {
+                "label": "verts 36–37",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v19": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v19",
+            "ui": {
+                "label": "verts 38–39",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v20": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v20",
+            "ui": {
+                "label": "verts 40–41",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v21": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v21",
+            "ui": {
+                "label": "verts 42–43",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v22": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v22",
+            "ui": {
+                "label": "verts 44–45",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v23": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v23",
+            "ui": {
+                "label": "verts 46–47",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v24": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v24",
+            "ui": {
+                "label": "verts 48–49",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v25": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v25",
+            "ui": {
+                "label": "verts 50–51",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v26": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v26",
+            "ui": {
+                "label": "verts 52–53",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v27": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v27",
+            "ui": {
+                "label": "verts 54–55",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v28": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v28",
+            "ui": {
+                "label": "verts 56–57",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v29": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v29",
+            "ui": {
+                "label": "verts 58–59",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v30": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v30",
+            "ui": {
+                "label": "verts 60–61",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone0_v31": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone0_v31",
+            "ui": {
+                "label": "verts 62–63",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 1"
+            }
+        },
+        "zone1_tex": {
+            "type": "surface",
+            "default": "none",
+            "colorModeUniform": "zone1_active",
+            "ui": {
+                "label": "zone 2 source",
+                "category": "zone 2",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 1
+                }
+            }
+        },
+        "zone1_count": {
+            "type": "int",
+            "default": 0,
+            "uniform": "zone1_count",
+            "min": 0,
+            "max": 64,
+            "ui": {
+                "label": "vertices",
+                "control": "slider",
+                "hidden": true,
+                "category": "zone 2",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 1
+                }
+            }
+        },
+        "zone1_alpha": {
+            "type": "float",
+            "default": 1,
+            "uniform": "zone1_alpha",
+            "min": 0,
+            "max": 1,
+            "ui": {
+                "label": "alpha",
+                "control": "slider",
+                "category": "zone 2",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 1
+                }
+            }
+        },
+        "zone1_bounds": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                1,
+                1
+            ],
+            "uniform": "zone1_bounds",
+            "ui": {
+                "label": "bounds",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v0": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v0",
+            "ui": {
+                "label": "verts 0–1",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v1": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v1",
+            "ui": {
+                "label": "verts 2–3",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v2": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v2",
+            "ui": {
+                "label": "verts 4–5",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v3": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v3",
+            "ui": {
+                "label": "verts 6–7",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v4": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v4",
+            "ui": {
+                "label": "verts 8–9",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v5": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v5",
+            "ui": {
+                "label": "verts 10–11",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v6": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v6",
+            "ui": {
+                "label": "verts 12–13",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v7": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v7",
+            "ui": {
+                "label": "verts 14–15",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v8": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v8",
+            "ui": {
+                "label": "verts 16–17",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v9": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v9",
+            "ui": {
+                "label": "verts 18–19",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v10": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v10",
+            "ui": {
+                "label": "verts 20–21",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v11": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v11",
+            "ui": {
+                "label": "verts 22–23",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v12": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v12",
+            "ui": {
+                "label": "verts 24–25",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v13": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v13",
+            "ui": {
+                "label": "verts 26–27",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v14": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v14",
+            "ui": {
+                "label": "verts 28–29",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v15": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v15",
+            "ui": {
+                "label": "verts 30–31",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v16": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v16",
+            "ui": {
+                "label": "verts 32–33",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v17": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v17",
+            "ui": {
+                "label": "verts 34–35",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v18": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v18",
+            "ui": {
+                "label": "verts 36–37",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v19": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v19",
+            "ui": {
+                "label": "verts 38–39",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v20": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v20",
+            "ui": {
+                "label": "verts 40–41",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v21": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v21",
+            "ui": {
+                "label": "verts 42–43",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v22": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v22",
+            "ui": {
+                "label": "verts 44–45",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v23": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v23",
+            "ui": {
+                "label": "verts 46–47",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v24": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v24",
+            "ui": {
+                "label": "verts 48–49",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v25": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v25",
+            "ui": {
+                "label": "verts 50–51",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v26": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v26",
+            "ui": {
+                "label": "verts 52–53",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v27": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v27",
+            "ui": {
+                "label": "verts 54–55",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v28": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v28",
+            "ui": {
+                "label": "verts 56–57",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v29": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v29",
+            "ui": {
+                "label": "verts 58–59",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v30": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v30",
+            "ui": {
+                "label": "verts 60–61",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone1_v31": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone1_v31",
+            "ui": {
+                "label": "verts 62–63",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 2"
+            }
+        },
+        "zone2_tex": {
+            "type": "surface",
+            "default": "none",
+            "colorModeUniform": "zone2_active",
+            "ui": {
+                "label": "zone 3 source",
+                "category": "zone 3",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 2
+                }
+            }
+        },
+        "zone2_count": {
+            "type": "int",
+            "default": 0,
+            "uniform": "zone2_count",
+            "min": 0,
+            "max": 64,
+            "ui": {
+                "label": "vertices",
+                "control": "slider",
+                "hidden": true,
+                "category": "zone 3",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 2
+                }
+            }
+        },
+        "zone2_alpha": {
+            "type": "float",
+            "default": 1,
+            "uniform": "zone2_alpha",
+            "min": 0,
+            "max": 1,
+            "ui": {
+                "label": "alpha",
+                "control": "slider",
+                "category": "zone 3",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 2
+                }
+            }
+        },
+        "zone2_bounds": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                1,
+                1
+            ],
+            "uniform": "zone2_bounds",
+            "ui": {
+                "label": "bounds",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v0": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v0",
+            "ui": {
+                "label": "verts 0–1",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v1": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v1",
+            "ui": {
+                "label": "verts 2–3",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v2": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v2",
+            "ui": {
+                "label": "verts 4–5",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v3": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v3",
+            "ui": {
+                "label": "verts 6–7",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v4": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v4",
+            "ui": {
+                "label": "verts 8–9",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v5": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v5",
+            "ui": {
+                "label": "verts 10–11",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v6": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v6",
+            "ui": {
+                "label": "verts 12–13",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v7": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v7",
+            "ui": {
+                "label": "verts 14–15",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v8": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v8",
+            "ui": {
+                "label": "verts 16–17",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v9": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v9",
+            "ui": {
+                "label": "verts 18–19",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v10": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v10",
+            "ui": {
+                "label": "verts 20–21",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v11": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v11",
+            "ui": {
+                "label": "verts 22–23",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v12": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v12",
+            "ui": {
+                "label": "verts 24–25",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v13": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v13",
+            "ui": {
+                "label": "verts 26–27",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v14": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v14",
+            "ui": {
+                "label": "verts 28–29",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v15": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v15",
+            "ui": {
+                "label": "verts 30–31",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v16": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v16",
+            "ui": {
+                "label": "verts 32–33",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v17": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v17",
+            "ui": {
+                "label": "verts 34–35",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v18": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v18",
+            "ui": {
+                "label": "verts 36–37",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v19": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v19",
+            "ui": {
+                "label": "verts 38–39",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v20": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v20",
+            "ui": {
+                "label": "verts 40–41",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v21": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v21",
+            "ui": {
+                "label": "verts 42–43",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v22": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v22",
+            "ui": {
+                "label": "verts 44–45",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v23": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v23",
+            "ui": {
+                "label": "verts 46–47",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v24": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v24",
+            "ui": {
+                "label": "verts 48–49",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v25": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v25",
+            "ui": {
+                "label": "verts 50–51",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v26": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v26",
+            "ui": {
+                "label": "verts 52–53",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v27": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v27",
+            "ui": {
+                "label": "verts 54–55",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v28": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v28",
+            "ui": {
+                "label": "verts 56–57",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v29": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v29",
+            "ui": {
+                "label": "verts 58–59",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v30": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v30",
+            "ui": {
+                "label": "verts 60–61",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone2_v31": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone2_v31",
+            "ui": {
+                "label": "verts 62–63",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 3"
+            }
+        },
+        "zone3_tex": {
+            "type": "surface",
+            "default": "none",
+            "colorModeUniform": "zone3_active",
+            "ui": {
+                "label": "zone 4 source",
+                "category": "zone 4",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 3
+                }
+            }
+        },
+        "zone3_count": {
+            "type": "int",
+            "default": 0,
+            "uniform": "zone3_count",
+            "min": 0,
+            "max": 64,
+            "ui": {
+                "label": "vertices",
+                "control": "slider",
+                "hidden": true,
+                "category": "zone 4",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 3
+                }
+            }
+        },
+        "zone3_alpha": {
+            "type": "float",
+            "default": 1,
+            "uniform": "zone3_alpha",
+            "min": 0,
+            "max": 1,
+            "ui": {
+                "label": "alpha",
+                "control": "slider",
+                "category": "zone 4",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 3
+                }
+            }
+        },
+        "zone3_bounds": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                1,
+                1
+            ],
+            "uniform": "zone3_bounds",
+            "ui": {
+                "label": "bounds",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v0": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v0",
+            "ui": {
+                "label": "verts 0–1",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v1": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v1",
+            "ui": {
+                "label": "verts 2–3",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v2": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v2",
+            "ui": {
+                "label": "verts 4–5",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v3": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v3",
+            "ui": {
+                "label": "verts 6–7",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v4": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v4",
+            "ui": {
+                "label": "verts 8–9",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v5": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v5",
+            "ui": {
+                "label": "verts 10–11",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v6": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v6",
+            "ui": {
+                "label": "verts 12–13",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v7": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v7",
+            "ui": {
+                "label": "verts 14–15",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v8": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v8",
+            "ui": {
+                "label": "verts 16–17",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v9": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v9",
+            "ui": {
+                "label": "verts 18–19",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v10": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v10",
+            "ui": {
+                "label": "verts 20–21",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v11": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v11",
+            "ui": {
+                "label": "verts 22–23",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v12": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v12",
+            "ui": {
+                "label": "verts 24–25",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v13": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v13",
+            "ui": {
+                "label": "verts 26–27",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v14": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v14",
+            "ui": {
+                "label": "verts 28–29",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v15": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v15",
+            "ui": {
+                "label": "verts 30–31",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v16": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v16",
+            "ui": {
+                "label": "verts 32–33",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v17": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v17",
+            "ui": {
+                "label": "verts 34–35",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v18": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v18",
+            "ui": {
+                "label": "verts 36–37",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v19": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v19",
+            "ui": {
+                "label": "verts 38–39",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v20": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v20",
+            "ui": {
+                "label": "verts 40–41",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v21": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v21",
+            "ui": {
+                "label": "verts 42–43",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v22": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v22",
+            "ui": {
+                "label": "verts 44–45",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v23": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v23",
+            "ui": {
+                "label": "verts 46–47",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v24": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v24",
+            "ui": {
+                "label": "verts 48–49",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v25": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v25",
+            "ui": {
+                "label": "verts 50–51",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v26": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v26",
+            "ui": {
+                "label": "verts 52–53",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v27": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v27",
+            "ui": {
+                "label": "verts 54–55",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v28": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v28",
+            "ui": {
+                "label": "verts 56–57",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v29": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v29",
+            "ui": {
+                "label": "verts 58–59",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v30": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v30",
+            "ui": {
+                "label": "verts 60–61",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone3_v31": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone3_v31",
+            "ui": {
+                "label": "verts 62–63",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 4"
+            }
+        },
+        "zone4_tex": {
+            "type": "surface",
+            "default": "none",
+            "colorModeUniform": "zone4_active",
+            "ui": {
+                "label": "zone 5 source",
+                "category": "zone 5",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 4
+                }
+            }
+        },
+        "zone4_count": {
+            "type": "int",
+            "default": 0,
+            "uniform": "zone4_count",
+            "min": 0,
+            "max": 64,
+            "ui": {
+                "label": "vertices",
+                "control": "slider",
+                "hidden": true,
+                "category": "zone 5",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 4
+                }
+            }
+        },
+        "zone4_alpha": {
+            "type": "float",
+            "default": 1,
+            "uniform": "zone4_alpha",
+            "min": 0,
+            "max": 1,
+            "ui": {
+                "label": "alpha",
+                "control": "slider",
+                "category": "zone 5",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 4
+                }
+            }
+        },
+        "zone4_bounds": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                1,
+                1
+            ],
+            "uniform": "zone4_bounds",
+            "ui": {
+                "label": "bounds",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v0": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v0",
+            "ui": {
+                "label": "verts 0–1",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v1": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v1",
+            "ui": {
+                "label": "verts 2–3",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v2": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v2",
+            "ui": {
+                "label": "verts 4–5",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v3": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v3",
+            "ui": {
+                "label": "verts 6–7",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v4": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v4",
+            "ui": {
+                "label": "verts 8–9",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v5": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v5",
+            "ui": {
+                "label": "verts 10–11",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v6": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v6",
+            "ui": {
+                "label": "verts 12–13",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v7": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v7",
+            "ui": {
+                "label": "verts 14–15",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v8": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v8",
+            "ui": {
+                "label": "verts 16–17",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v9": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v9",
+            "ui": {
+                "label": "verts 18–19",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v10": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v10",
+            "ui": {
+                "label": "verts 20–21",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v11": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v11",
+            "ui": {
+                "label": "verts 22–23",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v12": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v12",
+            "ui": {
+                "label": "verts 24–25",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v13": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v13",
+            "ui": {
+                "label": "verts 26–27",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v14": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v14",
+            "ui": {
+                "label": "verts 28–29",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v15": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v15",
+            "ui": {
+                "label": "verts 30–31",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v16": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v16",
+            "ui": {
+                "label": "verts 32–33",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v17": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v17",
+            "ui": {
+                "label": "verts 34–35",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v18": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v18",
+            "ui": {
+                "label": "verts 36–37",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v19": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v19",
+            "ui": {
+                "label": "verts 38–39",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v20": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v20",
+            "ui": {
+                "label": "verts 40–41",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v21": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v21",
+            "ui": {
+                "label": "verts 42–43",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v22": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v22",
+            "ui": {
+                "label": "verts 44–45",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v23": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v23",
+            "ui": {
+                "label": "verts 46–47",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v24": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v24",
+            "ui": {
+                "label": "verts 48–49",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v25": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v25",
+            "ui": {
+                "label": "verts 50–51",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v26": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v26",
+            "ui": {
+                "label": "verts 52–53",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v27": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v27",
+            "ui": {
+                "label": "verts 54–55",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v28": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v28",
+            "ui": {
+                "label": "verts 56–57",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v29": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v29",
+            "ui": {
+                "label": "verts 58–59",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v30": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v30",
+            "ui": {
+                "label": "verts 60–61",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone4_v31": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone4_v31",
+            "ui": {
+                "label": "verts 62–63",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 5"
+            }
+        },
+        "zone5_tex": {
+            "type": "surface",
+            "default": "none",
+            "colorModeUniform": "zone5_active",
+            "ui": {
+                "label": "zone 6 source",
+                "category": "zone 6",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 5
+                }
+            }
+        },
+        "zone5_count": {
+            "type": "int",
+            "default": 0,
+            "uniform": "zone5_count",
+            "min": 0,
+            "max": 64,
+            "ui": {
+                "label": "vertices",
+                "control": "slider",
+                "hidden": true,
+                "category": "zone 6",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 5
+                }
+            }
+        },
+        "zone5_alpha": {
+            "type": "float",
+            "default": 1,
+            "uniform": "zone5_alpha",
+            "min": 0,
+            "max": 1,
+            "ui": {
+                "label": "alpha",
+                "control": "slider",
+                "category": "zone 6",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 5
+                }
+            }
+        },
+        "zone5_bounds": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                1,
+                1
+            ],
+            "uniform": "zone5_bounds",
+            "ui": {
+                "label": "bounds",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v0": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v0",
+            "ui": {
+                "label": "verts 0–1",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v1": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v1",
+            "ui": {
+                "label": "verts 2–3",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v2": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v2",
+            "ui": {
+                "label": "verts 4–5",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v3": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v3",
+            "ui": {
+                "label": "verts 6–7",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v4": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v4",
+            "ui": {
+                "label": "verts 8–9",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v5": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v5",
+            "ui": {
+                "label": "verts 10–11",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v6": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v6",
+            "ui": {
+                "label": "verts 12–13",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v7": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v7",
+            "ui": {
+                "label": "verts 14–15",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v8": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v8",
+            "ui": {
+                "label": "verts 16–17",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v9": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v9",
+            "ui": {
+                "label": "verts 18–19",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v10": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v10",
+            "ui": {
+                "label": "verts 20–21",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v11": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v11",
+            "ui": {
+                "label": "verts 22–23",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v12": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v12",
+            "ui": {
+                "label": "verts 24–25",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v13": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v13",
+            "ui": {
+                "label": "verts 26–27",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v14": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v14",
+            "ui": {
+                "label": "verts 28–29",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v15": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v15",
+            "ui": {
+                "label": "verts 30–31",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v16": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v16",
+            "ui": {
+                "label": "verts 32–33",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v17": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v17",
+            "ui": {
+                "label": "verts 34–35",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v18": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v18",
+            "ui": {
+                "label": "verts 36–37",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v19": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v19",
+            "ui": {
+                "label": "verts 38–39",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v20": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v20",
+            "ui": {
+                "label": "verts 40–41",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v21": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v21",
+            "ui": {
+                "label": "verts 42–43",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v22": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v22",
+            "ui": {
+                "label": "verts 44–45",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v23": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v23",
+            "ui": {
+                "label": "verts 46–47",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v24": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v24",
+            "ui": {
+                "label": "verts 48–49",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v25": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v25",
+            "ui": {
+                "label": "verts 50–51",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v26": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v26",
+            "ui": {
+                "label": "verts 52–53",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v27": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v27",
+            "ui": {
+                "label": "verts 54–55",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v28": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v28",
+            "ui": {
+                "label": "verts 56–57",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v29": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v29",
+            "ui": {
+                "label": "verts 58–59",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v30": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v30",
+            "ui": {
+                "label": "verts 60–61",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone5_v31": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone5_v31",
+            "ui": {
+                "label": "verts 62–63",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 6"
+            }
+        },
+        "zone6_tex": {
+            "type": "surface",
+            "default": "none",
+            "colorModeUniform": "zone6_active",
+            "ui": {
+                "label": "zone 7 source",
+                "category": "zone 7",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 6
+                }
+            }
+        },
+        "zone6_count": {
+            "type": "int",
+            "default": 0,
+            "uniform": "zone6_count",
+            "min": 0,
+            "max": 64,
+            "ui": {
+                "label": "vertices",
+                "control": "slider",
+                "hidden": true,
+                "category": "zone 7",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 6
+                }
+            }
+        },
+        "zone6_alpha": {
+            "type": "float",
+            "default": 1,
+            "uniform": "zone6_alpha",
+            "min": 0,
+            "max": 1,
+            "ui": {
+                "label": "alpha",
+                "control": "slider",
+                "category": "zone 7",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 6
+                }
+            }
+        },
+        "zone6_bounds": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                1,
+                1
+            ],
+            "uniform": "zone6_bounds",
+            "ui": {
+                "label": "bounds",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v0": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v0",
+            "ui": {
+                "label": "verts 0–1",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v1": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v1",
+            "ui": {
+                "label": "verts 2–3",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v2": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v2",
+            "ui": {
+                "label": "verts 4–5",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v3": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v3",
+            "ui": {
+                "label": "verts 6–7",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v4": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v4",
+            "ui": {
+                "label": "verts 8–9",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v5": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v5",
+            "ui": {
+                "label": "verts 10–11",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v6": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v6",
+            "ui": {
+                "label": "verts 12–13",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v7": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v7",
+            "ui": {
+                "label": "verts 14–15",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v8": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v8",
+            "ui": {
+                "label": "verts 16–17",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v9": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v9",
+            "ui": {
+                "label": "verts 18–19",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v10": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v10",
+            "ui": {
+                "label": "verts 20–21",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v11": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v11",
+            "ui": {
+                "label": "verts 22–23",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v12": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v12",
+            "ui": {
+                "label": "verts 24–25",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v13": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v13",
+            "ui": {
+                "label": "verts 26–27",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v14": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v14",
+            "ui": {
+                "label": "verts 28–29",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v15": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v15",
+            "ui": {
+                "label": "verts 30–31",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v16": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v16",
+            "ui": {
+                "label": "verts 32–33",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v17": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v17",
+            "ui": {
+                "label": "verts 34–35",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v18": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v18",
+            "ui": {
+                "label": "verts 36–37",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v19": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v19",
+            "ui": {
+                "label": "verts 38–39",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v20": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v20",
+            "ui": {
+                "label": "verts 40–41",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v21": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v21",
+            "ui": {
+                "label": "verts 42–43",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v22": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v22",
+            "ui": {
+                "label": "verts 44–45",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v23": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v23",
+            "ui": {
+                "label": "verts 46–47",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v24": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v24",
+            "ui": {
+                "label": "verts 48–49",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v25": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v25",
+            "ui": {
+                "label": "verts 50–51",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v26": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v26",
+            "ui": {
+                "label": "verts 52–53",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v27": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v27",
+            "ui": {
+                "label": "verts 54–55",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v28": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v28",
+            "ui": {
+                "label": "verts 56–57",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v29": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v29",
+            "ui": {
+                "label": "verts 58–59",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v30": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v30",
+            "ui": {
+                "label": "verts 60–61",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone6_v31": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone6_v31",
+            "ui": {
+                "label": "verts 62–63",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 7"
+            }
+        },
+        "zone7_tex": {
+            "type": "surface",
+            "default": "none",
+            "colorModeUniform": "zone7_active",
+            "ui": {
+                "label": "zone 8 source",
+                "category": "zone 8",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 7
+                }
+            }
+        },
+        "zone7_count": {
+            "type": "int",
+            "default": 0,
+            "uniform": "zone7_count",
+            "min": 0,
+            "max": 64,
+            "ui": {
+                "label": "vertices",
+                "control": "slider",
+                "hidden": true,
+                "category": "zone 8",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 7
+                }
+            }
+        },
+        "zone7_alpha": {
+            "type": "float",
+            "default": 1,
+            "uniform": "zone7_alpha",
+            "min": 0,
+            "max": 1,
+            "ui": {
+                "label": "alpha",
+                "control": "slider",
+                "category": "zone 8",
+                "enabledBy": {
+                    "param": "zoneCount",
+                    "gt": 7
+                }
+            }
+        },
+        "zone7_bounds": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                1,
+                1
+            ],
+            "uniform": "zone7_bounds",
+            "ui": {
+                "label": "bounds",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v0": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v0",
+            "ui": {
+                "label": "verts 0–1",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v1": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v1",
+            "ui": {
+                "label": "verts 2–3",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v2": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v2",
+            "ui": {
+                "label": "verts 4–5",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v3": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v3",
+            "ui": {
+                "label": "verts 6–7",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v4": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v4",
+            "ui": {
+                "label": "verts 8–9",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v5": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v5",
+            "ui": {
+                "label": "verts 10–11",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v6": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v6",
+            "ui": {
+                "label": "verts 12–13",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v7": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v7",
+            "ui": {
+                "label": "verts 14–15",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v8": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v8",
+            "ui": {
+                "label": "verts 16–17",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v9": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v9",
+            "ui": {
+                "label": "verts 18–19",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v10": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v10",
+            "ui": {
+                "label": "verts 20–21",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v11": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v11",
+            "ui": {
+                "label": "verts 22–23",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v12": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v12",
+            "ui": {
+                "label": "verts 24–25",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v13": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v13",
+            "ui": {
+                "label": "verts 26–27",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v14": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v14",
+            "ui": {
+                "label": "verts 28–29",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v15": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v15",
+            "ui": {
+                "label": "verts 30–31",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v16": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v16",
+            "ui": {
+                "label": "verts 32–33",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v17": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v17",
+            "ui": {
+                "label": "verts 34–35",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v18": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v18",
+            "ui": {
+                "label": "verts 36–37",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v19": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v19",
+            "ui": {
+                "label": "verts 38–39",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v20": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v20",
+            "ui": {
+                "label": "verts 40–41",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v21": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v21",
+            "ui": {
+                "label": "verts 42–43",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v22": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v22",
+            "ui": {
+                "label": "verts 44–45",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v23": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v23",
+            "ui": {
+                "label": "verts 46–47",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v24": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v24",
+            "ui": {
+                "label": "verts 48–49",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v25": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v25",
+            "ui": {
+                "label": "verts 50–51",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v26": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v26",
+            "ui": {
+                "label": "verts 52–53",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v27": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v27",
+            "ui": {
+                "label": "verts 54–55",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v28": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v28",
+            "ui": {
+                "label": "verts 56–57",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v29": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v29",
+            "ui": {
+                "label": "verts 58–59",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v30": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v30",
+            "ui": {
+                "label": "verts 60–61",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
+        },
+        "zone7_v31": {
+            "type": "vec4",
+            "default": [
+                0,
+                0,
+                0,
+                0
+            ],
+            "uniform": "zone7_v31",
+            "ui": {
+                "label": "verts 62–63",
+                "control": "slider",
+                "hidden": true,
+                "format": "vector",
+                "category": "zone 8"
+            }
         }
-    }
-    return out
-}
+    },
+    "passes": [
+        {
+            "name": "render",
+            "program": "remap",
+            "inputs": {
+                "zone0_tex": "zone0_tex",
+                "zone1_tex": "zone1_tex",
+                "zone2_tex": "zone2_tex",
+                "zone3_tex": "zone3_tex",
+                "zone4_tex": "zone4_tex",
+                "zone5_tex": "zone5_tex",
+                "zone6_tex": "zone6_tex",
+                "zone7_tex": "zone7_tex"
+            },
+            "outputs": {
+                "fragColor": "outputTex"
+            }
+        }
+    ],
+    "uniformLayout": {
+        "bgColor": {
+            "slot": 0,
+            "components": "xyz"
+        },
+        "bgAlpha": {
+            "slot": 0,
+            "components": "w"
+        },
+        "zoneCount": {
+            "slot": 1,
+            "components": "x"
+        },
+        "smoothEdge": {
+            "slot": 1,
+            "components": "y"
+        },
+        "time": {
+            "slot": 1,
+            "components": "w"
+        },
+        "resolution": {
+            "slot": 266,
+            "components": "xy"
+        },
+        "zone0_count": {
+            "slot": 2,
+            "components": "x"
+        },
+        "zone0_active": {
+            "slot": 2,
+            "components": "y"
+        },
+        "zone0_alpha": {
+            "slot": 2,
+            "components": "w"
+        },
+        "zone0_bounds": {
+            "slot": 267,
+            "components": "xyzw"
+        },
+        "zone0_v0": {
+            "slot": 10,
+            "components": "xyzw"
+        },
+        "zone0_v1": {
+            "slot": 11,
+            "components": "xyzw"
+        },
+        "zone0_v2": {
+            "slot": 12,
+            "components": "xyzw"
+        },
+        "zone0_v3": {
+            "slot": 13,
+            "components": "xyzw"
+        },
+        "zone0_v4": {
+            "slot": 14,
+            "components": "xyzw"
+        },
+        "zone0_v5": {
+            "slot": 15,
+            "components": "xyzw"
+        },
+        "zone0_v6": {
+            "slot": 16,
+            "components": "xyzw"
+        },
+        "zone0_v7": {
+            "slot": 17,
+            "components": "xyzw"
+        },
+        "zone0_v8": {
+            "slot": 18,
+            "components": "xyzw"
+        },
+        "zone0_v9": {
+            "slot": 19,
+            "components": "xyzw"
+        },
+        "zone0_v10": {
+            "slot": 20,
+            "components": "xyzw"
+        },
+        "zone0_v11": {
+            "slot": 21,
+            "components": "xyzw"
+        },
+        "zone0_v12": {
+            "slot": 22,
+            "components": "xyzw"
+        },
+        "zone0_v13": {
+            "slot": 23,
+            "components": "xyzw"
+        },
+        "zone0_v14": {
+            "slot": 24,
+            "components": "xyzw"
+        },
+        "zone0_v15": {
+            "slot": 25,
+            "components": "xyzw"
+        },
+        "zone0_v16": {
+            "slot": 26,
+            "components": "xyzw"
+        },
+        "zone0_v17": {
+            "slot": 27,
+            "components": "xyzw"
+        },
+        "zone0_v18": {
+            "slot": 28,
+            "components": "xyzw"
+        },
+        "zone0_v19": {
+            "slot": 29,
+            "components": "xyzw"
+        },
+        "zone0_v20": {
+            "slot": 30,
+            "components": "xyzw"
+        },
+        "zone0_v21": {
+            "slot": 31,
+            "components": "xyzw"
+        },
+        "zone0_v22": {
+            "slot": 32,
+            "components": "xyzw"
+        },
+        "zone0_v23": {
+            "slot": 33,
+            "components": "xyzw"
+        },
+        "zone0_v24": {
+            "slot": 34,
+            "components": "xyzw"
+        },
+        "zone0_v25": {
+            "slot": 35,
+            "components": "xyzw"
+        },
+        "zone0_v26": {
+            "slot": 36,
+            "components": "xyzw"
+        },
+        "zone0_v27": {
+            "slot": 37,
+            "components": "xyzw"
+        },
+        "zone0_v28": {
+            "slot": 38,
+            "components": "xyzw"
+        },
+        "zone0_v29": {
+            "slot": 39,
+            "components": "xyzw"
+        },
+        "zone0_v30": {
+            "slot": 40,
+            "components": "xyzw"
+        },
+        "zone0_v31": {
+            "slot": 41,
+            "components": "xyzw"
+        },
+        "zone1_count": {
+            "slot": 3,
+            "components": "x"
+        },
+        "zone1_active": {
+            "slot": 3,
+            "components": "y"
+        },
+        "zone1_alpha": {
+            "slot": 3,
+            "components": "w"
+        },
+        "zone1_bounds": {
+            "slot": 268,
+            "components": "xyzw"
+        },
+        "zone1_v0": {
+            "slot": 42,
+            "components": "xyzw"
+        },
+        "zone1_v1": {
+            "slot": 43,
+            "components": "xyzw"
+        },
+        "zone1_v2": {
+            "slot": 44,
+            "components": "xyzw"
+        },
+        "zone1_v3": {
+            "slot": 45,
+            "components": "xyzw"
+        },
+        "zone1_v4": {
+            "slot": 46,
+            "components": "xyzw"
+        },
+        "zone1_v5": {
+            "slot": 47,
+            "components": "xyzw"
+        },
+        "zone1_v6": {
+            "slot": 48,
+            "components": "xyzw"
+        },
+        "zone1_v7": {
+            "slot": 49,
+            "components": "xyzw"
+        },
+        "zone1_v8": {
+            "slot": 50,
+            "components": "xyzw"
+        },
+        "zone1_v9": {
+            "slot": 51,
+            "components": "xyzw"
+        },
+        "zone1_v10": {
+            "slot": 52,
+            "components": "xyzw"
+        },
+        "zone1_v11": {
+            "slot": 53,
+            "components": "xyzw"
+        },
+        "zone1_v12": {
+            "slot": 54,
+            "components": "xyzw"
+        },
+        "zone1_v13": {
+            "slot": 55,
+            "components": "xyzw"
+        },
+        "zone1_v14": {
+            "slot": 56,
+            "components": "xyzw"
+        },
+        "zone1_v15": {
+            "slot": 57,
+            "components": "xyzw"
+        },
+        "zone1_v16": {
+            "slot": 58,
+            "components": "xyzw"
+        },
+        "zone1_v17": {
+            "slot": 59,
+            "components": "xyzw"
+        },
+        "zone1_v18": {
+            "slot": 60,
+            "components": "xyzw"
+        },
+        "zone1_v19": {
+            "slot": 61,
+            "components": "xyzw"
+        },
+        "zone1_v20": {
+            "slot": 62,
+            "components": "xyzw"
+        },
+        "zone1_v21": {
+            "slot": 63,
+            "components": "xyzw"
+        },
+        "zone1_v22": {
+            "slot": 64,
+            "components": "xyzw"
+        },
+        "zone1_v23": {
+            "slot": 65,
+            "components": "xyzw"
+        },
+        "zone1_v24": {
+            "slot": 66,
+            "components": "xyzw"
+        },
+        "zone1_v25": {
+            "slot": 67,
+            "components": "xyzw"
+        },
+        "zone1_v26": {
+            "slot": 68,
+            "components": "xyzw"
+        },
+        "zone1_v27": {
+            "slot": 69,
+            "components": "xyzw"
+        },
+        "zone1_v28": {
+            "slot": 70,
+            "components": "xyzw"
+        },
+        "zone1_v29": {
+            "slot": 71,
+            "components": "xyzw"
+        },
+        "zone1_v30": {
+            "slot": 72,
+            "components": "xyzw"
+        },
+        "zone1_v31": {
+            "slot": 73,
+            "components": "xyzw"
+        },
+        "zone2_count": {
+            "slot": 4,
+            "components": "x"
+        },
+        "zone2_active": {
+            "slot": 4,
+            "components": "y"
+        },
+        "zone2_alpha": {
+            "slot": 4,
+            "components": "w"
+        },
+        "zone2_bounds": {
+            "slot": 269,
+            "components": "xyzw"
+        },
+        "zone2_v0": {
+            "slot": 74,
+            "components": "xyzw"
+        },
+        "zone2_v1": {
+            "slot": 75,
+            "components": "xyzw"
+        },
+        "zone2_v2": {
+            "slot": 76,
+            "components": "xyzw"
+        },
+        "zone2_v3": {
+            "slot": 77,
+            "components": "xyzw"
+        },
+        "zone2_v4": {
+            "slot": 78,
+            "components": "xyzw"
+        },
+        "zone2_v5": {
+            "slot": 79,
+            "components": "xyzw"
+        },
+        "zone2_v6": {
+            "slot": 80,
+            "components": "xyzw"
+        },
+        "zone2_v7": {
+            "slot": 81,
+            "components": "xyzw"
+        },
+        "zone2_v8": {
+            "slot": 82,
+            "components": "xyzw"
+        },
+        "zone2_v9": {
+            "slot": 83,
+            "components": "xyzw"
+        },
+        "zone2_v10": {
+            "slot": 84,
+            "components": "xyzw"
+        },
+        "zone2_v11": {
+            "slot": 85,
+            "components": "xyzw"
+        },
+        "zone2_v12": {
+            "slot": 86,
+            "components": "xyzw"
+        },
+        "zone2_v13": {
+            "slot": 87,
+            "components": "xyzw"
+        },
+        "zone2_v14": {
+            "slot": 88,
+            "components": "xyzw"
+        },
+        "zone2_v15": {
+            "slot": 89,
+            "components": "xyzw"
+        },
+        "zone2_v16": {
+            "slot": 90,
+            "components": "xyzw"
+        },
+        "zone2_v17": {
+            "slot": 91,
+            "components": "xyzw"
+        },
+        "zone2_v18": {
+            "slot": 92,
+            "components": "xyzw"
+        },
+        "zone2_v19": {
+            "slot": 93,
+            "components": "xyzw"
+        },
+        "zone2_v20": {
+            "slot": 94,
+            "components": "xyzw"
+        },
+        "zone2_v21": {
+            "slot": 95,
+            "components": "xyzw"
+        },
+        "zone2_v22": {
+            "slot": 96,
+            "components": "xyzw"
+        },
+        "zone2_v23": {
+            "slot": 97,
+            "components": "xyzw"
+        },
+        "zone2_v24": {
+            "slot": 98,
+            "components": "xyzw"
+        },
+        "zone2_v25": {
+            "slot": 99,
+            "components": "xyzw"
+        },
+        "zone2_v26": {
+            "slot": 100,
+            "components": "xyzw"
+        },
+        "zone2_v27": {
+            "slot": 101,
+            "components": "xyzw"
+        },
+        "zone2_v28": {
+            "slot": 102,
+            "components": "xyzw"
+        },
+        "zone2_v29": {
+            "slot": 103,
+            "components": "xyzw"
+        },
+        "zone2_v30": {
+            "slot": 104,
+            "components": "xyzw"
+        },
+        "zone2_v31": {
+            "slot": 105,
+            "components": "xyzw"
+        },
+        "zone3_count": {
+            "slot": 5,
+            "components": "x"
+        },
+        "zone3_active": {
+            "slot": 5,
+            "components": "y"
+        },
+        "zone3_alpha": {
+            "slot": 5,
+            "components": "w"
+        },
+        "zone3_bounds": {
+            "slot": 270,
+            "components": "xyzw"
+        },
+        "zone3_v0": {
+            "slot": 106,
+            "components": "xyzw"
+        },
+        "zone3_v1": {
+            "slot": 107,
+            "components": "xyzw"
+        },
+        "zone3_v2": {
+            "slot": 108,
+            "components": "xyzw"
+        },
+        "zone3_v3": {
+            "slot": 109,
+            "components": "xyzw"
+        },
+        "zone3_v4": {
+            "slot": 110,
+            "components": "xyzw"
+        },
+        "zone3_v5": {
+            "slot": 111,
+            "components": "xyzw"
+        },
+        "zone3_v6": {
+            "slot": 112,
+            "components": "xyzw"
+        },
+        "zone3_v7": {
+            "slot": 113,
+            "components": "xyzw"
+        },
+        "zone3_v8": {
+            "slot": 114,
+            "components": "xyzw"
+        },
+        "zone3_v9": {
+            "slot": 115,
+            "components": "xyzw"
+        },
+        "zone3_v10": {
+            "slot": 116,
+            "components": "xyzw"
+        },
+        "zone3_v11": {
+            "slot": 117,
+            "components": "xyzw"
+        },
+        "zone3_v12": {
+            "slot": 118,
+            "components": "xyzw"
+        },
+        "zone3_v13": {
+            "slot": 119,
+            "components": "xyzw"
+        },
+        "zone3_v14": {
+            "slot": 120,
+            "components": "xyzw"
+        },
+        "zone3_v15": {
+            "slot": 121,
+            "components": "xyzw"
+        },
+        "zone3_v16": {
+            "slot": 122,
+            "components": "xyzw"
+        },
+        "zone3_v17": {
+            "slot": 123,
+            "components": "xyzw"
+        },
+        "zone3_v18": {
+            "slot": 124,
+            "components": "xyzw"
+        },
+        "zone3_v19": {
+            "slot": 125,
+            "components": "xyzw"
+        },
+        "zone3_v20": {
+            "slot": 126,
+            "components": "xyzw"
+        },
+        "zone3_v21": {
+            "slot": 127,
+            "components": "xyzw"
+        },
+        "zone3_v22": {
+            "slot": 128,
+            "components": "xyzw"
+        },
+        "zone3_v23": {
+            "slot": 129,
+            "components": "xyzw"
+        },
+        "zone3_v24": {
+            "slot": 130,
+            "components": "xyzw"
+        },
+        "zone3_v25": {
+            "slot": 131,
+            "components": "xyzw"
+        },
+        "zone3_v26": {
+            "slot": 132,
+            "components": "xyzw"
+        },
+        "zone3_v27": {
+            "slot": 133,
+            "components": "xyzw"
+        },
+        "zone3_v28": {
+            "slot": 134,
+            "components": "xyzw"
+        },
+        "zone3_v29": {
+            "slot": 135,
+            "components": "xyzw"
+        },
+        "zone3_v30": {
+            "slot": 136,
+            "components": "xyzw"
+        },
+        "zone3_v31": {
+            "slot": 137,
+            "components": "xyzw"
+        },
+        "zone4_count": {
+            "slot": 6,
+            "components": "x"
+        },
+        "zone4_active": {
+            "slot": 6,
+            "components": "y"
+        },
+        "zone4_alpha": {
+            "slot": 6,
+            "components": "w"
+        },
+        "zone4_bounds": {
+            "slot": 271,
+            "components": "xyzw"
+        },
+        "zone4_v0": {
+            "slot": 138,
+            "components": "xyzw"
+        },
+        "zone4_v1": {
+            "slot": 139,
+            "components": "xyzw"
+        },
+        "zone4_v2": {
+            "slot": 140,
+            "components": "xyzw"
+        },
+        "zone4_v3": {
+            "slot": 141,
+            "components": "xyzw"
+        },
+        "zone4_v4": {
+            "slot": 142,
+            "components": "xyzw"
+        },
+        "zone4_v5": {
+            "slot": 143,
+            "components": "xyzw"
+        },
+        "zone4_v6": {
+            "slot": 144,
+            "components": "xyzw"
+        },
+        "zone4_v7": {
+            "slot": 145,
+            "components": "xyzw"
+        },
+        "zone4_v8": {
+            "slot": 146,
+            "components": "xyzw"
+        },
+        "zone4_v9": {
+            "slot": 147,
+            "components": "xyzw"
+        },
+        "zone4_v10": {
+            "slot": 148,
+            "components": "xyzw"
+        },
+        "zone4_v11": {
+            "slot": 149,
+            "components": "xyzw"
+        },
+        "zone4_v12": {
+            "slot": 150,
+            "components": "xyzw"
+        },
+        "zone4_v13": {
+            "slot": 151,
+            "components": "xyzw"
+        },
+        "zone4_v14": {
+            "slot": 152,
+            "components": "xyzw"
+        },
+        "zone4_v15": {
+            "slot": 153,
+            "components": "xyzw"
+        },
+        "zone4_v16": {
+            "slot": 154,
+            "components": "xyzw"
+        },
+        "zone4_v17": {
+            "slot": 155,
+            "components": "xyzw"
+        },
+        "zone4_v18": {
+            "slot": 156,
+            "components": "xyzw"
+        },
+        "zone4_v19": {
+            "slot": 157,
+            "components": "xyzw"
+        },
+        "zone4_v20": {
+            "slot": 158,
+            "components": "xyzw"
+        },
+        "zone4_v21": {
+            "slot": 159,
+            "components": "xyzw"
+        },
+        "zone4_v22": {
+            "slot": 160,
+            "components": "xyzw"
+        },
+        "zone4_v23": {
+            "slot": 161,
+            "components": "xyzw"
+        },
+        "zone4_v24": {
+            "slot": 162,
+            "components": "xyzw"
+        },
+        "zone4_v25": {
+            "slot": 163,
+            "components": "xyzw"
+        },
+        "zone4_v26": {
+            "slot": 164,
+            "components": "xyzw"
+        },
+        "zone4_v27": {
+            "slot": 165,
+            "components": "xyzw"
+        },
+        "zone4_v28": {
+            "slot": 166,
+            "components": "xyzw"
+        },
+        "zone4_v29": {
+            "slot": 167,
+            "components": "xyzw"
+        },
+        "zone4_v30": {
+            "slot": 168,
+            "components": "xyzw"
+        },
+        "zone4_v31": {
+            "slot": 169,
+            "components": "xyzw"
+        },
+        "zone5_count": {
+            "slot": 7,
+            "components": "x"
+        },
+        "zone5_active": {
+            "slot": 7,
+            "components": "y"
+        },
+        "zone5_alpha": {
+            "slot": 7,
+            "components": "w"
+        },
+        "zone5_bounds": {
+            "slot": 272,
+            "components": "xyzw"
+        },
+        "zone5_v0": {
+            "slot": 170,
+            "components": "xyzw"
+        },
+        "zone5_v1": {
+            "slot": 171,
+            "components": "xyzw"
+        },
+        "zone5_v2": {
+            "slot": 172,
+            "components": "xyzw"
+        },
+        "zone5_v3": {
+            "slot": 173,
+            "components": "xyzw"
+        },
+        "zone5_v4": {
+            "slot": 174,
+            "components": "xyzw"
+        },
+        "zone5_v5": {
+            "slot": 175,
+            "components": "xyzw"
+        },
+        "zone5_v6": {
+            "slot": 176,
+            "components": "xyzw"
+        },
+        "zone5_v7": {
+            "slot": 177,
+            "components": "xyzw"
+        },
+        "zone5_v8": {
+            "slot": 178,
+            "components": "xyzw"
+        },
+        "zone5_v9": {
+            "slot": 179,
+            "components": "xyzw"
+        },
+        "zone5_v10": {
+            "slot": 180,
+            "components": "xyzw"
+        },
+        "zone5_v11": {
+            "slot": 181,
+            "components": "xyzw"
+        },
+        "zone5_v12": {
+            "slot": 182,
+            "components": "xyzw"
+        },
+        "zone5_v13": {
+            "slot": 183,
+            "components": "xyzw"
+        },
+        "zone5_v14": {
+            "slot": 184,
+            "components": "xyzw"
+        },
+        "zone5_v15": {
+            "slot": 185,
+            "components": "xyzw"
+        },
+        "zone5_v16": {
+            "slot": 186,
+            "components": "xyzw"
+        },
+        "zone5_v17": {
+            "slot": 187,
+            "components": "xyzw"
+        },
+        "zone5_v18": {
+            "slot": 188,
+            "components": "xyzw"
+        },
+        "zone5_v19": {
+            "slot": 189,
+            "components": "xyzw"
+        },
+        "zone5_v20": {
+            "slot": 190,
+            "components": "xyzw"
+        },
+        "zone5_v21": {
+            "slot": 191,
+            "components": "xyzw"
+        },
+        "zone5_v22": {
+            "slot": 192,
+            "components": "xyzw"
+        },
+        "zone5_v23": {
+            "slot": 193,
+            "components": "xyzw"
+        },
+        "zone5_v24": {
+            "slot": 194,
+            "components": "xyzw"
+        },
+        "zone5_v25": {
+            "slot": 195,
+            "components": "xyzw"
+        },
+        "zone5_v26": {
+            "slot": 196,
+            "components": "xyzw"
+        },
+        "zone5_v27": {
+            "slot": 197,
+            "components": "xyzw"
+        },
+        "zone5_v28": {
+            "slot": 198,
+            "components": "xyzw"
+        },
+        "zone5_v29": {
+            "slot": 199,
+            "components": "xyzw"
+        },
+        "zone5_v30": {
+            "slot": 200,
+            "components": "xyzw"
+        },
+        "zone5_v31": {
+            "slot": 201,
+            "components": "xyzw"
+        },
+        "zone6_count": {
+            "slot": 8,
+            "components": "x"
+        },
+        "zone6_active": {
+            "slot": 8,
+            "components": "y"
+        },
+        "zone6_alpha": {
+            "slot": 8,
+            "components": "w"
+        },
+        "zone6_bounds": {
+            "slot": 273,
+            "components": "xyzw"
+        },
+        "zone6_v0": {
+            "slot": 202,
+            "components": "xyzw"
+        },
+        "zone6_v1": {
+            "slot": 203,
+            "components": "xyzw"
+        },
+        "zone6_v2": {
+            "slot": 204,
+            "components": "xyzw"
+        },
+        "zone6_v3": {
+            "slot": 205,
+            "components": "xyzw"
+        },
+        "zone6_v4": {
+            "slot": 206,
+            "components": "xyzw"
+        },
+        "zone6_v5": {
+            "slot": 207,
+            "components": "xyzw"
+        },
+        "zone6_v6": {
+            "slot": 208,
+            "components": "xyzw"
+        },
+        "zone6_v7": {
+            "slot": 209,
+            "components": "xyzw"
+        },
+        "zone6_v8": {
+            "slot": 210,
+            "components": "xyzw"
+        },
+        "zone6_v9": {
+            "slot": 211,
+            "components": "xyzw"
+        },
+        "zone6_v10": {
+            "slot": 212,
+            "components": "xyzw"
+        },
+        "zone6_v11": {
+            "slot": 213,
+            "components": "xyzw"
+        },
+        "zone6_v12": {
+            "slot": 214,
+            "components": "xyzw"
+        },
+        "zone6_v13": {
+            "slot": 215,
+            "components": "xyzw"
+        },
+        "zone6_v14": {
+            "slot": 216,
+            "components": "xyzw"
+        },
+        "zone6_v15": {
+            "slot": 217,
+            "components": "xyzw"
+        },
+        "zone6_v16": {
+            "slot": 218,
+            "components": "xyzw"
+        },
+        "zone6_v17": {
+            "slot": 219,
+            "components": "xyzw"
+        },
+        "zone6_v18": {
+            "slot": 220,
+            "components": "xyzw"
+        },
+        "zone6_v19": {
+            "slot": 221,
+            "components": "xyzw"
+        },
+        "zone6_v20": {
+            "slot": 222,
+            "components": "xyzw"
+        },
+        "zone6_v21": {
+            "slot": 223,
+            "components": "xyzw"
+        },
+        "zone6_v22": {
+            "slot": 224,
+            "components": "xyzw"
+        },
+        "zone6_v23": {
+            "slot": 225,
+            "components": "xyzw"
+        },
+        "zone6_v24": {
+            "slot": 226,
+            "components": "xyzw"
+        },
+        "zone6_v25": {
+            "slot": 227,
+            "components": "xyzw"
+        },
+        "zone6_v26": {
+            "slot": 228,
+            "components": "xyzw"
+        },
+        "zone6_v27": {
+            "slot": 229,
+            "components": "xyzw"
+        },
+        "zone6_v28": {
+            "slot": 230,
+            "components": "xyzw"
+        },
+        "zone6_v29": {
+            "slot": 231,
+            "components": "xyzw"
+        },
+        "zone6_v30": {
+            "slot": 232,
+            "components": "xyzw"
+        },
+        "zone6_v31": {
+            "slot": 233,
+            "components": "xyzw"
+        },
+        "zone7_count": {
+            "slot": 9,
+            "components": "x"
+        },
+        "zone7_active": {
+            "slot": 9,
+            "components": "y"
+        },
+        "zone7_alpha": {
+            "slot": 9,
+            "components": "w"
+        },
+        "zone7_bounds": {
+            "slot": 274,
+            "components": "xyzw"
+        },
+        "zone7_v0": {
+            "slot": 234,
+            "components": "xyzw"
+        },
+        "zone7_v1": {
+            "slot": 235,
+            "components": "xyzw"
+        },
+        "zone7_v2": {
+            "slot": 236,
+            "components": "xyzw"
+        },
+        "zone7_v3": {
+            "slot": 237,
+            "components": "xyzw"
+        },
+        "zone7_v4": {
+            "slot": 238,
+            "components": "xyzw"
+        },
+        "zone7_v5": {
+            "slot": 239,
+            "components": "xyzw"
+        },
+        "zone7_v6": {
+            "slot": 240,
+            "components": "xyzw"
+        },
+        "zone7_v7": {
+            "slot": 241,
+            "components": "xyzw"
+        },
+        "zone7_v8": {
+            "slot": 242,
+            "components": "xyzw"
+        },
+        "zone7_v9": {
+            "slot": 243,
+            "components": "xyzw"
+        },
+        "zone7_v10": {
+            "slot": 244,
+            "components": "xyzw"
+        },
+        "zone7_v11": {
+            "slot": 245,
+            "components": "xyzw"
+        },
+        "zone7_v12": {
+            "slot": 246,
+            "components": "xyzw"
+        },
+        "zone7_v13": {
+            "slot": 247,
+            "components": "xyzw"
+        },
+        "zone7_v14": {
+            "slot": 248,
+            "components": "xyzw"
+        },
+        "zone7_v15": {
+            "slot": 249,
+            "components": "xyzw"
+        },
+        "zone7_v16": {
+            "slot": 250,
+            "components": "xyzw"
+        },
+        "zone7_v17": {
+            "slot": 251,
+            "components": "xyzw"
+        },
+        "zone7_v18": {
+            "slot": 252,
+            "components": "xyzw"
+        },
+        "zone7_v19": {
+            "slot": 253,
+            "components": "xyzw"
+        },
+        "zone7_v20": {
+            "slot": 254,
+            "components": "xyzw"
+        },
+        "zone7_v21": {
+            "slot": 255,
+            "components": "xyzw"
+        },
+        "zone7_v22": {
+            "slot": 256,
+            "components": "xyzw"
+        },
+        "zone7_v23": {
+            "slot": 257,
+            "components": "xyzw"
+        },
+        "zone7_v24": {
+            "slot": 258,
+            "components": "xyzw"
+        },
+        "zone7_v25": {
+            "slot": 259,
+            "components": "xyzw"
+        },
+        "zone7_v26": {
+            "slot": 260,
+            "components": "xyzw"
+        },
+        "zone7_v27": {
+            "slot": 261,
+            "components": "xyzw"
+        },
+        "zone7_v28": {
+            "slot": 262,
+            "components": "xyzw"
+        },
+        "zone7_v29": {
+            "slot": 263,
+            "components": "xyzw"
+        },
+        "zone7_v30": {
+            "slot": 264,
+            "components": "xyzw"
+        },
+        "zone7_v31": {
+            "slot": 265,
+            "components": "xyzw"
+        }
+    },
+    "openCategories": [
+        "general"
+    ],
+    "defaultProgram": "search synth\n\nnoise(ridges: true).write(o1)\nperlin(scale: 50).write(o2)\n\nremap(bgColor: #336699, bgAlpha: 1, zoneCount: 8, smoothEdge: 0.1,\n  zone0_tex: read(o1), zone0_count: 4, zone0_v0: [0.2, 0.44, 0.04, 0.46], zone0_v1: [0.06, 0.06, 0.22, 0.04],\n  zone1_tex: read(o2), zone1_count: 4, zone1_v0: [0.46, 0.44, 0.28, 0.44], zone1_v1: [0.28, 0.06, 0.46, 0.06],\n  zone2_tex: read(o1), zone2_count: 4, zone2_v0: [0.72, 0.44, 0.52, 0.42], zone2_v1: [0.5, 0.06, 0.7, 0.08],\n  zone3_tex: read(o2), zone3_count: 4, zone3_v0: [0.92, 0.44, 0.76, 0.46], zone3_v1: [0.78, 0.06, 0.94, 0.04],\n  zone4_tex: read(o1), zone4_count: 4, zone4_v0: [0.22, 0.94, 0.04, 0.94], zone4_v1: [0.04, 0.56, 0.22, 0.56],\n  zone5_tex: read(o2), zone5_count: 4, zone5_v0: [0.48, 0.94, 0.28, 0.92], zone5_v1: [0.26, 0.56, 0.46, 0.58],\n  zone6_tex: read(o1), zone6_count: 4, zone6_v0: [0.68, 0.94, 0.52, 0.96], zone6_v1: [0.54, 0.56, 0.7, 0.54],\n  zone7_tex: read(o2), zone7_count: 4, zone7_v0: [0.94, 0.94, 0.76, 0.94], zone7_v1: [0.76, 0.56, 0.94, 0.56]\n).write(o0)\nrender(o0)"
+})

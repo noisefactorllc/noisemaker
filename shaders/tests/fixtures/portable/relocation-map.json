@@ -437,6 +437,10 @@
             "role": "discovery",
             "note": "the catalog baseline check"
         },
+        "shaders/tests/test_portable_catalog_migration.mjs": {
+            "role": "source-hash",
+            "note": "checks converted definitions and the tracked files each conversion changed"
+        },
         "shaders/tests/test_portable_consumer_contracts.mjs": {
             "role": "generated-module"
         },

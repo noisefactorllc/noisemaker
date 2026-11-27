@@ -1,60 +1,42 @@
+// Generated from definition.json by scripts/migrate-portable-effects.mjs. Do not edit.
 import { Effect } from '../../../src/runtime/effect.js'
 
-/**
- * Mesh Loader - Load mesh data from OBJ files
- *
- * Effect that populates mesh surface textures (positions, normals, UVs)
- * from external OBJ files. The mesh data is uploaded to GPU textures and can
- * be rendered using meshRender.
- *
- * Usage:
- *   meshLoader(url: "/models/teapot.obj").meshRender().write(o0)
- *
- * The URL is processed by the demo UI which calls canvas.loadOBJFromURL()
- * to populate the mesh0 surfaces.
- */
-export default class MeshLoader extends Effect {
-    name = "Mesh Loader"
-    namespace = "render"
-    func = "meshLoader"
-    tags = ["mesh", "geometry", "3d"]
-    description = "Load mesh data from OBJ files into GPU textures."
-
-    // Mark this as requiring external mesh data (like externalTexture for media)
-    // The demo-ui detects this and handles URL loading
-    externalMesh = "mesh0"
-
-    // Built-in procedural meshes available via dropdown
-    builtinMeshes = {
-        sphere: "share/meshes/sphere.obj",
-        cube: "share/meshes/cube.obj",
-        torus: "share/meshes/torus.obj",
-        cylinder: "share/meshes/cylinder.obj",
-        cone: "share/meshes/cone.obj",
-        capsule: "share/meshes/capsule.obj",
-        icosphere: "share/meshes/icosphere.obj"
+class MeshLoader extends Effect {
+    "name" = "Mesh Loader"
+    "namespace" = "render"
+    "func" = "meshLoader"
+    "tags" = [
+        "mesh",
+        "geometry",
+        "3d"
+    ]
+    "description" = "Load mesh data from OBJ files into GPU textures."
+    "externalMesh" = "mesh0"
+    "builtinMeshes" = {
+        "sphere": "share/meshes/sphere.obj",
+        "cube": "share/meshes/cube.obj",
+        "torus": "share/meshes/torus.obj",
+        "cylinder": "share/meshes/cylinder.obj",
+        "cone": "share/meshes/cone.obj",
+        "capsule": "share/meshes/capsule.obj",
+        "icosphere": "share/meshes/icosphere.obj"
     }
-
-    // No local textures - we write directly to global mesh surfaces
-    textures = {}
-
-    // No globals - mesh transforms (scale, offset) are applied in meshRender
-    globals = {}
-
-    defaultProgram = "search render\n\nmeshLoader()\n.meshRender()\n.write(o0)"
-
-    // Preview pass shows the loaded mesh texture data
-    passes = [
+    "textures" = {}
+    "globals" = {}
+    "defaultProgram" = "search render\n\nmeshLoader()\n.meshRender()\n.write(o0)"
+    "passes" = [
         {
-            name: "preview",
-            program: "preview",
-            inputs: {
-                positionsTex: "global_mesh0_positions",
-                normalsTex: "global_mesh0_normals"
+            "name": "preview",
+            "program": "preview",
+            "inputs": {
+                "positionsTex": "global_mesh0_positions",
+                "normalsTex": "global_mesh0_normals"
             },
-            outputs: {
-                fragColor: "outputTex"
+            "outputs": {
+                "fragColor": "outputTex"
             }
         }
     ]
 }
+
+export default MeshLoader
