@@ -137,6 +137,27 @@ test('each worm overlay draws what its inline implementation drew, call for call
     }
 })
 
+// The composed lifecycle of a catalog effect that declares one provider is that provider's own,
+// as its generated module runs it: the same draws and the same cancellation checks as the
+// inline implementation it replaces.
+test('a composed catalog effect makes its provider\'s own calls and cancellation checks', async () => {
+    await import('../src/portable/providers/index.js')
+    const { baselineExportShapes, instantiateCatalogDefinition, readDefinitionJson } = await import('../../scripts/lib/portable-catalog.mjs')
+    const { shapes } = baselineExportShapes()
+    const read = readDefinitionJson(path.join(REPO_ROOT, 'shaders/tests/fixtures/portable/providers/filter-fibers'), { catalog: true })
+    assert.deepEqual(read.diagnostics, [])
+    const composed = instantiateCatalogDefinition({ definition: { ...read.definition, namespace: 'filter' }, ...shapes.get('filter/fibers') })
+    const reference = (await importFrom(referenceRoot, 'shaders/effects/filter/fibers/definition.js')).default
+    // With a cancellation before the first check, the composed effect stops where the inline one did.
+    for (const overlay of [...OVERLAY_CASES, { params: { seed: 3, density: 1 }, width: 64, height: 64, cancelAfter: 0 }]) {
+        const label = `composed fibers ${JSON.stringify(overlay)}`
+        const before = await traceLog(reference, overlay)
+        const now = await traceLog(composed, overlay)
+        assert.deepEqual(now.log, before.log, `${label}: the same calls in the same order`)
+        assert.equal(now.checks, before.checks, `${label}: the same cancellation checks`)
+    }
+})
+
 test('each worm overlay keeps its class, its methods and its own properties', async () => {
     for (const name of OVERLAYS) {
         const reference = (await importFrom(referenceRoot, `shaders/effects/filter/${name}/definition.js`)).default
@@ -350,6 +371,37 @@ test('providers compose in declaration order onto the registered effect, which i
     assert.deepEqual(instance.stripeCount(), [instance, 3], 'a declared method runs on the registered effect')
     assert.deepEqual(capabilityUseOf(instance), { dependencies: ['tint', 'alpha'], resources: ['overlayTex'] })
     assert.equal(getEffect('user.capabilityOrder'), instance)
+})
+
+// The composed asyncInit checks for cancellation between providers: a cancellation during a
+// provider's asyncInit stops the next one from running. The first provider runs and checks for
+// itself, as an inline implementation does.
+test('a cancellation between providers stops the next provider, and the first provider checks for itself', async () => {
+    const registry = createCapabilityRegistry()
+    const events = freshEvents()
+    registry.register(stripesProvider(events))
+    registry.register(second(events))
+    const effect = await new CanvasRenderer().registerPortableEffect(pkg('capabilityBetween', [stripes(), { id: 'example/second', version: 1 }]), { capabilities: registry, host: {} })
+    const context = isCancelled => ({ updateTexture() {}, width: 4, height: 4, params: {}, isCancelled,
+        signal: new AbortController().signal, lifetimeSignal: new AbortController().signal })
+    const asyncInits = () => events.hooks.filter(([, hook]) => hook === 'asyncInit').map(([name]) => name)
+
+    let checks = 0
+    await effect.instance.asyncInit(context(() => { checks++; return false }))
+    assert.deepEqual(asyncInits(), ['stripes', 'second'], 'without a cancellation, every provider runs')
+    assert.equal(checks, 1, 'one check, between the two providers')
+
+    events.hooks.length = 0
+    await effect.instance.asyncInit(context(() => events.hooks.some(([name, hook]) => name === 'stripes' && hook === 'asyncInit')))
+    assert.deepEqual(asyncInits(), ['stripes'], 'a cancellation during the first provider stops the second')
+
+    events.hooks.length = 0
+    const seen = []
+    const cancelled = context(() => true)
+    const wrapped = { ...cancelled, isCancelled: () => { seen.push(events.hooks.length); return true } }
+    await effect.instance.asyncInit(wrapped)
+    assert.deepEqual(asyncInits(), ['stripes'], 'a cancellation before the first provider reaches that provider, which checks for itself, and stops the next')
+    assert.deepEqual(seen, [1], 'the composer checks once, after the first provider')
 })
 
 // ---------------------------------------------------------------------------

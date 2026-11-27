@@ -169,7 +169,9 @@ function composeCapabilities(definition, { capabilities, host, recordEmptyUse })
     if (has('asyncInit')) {
         config.asyncInit = async function asyncInit(context) {
             for (const [index, lifecycle] of lifecycles.entries()) {
-                if (context.isCancelled()) return
+                // Between providers only: the first checks for itself, as an inline
+                // implementation does, so a single provider makes its own checks alone.
+                if (index > 0 && context.isCancelled()) return
                 if (lifecycle.asyncInit) await lifecycle.asyncInit.call(this, providerContext(context, resolved[index].provider.descriptor))
             }
         }
