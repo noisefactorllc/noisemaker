@@ -22,6 +22,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const textDef = new Text()
 
+assert.equal(Object.hasOwn(textDef, 'id'), false, 'filter/text must have no own id field')
 assert.ok(textDef.globals.style, 'filter/text must declare a `style` global')
 assert.equal(textDef.globals.style.type, 'string', '`style` must be a string')
 assert.equal(textDef.globals.style.ui?.hidden, true,
