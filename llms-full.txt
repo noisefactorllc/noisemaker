@@ -14,16 +14,16 @@ and WebGPU backends and must not be cited as evidence for an external port.
 Source snapshots used for this contract:
 
 - Noisemaker: `688794aca5998d9573afa5601c2b9b023c896007`.
-- Shade MCP: `1815133b47eaa33aee11d4a677cfea2f3939cf38`.
-- Shade MCP protocol: server name `shade-mcp`, server version `0.5.4`. Its
+- Shade MCP: `5fdbd18368002545dbaea41950f97b1b65e7752c`.
+- Shade MCP protocol: server name `shade-mcp`, server version `0.7.1`. Its
   lockfile pins `@modelcontextprotocol/sdk` 1.32.2; the `npx` install below
   resolves the package's `^1.32.2` range when it installs, and loaded 1.32.2
   for the session recorded below. That SDK accepts the protocol versions
   `2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05` and `2024-10-07`,
   echoes the version the client requests, and answers `2025-11-25` to any
-  other request; 21 tools are returned by `tools/list`.
+  other request; 24 tools are returned by `tools/list`.
 - The repository config runs the Shade MCP server through `npx -y` from an
-  immutable package pin, which is release v0.5.4; tag `v0.5.4` resolves to
+  immutable package pin, which is release v0.7.1; tag `v0.7.1` resolves to
   the Shade MCP snapshot
   above. The vendored harness is the independent delivery path: release
   v0.7.1 is delivered to `vendor/shade-mcp/` (tag `v0.7.1` resolves to
@@ -37,7 +37,7 @@ Primary source roots:
 - backend behavior: `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`.
 - repository validation policy: `shaders/tests/test-harness.js`.
 - Shade MCP source for the pinned snapshot:
-  `https://github.com/noisefactorllc/shade-mcp/tree/1815133b47eaa33aee11d4a677cfea2f3939cf38/src`.
+  `https://github.com/noisefactorllc/shade-mcp/tree/5fdbd18368002545dbaea41950f97b1b65e7752c/src`.
 
 ## Freshness and maintenance
 
@@ -3560,7 +3560,7 @@ Sources: backend compile/execute methods; Shade MCP
 2. Send `notifications/initialized`.
 3. Call `tools/list`.
 
-For the snapshot at the top of this document, `tools/list` returned the 21 verb
+For the snapshot at the top of this document, `tools/list` returned the 24 verb
 names documented below. Every tool descriptor declares
 `inputSchema.$schema:"http://json-schema.org/draft-07/schema#"` and
 `execution:{taskSupport:"forbidden"}`. None declares an `outputSchema`.
@@ -3583,7 +3583,13 @@ those schemas and results, adds the shader-craft verbs `searchShaderLibrary`,
 `tools/list` differs from 0.5.0 only in the `listEffects` description. It adds
 `func` to `listEffects` entries, indexes a flat effect directory, drives a
 viewer through its optional selection and backend-switch globals (see Act),
-and corrects the seamless-loop guidance in the knowledge index.
+and corrects the seamless-loop guidance in the knowledge index. The 0.6.0
+release adds the seed verbs `getProgramSeed`, `setProgramSeed`, and
+`reseedProgram`, and `runDslProgram` awaits each render call. The 0.7.0
+release reads a version 2 Portable package `definition.json` (see
+`analyzeEffect`). The 0.7.1 release makes `analyzeEffect` return every field
+of the loaded definition and makes `checkEffectStructure` accept indexed global
+names.
 Knowledge-search, library-search, and shader-check results are source
 guidance, not a rendered-loop validation result.
 
@@ -3709,7 +3715,8 @@ with `Invalid effect id: <id>` before reading. Browser selectors remain literal.
 
 No numeric schema below uses Zod `.int()`, `.finite()`, `.min()`, `.max()`, or a
 positive-resolution refinement unless explicitly stated. Descriptive ranges
-are not validation, except in `runDslProgram` and `searchShaderLibrary.limit`,
+are not validation, except in `runDslProgram`, `searchShaderLibrary.limit`,
+and the seed verbs (`getProgramSeed`, `setProgramSeed`, `reseedProgram`),
 whose bounds are enforced (see their schemas).
 
 The direct browser check/capture verbs call `BrowserSession.setBackend()` before
@@ -4006,10 +4013,10 @@ async `readPixels`. The WebGL2 reader returns rows top-down; the verb flips
 the bottom-up WebGPU readback rows to top-down before it computes metrics and
 draws the grid. Both backends therefore return upright captures and grid
 cells, and the same program gives the same orientation on WebGL2 and WebGPU.
-The verb checks frame advancement after every render call: `frameCount` must
-advance by exactly one per frame. `render()` is synchronous for 2D programs and
-asynchronous for scene programs, so at this snapshot a scene DSL program fails
-the check with `Renderer did not advance at frame 1`.
+The verb awaits every render call and then checks frame advancement:
+`frameCount` must advance by exactly one per frame, or the call fails with
+`Renderer did not advance at frame <n>`. `render()` is synchronous for 2D
+programs and asynchronous for scene programs.
 The whole batch is bounded by `session.timeoutMs`
 (`SHADE_TIMEOUT_MS`, default `120000` ms). Each capture carries the full
 `ImageMetrics` record; `metrics` repeats the final capture of the render
@@ -4029,6 +4036,72 @@ Source: Shade MCP `src/tools/browser/dsl.ts` - schema and `runDslProgram()`.
 
 The worked example below records a complete paired source validation
 exchange.
+
+#### getProgramSeed
+
+```ts
+type GetProgramSeedInput = { dsl: string }               // 1-100000 characters
+type ProgramSeedResult =
+  | { status: "ok", seed: number | null,
+      dsl?: string,                                        // setProgramSeed and reseedProgram only
+      console_errors?: string[] }
+  | { status: "error", error: string, console_errors?: string[] }
+```
+
+The three seed verbs read and write a program's `seed` directive through the
+engine's `CanvasRenderer.getSeed()` and `setSeed()`. Each call opens its own
+blank-page WebGL2 browser session and imports `CanvasRenderer` from
+`SHADE_DSL_RENDERER_MODULE` with `SHADE_DSL_ASSETS_BASE` and
+`SHADE_DSL_USE_BUNDLES`, as `runDslProgram` does. It creates the renderer on a
+16×16 canvas and checks for the seed API; with a renderer that has it, it then
+loads the manifest and every effect in it. It closes the browser when the call
+ends: no program stays open between calls. This
+repository's renderer, which the repository config's default
+`SHADE_DSL_RENDERER_MODULE` (`/shaders/src/index.js` under
+`SHADE_VIEWER_ROOT`) loads, has no seed API: its `CanvasRenderer` defines
+neither `getSeed()` nor `setSeed()`. With it, each seed verb fails with
+`Configured Noisemaker renderer does not support getSeed/setSeed; use a
+Noisemaker 2 renderer with the seed API`. The verbs need a Noisemaker 2
+renderer, which `SHADE_DSL_RENDERER_MODULE` can name. The work inside the page
+(the import, the renderer and effect loads, and the seed calls) is raced
+against `session.timeoutMs` and fails with
+`Seed call timed out after <ms> ms`; browser launch and teardown are outside
+that bound.
+
+With a renderer that has the seed API, `getProgramSeed` returns
+`getSeed()` for the program without compiling it: the value of its `seed`
+directive, or `null` when it has none.
+
+#### setProgramSeed
+
+```ts
+type SetProgramSeedInput = { dsl: string,  // 1-100000 characters
+                             seed: number } // integer, 0-4294967295
+```
+
+With a renderer that has the seed API, `setProgramSeed` compiles the
+program, with built-in effects only, calls `setSeed(seed)`, and returns
+`seed` and `dsl`, the renderer's current program after the call. The tool
+description says that the whole program comes back as the engine's unparser
+writes it: "comments before the search directive are dropped, and literal
+values are written as compiled, while random calls stay as written". A
+rejection is returned as `{ status: "error", error }`, with the message that
+`runSeedOperation()` writes from it.
+
+#### reseedProgram
+
+```ts
+type ReseedProgramInput = { dsl: string } // 1-100000 characters
+```
+
+`reseedProgram` draws a fresh seed, uniformly from 0-4294967295 by
+`crypto.getRandomValues`. With a renderer that has the seed API, it sets that
+seed and returns the result as `setProgramSeed` does.
+
+Source: Shade MCP `src/tools/browser/seed.ts` - schemas, `runSeedOperation()`,
+`freshSeed()` and `registerSeedTools()`; `src/config.ts` - the default
+`SHADE_DSL_RENDERER_MODULE`; Noisemaker `shaders/src/renderer/canvas.js` -
+`CanvasRenderer`, which defines no seed API.
 
 #### checkEffectStructure
 
@@ -4060,12 +4133,22 @@ type CheckEffectStructureResult =
 
 Status is warning when any unused file, naming issue, name collision, leaked
 internal uniform, missing description, or structural parity issue exists.
+The `func` that Shade's definition reader returns, when there is one, must be
+camelCase (`^[a-z][a-zA-Z0-9]*$`). That is the package's `name` for a version
+2 package without `func`, and `"unknown"`, which passes, for a `definition.js`
+with no literal `func`. A global's name passes when
+it is camelCase or in the indexed form `<camelCase><index>_<camelCase>`
+(`^[a-z][a-zA-Z0-9]*[0-9]_[a-z][a-zA-Z0-9]*$`, such as `zone0_tex` and
+`layer0_tex`); any other name is a naming issue with the reason
+`Must be camelCase`.
 `requiredUniformIssues` is initialized but never populated or included in the
 status predicate. Pass `name` values are not checked. GLSL reserved/builtin
 collision checks use regex-extracted declarations.
 
 Source: Shade MCP `src/tools/analysis/structure.ts` -
-`checkEffectStructure()`.
+`checkCamelCase()`, `checkIndexedName()` and `checkEffectStructure()`;
+`src/formats/definition-json.ts` and `src/formats/definition-js.ts` - the
+returned `func`.
 
 #### checkAlgEquiv
 
@@ -4179,8 +4262,9 @@ The query is lowercased, synonym-expanded, and whitespace-tokenized. Score is an
 Only positive scores are
 returned, descending, sliced to `limit`. The shared effect index is rebuilt
 after five seconds. Concurrent readers share one rebuild within the current
-invalidation epoch. A `definition.json` that does not parse, or an effect
-directory with no definition, is skipped with a server warning. When
+invalidation epoch. A `definition.json` that does not parse or that the
+version 2 package reader refuses (see `analyzeEffect`), or an effect directory
+with no definition, is skipped with a server warning. When
 `SHADE_EFFECTS_DIR` itself holds `definition.json` or `definition.js` (a flat
 layout), the index holds that one effect under the directory's basename, the
 ID `resolveEffectIds()` selects, and its namespace is the definition's own
@@ -4199,13 +4283,28 @@ Source: Shade MCP `src/tools/knowledge/search-effects.ts`;
 ```ts
 type AnalyzeEffectInput = { effect_id: string }
 type AnalyzeEffectResult =
-  | { effectId: string, name?: string, description?: string,
-      namespace?: string, tags: string[],
+  | { effectId: string, func?: string, name?: string, description?: string,
+      namespace?: string, starter?: boolean, tags: string[],
       globals: Record<string, unknown>, passes: Array<Record<string, unknown>>,
-      format: "js" | "json", partial?: true, partialReasons?: string[],
+      // version 2 definition.json only, each when the package declares it
+      feature?: unknown, hidden?: unknown, deprecatedBy?: unknown,
+      openCategories?: unknown, textures?: unknown, textures3d?: unknown,
+      uniformLayout?: unknown, uniformLayouts?: unknown,
+      defaultProgram?: unknown, externalTexture?: unknown,
+      externalMesh?: unknown, builtinMeshes?: unknown,
+      outputTex3d?: unknown, outputGeo?: unknown,
+      format: "js" | "json", effectDir: string,
+      partial?: true, partialReasons?: string[],
       shaders: Record<`glsl/${string}.glsl` | `wgsl/${string}.wgsl`, string> }
   | { error: string }
 ```
+
+The result holds every field of the definition that Shade's reader returns
+(`loadEffectDefinition()`), plus `effectId`, `shaders`, and `tags` as `[]`
+when the definition has none. `effectDir` is the effect directory the server
+resolved. `func` is `"unknown"` for a `definition.js` with no literal `func`,
+and absent when a `definition.json` gives neither `func` nor (in a version 2
+package) `name`.
 
 For `definition.js`, Shade parses the module without running it and reads the
 effect config as literal values, whether it is passed to `new Effect(...)` or
@@ -4216,9 +4315,27 @@ define-only globals, with `name` (the key), `type` (defaulting to `float`),
 `program` (defaulting to `main`), `type`, `inputs` and `outputs`. A value
 computed at run time (a spread, `flatMap`, a reference to another binding) is
 left out, and the result carries `partial: true` with `partialReasons` naming
-each path. The projection does not carry Noisemaker-specific top-level fields
-(`uniformLayout`, `textures`, ...) or global and pass fields
-outside that set. Shader reads ignore split `.vert`/`.frag` files.
+each path. The `definition.js` projection does not carry Noisemaker-specific
+top-level fields (`uniformLayout`, `textures`, ...) or global and pass fields
+outside that set. A 1.x `definition.json` (no `format` field) gives the same
+global and pass fields, from its `globals` object and `passes` array, and the
+top-level `func`, `name`, `namespace`, `description`, `starter` and `tags`.
+
+A version 2 package (`format: "noisemaker-portable-effect"`, `version: 2`)
+also gives each package field it declares from the list in the type above.
+Each global carries every field it declares, with `name`, `uniform` and `type`
+defaulted as above. `passes` is an array in the `Object.entries` order of
+the package's `passes` object: keys that are array indices first, in numeric
+order, then the other keys in declaration order. Each pass carries every field
+it declares, with `name` (the key) and `program` defaulted as above. `func`
+defaults to `name`. `version` is not returned. The reader throws for another
+`format`, a missing or other `version`, a `passes` that is missing or not a
+plain object, a `globals` that is
+set and is not a plain object, a parameter or pass that is not a plain object
+(an array counts as not one), and a parameter or pass named with an
+`Object.prototype` key or `prototype`; `analyzeEffect` then returns
+`{ error }` with that message.
+Shader reads ignore split `.vert`/`.frag` files.
 The repository's harness exposes the complete live schema:
 `node shaders/tests/test-harness.js --describe <patterns>` (see below) returns
 every authored definition field per effect, imported live, plus an audit of
@@ -4226,7 +4343,11 @@ what the Shade projection leaves out, with a corpus gate pinning that the
 projection never contradicts the live definition.
 
 Source: Shade MCP `src/tools/knowledge/analyze-effect.ts`;
-`src/formats/definition-js.ts` - `parseDefinitionJs()`.
+`src/formats/index.ts` - `loadEffectDefinition()`;
+`src/formats/definition-js.ts` - `parseDefinitionJs()`;
+`src/formats/definition-json.ts` - `parseDefinitionJson()` and
+`parsePortablePackage()`; `src/formats/normalize.ts` - `normalizeGlobal()`
+and `normalizePass()`.
 
 #### searchShaderSource
 
@@ -4523,6 +4644,9 @@ common pass gate. Apply the predicate for that verb:
 | `testNoPassthrough` | `ok`, or `skipped` only for a confirmed nonfilter |
 | `testPixelParity` | status `ok`, no disallowed solid/Y-flip flags |
 | `runDslProgram` | status `ok` with the full per-capture metric pass and the grid image |
+| `getProgramSeed` | with a renderer that has the seed API: status `ok` and `seed` is the expected value or `null`; the verb does not compile the program, so `ok` does not mean it compiles |
+| `setProgramSeed` | with a renderer that has the seed API: status `ok`, `seed` equals the requested seed, and the returned `dsl` carries it in its seed directive |
+| `reseedProgram` | with a renderer that has the seed API: status `ok` and the returned `dsl` carries the returned `seed` in its seed directive |
 | `checkEffectStructure` | status `ok`, all issue arrays empty, and no `unusedFilesUnchecked` (when it is present, unused files were not checked) |
 | `checkAlgEquiv` | status `ok`, every pair exactly `equivalent`, no unmatched lists |
 | `compareShaders` | both sides non-null and no `note` for every program |
@@ -4555,7 +4679,7 @@ Multiple effects found (<n>). Please specify effect_id or effects parameter. Ava
 Browser tools catch per-effect exceptions as `OuterEffectError`.
 Analysis/knowledge tools keep their own error payload forms
 (`{status:"error",error}` or `{error}`), and every payload carries the common
-`outcome` beside them. All 21 tools return through the shared `toolResult()`
+`outcome` beside them. All 24 tools return through the shared `toolResult()`
 envelope, and the server routes every handler through `guardToolErrors()`, so
 an exception thrown before a handler's own error handling also returns the
 JSON error envelope with `isError:true`. SDK-generated `tools/call` errors for
@@ -5140,8 +5264,8 @@ program expansion.
 
 <!-- WORKED:MCP-REQUESTS -->
 
-One configured-pin session returned server `shade-mcp` version `0.5.4` and
-listed 21 tools. The worked calls ran in that session, none returning MCP
+One configured-pin session returned server `shade-mcp` version `0.7.1` and
+listed 24 tools. The worked calls ran in that session, none returning MCP
 `isError`; the passthrough call returned the expected domain status `skipped`
 (`outcome:"skipped"`) because this is a source effect. On hosts where the
 parity verb's browser cannot obtain a WebGPU adapter, its WebGPU leg fails
@@ -5172,7 +5296,7 @@ capture; these are the values from this session):
 {"outcome":"ok","status":"ok","tested_uniforms":["pattern:pass","gridSize:pass"],"uniforms":[{"name":"pattern","uniform":"pattern","default_value":0,"test_value":1,"luma_diff":0.0031082153320312056,"max_channel_diff":0.0031082153320312056,"pixel_diff":0.37701416015625,"strong_fraction":0.875299072265625,"responds":true},{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":12,"luma_diff":0.002946472167968728,"max_channel_diff":0.002946472167968728,"pixel_diff":0.39990234375,"strong_fraction":0.48483123779296877,"responds":true,"enabled_with":{"pattern":0}}],"threshold":0.002,"strong_threshold":0.0005,"details":"Uniforms affect output","measured_size":[1024,640],"backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern"}
 {"outcome":"skipped","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern"}
 {"outcome":"ok","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"frames":8,"stateReset":true,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
-{"outcome":"ok","status":"ok","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":60.2,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.61,"jitter_ms":0.47,"min_frame_time_ms":14.8,"max_frame_time_ms":17.6}}
+{"outcome":"ok","status":"ok","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":60.52,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.52,"jitter_ms":1.35,"min_frame_time_ms":7.7,"max_frame_time_ms":18.3}}
 ```
 
 The structure scan has no issues and reports the one declared effect pass.
@@ -5204,7 +5328,7 @@ Every cell points to an executable contract or an explicitly identified gap.
 | Compatibility and mutation | compiled AST, `listSteps`, `getCompatibleReplacements` | typed `replaceEffect` contract | candidate precheck and post-selection browser identity | compatibility and transform errors |
 | Rendered output | frame dimensions, `ImageMetrics`, sink stats, and `PackedFrame` | `RenderEffectFrameInput`, `Sink`, and `FrameExportQueue` contracts | exact metric predicates plus bounded queue/accounting rules | metric, capture, sink, and export failures |
 | Cross-backend parity | source-pair availability and parity report | GLSL ES 3.00/WGSL authoring contracts | buffer diff predicates with confirmed effect/backend on both legs | compile/readback/divergence reports |
-| Shade MCP tool contracts | `tools/list`, effect scanners, all output types | Full signatures for all 21 verbs | verb-specific domain predicates | the common `outcome` envelope, selector errors and tool-specific fields |
+| Shade MCP tool contracts | `tools/list`, effect scanners, all output types | Full signatures for all 24 verbs | verb-specific domain predicates | the common `outcome` envelope, selector errors and tool-specific fields |
 
 External ports are deliberately outside this matrix. Their repositories define
 separate candidate renderers, golden-image comparators, tolerance policies, and
