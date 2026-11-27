@@ -1097,7 +1097,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `740601018edb867c564c77aab3d157fa719dea53` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-26
+- **Checkpoint:** noisemaker `3a432f128d59fbc59fc1f3493ba6b2dec9e04578` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-27
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -1181,6 +1181,27 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-27 — completed delivery pair: Noisemaker
+    `3a432f128d59fbc59fc1f3493ba6b2dec9e04578` and Shade MCP at the
+    configured immutable pin (release v0.5.4). This pass audited the
+    remaining checkpoint-to-head range. The contract statements for the
+    handed-on texture fields, the WebGPU `*-color` blend alias mapping,
+    `count: "screen"` vertex counts, and the accepted-but-unconsumed
+    `inputOverride` dimension key match current source. The queued Shade
+    range's Portable version-2 reader is additive and changes no
+    contract-described behavior. The vendor delivery holds release v0.7.0,
+    and its four pulled subtrees are byte-identical to that release tarball.
+    Verified at the published head: the four contract guard tests (13 tests
+    pass), Shade `npm run typecheck` and `npm test` (567 tests pass), Shade's
+    browser smoke test with `NOISEMAKER` set (all 15 checks pass, on
+    Chromium's SwiftShader Vulkan ICD), and a configured-pin session (server
+    0.5.4, protocol 2025-11-25, 21 tools). The worked `synth/testPattern`
+    responses reproduced key-for-key, except the capture-varying benchmark
+    times and a container GL performance console message. Exact-source Site
+    and JavaScript workflows passed at `3a432f1`, and a full GET of
+    `https://noisemaker.app/llms-full.txt` matched the committed file. The
+    deployment serves `3a432f1`. Moving the `.mcp.json` pin past v0.5.4
+    stays recorded as the delivery blocker below.
   - 2026-11-26 — candidate pair: Noisemaker
     `740601018edb867c564c77aab3d157fa719dea53` (the engine source this
     contract pins is unchanged) and Shade MCP at the configured immutable
