@@ -45,6 +45,17 @@ function copyEffect(root, id, from) {
     return to
 }
 
+// A catalog effect's legacy directory, as the baseline's source holds it,
+// under a temporary catalog root as <root>/<id>/.
+function legacyEffect(root, id) {
+    const archive = spawnSync('git', ['-C', ROOT, 'archive', '--format=tar', BASELINE.sourceSha, `shaders/effects/${id}`], { maxBuffer: 1 << 28 })
+    assert.equal(archive.status, 0, `git archive of ${id}: ${archive.stderr}`)
+    const extracted = fs.mkdtempSync(path.join(path.dirname(root), 'legacy-'))
+    const tar = spawnSync('tar', ['-x', '-C', extracted], { input: archive.stdout })
+    assert.equal(tar.status, 0, `tar of ${id}: ${tar.stderr}`)
+    return copyEffect(root, id, path.join(extracted, 'shaders/effects', ...id.split('/')))
+}
+
 // Import a generated module as the runtime would, with its imports of the
 // engine pointed at this checkout from wherever the module is written.
 async function importGenerated(text, dir) {
@@ -525,16 +536,20 @@ test('a conversion writes a version 2 definition.json and its module, and refuse
     } finally {
         fs.rmSync(root, { recursive: true, force: true })
     }
-    // In a copy, so that a regression of the refusal cannot write to the checkout.
-    const media = engineTree('portable-media-')
-    try {
-        const dir = copyEffect(media.effectsRoot, 'synth/media', path.join(EFFECTS_ROOT, 'synth/media'))
-        const before = fs.readFileSync(path.join(dir, 'definition.js'), 'utf8')
-        await assert.rejects(() => convertEffects(['synth/media'], { effectsRoot: media.effectsRoot }), /synth\/media: its class defines onInit, onUpdate, setMediaDimensions/)
-        assert.equal(fs.existsSync(path.join(dir, 'definition.json')), false, 'nothing is written for a refused effect')
-        assert.equal(fs.readFileSync(path.join(dir, 'definition.js'), 'utf8'), before)
-    } finally {
-        fs.rmSync(media.root, { recursive: true, force: true })
+    // In a copy, so that a regression of the refusal cannot write to the checkout. The legacy
+    // modules come from the baseline's source, so that the check holds once the catalog holds
+    // their definition.json.
+    for (const [id, reason] of Object.entries(CONVERSION_REFUSED)) {
+        const legacy = engineTree('portable-refused-')
+        try {
+            const dir = legacyEffect(legacy.effectsRoot, id)
+            const before = fs.readFileSync(path.join(dir, 'definition.js'), 'utf8')
+            await assert.rejects(() => convertEffects([id], { effectsRoot: legacy.effectsRoot }), reason, id)
+            assert.equal(fs.existsSync(path.join(dir, 'definition.json')), false, `${id}: nothing is written for a refused effect`)
+            assert.equal(fs.readFileSync(path.join(dir, 'definition.js'), 'utf8'), before, id)
+        } finally {
+            fs.rmSync(legacy.root, { recursive: true, force: true })
+        }
     }
 })
 
@@ -682,7 +697,13 @@ test('converting the catalog leaves the manifest, the strings, the effect lists 
         assert.deepEqual(wrapperDrift({ effectsRoot, shapes }), [], 'already-converted effects have current generated modules')
         const convertible = legacy.filter(id => !(id in CONVERSION_REFUSED))
         assert.deepEqual(await convertEffects(convertible, { effectsRoot, shapes }), convertible, 'every eligible legacy effect converts')
-        for (const [id, reason] of Object.entries(CONVERSION_REFUSED)) await assert.rejects(convertEffects([id], { effectsRoot, shapes }), reason, id)
+        // A refused effect that is still legacy is refused here. One whose definition.json is in
+        // the catalog was authored in the capability form, and its refusal is checked on its
+        // legacy module above.
+        for (const [id, reason] of Object.entries(CONVERSION_REFUSED)) {
+            if (native.includes(id)) continue
+            await assert.rejects(convertEffects([id], { effectsRoot, shapes }), reason, id)
+        }
         assert.deepEqual(effectIds.filter(isNative), [...native, ...convertible].sort(), 'the existing and new native effects are all present')
         assert.deepEqual(wrapperDrift({ effectsRoot, shapes }), [], 'every generated module is current')
 
