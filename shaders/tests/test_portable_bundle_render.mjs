@@ -17,7 +17,7 @@
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { BASELINE_RELATIVE, REPO_ROOT, RENDER_CASES_RELATIVE, pinPath } from '../../scripts/audit-portable-migration.mjs'
+import { BASELINE_RELATIVE, PINS_RELATIVE, REPO_ROOT, RENDER_CASES_RELATIVE, pinPath } from '../../scripts/audit-portable-migration.mjs'
 
 const PIN_TOOL = path.join(REPO_ROOT, 'shaders/scripts/pin-effect-pixels.mjs')
 
@@ -53,23 +53,29 @@ function main() {
     const targets = args.effects ?? baseline.effectIds
     const problems = []
     const rendered = []
+    const renderable = []
     for (const id of targets) {
-        if (!cases[id]) { problems.push(`${id}: it has no render case`); continue }
-        const pin = pinPath(REPO_ROOT, id)
-        if (!fs.existsSync(pin)) { problems.push(`${id}: it has no pin`); continue }
-        const result = spawnSync(process.execPath, [PIN_TOOL, '--case', casesFile, '--entry', id, '--check', pin, '--bundles', args.bundles, '--backend', args.backend],
-            { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
-        if (result.status === 0) {
-            rendered.push(id)
-            console.log(`ok ${id}`)
-        } else {
-            // The pin tool's own message, not the stack below it.
-            const lines = `${result.stdout || ''}${result.stderr || ''}`.trim().split('\n')
-            const message = lines.filter(line => /Error|FAILED|CHANGED|did not render/.test(line) && !/^\s+at /.test(line))
-            const detail = (message.length ? message : lines.slice(-4)).slice(0, 4).join(' | ')
-            problems.push(`${id}: ${detail}`)
-            console.log(`FAILED ${id}`)
+        if (!cases[id]) problems.push(`${id}: it has no render case`)
+        else if (!fs.existsSync(pinPath(REPO_ROOT, id))) problems.push(`${id}: it has no pin`)
+        else renderable.push(id)
+    }
+    // One browser renders every case in turn.
+    const pins = path.join(REPO_ROOT, PINS_RELATIVE)
+    const result = spawnSync(process.execPath, [PIN_TOOL, '--case', casesFile, '--entries', renderable.join(','), '--pins', pins, '--bundles', args.bundles, '--backend', args.backend],
+        { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 })
+    for (const line of (result.stdout || '').split('\n')) {
+        const ok = /^ok (\S+)$/.exec(line)?.[1]
+        const failed = /^FAILED (\S+): (.*)$/.exec(line)
+        if (ok && renderable.includes(ok)) {
+            rendered.push(ok)
+            console.log(line)
+        } else if (failed) {
+            problems.push(`${failed[1]}: ${failed[2]}`)
+            console.log(`FAILED ${failed[1]}`)
         }
+    }
+    if (result.status !== 0 && !problems.length) {
+        problems.push(`the pin tool failed: ${`${result.stdout || ''}${result.stderr || ''}`.trim().split('\n').slice(-4).join(' | ')}`)
     }
     const unrendered = targets.filter(id => !rendered.includes(id))
     console.log(`\n${rendered.length} of ${targets.length} effects render from ${args.bundles} on ${args.backend} as their pins hold`)

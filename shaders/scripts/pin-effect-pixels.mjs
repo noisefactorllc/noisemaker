@@ -51,6 +51,12 @@
  * published version at its base URL. --backend webgl2|webgpu renders one
  * backend and checks it alone. Both only check: a pin is recorded from the
  * source, on both backends.
+ *
+ *   node shaders/scripts/pin-effect-pixels.mjs --case <cases.json> --entries <id,...> --pins <dir> [--bundles <dir|url>] [--backend webgl2|webgpu]
+ *
+ * checks each entry against <dir>/<id>.pin.json in one browser, each on a page
+ * of its own, prints "ok <id>" or "FAILED <id>: <reason>" for each, and fails
+ * when any does.
  */
 import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
@@ -77,10 +83,17 @@ const checkPath = flagValue('--check')
 const allowBlank = process.argv.includes('--allow-blank')
 const bundles = flagValue('--bundles')
 const backendFlag = flagValue('--backend')
+const entries = flagValue('--entries')?.split(',').filter(Boolean) ?? null
+const pinsDir = flagValue('--pins')
 
-if (!casePath || (!outPath && !checkPath) || (backendFlag !== null && !['webgl2', 'webgpu'].includes(backendFlag)) ||
+const single = entries === null && pinsDir === null && Boolean(outPath || checkPath)
+const batch = entries !== null && pinsDir !== null && !outPath && !checkPath && entry === null
+if (!casePath || !(single || batch) || (backendFlag !== null && !['webgl2', 'webgpu'].includes(backendFlag)) ||
     (outPath && (bundles !== null || backendFlag !== null))) {
-    console.error('Usage: node shaders/scripts/pin-effect-pixels.mjs --case <case.json> [--entry <id>] (--out <pin.json> | --check <pin.json> [--bundles <dir|url>] [--backend webgl2|webgpu])')
+    console.error([
+        'Usage: node shaders/scripts/pin-effect-pixels.mjs --case <case.json> [--entry <id>] (--out <pin.json> | --check <pin.json> [--bundles <dir|url>] [--backend webgl2|webgpu])',
+        '       node shaders/scripts/pin-effect-pixels.mjs --case <cases.json> --entries <id,...> --pins <dir> [--bundles <dir|url>] [--backend webgl2|webgpu]',
+    ].join('\n'))
     process.exit(2)
 }
 const BACKENDS = backendFlag ? [backendFlag] : ['webgl2', 'webgpu']
@@ -122,17 +135,6 @@ function bundleSources(base) {
 }
 
 const caseFile = JSON.parse(fs.readFileSync(casePath, 'utf8'))
-const pinCase = entry === null ? caseFile : caseFile?.cases?.[entry]
-if (!pinCase) throw new Error(`${casePath} has no case ${entry}`)
-// The file the case comes from defines its other fields.
-const caseErrors = pinCaseErrors(pinCase, entry ?? pinCase.effects?.at(-1))
-if (caseErrors.length) throw new Error(`pin case is not valid: ${caseErrors.join('; ')}`)
-const timelinePlan = pinCase.timeline ? {
-    loopSeconds: pinCase.timeline.loopSeconds ?? TIMELINE_DEFAULT_LOOP_SECONDS,
-    frames: pinCase.timeline.frames,
-    times: timelineTimes(pinCase.timeline),
-} : null
-const [width, height] = pinCase.resolution
 
 // A package directory as [path, text] entries, for the page to load.
 function packageEntries(directory, prefix = '', entries = []) {
@@ -143,12 +145,28 @@ function packageEntries(directory, prefix = '', entries = []) {
     }
     return entries
 }
-const portablePackages = (pinCase.portablePackages || []).map(({ id, path: directory }) => {
-    if (typeof id !== 'string' || typeof directory !== 'string') throw new Error('pin case portablePackages entries are { id, path }')
-    return { id, entries: packageEntries(path.join(repoRoot, directory)) }
-})
+/** A case of the file, checked, with what the page renders it from. */
+function prepareCase(file, name) {
+    const pinCase = name === null ? file : file?.cases?.[name]
+    if (!pinCase) throw new Error(`${casePath} has no case ${name}`)
+    // The file the case comes from defines its other fields.
+    const caseErrors = pinCaseErrors(pinCase, name ?? pinCase.effects?.at(-1))
+    if (caseErrors.length) throw new Error(`pin case is not valid: ${caseErrors.join('; ')}`)
+    const timelinePlan = pinCase.timeline ? {
+        loopSeconds: pinCase.timeline.loopSeconds ?? TIMELINE_DEFAULT_LOOP_SECONDS,
+        frames: pinCase.timeline.frames,
+        times: timelineTimes(pinCase.timeline),
+    } : null
+    const [width, height] = pinCase.resolution
+    const portablePackages = (pinCase.portablePackages || []).map(({ id, path: directory }) => {
+        if (typeof id !== 'string' || typeof directory !== 'string') throw new Error('pin case portablePackages entries are { id, path }')
+        return { id, entries: packageEntries(path.join(repoRoot, directory)) }
+    })
+    return { name, pinCase, timelinePlan, width, height, portablePackages }
+}
 
-async function renderBackend(browser, baseUrl, preferWebGPU, sources) {
+async function renderBackend(browser, baseUrl, preferWebGPU, sources, prepared) {
+    const { pinCase, timelinePlan, width, height, portablePackages } = prepared
     const engine = sources ?? { core: `${baseUrl}/shaders/src/index.js`, basePath: `${baseUrl}/shaders`, bundlePath: null }
     const page = await browser.newPage({ viewport: { width, height } })
     const consoleMessages = []
@@ -367,39 +385,65 @@ try {
         sources = bundleSources(bundleServer ? `${bundleServer.url}${BUNDLE_MOUNT.slice(0, -1)}` : bundles.replace(/\/+$/, ''))
         console.log(`Rendering from the bundles at ${bundles}`)
     }
-    const captures = {}
-    for (const backend of BACKENDS) captures[backend] = await renderBackend(browser, baseUrl, backend === 'webgpu', sources)
-    const gpus = [...new Set(Object.values(captures).map(capture => capture.gpu))]
-    assert.equal(gpus.length, 1, 'the two backends report different GPUs')
-    const pin = {
-        case: path.relative(repoRoot, path.resolve(casePath)).split(path.sep).join('/') + (entry === null ? '' : `#${entry}`),
-        resolution: [width, height],
-        gpu: gpus[0],
-        ...Object.fromEntries(Object.entries(captures).map(([backend, capture]) => [backend, pinFrame(capture)])),
+    // The pin of a case: its frame on each backend this run renders.
+    const renderPin = async prepared => {
+        const captures = {}
+        for (const backend of BACKENDS) captures[backend] = await renderBackend(browser, baseUrl, backend === 'webgpu', sources, prepared)
+        const gpus = [...new Set(Object.values(captures).map(capture => capture.gpu))]
+        assert.equal(gpus.length, 1, 'the two backends report different GPUs')
+        return {
+            case: path.relative(repoRoot, path.resolve(casePath)).split(path.sep).join('/') + (prepared.name === null ? '' : `#${prepared.name}`),
+            resolution: [prepared.width, prepared.height],
+            gpu: gpus[0],
+            ...Object.fromEntries(Object.entries(captures).map(([backend, capture]) => [backend, pinFrame(capture)])),
+        }
     }
-
-    if (outPath) {
-        const existing = fs.existsSync(outPath) ? JSON.parse(fs.readFileSync(outPath, 'utf8')) : null
-        fs.writeFileSync(outPath, `${JSON.stringify(withGpuBaseline(existing, pin), null, 2)}\n`)
-        console.log(`Wrote ${outPath} for ${pin.gpu}`)
-        console.log(`  webgl2 ${pin.webgl2.sha256}  (${pin.webgl2.nonzeroRgbPixels} lit px, ${pin.webgl2.uniqueColors} colors)`)
-        console.log(`  webgpu ${pin.webgpu.sha256}  (${pin.webgpu.nonzeroRgbPixels} lit px, ${pin.webgpu.uniqueColors} colors)`)
-    } else {
-        const expected = baselineForGpu(JSON.parse(fs.readFileSync(checkPath, 'utf8')), pin.gpu)
+    // The differences of a pin from the baseline of its file for its GPU.
+    const pinChanges = (pin, file) => {
+        const expected = baselineForGpu(JSON.parse(fs.readFileSync(file, 'utf8')), pin.gpu)
         const failures = []
         for (const backend of BACKENDS) {
             const before = expected[backend]
             const after = pin[backend]
             const status = before?.sha256 === after.sha256 ? 'IDENTICAL' : 'CHANGED'
             console.log(`  ${backend.padEnd(6)} ${status}  before=${before?.sha256} after=${after.sha256}`)
-            if (status === 'CHANGED') {
-                failures.push(`${backend}: ${before?.sha256} -> ${after.sha256}`)
+            if (status === 'CHANGED') failures.push(`${backend}: ${before?.sha256} -> ${after.sha256}`)
+        }
+        return failures
+    }
+
+    if (batch) {
+        // Every case in this one browser, each on a page of its own.
+        const failed = []
+        for (const name of entries) {
+            try {
+                const file = path.join(pinsDir, `${name}.pin.json`)
+                if (!fs.existsSync(file)) throw new Error(`it has no pin (${path.relative(repoRoot, file)})`)
+                const failures = pinChanges(await renderPin(prepareCase(caseFile, name)), file)
+                if (failures.length) throw new Error(`PIXEL PIN FAILED: ${failures.join('; ')}`)
+                console.log(`ok ${name}`)
+            } catch (error) {
+                failed.push(name)
+                console.log(`FAILED ${name}: ${error.message.split('\n').join(' | ')}`)
             }
         }
-        if (failures.length > 0) {
-            throw new Error(`PIXEL PIN FAILED:\n  ${failures.join('\n  ')}`)
+        console.log(`${entries.length - failed.length} of ${entries.length} pins hold on ${BACKENDS.join(' and ')}`)
+        if (failed.length) process.exitCode = 1
+    } else {
+        const pin = await renderPin(prepareCase(caseFile, entry))
+        if (outPath) {
+            const existing = fs.existsSync(outPath) ? JSON.parse(fs.readFileSync(outPath, 'utf8')) : null
+            fs.writeFileSync(outPath, `${JSON.stringify(withGpuBaseline(existing, pin), null, 2)}\n`)
+            console.log(`Wrote ${outPath} for ${pin.gpu}`)
+            console.log(`  webgl2 ${pin.webgl2.sha256}  (${pin.webgl2.nonzeroRgbPixels} lit px, ${pin.webgl2.uniqueColors} colors)`)
+            console.log(`  webgpu ${pin.webgpu.sha256}  (${pin.webgpu.nonzeroRgbPixels} lit px, ${pin.webgpu.uniqueColors} colors)`)
+        } else {
+            const failures = pinChanges(pin, checkPath)
+            if (failures.length > 0) {
+                throw new Error(`PIXEL PIN FAILED:\n  ${failures.join('\n  ')}`)
+            }
+            console.log(BACKENDS.length === 2 ? 'Pixel pin holds on both backends.' : `Pixel pin holds on ${BACKENDS[0]}.`)
         }
-        console.log(BACKENDS.length === 2 ? 'Pixel pin holds on both backends.' : `Pixel pin holds on ${BACKENDS[0]}.`)
     }
 } finally {
     if (browser) await browser.close()
