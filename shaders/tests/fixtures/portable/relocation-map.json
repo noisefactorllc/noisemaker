@@ -424,6 +424,9 @@
         "shaders/tests/test_pond_ripples_plastic_wrap_invariants.mjs": {
             "role": "generated-module"
         },
+        "shaders/tests/test_portable_bundle_compat.mjs": {
+            "role": "catalog-reader"
+        },
         "shaders/tests/test_portable_capabilities.mjs": {
             "role": "generated-module"
         },
