@@ -196,7 +196,8 @@ function effectFiles(repo, id, env) {
     const prefix = `shaders/effects/${id}/`
     return git(repo, ['ls-files', '--', prefix], env).split('\n').filter(Boolean)
         .map(file => file.slice(prefix.length))
-        .filter(file => !PARITY_FILES.has(file))
+        // A converted definition is checked as metadata and through its generated module.
+        .filter(file => file !== 'definition.json' && !PARITY_FILES.has(file))
         .sort(compareIds)
 }
 

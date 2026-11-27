@@ -116,6 +116,28 @@ test('the catalog at HEAD is the baseline: IDs, export kinds, metadata and choic
     assert.deepEqual(compareCatalog(baseline, observed, context()), [])
 })
 
+test('tracking the native definition preserves the attachment inventory, while a stray asset changes it', async () => {
+    const id = 'synth/solid'
+    const directory = `shaders/effects/${id}`
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'portable-attachments-'))
+    const gitEnv = { ...process.env, GIT_INDEX_FILE: path.join(scratch, 'index') }
+    const git = args => execFileSync('git', ['-C', REPO_ROOT, ...args], { env: gitEnv, encoding: 'utf8' }).trim()
+    try {
+        git(['read-tree', 'HEAD'])
+        const blob = git(['rev-parse', `HEAD:${directory}/definition.js`])
+        git(['update-index', '--add', '--cacheinfo', `100644,${blob},${directory}/definition.json`])
+        const canonical = (await loadCatalog(REPO_ROOT, [id], { gitEnv })).metadata[id]
+        assert.deepEqual(canonical.attachments, baseline.metadata[id].attachments)
+
+        git(['update-index', '--add', '--cacheinfo', `100644,${blob},${directory}/unexpected.png`])
+        const extra = (await loadCatalog(REPO_ROOT, [id], { gitEnv })).metadata[id]
+        assert.deepEqual(extra.attachments, [...baseline.metadata[id].attachments, 'unexpected.png'].sort())
+        assert.match(firstDifference(extra, baseline.metadata[id]), /attachments/)
+    } finally {
+        fs.rmSync(scratch, { recursive: true, force: true })
+    }
+})
+
 // Every field of a render case outside the pin case shape. Any other is refused,
 // so that a misspelt timeline or midiMessages cannot pass as an untimed case.
 const RENDER_CASE_FIELDS = ['source', 'times', 'backends', 'comparison', 'warmup', 'orientation', 'withoutTarget', 'seeds', 'parameters', 'expectedAlpha', 'performance']
