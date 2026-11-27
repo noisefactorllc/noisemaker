@@ -453,6 +453,30 @@ test('the retired definition writers and readers fail on start, name the replace
     }
 })
 
+test('an effect that declares capabilities keeps its declared starter, in the reader and in its generated module', async () => {
+    const { root, effectsRoot } = engineTree('portable-capability-starter-')
+    try {
+        const { shapes } = baselineExportShapes()
+        const id = 'synth/media'
+        const dir = copyEffect(effectsRoot, id, path.join(ROOT, 'shaders/tests/fixtures/portable/providers/synth-media'))
+        const file = path.join(dir, 'definition.json')
+        const json = JSON.parse(fs.readFileSync(file, 'utf8'))
+        fs.writeFileSync(file, `${JSON.stringify({ ...json, namespace: 'synth', starter: true }, null, 4)}\n`)
+        const read = readDefinitionJson(dir, { catalog: true })
+        assert.deepEqual(read.diagnostics, [])
+        const shape = { definition: read.definition, ...shapes.get(id) }
+        assert.equal(instantiateCatalogDefinition(shape).starter, true, 'the reader builds it with its starter')
+        fs.writeFileSync(path.join(dir, 'definition.js'), generateWrapper(shape))
+        const exported = (await import(pathToFileURL(path.join(dir, 'definition.js')).href)).default
+        const generated = typeof exported === 'function' ? new exported() : exported
+        assert.equal(generated.starter, true, 'the generated module keeps it')
+        assert.ok(!Object.keys(generated).includes('starter'), 'and not as one of its own keys')
+        assert.equal((await readCatalogMetadata(dir, { exportShapes: shapes })).starter, true, 'its metadata holds it')
+    } finally {
+        fs.rmSync(root, { recursive: true, force: true })
+    }
+})
+
 test('a conversion writes a version 2 definition.json and its module, and refuses an effect whose class defines methods', async () => {
     const { root, effectsRoot } = engineTree('portable-convert-')
     try {

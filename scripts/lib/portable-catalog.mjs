@@ -174,7 +174,10 @@ export function instantiateCatalogDefinition(shape) {
     let Named
     if (declaresCapabilities(definition)) {
         const { composed, hooks, methods } = capabilityMembers(definition)
-        Named = { [className]: class extends Effect { constructor() { super(structuredClone(composed.fields)); composed.attach(this) } } }[className]
+        // Registration takes starter out of a package's fields; a catalog
+        // effect keeps the starter it declares.
+        const starter = starterConfig(definition.starter)
+        Named = { [className]: class extends Effect { constructor() { super({ ...structuredClone(composed.fields), ...starter }); composed.attach(this) } } }[className]
         for (const hook of hooks) {
             Object.defineProperty(Named.prototype, hook, { value: function (...args) { return composed.hooks[hook].apply(this, args) }, writable: true, configurable: true })
         }
@@ -210,7 +213,11 @@ export function generateWrapper(shape) {
         const { hooks, methods } = capabilityMembers(definition)
         lines.push("import { composeCatalogCapabilities } from '../../../src/portable/instantiate.js'", "import '../../../src/portable/providers/index.js'", '')
         lines.push(`const capabilities = composeCatalogCapabilities(${literal(definition)})`, '')
-        lines.push(`class ${className} extends Effect {`, '    constructor() {', '        super(structuredClone(capabilities.fields))', '        capabilities.attach(this)', '    }')
+        // The declared starter goes to the constructor beside the fields,
+        // which registration's composition leaves it out of.
+        const starter = starterConfig(definition.starter)
+        const config = starter ? `{ ...structuredClone(capabilities.fields), ${JSON.stringify(Object.keys(starter)[0])}: ${starter.starter} }` : 'structuredClone(capabilities.fields)'
+        lines.push(`class ${className} extends Effect {`, '    constructor() {', `        super(${config})`, '        capabilities.attach(this)', '    }')
         for (const hook of hooks) {
             lines.push('', `    ${hook}(...args) {`, `        return capabilities.hooks.${hook}.apply(this, args)`, '    }')
         }
