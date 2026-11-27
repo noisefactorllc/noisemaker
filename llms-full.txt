@@ -26,8 +26,8 @@ Source snapshots used for this contract:
   immutable package pin (`5fdbd18368002545dbaea41950f97b1b65e7752c`), which
   is release v0.7.1; tag `v0.7.1` resolves to the Shade MCP snapshot
   above. The vendored harness is the independent delivery path: release
-  v0.7.0 is delivered to `vendor/shade-mcp/` (tag `v0.7.0` resolves to
-  `4ce50fce68353e4a3c569362f6ee8c0bde6d8acf`).
+  v0.7.1 is delivered to `vendor/shade-mcp/` (tag `v0.7.1` resolves to
+  `5fdbd18368002545dbaea41950f97b1b65e7752c`).
 
 Primary source roots:
 
