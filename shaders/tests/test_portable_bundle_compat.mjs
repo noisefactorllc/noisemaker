@@ -39,6 +39,9 @@ const RUNTIME_LOADS = /\bfetch\s*\(|\bimport\s*\(|\bimportScripts\s*\(|\bnew\s+W
 
 const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex')
 
+// A read of the reference release that stalls fails, as one that errs does.
+const FETCH_TIMEOUT_MS = 60_000
+
 /** The SHA256SUMS lines as a map of path to digest. */
 export function parseSums(text) {
     const sums = new Map()
@@ -103,7 +106,7 @@ async function readReference(releasePath) {
         reads.set(releasePath, (async () => {
             const expected = sums.get(releasePath)
             assert.ok(expected, `${releasePath} is listed in the reference SHA256SUMS`)
-            const response = await fetch(new URL(releasePath, REFERENCE.url))
+            const response = await fetch(new URL(releasePath, REFERENCE.url), { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
             assert.equal(response.status, 200, `${REFERENCE.url}${releasePath} is delivered`)
             const bytes = Buffer.from(await response.arrayBuffer())
             assert.equal(sha256(bytes), expected, `${releasePath} has the digest SHA256SUMS lists`)
@@ -121,9 +124,10 @@ async function importText(text, name) {
 
 before(async () => {
     assert.equal(REFERENCE.version, BASELINE.reference.version, 'the pinned release is the one the catalog baseline records')
+    assert.ok(COMPARED.size > 0, 'the comparison has effects to compare')
     assert.ok(fs.existsSync(path.join(DIST, 'effects')) && fs.existsSync(path.join(DIST, 'shaders')),
         `${DIST} holds the effects/ and shaders/ that npm run bundle:shaders builds`)
-    const response = await fetch(new URL('SHA256SUMS', REFERENCE.url))
+    const response = await fetch(new URL('SHA256SUMS', REFERENCE.url), { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
     assert.equal(response.status, 200, `${REFERENCE.url}SHA256SUMS is delivered`)
     const bytes = Buffer.from(await response.arrayBuffer())
     assert.equal(sha256(bytes), REFERENCE.sha256sums, 'the reference SHA256SUMS has its pinned digest')
