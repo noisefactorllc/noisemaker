@@ -175,9 +175,10 @@ export function instantiateCatalogDefinition(shape) {
     if (declaresCapabilities(definition)) {
         const { composed, hooks, methods } = capabilityMembers(definition)
         // Registration takes starter out of a package's fields; a catalog
-        // effect keeps the starter it declares.
+        // effect keeps the starter it declares. The fields follow in the
+        // definition's order, as the generated module assigns them.
         const starter = starterConfig(definition.starter)
-        Named = { [className]: class extends Effect { constructor() { super({ ...structuredClone(composed.fields), ...starter }); composed.attach(this) } } }[className]
+        Named = { [className]: class extends Effect { constructor() { super(starter); Object.assign(this, structuredClone(composed.fields)); composed.attach(this) } } }[className]
         for (const hook of hooks) {
             Object.defineProperty(Named.prototype, hook, { value: function (...args) { return composed.hooks[hook].apply(this, args) }, writable: true, configurable: true })
         }
@@ -213,11 +214,12 @@ export function generateWrapper(shape) {
         const { hooks, methods } = capabilityMembers(definition)
         lines.push("import { composeCatalogCapabilities } from '../../../src/portable/instantiate.js'", "import '../../../src/portable/providers/index.js'", '')
         lines.push(`const capabilities = composeCatalogCapabilities(${literal(definition)})`, '')
-        // The declared starter goes to the constructor beside the fields,
-        // which registration's composition leaves it out of.
+        // The declared starter goes to the constructor, since registration's
+        // composition leaves it out of the fields. The fields follow in the
+        // definition's order, as a class's own fields do.
         const starter = starterConfig(definition.starter)
-        const config = starter ? `{ ...structuredClone(capabilities.fields), ${JSON.stringify(Object.keys(starter)[0])}: ${starter.starter} }` : 'structuredClone(capabilities.fields)'
-        lines.push(`class ${className} extends Effect {`, '    constructor() {', `        super(${config})`, '        capabilities.attach(this)', '    }')
+        lines.push(`class ${className} extends Effect {`, '    constructor() {', `        super(${starter ? JSON.stringify(starter) : ''})`,
+            '        Object.assign(this, structuredClone(capabilities.fields))', '        capabilities.attach(this)', '    }')
         for (const hook of hooks) {
             lines.push('', `    ${hook}(...args) {`, `        return capabilities.hooks.${hook}.apply(this, args)`, '    }')
         }

@@ -4,11 +4,70 @@
   "name": "Media",
   "namespace": "user",
   "func": "media",
-  "description": "Video/camera/image input",
   "tags": [
     "image",
     "video"
   ],
+  "description": "Video/camera/image input",
+  "externalTexture": "imageTex",
+  "uniformLayout": {
+    "resolution": {
+      "slot": 0,
+      "components": "xy"
+    },
+    "time": {
+      "slot": 0,
+      "components": "z"
+    },
+    "position": {
+      "slot": 1,
+      "components": "x"
+    },
+    "rotation": {
+      "slot": 1,
+      "components": "y"
+    },
+    "scaleAmt": {
+      "slot": 1,
+      "components": "z"
+    },
+    "offsetX": {
+      "slot": 1,
+      "components": "w"
+    },
+    "offsetY": {
+      "slot": 2,
+      "components": "x"
+    },
+    "tiling": {
+      "slot": 2,
+      "components": "y"
+    },
+    "flip": {
+      "slot": 2,
+      "components": "z"
+    },
+    "bgAlpha": {
+      "slot": 2,
+      "components": "w"
+    },
+    "bgColor": {
+      "slot": 3,
+      "components": "xyz"
+    },
+    "imageSize": {
+      "slot": 4,
+      "components": "xy"
+    },
+    "tileOffset": {
+      "slot": 5,
+      "components": "xy"
+    },
+    "fullResolution": {
+      "slot": 5,
+      "components": "zw"
+    }
+  },
   "globals": {
     "position": {
       "type": "int",
@@ -168,65 +227,6 @@
       }
     }
   },
-  "uniformLayout": {
-    "resolution": {
-      "slot": 0,
-      "components": "xy"
-    },
-    "time": {
-      "slot": 0,
-      "components": "z"
-    },
-    "position": {
-      "slot": 1,
-      "components": "x"
-    },
-    "rotation": {
-      "slot": 1,
-      "components": "y"
-    },
-    "scaleAmt": {
-      "slot": 1,
-      "components": "z"
-    },
-    "offsetX": {
-      "slot": 1,
-      "components": "w"
-    },
-    "offsetY": {
-      "slot": 2,
-      "components": "x"
-    },
-    "tiling": {
-      "slot": 2,
-      "components": "y"
-    },
-    "flip": {
-      "slot": 2,
-      "components": "z"
-    },
-    "bgAlpha": {
-      "slot": 2,
-      "components": "w"
-    },
-    "bgColor": {
-      "slot": 3,
-      "components": "xyz"
-    },
-    "imageSize": {
-      "slot": 4,
-      "components": "xy"
-    },
-    "tileOffset": {
-      "slot": 5,
-      "components": "xy"
-    },
-    "fullResolution": {
-      "slot": 5,
-      "components": "zw"
-    }
-  },
-  "externalTexture": "imageTex",
   "capabilities": [
     {
       "id": "noisemaker/media-dimensions",

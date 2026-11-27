@@ -255,6 +255,8 @@ test('the generated module of an effect that declares capabilities has the legac
             assert.deepEqual(chain(generated), chain(legacy), `${id}: the same class chain`)
             assert.deepEqual(definedMethods(generated), definedMethods(legacy), `${id}: the same methods`)
             assert.deepEqual(definitionSchema(generated), definitionSchema(legacy), `${id}: the same fields`)
+            assert.deepEqual(Object.keys(generated), Object.keys(legacy), `${id}: the same own properties, in the same order`)
+            assert.deepEqual(Object.keys(instantiateCatalogDefinition(shape)), Object.keys(legacy), `${id}: the reader's own properties, in the same order`)
             assert.deepEqual(capabilityUseOf(generated), capabilityUseOf(legacy), `${id}: the same capability use`)
             assert.deepEqual(definitionSchema(instantiateCatalogDefinition(shape)), definitionSchema(generated), `${id}: the reader builds what the module exports`)
             assert.deepEqual(definedMethods(instantiateCatalogDefinition(shape)), definedMethods(generated))
