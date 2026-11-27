@@ -8,7 +8,6 @@ import { Effect } from '../../../src/runtime/effect.js'
  * font, size, position, rotation, and background settings.
  */
 export default class Text extends Effect {
-    id = "text"
     name = "Text"
     namespace = "filter"
     func = "text"
