@@ -77,16 +77,18 @@ export function reservedNameViolations(schema) {
 }
 
 /**
- * Load an effect's complete schema by importing its live `definition.js`
- * (or parsing its `definition.json`) — the same source the browser runtime
- * executes — from `effectDir`. Node-only (test/analysis surface), by design.
+ * Load an effect's complete schema from `effectDir`. A `definition.json` is
+ * read through the shared catalog reader (scripts/lib/portable-catalog.mjs):
+ * the engine's package loader, then the Effect that the effect's generated
+ * module exports. Otherwise the live `definition.js` is imported, the same
+ * source the browser runtime executes. Node-only (test/analysis surface), by
+ * design. The reduced Shade projection is loadUpstreamProjection, apart.
  */
 export async function loadCompleteDefinition(effectDir) {
     const jsonPath = join(effectDir, 'definition.json')
     if (existsSync(jsonPath)) {
-        const { parseDefinitionJson } = await import(VENDORED_FORMATS_RELATIVE)
-        const { readFileSync } = await import('node:fs')
-        return parseDefinitionJson(JSON.parse(readFileSync(jsonPath, 'utf-8')), effectDir)
+        const { readEffectDefinition } = await import('../../scripts/lib/portable-catalog.mjs')
+        return readEffectDefinition(effectDir).definition
     }
     const jsPath = join(effectDir, 'definition.js')
     if (!existsSync(jsPath)) {

@@ -1,0 +1,139 @@
+{
+    "format": "noisemaker-portable-effect",
+    "version": 2,
+    "name": "Fixture Volume",
+    "namespace": "filter3d",
+    "func": "fixtureVolume",
+    "description": "A catalog fixture whose definition holds every field and pass control that the reduced Shade projection used to drop",
+    "tags": [
+        "3d"
+    ],
+    "globals": {
+        "volumeSize": {
+            "type": "int",
+            "default": 32,
+            "uniform": "volumeSize",
+            "min": 8,
+            "max": 64
+        },
+        "blendMode": {
+            "type": "int",
+            "default": 0,
+            "uniform": "blendMode",
+            "choices": {
+                "normal": 0,
+                "add": 1
+            }
+        },
+        "mix": {
+            "type": "float",
+            "default": 0.5,
+            "uniform": "mix",
+            "min": 0,
+            "max": 1
+        }
+    },
+    "textures": {
+        "volumeCache": {
+            "width": {
+                "param": "volumeSize",
+                "default": 32
+            },
+            "height": {
+                "param": "volumeSize",
+                "power": 2,
+                "default": 1024
+            },
+            "format": "rgba16f"
+        },
+        "geoBuffer": {
+            "width": {
+                "param": "volumeSize",
+                "default": 32
+            },
+            "height": {
+                "param": "volumeSize",
+                "power": 2,
+                "default": 1024
+            },
+            "format": "rgba16f"
+        }
+    },
+    "outputTex3d": "volumeCache",
+    "outputGeo": "geoBuffer",
+    "uniformLayout": {
+        "volumeSize": {
+            "slot": 0,
+            "components": "x"
+        },
+        "blendMode": {
+            "slot": 0,
+            "components": "y"
+        },
+        "mix": {
+            "slot": 0,
+            "components": "z"
+        }
+    },
+    "uniformLayouts": {
+        "fill": {
+            "volumeSize": {
+                "slot": 0,
+                "components": "x"
+            }
+        }
+    },
+    "defaultProgram": "search synth3d, filter3d, render\nshape3d(volumeSize: 32).fixtureVolume().render3d().write(o0)\nrender(o0)",
+    "passes": {
+        "fill": {
+            "program": "fill",
+            "type": "compute",
+            "inputs": {
+                "volumeInput": "inputTex3d"
+            },
+            "outputs": {
+                "color": "volumeCache",
+                "geometry": "geoBuffer"
+            },
+            "drawBuffers": 2,
+            "viewport": {
+                "width": {
+                    "param": "volumeSize",
+                    "default": 32
+                },
+                "height": {
+                    "param": "volumeSize",
+                    "power": 2,
+                    "default": 1024
+                }
+            },
+            "repeat": 2,
+            "defines": {
+                "FIXTURE_MODE": 1
+            },
+            "uniforms": {
+                "mixAmt": "mix"
+            }
+        },
+        "splat": {
+            "program": "splat",
+            "drawMode": "points",
+            "count": "input",
+            "blend": true,
+            "conditions": {
+                "runIf": [
+                    {
+                        "uniform": "blendMode",
+                        "equals": 1
+                    }
+                ]
+            },
+            "inputs": {
+                "volumeInput": "volumeCache"
+            },
+            "outputs": {
+                "color": "volumeCache"
+            }
+        }
+    }
+}
