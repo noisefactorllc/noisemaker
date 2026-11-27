@@ -1486,7 +1486,7 @@ Formal value contracts:
 | `surface` | `oN`, `sN`, `xyzN`, `velN`, `rgbaN`, `meshN`, `none`, `read(surface)`, or nested call/chain producing a temp. The validator rejects quoted strings. |
 | `volume` | `vol0`-`vol7`, `none`, or single-argument `read3d(volN)` |
 | `geometry` | `geo0`-`geo7`, `none`, or single-argument `read3d(geoN)` |
-| `color` | `vec3(n,n,n)`, `vec4(n,n,n,n)`, numeric array literal, or hex color. A nonnumeric constructor component or array element becomes `0` with S002. A wrong constructor arity or kwargs form uses the default with S002. Any other invalid form uses the default and produces a diagnostic. |
+| `color` | `vec3(n,n,n)`, `vec4(n,n,n,n)`, numeric array literal, or hex color. A nonnumeric constructor component or array element becomes `0` with S002. A wrong constructor arity or kwargs form uses the default with S002. An identifier argument uses the default with no diagnostic. Every other invalid form uses the default and produces a diagnostic. |
 | `vec3` | `vec3(n,n,n)`, hex color RGB, numeric array literal, or default |
 | `vec2` | `vec2(n,n)`, numeric array literal, or another numeric/general form. A nonnumeric `vec2()` component becomes `0` with S002; another `vec2()` argument count uses the default with S002. |
 | `vec4` | `vec4(n,n,n,n)` or `vec3(n,n,n)`, hex RGBA, numeric array literal, or default. A nonnumeric component becomes `0` with S002; a wrong constructor arity or kwargs form uses the default with S002. The normal loader projects it to DSL `color`. |
