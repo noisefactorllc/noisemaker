@@ -106,6 +106,9 @@ export function instantiatePortableEffect(packageData, { registrationContext, ca
  * lifecycle functions that its providers give, `methods` the methods they add,
  * and attach() adds the methods to an effect that does not define them and
  * records its capability use. The providers come from the engine's registry.
+ * A catalog effect whose providers depend on no parameter or resource records
+ * no use, as its legacy module recorded none. A package always records its
+ * use, empty when it depends on nothing (instantiatePortableEffect).
  * @param {object} definition - A catalog definition in the runtime form
  */
 export function composeCatalogCapabilities(definition) {
