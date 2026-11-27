@@ -504,6 +504,11 @@
       "effectId": "filter3d/palette3d",
       "change": "changed",
       "commit": "5596e69fd6e3b9014e9df0f8674e10e70c332e11"
+    },
+    {
+      "effectId": "filter/text",
+      "change": "changed",
+      "commit": "f4a1382a1dc863bebe5a3204acfdec425a19c983"
     }
   ],
   "exportKinds": [
@@ -24224,7 +24229,6 @@
         "wgsl/text.wgsl"
       ],
       "definition": {
-        "id": "text",
         "name": "Text",
         "namespace": "filter",
         "func": "text",
