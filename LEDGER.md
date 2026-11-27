@@ -1774,7 +1774,7 @@ work, verify it, then update the checkpoint and append a log line.
     and regression guards. No DSL, effect definition, viewer, or tool schema
     changed, so the contract's behavior statements, traceability matrix,
     and three open gaps remain valid. The configured immutable MCP pin is
-    `github:noisedeck/shade-mcp#8e0c80a436fbe1ead57bdde3ff3b9f605d34f342`.
+    commit `8e0c80a436fbe1ead57bdde3ff3b9f605d34f342`.
     Shade release `v0.3.1` points to that source and publishes
     `shade-mcp-dist.tar.gz` with SHA-256
     `e6a29674f356350b13c2fc009c02b5fa4e6e53d7b42aa18642028a2386cfbeb7`;
@@ -1800,7 +1800,7 @@ work, verify it, then update the checkpoint and append a log line.
     tools, reads WebGPU pixels, reports per-uniform measurements, compares
     filter output with its consumed input, and annotates resolution mismatch.
     The immutable configured MCP pin is
-    `github:noisedeck/shade-mcp#8e0c80a436fbe1ead57bdde3ff3b9f605d34f342`.
+    commit `8e0c80a436fbe1ead57bdde3ff3b9f605d34f342`.
     Shade release `v0.3.1` points to that source; its published tarball SHA-256
     is `e6a29674f356350b13c2fc009c02b5fa4e6e53d7b42aa18642028a2386cfbeb7`.
     The automatic Noisemaker import at `10386a1e` is byte-identical to all
@@ -1842,7 +1842,7 @@ work, verify it, then update the checkpoint and append a log line.
     passed. Shade [CI](https://github.com/noisefactorllc/shade-mcp/actions/runs/37113955254)
     and [browser quality](https://github.com/noisefactorllc/shade-mcp/actions/runs/37113955256)
     passed at `0d7c071`. The configured MCP pin remains
-    `github:noisedeck/shade-mcp#6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d`:
+    commit `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d`:
     one fresh session negotiated `shade-mcp` / `0.3.0` / `2025-06-18`, listed
     18 tools, and compiled `synth/cell` on WebGL2. The vendored
     `vendor/shade-mcp/` subtrees are byte-identical to the `v0.3.0` release
@@ -1887,7 +1887,7 @@ work, verify it, then update the checkpoint and append a log line.
     `v0.3.0` release — so no vendored module, tool schema, or public result
     shape changed for the delivered pair, and `llms-full.txt` stays accurate
     for it. Four identities of this pass: noisemaker source `1fd8934`, shade
-    source `bdf1866`, MCP pin `github:noisedeck/shade-mcp#6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d`
+    source `bdf1866`, MCP pin `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d`
     (= release `v0.3.0`), vendor delivery `v0.3.0` (unchanged). No integration
     code change was required on either side: noisemaker's harness mirrors and
     wrappers (`uniform-status.js` aggregate over the unchanged
@@ -2535,8 +2535,8 @@ work, verify it, then update the checkpoint and append a log line.
     `shaders/`, `test/`, `demo/`), so there is no repository-side surface and
     the row stays open, narrowed/blocked, with the existing retry-after-TTL
     workaround. Shade-side audit by unauthenticated remote fetch:
-    `git ls-remote` puts both `noisefactorllc/shade-mcp` and
-    `noisedeck/shade-mcp` tips at `00340b1`; the content hash of
+    `git ls-remote` puts `noisefactorllc/shade-mcp` and its
+    private counterpart at `00340b1`; the content hash of
     `src/knowledge/shared-instances.ts` — git blob
     `c3081989adfbf4e568e31043c248d35d0ab74fbe`, unchanged since
     `d6b8ab017bbf682055a1872e3fd86c273c28d5fc` (2026-08-12) — is byte-identical

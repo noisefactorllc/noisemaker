@@ -23,8 +23,8 @@ Source snapshots used for this contract:
   echoes the version the client requests, and answers `2025-11-25` to any
   other request; 21 tools are returned by `tools/list`.
 - The repository config runs the Shade MCP server through `npx -y` from an
-  immutable package pin (`1815133b47eaa33aee11d4a677cfea2f3939cf38`), which
-  is release v0.5.4; tag `v0.5.4` resolves to the Shade MCP snapshot
+  immutable package pin, which is release v0.5.4; tag `v0.5.4` resolves to
+  the Shade MCP snapshot
   above. The vendored harness is the independent delivery path: release
   v0.7.0 is delivered to `vendor/shade-mcp/` (tag `v0.7.0` resolves to
   `4ce50fce68353e4a3c569362f6ee8c0bde6d8acf`).
