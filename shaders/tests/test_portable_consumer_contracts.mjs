@@ -200,9 +200,47 @@ test('the Layers source override reads the same files for every effect', async (
     for (const id of baseline.effectIds) assert.deepEqual(actual[id], recorded[id], id)
 })
 
-test('Shade\'s projection of every effect is unchanged', async () => {
+// Shade writes the fields of effect, parameter and pass records in its own
+// order. The order of the authored collections inside them still matters.
+function orderShadeDescriptors({ globals, passes, ...fields }) {
+    const sortFields = record => Object.fromEntries(Object.entries(record).sort(([a], [b]) => a.localeCompare(b)))
+    return sortFields({
+        ...fields,
+        globals: Object.fromEntries(Object.entries(globals).map(([name, spec]) => [name, sortFields(spec)])),
+        passes: passes.map(sortFields),
+    })
+}
+
+test('Shade keeps the recorded legacy projection and reads the full native declarations', async () => {
     const recorded = readJson(path.join(REPO_ROOT, SHADE_PROJECTION_RELATIVE))
     assert.deepEqual(Object.keys(recorded), baseline.effectIds)
     const actual = await loadShadeProjections(REPO_ROOT, baseline.effectIds)
-    for (const id of baseline.effectIds) assert.equal(firstDifference(actual[id], recorded[id]), null, id)
+    for (const id of baseline.effectIds) {
+        const native = fs.existsSync(path.join(REPO_ROOT, 'shaders/effects', id, 'definition.json'))
+        if (!native) {
+            assert.equal(firstDifference(actual[id], recorded[id]), null, id)
+            continue
+        }
+
+        // Catalog-only aliases are resolved by the engine. Shade exposes the
+        // declaration with parameter names and its reader's default bindings.
+        const { globals = {}, passes, paramAliases: _aliases, ...fields } = baseline.metadata[id].definition
+        const expectedGlobals = Object.fromEntries(Object.entries(globals).map(([name, spec]) =>
+            [name, { ...spec, name, type: spec.type || 'float', uniform: spec.uniform || name }]))
+        const expected = {
+            ...fields,
+            globals: expectedGlobals,
+            passes: passes.map(pass => ({ ...pass, program: pass.program || 'main' })),
+            format: 'json',
+        }
+        assert.equal(firstDifference(orderShadeDescriptors(actual[id]), orderShadeDescriptors(expected)),
+            null, `${id}: full declaration and collection order from the catalog baseline`)
+
+        // The source format and partial-JS parser notices describe the reader.
+        const { format: _format, partial: _partial, partialReasons: _reasons, ...legacyValues } = recorded[id]
+        assert.partialDeepStrictEqual(actual[id], legacyValues, `${id}: values exposed by the legacy reader`)
+        const legacyNames = Object.keys(legacyValues.globals)
+        const carriedNames = Object.keys(actual[id].globals).filter(name => Object.hasOwn(legacyValues.globals, name))
+        assert.deepEqual(carriedNames, legacyNames, `${id}: parameter order exposed by the legacy reader`)
+    }
 })
