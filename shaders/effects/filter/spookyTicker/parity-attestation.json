@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "filter/spookyTicker",
-  "sourceHash": "7439c89cded4955858ba50cb8cd5a0f1fcdf69e7785635e90dbc194f3b660bd6",
+  "sourceHash": "522963d2629f1ac45b2cfaf1d1747b4d100848b6183c09b61ec52add18a20305",
   "caseHash": "1c0060235adeea6f218b649b6ba4dd1e5ab917ec0a4ebc61c00ea55929d3aaa4",
   "resolution": [
     64,

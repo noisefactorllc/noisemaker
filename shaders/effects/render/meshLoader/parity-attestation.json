@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "render/meshLoader",
-  "sourceHash": "89a77901a336e38e61553ea3a866cb9eb3ebcc1148953fbc9983e3da69fbdc7e",
+  "sourceHash": "1d773b29ef864275bd69b6bc75aaa1bb6707bc6df4b8e4399c40bcf683333bc7",
   "caseHash": "c23dfda6f5b83fd0aa70d2d7d27f8b2ff582bde294a099323f87240a2e2ba2ec",
   "resolution": [
     64,
