@@ -218,7 +218,7 @@ jobs:
     needs: bundle
     # Like the gpu job, for 2.x pushes and dispatches only.
     if: github.ref == 'refs/heads/2.x'
-    timeout-minutes: 45
+    timeout-minutes: 20
     permissions:
       contents: read
 
