@@ -13,7 +13,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `3a432f128d59fbc59fc1f3493ba6b2dec9e04578`.
+- Noisemaker: `93fe17aa177e351eae796030ece46d25e4b71af4`.
 - Shade MCP: `1815133b47eaa33aee11d4a677cfea2f3939cf38`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.5.4`. Its
   lockfile pins `@modelcontextprotocol/sdk` 1.32.2; the `npx` install below
@@ -46,7 +46,7 @@ contract tests, run by `scripts/run-js-tests.js`, check parts of it against
 source: `shaders/tests/test_contract_graph_shape.mjs` (the `CompiledGraph`
 type block against `compileGraph()` output),
 `shaders/tests/test_contract_delivery_pair.mjs` (the snapshot block and pin
-against `.mcp.json` and `vendor/`),
+against `.mcp.json`, `vendor/`, and the LEDGER checkpoint),
 `shaders/tests/test_contract_parity_session.mjs` (the parity statement
 against the vendored harness), and
 `shaders/tests/test_contract_frame_lifetime.mjs` (the frame-lifetime

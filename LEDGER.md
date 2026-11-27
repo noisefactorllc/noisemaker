@@ -1097,7 +1097,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `3a432f128d59fbc59fc1f3493ba6b2dec9e04578` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-27
+- **Checkpoint:** noisemaker `93fe17aa177e351eae796030ece46d25e4b71af4` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-27
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -1181,6 +1181,36 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-27 — completed delivery pair: Noisemaker
+    `93fe17aa177e351eae796030ece46d25e4b71af4` and Shade MCP at the
+    configured immutable pin (release v0.5.4). This pass audited the
+    checkpoint-to-head range left after the completed pass below: five
+    commits that change only `docs/shaders/effects.rst`, the LEDGER, and
+    the delivery-pair guard, whose checks now include the LEDGER checkpoint
+    pair against the snapshot block in the completed and pending pass
+    states. No engine, effect, viewer, vendor, or MCP configuration file
+    changed, so that pass's browser smoke test (15 checks), configured-pin
+    session, and worked transcript stay bound to the same delivered
+    behavior. Contract correction in `llms-full.txt`: the freshness
+    section's description of the delivery-pair guard now names the LEDGER
+    checkpoint check, and the snapshot block's Noisemaker line advances to
+    `93fe17a` to cover the changed guard. Audited the queued Shade range
+    `4ce50fc..bcbe952`: four commits after release v0.7.0 extend
+    `analyzeEffect` to return every field of the loaded definition and
+    accept indexed global names in the structure check, with tests. They
+    carry no release yet. The vendor delivery stays at v0.7.0 (tag
+    target `4ce50fc`, its four pulled subtrees byte-identical to that
+    release tarball per the completed pass below), and no new release is
+    required for them. Verified at the published head: the four contract
+    guard tests (14 tests pass), the MCP config test, `npm run lint`
+    (exit 0), Shade `npm run typecheck` and `npm test` (573 tests pass) at
+    `bcbe952`, the exact-source JavaScript, Shaders, Docs site, Release,
+    and CodeQL workflows passed at `93fe17a` (the Site workflow triggers
+    only on contract-file paths, which the range's commits do not touch),
+    and a full GET of `https://noisemaker.app/llms-full.txt` matched the
+    `93fe17a` blob with the deployment serving `93fe17a`. Moving the
+    `.mcp.json` pin past v0.5.4 stays recorded as the delivery blocker
+    below.
   - 2026-11-27 — completed delivery pair: Noisemaker
     `3a432f128d59fbc59fc1f3493ba6b2dec9e04578` and Shade MCP at the
     configured immutable pin (release v0.5.4). This pass audited the
