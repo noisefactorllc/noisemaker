@@ -239,6 +239,21 @@ export function readEffectDefinition(dir, { exportShapes } = {}) {
     return { effectId, definition: definitionSchema(instance), shaders: read.shaders, exportKind: shape.exportKind }
 }
 
+/**
+ * The complete metadata of the catalog effect in `dir`, the same whichever form
+ * it is in: read from its definition.json when it has one, and otherwise from
+ * the Effect that its legacy definition.js exports. Null when it has neither.
+ * Readers of a definition use this, never the text of a definition.js, whose
+ * generated form is not the legacy form.
+ */
+export async function readCatalogMetadata(dir, { exportShapes } = {}) {
+    if (fs.existsSync(path.join(dir, 'definition.json'))) return readEffectDefinition(dir, { exportShapes }).definition
+    const file = path.join(dir, 'definition.js')
+    if (!fs.existsSync(file)) return null
+    const exported = (await import(pathToFileURL(file).href)).default
+    return definitionSchema(typeof exported === 'function' ? new exported() : exported)
+}
+
 /** The catalog baseline's export kinds and class names, by effect ID. */
 export function baselineExportShapes(baselinePath = BASELINE) {
     const baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf8'))

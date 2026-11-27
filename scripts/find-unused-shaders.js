@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'fs'
 import path from 'path'
+import { readCatalogMetadata } from './lib/portable-catalog.mjs'
 
 // Find all WGSL files
 function findWgslFiles(dir) {
@@ -17,18 +18,11 @@ function findWgslFiles(dir) {
     return files
 }
 
-// Find all definition.js files and extract referenced programs
-function findReferencedPrograms(definitionPath) {
-    const content = fs.readFileSync(definitionPath, 'utf8')
-    const programs = new Set()
-
-    // Match program: 'name' or program: "name" - more robust regex
-    const regex = /program\s*:\s*['"]([^'"]+)['"]/g
-    let match
-    while ((match = regex.exec(content)) !== null) {
-        programs.add(match[1])
-    }
-    return programs
+// The programs an effect's passes name, from its metadata through the catalog
+// reader: the same from its definition.json as from its legacy definition.js.
+async function findReferencedPrograms(definitionPath) {
+    const definition = await readCatalogMetadata(path.dirname(path.resolve(definitionPath)))
+    return new Set((definition?.passes ?? []).map(pass => pass?.program).filter(program => typeof program === 'string'))
 }
 
 const effectsDir = 'shaders/effects'
@@ -52,7 +46,7 @@ const missingPrograms = []
 for (const def of definitions) {
     const defDir = path.dirname(def)
     const wgslDir = path.join(defDir, 'wgsl')
-    const programs = findReferencedPrograms(def)
+    const programs = await findReferencedPrograms(def)
 
     for (const prog of programs) {
         const wgslFile = path.join(wgslDir, prog + '.wgsl')
