@@ -1181,6 +1181,67 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-27 — candidate pair on `2.x`: Shade MCP
+    `5fdbd18368002545dbaea41950f97b1b65e7752c` (release v0.7.1) replaces
+    `1815133b47eaa33aee11d4a677cfea2f3939cf38` (release v0.5.4) in
+    `.mcp.json` and in the contract's snapshot block. The checkpoint keeps
+    the last completed pair until the pending checks below pass. The four
+    identities of the candidate: the contract's Noisemaker source line stays
+    `5596e69fd6e3b9014e9df0f8674e10e70c332e11`, the Shade MCP source and the
+    configured pin are both `5fdbd18`, and the vendor delivery stays the
+    v0.7.0 dist (tag target `4ce50fc`). The sessions and the smoke tests
+    below ran against this branch's renderer at
+    `a6b342a762ec57c183c5a38faa9c5877852513fc`, the `2.x` source this change
+    was audited on, except the seed smoke test's 1.x check, which ran against
+    a 1.x checkout at `5596e69`. The seed verbs need the Noisemaker 2 seed API, which that
+    renderer has and the renderer at `5596e69` does not. Audited the Shade
+    range `1815133b..5fdbd18` for contract-described behavior:
+    `src/server.ts` registers the three seed verbs, so `tools/list` lists 24;
+    `src/tools/browser/seed.ts` adds `getProgramSeed`, `setProgramSeed` and
+    `reseedProgram`; `src/tools/browser/dsl.ts` awaits each render call;
+    `src/formats/definition-json.ts` adds the version 2 package reader, with
+    its types in `src/formats/types.ts`; `src/tools/analysis/structure.ts`
+    accepts indexed global names; `src/tools/knowledge/analyze-effect.ts`
+    returns every field of the loaded definition; and `package.json` moves
+    to 0.7.1 and its `playwright` range to `^1.65.1`, with the lockfile's
+    `@modelcontextprotocol/sdk` still 1.32.2. No earlier verb's description
+    or input schema changed. Contract corrections in
+    `llms-full.txt`: the snapshot block; the tool counts and the traceability
+    matrix; the release notes for 0.6.0, 0.7.0 and 0.7.1; the three seed verb
+    contracts, their Validate rows and their place among the verbs whose
+    bounds are enforced; the `runDslProgram` render await; the
+    `checkEffectStructure` naming rule; the `analyzeEffect` result type with
+    its 1.x and version 2 projections; and the `searchEffects` skip rule.
+    Verified: one configured-pin session, run with `npx -y` from an empty
+    npm cache, installed the pinned commit and initialized server
+    `shade-mcp` 0.7.1 / protocol `2025-06-18` with SDK 1.32.2, listed 24
+    tools, and ran the eight worked calls without MCP `isError`. Seven
+    responses are byte-identical to the recorded transcript, and the
+    benchmark differs only in its times (60.39 FPS against the 30 FPS
+    target). No response carried `console_errors`. Calls in that session and
+    two later sessions at the same pin checked the `analyzeEffect` fields and
+    each seed verb. The worked-example `compileGraph()` pass array was
+    reproduced from source at the contract's Noisemaker source line and at
+    the `2.x` source this change was audited on
+    (`a6b342a`). Shade `node scripts/browser-smoke.mjs` with `NOISEMAKER` set
+    to this checkout reported all checks OK, and `node scripts/seed-smoke.mjs`
+    with `NOISEMAKER_2X` set to this checkout and `NOISEMAKER` to a 1.x
+    checkout at `5596e69` passed its four checks. Shade at
+    `5fdbd18`: `npm run typecheck` (exit 0), `npm test` (49 files, 573
+    tests pass), and exact-source
+    [quality 46015849272](https://github.com/noisefactorllc/shade-mcp/actions/runs/46015849272)
+    and [ci 46015849256](https://github.com/noisefactorllc/shade-mcp/actions/runs/46015849256)
+    passed. Noisemaker: the four contract guard tests (13 tests pass),
+    `test/mcp-config.test.js` (exit 0), the `NM_CHANGED_FILES` selection of
+    `node scripts/run-js-tests.js --skip-parity` (6 modules, exit 0) and
+    `npm run lint` (exit 0). Pending: exact-source CI on the published
+    commit, which is `js.yml` (its push paths include `llms-full.txt` and
+    `.mcp.json`; the paths of `shaders-2x.yml` do not). No workflow deploys
+    `llms-full.txt` from `2.x`, so on this branch the read-back is of the
+    published files: the pass completes when `js.yml` succeeds on the exact
+    published commit and the raw `llms-full.txt` and `.mcp.json` at that
+    commit are byte-equal, by SHA-256, to the reviewed files. Then the
+    checkpoint's Shade MCP side moves to `5fdbd18`.
   - 2026-11-26 — candidate pair: Noisemaker
     `740601018edb867c564c77aab3d157fa719dea53` (the engine source this
     contract pins is unchanged) and Shade MCP at the configured immutable
