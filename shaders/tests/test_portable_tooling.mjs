@@ -628,14 +628,6 @@ const DERIVED_OUTPUTS = [
     ['npm run strings', ['shaders/scripts/generate-effect-strings.mjs'], 'shaders/effects/strings.en.json'],
     ['the unused shader list', ['scripts/find-unused-shaders.js'], null],
 ]
-// The harness's structure check reads every global of a converted effect.
-// Shade's naming rule rejects the indexed parameter names of these two, which
-// their modules build in loops, so it reports them only once they are
-// converted (GAP-030, https://github.com/noisefactorllc/shade-mcp/issues/59).
-// Their conversion waits for that fix. Any other difference fails.
-const HARNESS_KNOWN_DIFFERENCES = ['mixer/mashup', 'synth/remap']
-const INDEXED_NAME = /^[a-z][a-zA-Z0-9]*\d+_[a-z][a-zA-Z0-9]*$/
-
 // The harness's structure-only result for each effect, without its timings.
 function harnessResults(stdout) {
     const results = new Map()
@@ -699,15 +691,7 @@ test('converting the catalog leaves the manifest, the strings, the effect lists 
         const harnessAfter = harness()
         assert.deepEqual([...harnessAfter.keys()], [...harnessBefore.keys()], 'the harness lists the same effects')
         for (const [id, result] of harnessAfter) {
-            if (!HARNESS_KNOWN_DIFFERENCES.includes(id)) {
-                assert.deepEqual(result, harnessBefore.get(id), `${id}: the same structure result`)
-                continue
-            }
-            assert.equal(result.passed, false, `${id}: GAP-030 is still open, or its exception can go`)
-            for (const line of result.lines.slice(1)) {
-                const name = /^\s+global: "([^"]+)" - Must be camelCase$/.exec(line)?.[1]
-                assert.ok(name && INDEXED_NAME.test(name), `${id}: only indexed names are reported, not ${JSON.stringify(line)}`)
-            }
+            assert.deepEqual(result, harnessBefore.get(id), `${id}: the same structure result`)
         }
         for (const reader of DEFINITION_READERS) run([reader])
     } finally {
