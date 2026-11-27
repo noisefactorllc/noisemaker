@@ -24,6 +24,7 @@ import {
 } from '../../scripts/lib/portable-catalog.mjs'
 import { convertEffects, wrapperDrift } from '../../scripts/migrate-portable-effects.mjs'
 import { toPortablePackage } from '../src/portable/definition.js'
+import { capabilityUseOf } from '../src/portable/capabilities.js'
 import { auditSchemaLoss, definitionSchema, loadCompleteDefinition, loadUpstreamProjection } from './definition-schema.js'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -40,11 +41,12 @@ function copyEffect(root, id, from) {
     return to
 }
 
-// Import a generated module as the runtime would, with its import of Effect
-// pointed at this checkout from wherever the module is written.
+// Import a generated module as the runtime would, with its imports of the
+// engine pointed at this checkout from wherever the module is written.
 async function importGenerated(text, dir) {
     const file = path.join(dir, `generated-${process.hrtime.bigint()}.mjs`)
-    fs.writeFileSync(file, text.replace("'../../../src/runtime/effect.js'", JSON.stringify(EFFECT_JS)))
+    fs.writeFileSync(file, text.replace(/'\.\.\/\.\.\/\.\.\/src\/([^']+)'/g,
+        (_, relative) => JSON.stringify(pathToFileURL(path.join(ROOT, 'shaders/src', relative)).href)))
     const exported = (await import(pathToFileURL(file).href)).default
     return typeof exported === 'function' ? new exported() : exported
 }
@@ -215,6 +217,56 @@ test('the particle effects convert with their deprecated parameter names, which 
                 `${id}: as a package from anyone else, it is refused for the alias`)
         }
         assert.deepEqual(wrapperDrift({ effectsRoot, shapes }), [])
+    } finally {
+        fs.rmSync(root, { recursive: true, force: true })
+    }
+})
+
+test('the generated module of an effect that declares capabilities has the legacy class, methods, fields and capability use', async () => {
+    // The version 2 packages of the four built-ins whose behavior is a
+    // provider's, from the provider pin check, read as catalog definitions in
+    // their own namespaces. The catalog itself is not converted.
+    const { shapes } = baselineExportShapes()
+    const chain = value => {
+        const names = []
+        for (let proto = Object.getPrototypeOf(value); proto && proto !== Object.prototype; proto = Object.getPrototypeOf(proto)) names.push(proto.constructor.name)
+        return names
+    }
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'portable-providers-'))
+    try {
+        for (const [fixture, id] of [['filter-fibers', 'filter/fibers'], ['filter-scratches', 'filter/scratches'], ['filter-strayHair', 'filter/strayHair'], ['synth-media', 'synth/media']]) {
+            const read = readDefinitionJson(path.join(ROOT, 'shaders/tests/fixtures/portable/providers', fixture), { catalog: true })
+            assert.deepEqual(read.diagnostics, [], fixture)
+            const definition = { ...read.definition, namespace: id.split('/')[0] }
+            const shape = { definition, ...shapes.get(id) }
+            const text = generateWrapper(shape)
+            assert.doesNotMatch(text, /\.json['"]/, `${id}: no JSON module is imported`)
+            const exported = (await import(pathToFileURL(path.join(EFFECTS_ROOT, ...id.split('/'), 'definition.js')).href)).default
+            const generatedExport = await (async () => {
+                const file = path.join(root, `${fixture}.mjs`)
+                fs.writeFileSync(file, text.replace(/'\.\.\/\.\.\/\.\.\/src\/([^']+)'/g,
+                    (_, relative) => JSON.stringify(pathToFileURL(path.join(ROOT, 'shaders/src', relative)).href)))
+                return (await import(pathToFileURL(file).href)).default
+            })()
+            assert.equal(typeof generatedExport, typeof exported, `${id}: the same export kind`)
+            const legacy = typeof exported === 'function' ? new exported() : exported
+            const generated = typeof generatedExport === 'function' ? new generatedExport() : generatedExport
+            assert.deepEqual(chain(generated), chain(legacy), `${id}: the same class chain`)
+            assert.deepEqual(definedMethods(generated), definedMethods(legacy), `${id}: the same methods`)
+            assert.deepEqual(definitionSchema(generated), definitionSchema(legacy), `${id}: the same fields`)
+            assert.deepEqual(capabilityUseOf(generated), capabilityUseOf(legacy), `${id}: the same capability use`)
+            assert.deepEqual(definitionSchema(instantiateCatalogDefinition(shape)), definitionSchema(generated), `${id}: the reader builds what the module exports`)
+            assert.deepEqual(definedMethods(instantiateCatalogDefinition(shape)), definedMethods(generated))
+            if (id === 'synth/media') {
+                // The provider's method and hooks act on the effect as the legacy class's do.
+                for (const effect of [generated, legacy]) {
+                    effect.onInit()
+                    effect.setMediaDimensions(320, 180)
+                }
+                assert.deepEqual(generated.onUpdate({}), legacy.onUpdate({}), 'media: the same uniforms after setMediaDimensions')
+                assert.deepEqual(generated.state, legacy.state, 'media: the same state')
+            }
+        }
     } finally {
         fs.rmSync(root, { recursive: true, force: true })
     }

@@ -92,6 +92,27 @@ export function instantiatePortableEffect(packageData, { registrationContext, ca
     if (namespace !== 'user' && registrationContext !== CATALOG_CONTEXT) {
         throw refuse([{ code: 'reserved-namespace', path: 'namespace', message: `namespace ${namespace} is the engine's; a package registers in user` }])
     }
+    const composed = composeCapabilities(definition, { capabilities, host })
+    const config = { ...composed.fields, shaders, ...composed.hooks }
+    const effect = new Effect(config)
+    composed.attach(effect)
+    return effect
+}
+
+/**
+ * The capabilities a catalog definition declares, composed as its generated
+ * module uses them: { fields, hooks, methods, attach(effect) }. `fields` is the
+ * definition without its capability declarations, `hooks` the composed
+ * lifecycle functions that its providers give, `methods` the methods they add,
+ * and attach() adds the methods to an effect that does not define them and
+ * records its capability use. The providers come from the engine's registry.
+ * @param {object} definition - A catalog definition in the runtime form
+ */
+export function composeCatalogCapabilities(definition) {
+    return composeCapabilities(definition, { capabilities: defaultCapabilityRegistry, host: {} })
+}
+
+function composeCapabilities(definition, { capabilities, host }) {
     const { resolved, diagnostics } = resolvePortableCapabilities(definition, capabilities)
     if (diagnostics.length > 0) throw refuse(diagnostics)
 
@@ -123,9 +144,10 @@ export function instantiatePortableEffect(packageData, { registrationContext, ca
     }
 
     const has = hook => lifecycles.some(lifecycle => typeof lifecycle[hook] === 'function')
-    const config = { ...definition, shaders }
-    delete config.capabilities
-    delete config.starter
+    const fields = { ...definition }
+    delete fields.capabilities
+    delete fields.starter
+    const config = {}
     if (has('onInit')) {
         config.onInit = function onInit() {
             for (const lifecycle of lifecycles) lifecycle.onInit?.call(this)
@@ -154,19 +176,22 @@ export function instantiatePortableEffect(packageData, { registrationContext, ca
             for (const lifecycle of [...lifecycles].reverse()) lifecycle.onDestroy?.call(this)
         }
     }
-    const effect = new Effect(config)
     // A method a provider adds is a new name on the effect: never one the
     // effect already has, a private one, or one another provider adds.
+    const methods = {}
     const added = new Map()
     const problems = []
+    const probe = new Effect({ ...fields, ...config })
     lifecycles.forEach((lifecycle, index) => {
         for (const name of Object.keys(lifecycle.methods ?? {})) {
-            if (name.startsWith('_') || name in effect) {
+            if (name.startsWith('_') || name in probe) {
                 problems.push({ code: 'invalid-provider', path: `capabilities.${index}`, message: `the method ${name} would replace a member of the effect` })
             } else if (added.has(name)) {
                 problems.push({ code: 'duplicate-method', path: `capabilities.${index}`, message: `the method ${name} is also added by capabilities.${added.get(name)}` })
             } else {
                 added.set(name, index)
+                const method = lifecycle.methods[name]
+                methods[name] = function (...args) { return method.apply(this, args) }
             }
         }
     })
@@ -174,19 +199,23 @@ export function instantiatePortableEffect(packageData, { registrationContext, ca
         for (const controller of controllers) controller.abort()
         throw refuse(problems)
     }
-    lifecycles.forEach(lifecycle => {
-        for (const [name, method] of Object.entries(lifecycle.methods ?? {})) {
-            effect[name] = function (...args) { return method.apply(this, args) }
-        }
-    })
-    if (resolved.length > 0) {
-        setCapabilityUse(effect, {
-            dependencies: [...new Set(resolved.flatMap(({ declaration, provider }) => dependencyGlobals(declaration, provider.descriptor)))],
-            resources: [...new Set(resolved.flatMap(({ declaration, provider }) => dependencyTextures(declaration, provider.descriptor)))],
-        })
+    // The parameters and resources whose change draws the effect again. An
+    // effect whose providers depend on none records no use, as the built-ins do.
+    const dependencies = [...new Set(resolved.flatMap(({ declaration, provider }) => dependencyGlobals(declaration, provider.descriptor)))]
+    const resources = [...new Set(resolved.flatMap(({ declaration, provider }) => dependencyTextures(declaration, provider.descriptor)))]
+    const use = dependencies.length || resources.length ? { dependencies, resources } : null
+    return {
+        fields,
+        hooks: config,
+        methods,
+        attach(effect) {
+            for (const [name, method] of Object.entries(methods)) {
+                if (!(name in effect)) effect[name] = method
+            }
+            if (use) setCapabilityUse(effect, { dependencies: [...use.dependencies], resources: [...use.resources] })
+            creations.set(effect, controllers)
+        },
     }
-    creations.set(effect, controllers)
-    return effect
 }
 
 export { capabilityUseOf }

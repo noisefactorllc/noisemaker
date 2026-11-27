@@ -20,6 +20,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { normalizePortableDefinition } from '../../shaders/src/portable/definition.js'
+import { composeCatalogCapabilities } from '../../shaders/src/portable/instantiate.js'
+// The engine's capability providers, which the catalog's effects compose.
+import '../../shaders/src/portable/providers/index.js'
 import { loadPortablePackage } from '../../shaders/src/portable/package.js'
 import { Effect } from '../../shaders/src/runtime/effect.js'
 import { definitionSchema } from '../../shaders/tests/definition-schema.js'
@@ -129,48 +132,94 @@ export function definedMethods(instance) {
     return [...names].sort(compareNames)
 }
 
-function assertGeneratable(definition) {
-    if (Array.isArray(definition.capabilities) && definition.capabilities.length > 0) {
-        throw new Error(`${definition.func}: a definition that declares capabilities has no generated module yet`)
+const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/
+const LIFECYCLE_HOOKS = ['onInit', 'onUpdate', 'asyncInit', 'onDestroy']
+const declaresCapabilities = definition => Array.isArray(definition.capabilities) && definition.capabilities.length > 0
+const literal = (value, indent = '') => JSON.stringify(value, null, 4).split('\n').join(`\n${indent}`)
+
+// Whether the module defines a class of its own: for a class export, for an
+// effect whose capabilities give it methods, and for an instance of a named
+// subclass.
+function definesClass({ definition, exportKind, className }) {
+    if (exportKind !== 'instance' && exportKind !== 'class') {
+        throw new Error(`${definition.func}: unknown export kind ${JSON.stringify(exportKind)}`)
+    }
+    const named = exportKind === 'class' || declaresCapabilities(definition) || className !== undefined
+    if (named && !IDENTIFIER.test(className ?? '')) {
+        throw new Error(`${definition.func}: class name ${JSON.stringify(className)} is not an identifier`)
+    }
+    return named
+}
+
+// The lifecycle hooks and methods that a definition's capabilities give its
+// class, from the providers in the engine's registry.
+function capabilityMembers(definition) {
+    const composed = composeCatalogCapabilities(definition)
+    return {
+        composed,
+        hooks: LIFECYCLE_HOOKS.filter(hook => typeof composed.hooks[hook] === 'function'),
+        methods: Object.keys(composed.methods).sort(compareNames),
     }
 }
 
 /**
  * The Effect that a definition's generated module exports, built the same way
  * that module builds it: an Effect of the definition, or an instance of a class
- * whose fields are the definition's fields.
+ * whose fields are the definition's fields and, for an effect that declares
+ * capabilities, whose methods are the ones its providers give.
  */
-export function instantiateCatalogDefinition({ definition, exportKind, className }) {
-    assertGeneratable(definition)
-    if (exportKind === 'instance') return new Effect(structuredClone(definition))
-    if (exportKind === 'class') {
+export function instantiateCatalogDefinition(shape) {
+    const { definition, className } = shape
+    if (!definesClass(shape)) return new Effect(structuredClone(definition))
+    let Named
+    if (declaresCapabilities(definition)) {
+        const { composed, hooks, methods } = capabilityMembers(definition)
+        Named = { [className]: class extends Effect { constructor() { super(structuredClone(composed.fields)); composed.attach(this) } } }[className]
+        for (const hook of hooks) {
+            Object.defineProperty(Named.prototype, hook, { value: function (...args) { return composed.hooks[hook].apply(this, args) }, writable: true, configurable: true })
+        }
+        for (const method of methods) {
+            Object.defineProperty(Named.prototype, method, { value: function (...args) { return composed.methods[method].apply(this, args) }, writable: true, configurable: true })
+        }
+    } else {
         const fields = structuredClone(definition)
-        const named = { [className]: class extends Effect { constructor() { super(); Object.assign(this, fields) } } }
-        return new named[className]()
+        Named = { [className]: class extends Effect { constructor() { super(); Object.assign(this, structuredClone(fields)) } } }[className]
     }
-    throw new Error(`${definition.func}: unknown export kind ${JSON.stringify(exportKind)}`)
+    return new Named()
 }
 
 /**
  * The text of the compatibility module generated for a definition: it embeds
- * the definition as a JavaScript literal and imports no JSON module.
+ * the definition as a JavaScript literal and imports no JSON module. An effect
+ * that declares capabilities composes them from the engine's providers, and
+ * its class defines the lifecycle hooks and methods they give.
  */
-export function generateWrapper({ definition, exportKind, className }) {
-    assertGeneratable(definition)
-    const lines = [GENERATED_HEADER, "import { Effect } from '../../../src/runtime/effect.js'", '']
-    if (exportKind === 'instance') {
-        lines.push(`export default new Effect(${JSON.stringify(definition, null, 4)})`)
-    } else if (exportKind === 'class') {
-        if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(className ?? '')) throw new Error(`${definition.func}: class name ${JSON.stringify(className)} is not an identifier`)
-        lines.push(`export default class ${className} extends Effect {`)
-        for (const [key, value] of Object.entries(definition)) {
-            const field = JSON.stringify(value, null, 4).split('\n').join('\n    ')
-            lines.push(`    ${JSON.stringify(key)} = ${field}`)
+export function generateWrapper(shape) {
+    const { definition, exportKind, className } = shape
+    const lines = [GENERATED_HEADER, "import { Effect } from '../../../src/runtime/effect.js'"]
+    if (!definesClass(shape)) {
+        lines.push('', `export default new Effect(${literal(definition)})`)
+        return `${lines.join('\n')}\n`
+    }
+    if (declaresCapabilities(definition)) {
+        const { hooks, methods } = capabilityMembers(definition)
+        lines.push("import { composeCatalogCapabilities } from '../../../src/portable/instantiate.js'", "import '../../../src/portable/providers/index.js'", '')
+        lines.push(`const capabilities = composeCatalogCapabilities(${literal(definition)})`, '')
+        lines.push(`class ${className} extends Effect {`, '    constructor() {', '        super(structuredClone(capabilities.fields))', '        capabilities.attach(this)', '    }')
+        for (const hook of hooks) {
+            lines.push('', `    ${hook}(...args) {`, `        return capabilities.hooks.${hook}.apply(this, args)`, '    }')
+        }
+        for (const method of methods) {
+            const name = IDENTIFIER.test(method) ? method : `[${JSON.stringify(method)}]`
+            lines.push('', `    ${name}(...args) {`, `        return capabilities.methods[${JSON.stringify(method)}].apply(this, args)`, '    }')
         }
         lines.push('}')
     } else {
-        throw new Error(`${definition.func}: unknown export kind ${JSON.stringify(exportKind)}`)
+        lines.push('', `class ${className} extends Effect {`)
+        for (const [key, value] of Object.entries(definition)) lines.push(`    ${JSON.stringify(key)} = ${literal(value, '    ')}`)
+        lines.push('}')
     }
+    lines.push('', exportKind === 'class' ? `export default ${className}` : `export default new ${className}()`)
     return `${lines.join('\n')}\n`
 }
 
@@ -196,7 +245,10 @@ export function baselineExportShapes(baselinePath = BASELINE) {
     const shapes = new Map()
     for (const [id, kind] of baseline.exportKinds) {
         const classes = baseline.metadata?.[id]?.classes ?? []
-        shapes.set(id, { exportKind: kind, className: kind === 'class' ? classes[0] : undefined })
+        // The class the module defines: the class exported, or the named
+        // subclass of Effect that an instance export is made from.
+        const className = classes[0] && classes[0] !== 'Effect' ? classes[0] : undefined
+        shapes.set(id, { exportKind: kind, className })
     }
     return { shapes, effectIds: [...baseline.effectIds] }
 }
