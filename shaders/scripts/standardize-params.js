@@ -11,9 +11,10 @@
  * CRITICAL: Does NOT change `uniform` field values. Only changes the
  * globals object key, `type`, and `ui.label`.
  *
- * Usage:
- *   node shaders/scripts/standardize-params.js           # apply changes
- *   node shaders/scripts/standardize-params.js --dry-run  # preview only
+ * Retired: it fails on start, before it reads or writes a definition, and
+ * names the replacement. An effect's authored definition is its
+ * definition.json, and scripts/migrate-portable-effects.mjs generates its
+ * definition.js.
  */
 
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'fs'
@@ -26,6 +27,16 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 const DRY_RUN = process.argv.includes('--dry-run')
+
+console.error([
+  "standardize-params.js is retired: an effect's authored definition is its definition.json, and its definition.js is generated from it.",
+  "To change a definition, edit the effect's definition.json. Convert a legacy definition.js first with",
+  '  node scripts/migrate-portable-effects.mjs --convert <namespace/effect>',
+  'then regenerate and check the generated modules with',
+  '  node scripts/migrate-portable-effects.mjs',
+  '  node scripts/migrate-portable-effects.mjs --check',
+].join('\n'))
+process.exit(1)
 
 // ─── Configuration ──────────────────────────────────────────────────
 

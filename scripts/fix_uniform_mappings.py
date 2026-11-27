@@ -4,6 +4,10 @@ Fix effect definitions to add uniform: mappings to globals.
 
 For each global that has a default value but no uniform mapping,
 add uniform: "globalName" to ensure the value is passed to shaders.
+
+Retired: it fails on start, before it reads or writes a definition, and names
+the replacement. An effect's authored definition is its definition.json, and
+scripts/migrate-portable-effects.mjs generates its definition.js.
 """
 
 import os
@@ -120,7 +124,21 @@ def fix_definition_file(filepath: Path) -> bool:
     return modified
 
 
+RETIRED = "\n".join([
+    "fix_uniform_mappings.py is retired: an effect's authored definition is its definition.json, and its definition.js is generated from it.",
+    "To change a definition, edit the effect's definition.json. Convert a legacy definition.js first with",
+    '  node scripts/migrate-portable-effects.mjs --convert <namespace/effect>',
+    'then regenerate and check the generated modules with',
+    '  node scripts/migrate-portable-effects.mjs',
+    '  node scripts/migrate-portable-effects.mjs --check',
+])
+
+
 def main():
+    # Retired: it fails on start, before it reads or writes a definition.
+    print(RETIRED, file=sys.stderr)
+    sys.exit(1)
+
     effects_dir = Path(__file__).parent.parent / 'shaders' / 'effects'
     
     if not effects_dir.exists():

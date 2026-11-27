@@ -16,6 +16,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { isDeepStrictEqual } from 'node:util'
 import {
@@ -266,6 +267,68 @@ test('the generated module of an effect that declares capabilities has the legac
                 assert.deepEqual(generated.onUpdate({}), legacy.onUpdate({}), 'media: the same uniforms after setMediaDimensions')
                 assert.deepEqual(generated.state, legacy.state, 'media: the same state')
             }
+        }
+    } finally {
+        fs.rmSync(root, { recursive: true, force: true })
+    }
+})
+
+test('the retired definition writers fail on start, name the replacement, and change no file', () => {
+    // Each would change this effect: its seed is a float, which
+    // standardize-params.js makes an int, and no global maps a uniform, which
+    // fix_uniform_mappings.py adds.
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'portable-writers-'))
+    try {
+        for (const file of ['shaders/scripts/standardize-params.js', 'shaders/scripts/param-rename-map.js', 'scripts/fix_uniform_mappings.py']) {
+            fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
+            fs.copyFileSync(path.join(ROOT, file), path.join(root, file))
+        }
+        const effect = path.join(root, 'shaders/effects/synth/writerProbe')
+        fs.mkdirSync(effect, { recursive: true })
+        fs.writeFileSync(path.join(effect, 'definition.js'), [
+            "import { Effect } from '../../../src/runtime/effect.js'",
+            '',
+            'export default new Effect({',
+            '  name: "WriterProbe",',
+            '  namespace: "synth",',
+            '  func: "writerProbe",',
+            '  globals: {',
+            '    seed: {',
+            '      type: "float",',
+            '      default: 1',
+            '    }',
+            '  },',
+            '  passes: []',
+            '})',
+            '',
+        ].join('\n'))
+        const snapshot = () => {
+            const files = {}
+            const walk = dir => {
+                for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                    const full = path.join(dir, entry.name)
+                    if (entry.isDirectory()) walk(full)
+                    else files[path.relative(root, full)] = fs.readFileSync(full, 'utf8')
+                }
+            }
+            walk(root)
+            return files
+        }
+        const before = snapshot()
+        const python = process.platform === 'win32' ? 'python' : 'python3'
+        for (const [command, args] of [
+            [process.execPath, [path.join(root, 'shaders/scripts/standardize-params.js')]],
+            [process.execPath, [path.join(root, 'shaders/scripts/standardize-params.js'), '--dry-run']],
+            [python, [path.join(root, 'scripts/fix_uniform_mappings.py')]],
+        ]) {
+            const run = spawnSync(command, args, { cwd: root, encoding: 'utf8' })
+            const name = path.basename(args[0])
+            assert.notEqual(run.status, 0, `${name} fails`)
+            assert.match(run.stderr, /edit the effect's definition\.json/, `${name} names the replacement`)
+            assert.match(run.stderr, /node scripts\/migrate-portable-effects\.mjs --convert <namespace\/effect>/, `${name} names the conversion`)
+            assert.match(run.stderr, /node scripts\/migrate-portable-effects\.mjs --check/, `${name} names the check`)
+            assert.equal(run.stdout, '', `${name} reads no definition`)
+            assert.deepEqual(snapshot(), before, `${name} changes no file`)
         }
     } finally {
         fs.rmSync(root, { recursive: true, force: true })
