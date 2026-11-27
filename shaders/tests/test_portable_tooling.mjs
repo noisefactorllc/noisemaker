@@ -182,14 +182,11 @@ test('each catalog effect that converts reads the same from its version 2 JSON a
     } finally {
         fs.rmSync(root, { recursive: true, force: true })
     }
-    // What a definition.json cannot hold yet: provider behavior in class
-    // methods, and filter/text's id field (GAP-085,
-    // https://github.com/noisefactorllc/noisemaker/issues/441).
+    // Provider behavior in class methods remains outside the JSON declaration.
     assert.deepEqual(refused, {
         'filter/fibers': 'methods',
         'filter/scratches': 'methods',
         'filter/strayHair': 'methods',
-        'filter/text': 'id',
         'synth/media': 'methods',
     })
 })
@@ -619,8 +616,6 @@ const CONVERSION_REFUSED = {
     'filter/fibers': /its class defines asyncInit/,
     'filter/scratches': /its class defines asyncInit/,
     'filter/strayHair': /its class defines asyncInit/,
-    // GAP-085, https://github.com/noisefactorllc/noisemaker/issues/441
-    'filter/text': /does not load as the same effect/,
     'synth/media': /its class defines onInit, onUpdate, setMediaDimensions/,
 }
 const DERIVED_OUTPUTS = [
@@ -678,12 +673,15 @@ test('converting the catalog leaves the manifest, the strings, the effect lists 
         assert.ok(harnessBefore.size > 0, 'the harness lists the effects')
         assert.deepEqual([...harnessBefore].filter(([, result]) => !result.passed).map(([id]) => id), [], 'every effect passes the structure check before the conversion')
 
-        // One conversion of every other effect, which stops at a refusal, and
-        // one for each effect that is refused.
         const { shapes, effectIds } = baselineExportShapes()
-        const convertible = effectIds.filter(id => !(id in CONVERSION_REFUSED))
-        assert.deepEqual(await convertEffects(convertible, { effectsRoot, shapes }), convertible, 'every other effect converts')
+        const isNative = id => fs.existsSync(path.join(effectsRoot, id, 'definition.json'))
+        const native = effectIds.filter(isNative)
+        const legacy = effectIds.filter(id => !isNative(id))
+        assert.deepEqual(wrapperDrift({ effectsRoot, shapes }), [], 'already-converted effects have current generated modules')
+        const convertible = legacy.filter(id => !(id in CONVERSION_REFUSED))
+        assert.deepEqual(await convertEffects(convertible, { effectsRoot, shapes }), convertible, 'every eligible legacy effect converts')
         for (const [id, reason] of Object.entries(CONVERSION_REFUSED)) await assert.rejects(convertEffects([id], { effectsRoot, shapes }), reason, id)
+        assert.deepEqual(effectIds.filter(isNative), [...native, ...convertible].sort(), 'the existing and new native effects are all present')
         assert.deepEqual(wrapperDrift({ effectsRoot, shapes }), [], 'every generated module is current')
 
         const after = outputs()
