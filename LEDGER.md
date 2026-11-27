@@ -1181,6 +1181,28 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-27 — candidate: contract correction for the GAP-086 validator
+    change (`688794a`), which upstream published mid-pass. The shared
+    color-parameter constructor branch now accepts `vec3(n,n,n)` and
+    `vec4(n,n,n,n)` and keeps the supplied components, independently of the
+    parameter's default length. A nonnumeric component becomes `0` with S002.
+    A wrong constructor arity or a kwargs form falls through to the color
+    branch: S002 with the default. Corrected the `color` and `vec4` rows of
+    the formal value contracts table in `llms-full.txt`, and the snapshot
+    block's Noisemaker line advances to `688794a` to cover the changed
+    validator. The checkpoint keeps the last completed pair (`93fe17aa` /
+    configured pin) until exact-source CI and the live `llms-full.txt`
+    readback pass. Audited the queued Shade range `bcbe952..5fdbd18`: one
+    commit, `chore: release 0.7.1`, which changes only `package.json` and
+    `package-lock.json` version metadata. No runtime source changed. No
+    v0.7.1 tag or release exists yet, so pull-shade-mcp has nothing to pull,
+    and the delivered pair stays at configured pin v0.5.4 plus vendor v0.7.0.
+    Verified at `688794a`: `node shaders/tests/test-unparser.mjs` (41 pass,
+    including the new constructor and malformed-arity tests). The Shade
+    checks ci, quality, and browser all succeeded at `5fdbd18`. The
+    JavaScript, JS lint, and Shader checks succeeded at `688794a` (the
+    Shaders workflow was still running there). Pending: exact-source CI at
+    this candidate and the live readback.
   - 2026-11-27 — completed delivery pair: Noisemaker
     `93fe17aa177e351eae796030ece46d25e4b71af4` and Shade MCP at the
     configured immutable pin (release v0.5.4). This pass audited the

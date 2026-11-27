@@ -13,7 +13,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `93fe17aa177e351eae796030ece46d25e4b71af4`.
+- Noisemaker: `688794aca5998d9573afa5601c2b9b023c896007`.
 - Shade MCP: `1815133b47eaa33aee11d4a677cfea2f3939cf38`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.5.4`. Its
   lockfile pins `@modelcontextprotocol/sdk` 1.32.2; the `npx` install below
@@ -1486,10 +1486,10 @@ Formal value contracts:
 | `surface` | `oN`, `sN`, `xyzN`, `velN`, `rgbaN`, `meshN`, `none`, `read(surface)`, or nested call/chain producing a temp. The validator rejects quoted strings. |
 | `volume` | `vol0`-`vol7`, `none`, or single-argument `read3d(volN)` |
 | `geometry` | `geo0`-`geo7`, `none`, or single-argument `read3d(geoN)` |
-| `color` | Hex color. An invalid form uses the default and produces a diagnostic. |
+| `color` | `vec3(n,n,n)`, `vec4(n,n,n,n)`, numeric array literal, or hex color. A nonnumeric constructor component or array element becomes `0` with S002. A wrong constructor arity or kwargs form uses the default with S002. Any other invalid form uses the default and produces a diagnostic. |
 | `vec3` | `vec3(n,n,n)`, hex color RGB, numeric array literal, or default |
 | `vec2` | `vec2(n,n)`, numeric array literal, or another numeric/general form. A nonnumeric `vec2()` component becomes `0` with S002; another `vec2()` argument count uses the default with S002. |
-| `vec4` | `vec4(n,n,n,n)` (through the normal loader only when `default` is a four-element array), hex RGBA, numeric array literal, or default. A nonnumeric `vec4()` component becomes `0` with S002. The normal loader projects it to DSL `color`. |
+| `vec4` | `vec4(n,n,n,n)` or `vec3(n,n,n)`, hex RGBA, numeric array literal, or default. A nonnumeric component becomes `0` with S002; a wrong constructor arity or kwargs form uses the default with S002. The normal loader projects it to DSL `color`. |
 | `string` | quoted string only for `text.text`, `text.font`, `text.justify`, `text.style`. The validator also accepts a matching choice identifier. |
 | `palette` | Numeric/general argument. The expander additionally writes dependent palette uniforms already present on the pass |
 
