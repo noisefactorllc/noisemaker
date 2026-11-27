@@ -1,63 +1,146 @@
+// Generated from definition.json by scripts/migrate-portable-effects.mjs. Do not edit.
 import { Effect } from '../../../src/runtime/effect.js'
-import { providerContext, setCapabilityUse } from '../../../src/portable/capabilities.js'
-import { WORM_OVERLAY_DESCRIPTOR, WORM_OVERLAY_RECIPES, drawWormOverlay } from '../../../src/portable/providers/worm-overlay.js'
+import { composeCatalogCapabilities } from '../../../src/portable/instantiate.js'
+import '../../../src/portable/providers/index.js'
 
-/**
- * Fibers - chaotic fiber texture overlay
- *
- * One-shot CPU rendering: traces worms on a canvas, uploads as overlay texture.
- * Matches Python reference: 4 layers of chaotic worms with colored strands.
- * The noisemaker/worm-overlay capability draws it, from the fibers recipe.
- */
+const capabilities = composeCatalogCapabilities({
+    "name": "Fibers",
+    "namespace": "filter",
+    "func": "fibers",
+    "description": "Chaotic fiber texture overlay",
+    "tags": [
+        "noise"
+    ],
+    "globals": {
+        "density": {
+            "type": "float",
+            "default": 0.5,
+            "uniform": "density",
+            "min": 0,
+            "max": 1,
+            "step": 0.01,
+            "ui": {
+                "label": "density",
+                "control": "slider"
+            }
+        },
+        "seed": {
+            "type": "int",
+            "default": 1,
+            "uniform": "seed",
+            "min": 1,
+            "max": 100,
+            "step": 1,
+            "ui": {
+                "label": "seed",
+                "control": "slider"
+            }
+        },
+        "alpha": {
+            "type": "float",
+            "default": 0.5,
+            "uniform": "alpha",
+            "min": 0,
+            "max": 1,
+            "step": 0.01,
+            "ui": {
+                "label": "alpha",
+                "control": "slider"
+            }
+        }
+    },
+    "passes": [
+        {
+            "name": "blend",
+            "program": "fibersBlend",
+            "inputs": {
+                "inputTex": "inputTex",
+                "overlayTex": "overlayTex"
+            },
+            "uniforms": {
+                "alpha": "alpha"
+            },
+            "outputs": {
+                "fragColor": "outputTex"
+            }
+        }
+    ],
+    "textures": {
+        "overlayTex": {
+            "width": "screen",
+            "height": "screen",
+            "format": "rgba8"
+        }
+    },
+    "defaultProgram": "search filter, synth\n\nsolid(color: #000000)\n.fibers(density: 1)\n.write(o0)",
+    "capabilities": [
+        {
+            "id": "noisemaker/worm-overlay",
+            "version": 1,
+            "options": {
+                "recipe": {
+                    "layers": 4,
+                    "checkEachLayer": true,
+                    "layerSeed": {
+                        "multiply": 1000,
+                        "step": 137,
+                        "offset": 0
+                    },
+                    "densityDefault": 0.5,
+                    "density": {
+                        "base": 0.5,
+                        "scale": 2
+                    },
+                    "kink": {
+                        "base": 5,
+                        "modulus": 5
+                    },
+                    "stride": 0.75,
+                    "strideDeviation": 0.125,
+                    "duration": {
+                        "base": 1
+                    },
+                    "behavior": {
+                        "name": "chaotic"
+                    },
+                    "flowFreq": {
+                        "base": 4
+                    },
+                    "lineWidth": {
+                        "minimum": 1.5,
+                        "divide": 384
+                    },
+                    "color": {
+                        "random": {
+                            "scale": 200,
+                            "offset": 55
+                        },
+                        "alpha": 0.5
+                    }
+                }
+            },
+            "bindings": {
+                "parameters": {
+                    "seed": "seed",
+                    "density": "density"
+                },
+                "textures": {
+                    "overlay": "overlayTex"
+                }
+            }
+        }
+    ]
+})
+
 class Fibers extends Effect {
     constructor() {
-        super({
-            name: "Fibers",
-            namespace: "filter",
-            func: "fibers",
-            tags: ["noise"],
-            description: "Chaotic fiber texture overlay",
-            globals: {
-                density: {
-                    type: "float", default: 0.5, uniform: "density",
-                    min: 0, max: 1, step: 0.01,
-                    ui: { label: "density", control: "slider" }
-                },
-                seed: {
-                    type: "int", default: 1, uniform: "seed",
-                    min: 1, max: 100, step: 1,
-                    ui: { label: "seed", control: "slider" }
-                },
-                alpha: {
-                    type: "float", default: 0.5, uniform: "alpha",
-                    min: 0, max: 1, step: 0.01,
-                    ui: { label: "alpha", control: "slider" }
-                }
-            },
-            defaultProgram: "search filter, synth\n\nsolid(color: #000000)\n.fibers(density: 1)\n.write(o0)",
-            textures: {
-                overlayTex: { width: 'screen', height: 'screen', format: 'rgba8' }
-            },
-            passes: [
-                {
-                    name: "blend",
-                    program: "fibersBlend",
-                    inputs: {
-                        inputTex: "inputTex",
-                        overlayTex: "overlayTex"
-                    },
-                    uniforms: { alpha: "alpha" },
-                    outputs: { fragColor: "outputTex" }
-                }
-            ]
-        })
-        // The overlay is drawn again when seed or density changes value.
-        setCapabilityUse(this, { dependencies: ['seed', 'density'] })
+        super()
+        Object.assign(this, structuredClone(capabilities.fields))
+        capabilities.attach(this)
     }
 
-    async asyncInit(context) {
-        return drawWormOverlay(WORM_OVERLAY_RECIPES.fibers, { seed: 'seed', density: 'density' }, 'overlayTex',
-            providerContext(context, WORM_OVERLAY_DESCRIPTOR))
+    asyncInit(...args) {
+        return capabilities.hooks.asyncInit.apply(this, args)
     }
 }
 

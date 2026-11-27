@@ -1,315 +1,353 @@
+// Generated from definition.json by scripts/migrate-portable-effects.mjs. Do not edit.
 import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
-    name: "Points Render",
-    namespace: "render",
-    func: "pointsRender",
-    tags: ["agents"],
-
-    description: "Blend agent trails with input for particle systems",
-
-    // Internal trail texture for accumulation (namespaced like flow)
-    textures: {
-        global_points_trail: {
-            width: "100%",
-            height: "100%",
-            format: "rgba16f"
-        }
-    },
-
-    globals: {
-        // Agent density for visualization (percentage to render)
-        density: {
-            type: "float",
-            default: 50.0,
-            min: 0.0,
-            max: 100.0,
-            uniform: "density",
-            ui: {
-                label: "density",
-                control: "slider",
-                category: "visual"
+    "name": "Points Render",
+    "namespace": "render",
+    "func": "pointsRender",
+    "description": "Blend agent trails with input for particle systems",
+    "tags": [
+        "agents"
+    ],
+    "globals": {
+        "density": {
+            "type": "float",
+            "default": 50,
+            "min": 0,
+            "max": 100,
+            "uniform": "density",
+            "ui": {
+                "label": "density",
+                "control": "slider",
+                "category": "visual"
             }
         },
-
-        // Trail persistence (0=instant fade, 100=no decay)
-        intensity: {
-            type: "float",
-            default: 75.0,
-            min: 0.0,
-            max: 100.0,
-            uniform: "intensity",
-            ui: {
-                label: "trail intensity",
-                control: "slider",
-                category: "visual"
+        "intensity": {
+            "type": "float",
+            "default": 75,
+            "min": 0,
+            "max": 100,
+            "uniform": "intensity",
+            "ui": {
+                "label": "trail intensity",
+                "control": "slider",
+                "category": "visual"
             }
         },
-
-        // Input blend factor (0=trail only, 100=input fully visible)
-        inputIntensity: {
-            type: "float",
-            default: 10.15,
-            min: 0.0,
-            max: 100.0,
-            uniform: "inputIntensity",
-            ui: {
-                label: "input mix",
-                control: "slider",
-                category: "visual"
+        "inputIntensity": {
+            "type": "float",
+            "default": 10.15,
+            "min": 0,
+            "max": 100,
+            "uniform": "inputIntensity",
+            "ui": {
+                "label": "input mix",
+                "control": "slider",
+                "category": "visual"
             }
         },
-
-        // Existing flat and orthographic modes retain their projection.
-        viewMode: {
-            type: "int",
-            default: 0,
-            min: 0,
-            max: 2,
-            uniform: "viewMode",
-            choices: {
+        "viewMode": {
+            "type": "int",
+            "default": 0,
+            "min": 0,
+            "max": 2,
+            "uniform": "viewMode",
+            "choices": {
                 "flat": 0,
                 "ortho": 1,
                 "perspective": 2
             },
-            ui: {
-                label: "view",
-                control: "dropdown",
-                category: "view"
+            "ui": {
+                "label": "view",
+                "control": "dropdown",
+                "category": "view"
             }
         },
-
-        // 3D viewport: rotation around X axis (radians)
-        rotateX: {
-            type: "float",
-            default: 0.3,
-            uniform: "rotateX",
-            min: 0,
-            max: 6.283185,
-            step: 0.01,
-            ui: {
-                label: "rotate x",
-                control: "slider",
-                category: "view",
-                enabledBy: "viewMode"
+        "rotateX": {
+            "type": "float",
+            "default": 0.3,
+            "uniform": "rotateX",
+            "min": 0,
+            "max": 6.283185,
+            "step": 0.01,
+            "ui": {
+                "label": "rotate x",
+                "control": "slider",
+                "category": "view",
+                "enabledBy": "viewMode"
             }
         },
-
-        // 3D viewport: rotation around Y axis (radians)
-        rotateY: {
-            type: "float",
-            default: 0,
-            uniform: "rotateY",
-            min: 0,
-            max: 6.283185,
-            step: 0.01,
-            ui: {
-                label: "rotate y",
-                control: "slider",
-                category: "view",
-                enabledBy: "viewMode"
+        "rotateY": {
+            "type": "float",
+            "default": 0,
+            "uniform": "rotateY",
+            "min": 0,
+            "max": 6.283185,
+            "step": 0.01,
+            "ui": {
+                "label": "rotate y",
+                "control": "slider",
+                "category": "view",
+                "enabledBy": "viewMode"
             }
         },
-
-        // 3D viewport: rotation around Z axis (radians)
-        rotateZ: {
-            type: "float",
-            default: 0,
-            uniform: "rotateZ",
-            min: 0,
-            max: 6.283185,
-            step: 0.01,
-            ui: {
-                label: "rotate z",
-                control: "slider",
-                category: "view",
-                enabledBy: "viewMode"
+        "rotateZ": {
+            "type": "float",
+            "default": 0,
+            "uniform": "rotateZ",
+            "min": 0,
+            "max": 6.283185,
+            "step": 0.01,
+            "ui": {
+                "label": "rotate z",
+                "control": "slider",
+                "category": "view",
+                "enabledBy": "viewMode"
             }
         },
-
-        // 3D viewport: zoom/scale factor
-        viewScale: {
-            type: "float",
-            default: 0.8,
-            uniform: "viewScale",
-            min: 0.1,
-            max: 10,
-            step: 0.01,
-            ui: {
-                label: "zoom",
-                control: "slider",
-                category: "view",
-                enabledBy: "viewMode"
+        "viewScale": {
+            "type": "float",
+            "default": 0.8,
+            "uniform": "viewScale",
+            "min": 0.1,
+            "max": 10,
+            "step": 0.01,
+            "ui": {
+                "label": "zoom",
+                "control": "slider",
+                "category": "view",
+                "enabledBy": "viewMode"
             }
         },
-
-        // 3D viewport: position offset X
-        posX: {
-            type: "float",
-            default: 0,
-            uniform: "posX",
-            min: -50,
-            max: 50,
-            step: 0.1,
-            ui: {
-                label: "pos x",
-                control: "slider",
-                category: "view",
-                enabledBy: "viewMode"
+        "posX": {
+            "type": "float",
+            "default": 0,
+            "uniform": "posX",
+            "min": -50,
+            "max": 50,
+            "step": 0.1,
+            "ui": {
+                "label": "pos x",
+                "control": "slider",
+                "category": "view",
+                "enabledBy": "viewMode"
             }
         },
-
-        // 3D viewport: position offset Y
-        posY: {
-            type: "float",
-            default: 0,
-            uniform: "posY",
-            min: -50,
-            max: 50,
-            step: 0.1,
-            ui: {
-                label: "pos y",
-                control: "slider",
-                category: "view",
-                enabledBy: "viewMode"
+        "posY": {
+            "type": "float",
+            "default": 0,
+            "uniform": "posY",
+            "min": -50,
+            "max": 50,
+            "step": 0.1,
+            "ui": {
+                "label": "pos y",
+                "control": "slider",
+                "category": "view",
+                "enabledBy": "viewMode"
             }
         },
-
-        posZ: {
-            type: "float",
-            default: 0,
-            uniform: "posZ",
-            min: -200,
-            max: 200,
-            step: 0.1,
-            ui: {
-                label: "pos z",
-                control: "slider",
-                category: "view",
-                enabledBy: "viewMode"
+        "posZ": {
+            "type": "float",
+            "default": 0,
+            "uniform": "posZ",
+            "min": -200,
+            "max": 200,
+            "step": 0.1,
+            "ui": {
+                "label": "pos z",
+                "control": "slider",
+                "category": "view",
+                "enabledBy": "viewMode"
             }
         },
-
-        fieldOfView: {
-            type: "float",
-            default: 60,
-            uniform: "fieldOfView",
-            min: 10,
-            max: 150,
-            step: 1,
-            ui: {
-                label: "field of view",
-                control: "slider",
-                category: "view",
-                enabledBy: { param: "viewMode", eq: 2 }
+        "fieldOfView": {
+            "type": "float",
+            "default": 60,
+            "uniform": "fieldOfView",
+            "min": 10,
+            "max": 150,
+            "step": 1,
+            "ui": {
+                "label": "field of view",
+                "control": "slider",
+                "category": "view",
+                "enabledBy": {
+                    "param": "viewMode",
+                    "eq": 2
+                }
             }
         },
-
-        // Matte opacity (0=transparent background, 1=opaque)
-        matteOpacity: {
-            type: "float",
-            default: 1.0,
-            min: 0.0,
-            max: 1.0,
-            randMin: 0.75,
-            uniform: "matteOpacity",
-            ui: {
-                label: "bg opacity",
-                control: "slider",
-                category: "visual"
+        "matteOpacity": {
+            "type": "float",
+            "default": 1,
+            "min": 0,
+            "max": 1,
+            "randMin": 0.75,
+            "uniform": "matteOpacity",
+            "ui": {
+                "label": "bg opacity",
+                "control": "slider",
+                "category": "visual"
             }
         }
     },
-
-    passes: [
-        // Pass 1: Diffuse - decay existing trail (matches flow)
+    "passes": [
         {
-            name: "diffuse",
-            program: "diffuse",
-
-            inputs: {
-                trailTex: "global_points_trail"
+            "name": "diffuse",
+            "program": "diffuse",
+            "inputs": {
+                "trailTex": "global_points_trail"
             },
-
-            uniforms: {
-                intensity: "intensity"
+            "uniforms": {
+                "intensity": "intensity"
             },
-
-            outputs: {
-                fragColor: "global_points_trail"
+            "outputs": {
+                "fragColor": "global_points_trail"
             }
         },
-
-        // Pass 2: Copy decayed trail to write buffer before deposit
-        // This ensures hardware blending works correctly after ping-pong
         {
-            name: "copy",
-            program: "copy",
-
-            inputs: {
-                sourceTex: "global_points_trail"
+            "name": "copy",
+            "program": "copy",
+            "inputs": {
+                "sourceTex": "global_points_trail"
             },
-
-            outputs: {
-                fragColor: "global_points_trail"
+            "outputs": {
+                "fragColor": "global_points_trail"
             }
         },
-
-        // Pass 3: Deposit - scatter agent colors to trail
         {
-            name: "deposit",
-            program: "deposit",
-            drawMode: "points",
-            count: 'input', // Derive from xyzTex dimensions for dynamic stateSize
-            blend: true,
-
-            inputs: {
-                // Read from shared global textures (within-frame updates visible)
-                xyzTex: "global_xyz",
-                rgbaTex: "global_rgba"
+            "name": "deposit_0",
+            "program": "deposit",
+            "drawMode": "points",
+            "count": "input",
+            "blend": true,
+            "inputs": {
+                "xyzTex": "global_xyz",
+                "rgbaTex": "global_rgba"
             },
-
-            uniforms: {
-                density: "density",
-                viewMode: "viewMode",
-                rotateX: "rotateX",
-                rotateY: "rotateY",
-                rotateZ: "rotateZ",
-                viewScale: "viewScale",
-                posX: "posX",
-                posY: "posY",
-                posZ: "posZ",
-                fieldOfView: "fieldOfView"
+            "uniforms": {
+                "density": "density",
+                "viewMode": "viewMode",
+                "rotateX": "rotateX",
+                "rotateY": "rotateY",
+                "rotateZ": "rotateZ",
+                "viewScale": "viewScale",
+                "posX": "posX",
+                "posY": "posY",
+                "posZ": "posZ",
+                "fieldOfView": "fieldOfView"
             },
-
-            outputs: {
-                fragColor: "global_points_trail"
+            "outputs": {
+                "fragColor": "global_points_trail"
+            },
+            "defines": {
+                "VIEW_MODE": 0
+            },
+            "conditions": {
+                "runIf": [
+                    {
+                        "uniform": "viewMode",
+                        "equals": 0
+                    }
+                ]
             }
         },
-
-        // Pass 3: Blend - composite trail with input
         {
-            name: "blend",
-            program: "blend",
-
-            inputs: {
-                inputTex: "inputTex",
-                trailTex: "global_points_trail"
+            "name": "deposit_1",
+            "program": "deposit",
+            "drawMode": "points",
+            "count": "input",
+            "blend": true,
+            "inputs": {
+                "xyzTex": "global_xyz",
+                "rgbaTex": "global_rgba"
             },
-
-            uniforms: {
-                inputIntensity: "inputIntensity",
-                matteOpacity: "matteOpacity"
+            "uniforms": {
+                "density": "density",
+                "viewMode": "viewMode",
+                "rotateX": "rotateX",
+                "rotateY": "rotateY",
+                "rotateZ": "rotateZ",
+                "viewScale": "viewScale",
+                "posX": "posX",
+                "posY": "posY",
+                "posZ": "posZ",
+                "fieldOfView": "fieldOfView"
             },
-
-            outputs: {
-                fragColor: "outputTex"
+            "outputs": {
+                "fragColor": "global_points_trail"
+            },
+            "defines": {
+                "VIEW_MODE": 1
+            },
+            "conditions": {
+                "runIf": [
+                    {
+                        "uniform": "viewMode",
+                        "equals": 1
+                    }
+                ]
+            }
+        },
+        {
+            "name": "deposit_2",
+            "program": "deposit",
+            "drawMode": "points",
+            "count": "input",
+            "blend": true,
+            "inputs": {
+                "xyzTex": "global_xyz",
+                "rgbaTex": "global_rgba"
+            },
+            "uniforms": {
+                "density": "density",
+                "viewMode": "viewMode",
+                "rotateX": "rotateX",
+                "rotateY": "rotateY",
+                "rotateZ": "rotateZ",
+                "viewScale": "viewScale",
+                "posX": "posX",
+                "posY": "posY",
+                "posZ": "posZ",
+                "fieldOfView": "fieldOfView"
+            },
+            "outputs": {
+                "fragColor": "global_points_trail"
+            },
+            "defines": {
+                "VIEW_MODE": 2
+            },
+            "conditions": {
+                "runIf": [
+                    {
+                        "uniform": "viewMode",
+                        "equals": 2
+                    }
+                ]
+            }
+        },
+        {
+            "name": "blend",
+            "program": "blend",
+            "inputs": {
+                "inputTex": "inputTex",
+                "trailTex": "global_points_trail"
+            },
+            "uniforms": {
+                "inputIntensity": "inputIntensity",
+                "matteOpacity": "matteOpacity"
+            },
+            "outputs": {
+                "fragColor": "outputTex"
             }
         }
-    ].flatMap(pass => pass.name === 'deposit' ? [0, 1, 2].map(viewMode => ({
-        ...pass,
-        name: `${pass.name}_${viewMode}`,
-        defines: { VIEW_MODE: viewMode },
-        conditions: { runIf: [{ uniform: 'viewMode', equals: viewMode }] }
-    })) : [pass])
+    ],
+    "textures": {
+        "global_points_trail": {
+            "width": "100%",
+            "height": "100%",
+            "format": "rgba16f"
+        }
+    }
 })

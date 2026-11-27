@@ -18,7 +18,8 @@ const A1 = [
     'classicNoisedeck/noise3d', 'filter/adjust', 'filter/feedback', 'filter/text',
     'mixer/blendMode', 'render/meshLoader', 'synth/remap', 'synth/solid', 'synth3d/noise3d',
 ]
-const A = new Set([...A1, 'filter/fibers', 'render/meshRender', 'render/pointsRender', 'render/render3d', 'synth/media'])
+const A2 = ['filter/fibers', 'render/meshRender', 'render/pointsRender', 'render/render3d', 'synth/media']
+const A = new Set([...A1, ...A2])
 const E = new Set(['filter/scratches', 'filter/strayHair'])
 const B = new Set(['filter', 'mixer', 'synth'])
 const C = new Set(['synth3d', 'filter3d', 'points', 'render'])
@@ -80,6 +81,47 @@ test('the tracked waves match the baseline and bound the live conversion set', (
     validateWaves(readJson(WAVES_RELATIVE), baseline, converted, process.env.GITHUB_EVENT_NAME)
     for (const id of A1) {
         if (baseline.effectIds.includes(id)) assert.ok(converted.has(id), `${id}: Wave A batch 1 is missing its definition.json`)
+    }
+    for (const id of A2) {
+        if (baseline.effectIds.includes(id)) assert.ok(converted.has(id), `${id}: Wave A batch 2 is missing its definition.json`)
+    }
+    // With batch 2, every Wave A ID is converted.
+    for (const id of readJson(WAVES_RELATIVE).waves.A) assert.ok(converted.has(id), `${id}: a Wave A ID is not converted`)
+})
+
+// The two Wave A effects whose behavior is a provider's declare it in their definition.json,
+// with the bindings and options their legacy modules passed. The fibers recipe is data the
+// declaration owns (the descriptor's recipe option is an object); it must stay the recipe the
+// catalog's overlays draw.
+test('the provider effects of Wave A declare their capability with the legacy bindings and recipe', async () => {
+    const { WORM_OVERLAY_RECIPES } = await import('../src/portable/providers/worm-overlay.js')
+    const declared = id => readJson(`shaders/effects/${id}/definition.json`).capabilities
+    assert.deepEqual(declared('filter/fibers'), [{ id: 'noisemaker/worm-overlay', version: 1,
+        options: { recipe: JSON.parse(JSON.stringify(WORM_OVERLAY_RECIPES.fibers)) },
+        bindings: { parameters: { seed: 'seed', density: 'density' }, textures: { overlay: 'overlayTex' } } }])
+    assert.deepEqual(declared('synth/media'), [{ id: 'noisemaker/media-dimensions', version: 1,
+        bindings: { parameters: { size: 'imageSize' } } }])
+    for (const [id, namespace] of [['filter/fibers', 'filter'], ['synth/media', 'synth']]) {
+        assert.equal(readJson(`shaders/effects/${id}/definition.json`).namespace, namespace, `${id}: the catalog namespace`)
+    }
+})
+
+// A generated module registers the engine's providers through its own side-effect import, so it
+// works as the first and only module a host loads, as a bundle is.
+test('a converted provider effect works when its generated module is the only module loaded', () => {
+    for (const [id, methods] of [['filter/fibers', ['asyncInit']], ['synth/media', ['onInit', 'onUpdate', 'setMediaDimensions']]]) {
+        const file = path.join(EFFECTS_ROOT, ...id.split('/'), 'definition.js')
+        const child = spawnSync(process.execPath, ['--input-type=module', '-e', `
+            import { pathToFileURL } from 'node:url';
+            import { readFileSync } from 'node:fs';
+            const text = readFileSync(process.argv[1], 'utf8');
+            const exported = (await import(pathToFileURL(process.argv[1]).href)).default;
+            const instance = typeof exported === 'function' ? new exported() : exported;
+            const methods = ${JSON.stringify(methods)}.filter(name => typeof instance[name] === 'function');
+            console.log(JSON.stringify({ generated: text.startsWith('// Generated from definition.json'), methods }));
+        `, file], { encoding: 'utf8' })
+        assert.equal(child.status, 0, `${id}: ${child.stderr}`)
+        assert.deepEqual(JSON.parse(child.stdout), { generated: true, methods }, `${id}: the generated module alone gives its methods`)
     }
 })
 
