@@ -1184,8 +1184,8 @@ work, verify it, then update the checkpoint and append a log line.
   - 2026-11-27 — completed delivery pair: Noisemaker
     `93fe17aa177e351eae796030ece46d25e4b71af4` and Shade MCP at the
     configured immutable pin (release v0.5.4). This pass audited the
-    checkpoint-to-head range left after the completed pass below: five
-    commits that change only `docs/shaders/effects.rst`, the LEDGER, and
+    checkpoint-to-head range left after the completed pass below: commits
+    that change only `docs/shaders/effects.rst`, the LEDGER, and
     the delivery-pair guard, whose checks now include the LEDGER checkpoint
     pair against the snapshot block in the completed and pending pass
     states. No engine, effect, viewer, vendor, or MCP configuration file
@@ -1195,7 +1195,7 @@ work, verify it, then update the checkpoint and append a log line.
     section's description of the delivery-pair guard now names the LEDGER
     checkpoint check, and the snapshot block's Noisemaker line advances to
     `93fe17a` to cover the changed guard. Audited the queued Shade range
-    `4ce50fc..bcbe952`: four commits after release v0.7.0 extend
+    `4ce50fc..bcbe952`: commits after release v0.7.0 extend
     `analyzeEffect` to return every field of the loaded definition and
     accept indexed global names in the structure check, with tests. They
     carry no release yet. The vendor delivery stays at v0.7.0 (tag

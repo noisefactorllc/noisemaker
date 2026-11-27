@@ -158,9 +158,15 @@ describe('AI development contract tracks the configured Shade MCP delivery', () 
                 'LEDGER.md checkpoint and llms-full.txt snapshot block must name the same Shade MCP SHA')
         } else {
             // Pending pass: the snapshot may lead, but the checkpoint must
-            // keep the latest completed pair until all checks pass.
+            // keep the latest completed pair until all checks pass. The
+            // Noisemaker half reads the completed log entry; the Shade MCP
+            // half must still name the configured pin, which the checkpoint
+            // cannot leave without a completed pass and an operator-gated
+            // pin move.
             assert.equal(checkpoint.noisemaker, latestCompletedNoisemaker(),
                 'during a pending pass the checkpoint must keep the latest completed pair')
+            assert.equal(checkpoint.shadeMcp, configuredPin(),
+                'during a pending pass the Shade MCP checkpoint must keep the configured pin')
         }
     })
 })
