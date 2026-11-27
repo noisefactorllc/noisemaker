@@ -1097,7 +1097,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `740601018edb867c564c77aab3d157fa719dea53` / shade-mcp `1815133b47eaa33aee11d4a677cfea2f3939cf38`, 2026-11-26
+- **Checkpoint:** noisemaker `740601018edb867c564c77aab3d157fa719dea53` / shade-mcp `5fdbd18368002545dbaea41950f97b1b65e7752c`, 2026-11-27
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -1181,6 +1181,42 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-27 — candidate pair on `2.x`, Shade MCP half verified: the
+    configured Shade MCP pin `5fdbd18368002545dbaea41950f97b1b65e7752c`
+    (release v0.7.1) passed the completion condition in the entry below,
+    which this entry applies to the Shade MCP half only, so the
+    checkpoint's Shade MCP side moves to it. The Noisemaker half is not
+    verified: this pass audited the Shade MCP range only and did not audit
+    the contract against its Noisemaker source line
+    `5596e69fd6e3b9014e9df0f8674e10e70c332e11`. The checkpoint's Noisemaker
+    side therefore keeps `740601018edb867c564c77aab3d157fa719dea53`, the
+    Noisemaker SHA of the latest completed entry, and the pair stays a
+    candidate until a Noisemaker audit at the snapshot's line completes. The
+    four identities: the contract's Noisemaker source line `5596e69`, the
+    Shade MCP source and the configured pin `5fdbd18`, and the vendor
+    delivery, the v0.7.0 dist (tag target `4ce50fc`). Commit `30595a3e`
+    published the pin and the contract re-audit recorded in the candidate
+    entry below, rebased onto `965d8fa3` with its patch unchanged. On the
+    rebased tree, before the push, one configured-pin session from an empty
+    npm cache initialized server `shade-mcp` 0.7.1 / protocol `2025-06-18`,
+    listed 24 tools and ran the eight worked calls without MCP `isError`.
+    Every constant field matched the recorded transcript, and the benchmark
+    differed only in its times (60.49 FPS). The audit calls and a seed session
+    returned the same responses as at `a6b342a`, including the contract's
+    seed examples, except that `reseedProgram` drew a different fresh seed.
+    The worked-example `compileGraph()` pass array, Shade
+    `browser-smoke.mjs` (all checks OK) and `seed-smoke.mjs` (four checks
+    pass; its 1.x check ran against a 1.x checkout at `5596e69`), the four
+    contract guard tests (13 tests pass), `test/mcp-config.test.js`, the
+    `NM_CHANGED_FILES` selection of
+    `node scripts/run-js-tests.js --skip-parity` (6 modules) and
+    `npm run lint` all passed on the rebased tree as well. Exact-source
+    [JavaScript 46035919537](https://github.com/noisefactorllc/noisemaker/actions/runs/46035919537)
+    passed at `30595a3e` (JS tests and JS lint); no other workflow runs for
+    these paths. The raw `llms-full.txt` and `.mcp.json` at `30595a3e`,
+    fetched from GitHub's raw content, are byte-equal to the reviewed files:
+    SHA-256 `15e4fbaac222349373836bf0f7cc85be8d60ca726d5bdd3d71f86f51791e2764`
+    and `887ddff3b2db1aac62bd68c548242a6bd6180b75ccc6fe363a4e95c364209fcc`.
   - 2026-11-27 — candidate pair on `2.x`: Shade MCP
     `5fdbd18368002545dbaea41950f97b1b65e7752c` (release v0.7.1) replaces
     `1815133b47eaa33aee11d4a677cfea2f3939cf38` (release v0.5.4) in
