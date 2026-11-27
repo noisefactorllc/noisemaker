@@ -1181,6 +1181,31 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-11-27 — completed delivery pair: Noisemaker
+    `688794aca5998d9573afa5601c2b9b023c896007` and Shade MCP
+    `5fdbd18368002545dbaea41950f97b1b65e7752c` (release v0.7.1). The four
+    identities: the Noisemaker source `688794a`; the Shade MCP source
+    `5fdbd18`; the configured immutable pin, also `5fdbd18`; and the vendor
+    delivery, release v0.7.1 (tag target `5fdbd18`). Commit `b92364a3` published the pin and the contract
+    re-audit recorded in the candidate entry below, rebased onto `f4a1382a`
+    with its three files unchanged. That base changes only the `filter/text`
+    effect, its attestation and a round-trip test, which no contract
+    statement describes. On the rebased tree the four contract guard tests,
+    `test/mcp-config.test.js`, the `NM_CHANGED_FILES` selection of
+    `node scripts/run-js-tests.js --skip-parity` and `npm run lint` passed.
+    Exact-source
+    [JavaScript 46046684396](https://github.com/noisefactorllc/noisemaker/actions/runs/46046684396)
+    (JS tests, JS lint and every build), Site
+    [46046684427](https://github.com/noisefactorllc/noisemaker/actions/runs/46046684427)
+    and Downstream
+    [46046684446](https://github.com/noisefactorllc/noisemaker/actions/runs/46046684446)
+    passed at `b92364a3`, and the site release deployed that commit:
+    `https://noisemaker.app/deployment-meta.json` serves
+    `git_hash: b92364a36234ca3e74f9c9c23bc1c50becaab8a1`. A full live GET of
+    `https://noisemaker.app/llms-full.txt` returned 266379 bytes with
+    SHA-256 `06ab5c39fc9f153e0eb344affd205d8ed28be5cfa89893d20a78eb5e1ef89deb`,
+    the blob of `b92364a3`. The checkpoint, which `b92364a3` already moved,
+    and the snapshot block name the same pair.
   - 2026-11-27 — candidate pair: Noisemaker
     `688794aca5998d9573afa5601c2b9b023c896007` and Shade MCP
     `5fdbd18368002545dbaea41950f97b1b65e7752c` (release v0.7.1), the new
