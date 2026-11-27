@@ -262,7 +262,7 @@ The parser accepts line and block comments inside call arguments, arrays, and
 objects, but skips them. Re-emitted DSL omits those comments. Comments on their
 own lines between statements survive that round trip.
 
-Numeric arguments support inline arithmetic (``+``, ``-``, ``*``, ``/``) and constants like ``Math.PI``. Color arguments accept unquoted ``#RGB`` or ``#RRGGBB`` hex codes.
+Numeric arguments support inline arithmetic (``+``, ``-``, ``*``, ``/``) and constants like ``Math.PI``. Color arguments accept unquoted ``#RGB``, ``#RRGGBB``, or ``#RRGGBBAA`` hex codes. Color parameters also accept ``vec3(r, g, b)`` and ``vec4(r, g, b, a)`` constructors.
 
 **Vector parameters:**
 
