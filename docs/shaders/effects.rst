@@ -82,6 +82,9 @@ Create effect definitions with the ``Effect`` constructor and a configuration ob
     ``count``, ``countUniform``, ``blend``, ``workgroups``, ``storageBuffers``,
     and ``storageTextures``.
 
+``count`` accepts a positive integer or one of ``"auto"``, ``"screen"``, and
+``"input"``.
+
 ``storageTextures`` maps WGSL storage-texture binding names to texture references.
 When a pass uses a declared non-global texture as a storage target, the compiler
 adds storage usage. For an undeclared non-global target, the compiler creates
