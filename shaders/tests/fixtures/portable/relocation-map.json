@@ -187,5 +187,375 @@
         "node test-definition.mjs <effect>": {
             "destination": "node scripts/validate-portable.mjs <package>"
         }
+    },
+    "definitionConsumers": {
+        "demo/shaders/index.html": {
+            "role": "generated-module"
+        },
+        "demo/shaders/lib/portable-host.js": {
+            "role": "portable-package"
+        },
+        "scripts/audit-portable-migration.mjs": {
+            "role": "generated-module",
+            "note": "lists the definition.js IDs of a commit and imports each module, as the catalog baseline records them"
+        },
+        "scripts/bundle-effects.js": {
+            "role": "generated-module"
+        },
+        "scripts/cross-backend-agreement.mjs": {
+            "role": "generated-module"
+        },
+        "scripts/find-unused-shaders.js": {
+            "role": "catalog-reader"
+        },
+        "scripts/fix_uniform_mappings.py": {
+            "role": "retired",
+            "note": "fails on start and names the JSON workflow"
+        },
+        "scripts/lib/portable-catalog.mjs": {
+            "role": "catalog-reader"
+        },
+        "scripts/lib/shader-parity-attestation.mjs": {
+            "role": "source-hash",
+            "note": "hashes an effect's definition files and shaders into its parity source hash"
+        },
+        "scripts/migrate-portable-effects.mjs": {
+            "role": "writer",
+            "note": "writes definition.json on --convert and generates each definition.js from it; --check fails on drift"
+        },
+        "scripts/validate-portable.mjs": {
+            "role": "portable-package"
+        },
+        "scripts/verify-shader-parity-attestations.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/portable/fixtures/two-effect-workspace.json": {
+            "role": "portable-package"
+        },
+        "shaders/portable/workspace.mjs": {
+            "role": "portable-package"
+        },
+        "shaders/scripts/generate-effect-strings.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/scripts/generate-portable-schema.mjs": {
+            "role": "engine-module"
+        },
+        "shaders/scripts/generate-shader-manifest.mjs": {
+            "role": "catalog-reader"
+        },
+        "shaders/scripts/generate_shader_manifest.py": {
+            "role": "retired",
+            "note": "fails on start and names npm run manifest"
+        },
+        "shaders/scripts/generate_uniform_layouts.js": {
+            "role": "discovery"
+        },
+        "shaders/scripts/standardize-params.js": {
+            "role": "retired",
+            "note": "fails on start and names the JSON workflow"
+        },
+        "shaders/src/index.js": {
+            "role": "engine-module"
+        },
+        "shaders/src/portable/grammar.js": {
+            "role": "engine-module"
+        },
+        "shaders/src/portable/package.js": {
+            "role": "portable-package"
+        },
+        "shaders/src/renderer/canvas.js": {
+            "role": "generated-module"
+        },
+        "shaders/src/rendering/marcher-fragments.js": {
+            "role": "comment"
+        },
+        "shaders/tests/definition-schema.js": {
+            "role": "catalog-reader"
+        },
+        "shaders/tests/fixtures/portable/catalog-baseline.json": {
+            "role": "fixture"
+        },
+        "shaders/tests/fixtures/portable/catalog/filter3d/fixtureVolume/definition.js": {
+            "role": "fixture"
+        },
+        "shaders/tests/fixtures/portable/catalog/synth/fixtureLegacy/definition.js": {
+            "role": "fixture"
+        },
+        "shaders/tests/fixtures/portable/relocation-map.json": {
+            "role": "fixture"
+        },
+        "shaders/tests/test-harness.js": {
+            "role": "catalog-reader"
+        },
+        "shaders/tests/test-let-roundtrip.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test-unparser.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_array_literal_additive.mjs": {
+            "role": "catalog-reader"
+        },
+        "shaders/tests/test_artistic_effect_release.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_canvas_apply_step_params.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_classic_effects_parity.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_classic_filter_invariants.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_contract_graph_shape.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_cross_backend_agreement.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_cross_backend_agreement_render.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_definition_schema.js": {
+            "role": "catalog-reader"
+        },
+        "shaders/tests/test_demo_media_ids.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_demo_media_size.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_effect_config_outputs.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_effect_definition_validation.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_effect_help_params.mjs": {
+            "role": "catalog-reader"
+        },
+        "shaders/tests/test_effect_tags.js": {
+            "role": "catalog-reader"
+        },
+        "shaders/tests/test_element_ids.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_element_state_keys.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_element_state_naming.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_emboss_gray_invariants.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_expander_palette.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_fibers.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_gamut_directive.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_grain_original_output.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_inputtex_convention.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_landscape_camera.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_landscape_classification.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_landscape_controls.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_let_naming_oracle.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_lighting_height_map.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_lowpoly_modifiers.mjs": {
+            "role": "generated-module",
+            "note": "also scans the text for another product name, which either form carries alike"
+        },
+        "shaders/tests/test_media_texture_ids.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_median_exact.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_mixer_input_convention.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_mode_ui_dependencies.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_mrt_format_budget.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_nm_effects.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_noise_controls.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_overlay_host_independence.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_param_aliases.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_particle_heightmap.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_particle_heightmap_fps.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_particle_input_textures.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_pond_ripples_plastic_wrap_invariants.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_portable_capabilities.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_portable_capability_declarations.mjs": {
+            "role": "portable-package"
+        },
+        "shaders/tests/test_portable_catalog_baseline.mjs": {
+            "role": "discovery",
+            "note": "the catalog baseline check"
+        },
+        "shaders/tests/test_portable_consumer_contracts.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_portable_definition.mjs": {
+            "role": "portable-package"
+        },
+        "shaders/tests/test_portable_docs.mjs": {
+            "role": "portable-package"
+        },
+        "shaders/tests/test_portable_package.mjs": {
+            "role": "portable-package"
+        },
+        "shaders/tests/test_portable_package_render.mjs": {
+            "role": "portable-package"
+        },
+        "shaders/tests/test_portable_packager.mjs": {
+            "role": "portable-package"
+        },
+        "shaders/tests/test_portable_schema.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_portable_tooling.mjs": {
+            "role": "catalog-reader"
+        },
+        "shaders/tests/test_portable_viewer.mjs": {
+            "role": "portable-package"
+        },
+        "shaders/tests/test_portable_viewer_3d.mjs": {
+            "role": "portable-package"
+        },
+        "shaders/tests/test_portable_viewer_hotreload.mjs": {
+            "role": "portable-package"
+        },
+        "shaders/tests/test_portable_viewer_params.mjs": {
+            "role": "portable-package"
+        },
+        "shaders/tests/test_portable_viewer_realms.mjs": {
+            "role": "portable-package"
+        },
+        "shaders/tests/test_portable_volume_definition.mjs": {
+            "role": "portable-package"
+        },
+        "shaders/tests/test_portable_workspace.mjs": {
+            "role": "portable-package"
+        },
+        "shaders/tests/test_remap_contract.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_remap_vector_roundtrip.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_reserved_choice_names.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_seeded_draw_agreement.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_seeded_ids.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_seeded_language.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_seeded_migration.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_seeded_parts.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_seeded_program_state.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_seeded_scopes.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_shader_parity_attestation.mjs": {
+            "role": "source-hash",
+            "note": "tests the parity source hash"
+        },
+        "shaders/tests/test_stability_registry.js": {
+            "role": "text-reader",
+            "note": "matches a feature field in the text; no catalog definition declares one, and --convert refuses a config key the Effect does not keep"
+        },
+        "shaders/tests/test_stateful_instances.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_strokes_coherence.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_text_style_roundtrip.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_texture_material_modes.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_uniform_aliases.mjs": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_volume_atlas_size.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_volume_surface_roundtrip.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_volumesize_device_clamp.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_volumesize_per_chain.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_volumesize_runtime_update.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/test_wind_halftone_geometry.mjs": {
+            "role": "generated-module",
+            "note": "also scans the text for another product name, which either form carries alike"
+        },
+        "shaders/tests/test_zoom_per_chain.js": {
+            "role": "generated-module"
+        },
+        "shaders/tests/validate-webgpu-all.mjs": {
+            "role": "discovery"
+        }
     }
 }

@@ -458,3 +458,143 @@ test('Shade\'s vendored reader keeps every field of a version 2 catalog definiti
         assert.deepEqual(JSON.parse(JSON.stringify(projection)), projections[id], `${id}: the 1.x definition.js reads as Task 1's fixture recorded it`)
     }
 })
+
+// The role of each file that names an effect's definition files, in the
+// relocation map:
+// - catalog-reader: reads definitions through scripts/lib/portable-catalog.mjs,
+//   the same from either form;
+// - generated-module: imports an effect's definition.js, which a converted
+//   effect keeps as its generated module;
+// - discovery: finds effects by their definition.js;
+// - source-hash: hashes an effect's definition files;
+// - text-reader: reads a definition.js as text, for a field no catalog
+//   definition declares;
+// - writer and retired: the definition writer, and the tools it replaces;
+// - portable-package: reads or writes a package's definition.json;
+// - engine-module: names the Portable module shaders/src/portable/definition.js;
+// - comment and fixture: a mention, and test data.
+const CONSUMER_ROLES = new Set([
+    'catalog-reader', 'generated-module', 'discovery', 'source-hash', 'text-reader', 'writer', 'retired',
+    'portable-package', 'engine-module', 'comment', 'fixture',
+])
+
+test('the relocation map gives a role to every file that names definition.js or definition.json', () => {
+    const named = spawnSync('git', ['-C', ROOT, 'grep', '-lE', 'definition\\.js|definition\\.json', '--', 'scripts', 'shaders', 'demo', ':!shaders/effects/**'], { encoding: 'utf8' })
+    assert.equal(named.status, 0, named.stderr)
+    const files = named.stdout.split('\n').filter(Boolean).sort()
+    const consumers = MAP.definitionConsumers ?? {}
+    assert.deepEqual(Object.keys(consumers).sort(), files, 'the map lists exactly the files that name them')
+    for (const [file, entry] of Object.entries(consumers)) {
+        assert.ok(CONSUMER_ROLES.has(entry.role), `${file}: ${JSON.stringify(entry.role)} is a known role`)
+    }
+    // A file that reads a definition's text through a pattern is a defect
+    // once its effect is converted, unless the map says why it is not.
+    for (const [file, entry] of Object.entries(consumers)) {
+        if (entry.role === 'text-reader' || entry.role === 'writer' || entry.role === 'retired' || entry.role === 'source-hash') {
+            assert.ok(typeof entry.note === 'string' && entry.note.length > 0, `${file}: a ${entry.role} says what it does`)
+        }
+    }
+})
+
+// What a Phase 4 conversion must leave unchanged: the derived outputs and the
+// readers of every definition, run in a copy of the tree before and after
+// each convertible catalog effect is converted with --convert.
+const CONVERSION_REFUSED = {
+    'filter/fibers': /its class defines asyncInit/,
+    'filter/scratches': /its class defines asyncInit/,
+    'filter/strayHair': /its class defines asyncInit/,
+    // GAP-085, https://github.com/noisefactorllc/noisemaker/issues/441
+    'filter/text': /does not load as the same effect/,
+    'synth/media': /its class defines onInit, onUpdate, setMediaDimensions/,
+}
+const DERIVED_OUTPUTS = [
+    ['npm run manifest', ['shaders/scripts/generate-shader-manifest.mjs'], 'shaders/effects/manifest.json'],
+    ['npm run strings', ['shaders/scripts/generate-effect-strings.mjs'], 'shaders/effects/strings.en.json'],
+    ['the unused shader list', ['scripts/find-unused-shaders.js'], null],
+]
+// The harness's structure check reads every global of a converted effect.
+// Shade's naming rule rejects the indexed parameter names of these two, which
+// their modules build in loops, so it reports them only once they are
+// converted (GAP-030, https://github.com/noisefactorllc/shade-mcp/issues/59).
+// Their conversion waits for that fix. Any other difference fails.
+const HARNESS_KNOWN_DIFFERENCES = ['mixer/mashup', 'synth/remap']
+const INDEXED_NAME = /^[a-z][a-zA-Z0-9]*\d+_[a-z][a-zA-Z0-9]*$/
+
+// The harness's structure-only result for each effect, without its timings.
+function harnessResults(stdout) {
+    const results = new Map()
+    let current = null
+    for (const line of stdout.replace(/\s*\[\d+(\.\d+)?m?s\]/g, '').split('\n')) {
+        const effect = /^(✓|❌) ([A-Za-z0-9]+\/[A-Za-z0-9]+)/.exec(line)
+        if (effect) {
+            current = effect[2]
+            results.set(current, { passed: effect[1] === '✓', lines: [line] })
+        } else if (current && /^\s+\S/.test(line)) {
+            results.get(current).lines.push(line)
+        } else {
+            current = null
+        }
+    }
+    return results
+}
+const DEFINITION_READERS = [
+    'shaders/tests/test_effect_help_params.mjs',
+    'shaders/tests/test_effect_tags.js',
+    'shaders/tests/test_array_literal_additive.mjs',
+    'shaders/tests/test_definition_schema.js',
+]
+
+test('converting the catalog leaves the manifest, the strings, the effect lists and the definition readers as they were', async () => {
+    // The copy is under the checkout's node_modules, so that its modules
+    // resolve the checkout's packages.
+    fs.mkdirSync(path.join(ROOT, 'node_modules/.cache'), { recursive: true })
+    const root = fs.mkdtempSync(path.join(ROOT, 'node_modules/.cache/portable-catalog-'))
+    try {
+        for (const part of ['shaders/effects', 'shaders/src', 'shaders/scripts', 'shaders/tests', 'scripts', 'share', 'vendor']) {
+            fs.cpSync(path.join(ROOT, part), path.join(root, part), { recursive: true })
+        }
+        const effectsRoot = path.join(root, 'shaders/effects')
+        const run = args => {
+            const result = spawnSync(process.execPath, args, { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28 })
+            assert.equal(result.status, 0, `node ${args.join(' ')} fails in the copy:\n${result.stdout.slice(-2000)}\n${result.stderr.slice(-2000)}`)
+            return result.stdout
+        }
+        const outputs = () => DERIVED_OUTPUTS.map(([name, args, file]) => {
+            const stdout = run(args)
+            return [name, file ? fs.readFileSync(path.join(root, file), 'utf8') : stdout]
+        })
+        const harness = () => harnessResults(spawnSync(process.execPath, ['shaders/tests/test-harness.js', '--structure-only', '--webgl2'],
+            { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28 }).stdout)
+        const before = outputs()
+        const harnessBefore = harness()
+        assert.ok(harnessBefore.size > 0, 'the harness lists the effects')
+        assert.deepEqual([...harnessBefore].filter(([, result]) => !result.passed).map(([id]) => id), [], 'every effect passes the structure check before the conversion')
+
+        // One conversion of every other effect, which stops at a refusal, and
+        // one for each effect that is refused.
+        const { shapes, effectIds } = baselineExportShapes()
+        const convertible = effectIds.filter(id => !(id in CONVERSION_REFUSED))
+        assert.deepEqual(await convertEffects(convertible, { effectsRoot, shapes }), convertible, 'every other effect converts')
+        for (const [id, reason] of Object.entries(CONVERSION_REFUSED)) await assert.rejects(convertEffects([id], { effectsRoot, shapes }), reason, id)
+        assert.deepEqual(wrapperDrift({ effectsRoot, shapes }), [], 'every generated module is current')
+
+        const after = outputs()
+        for (const [index, [name, text]] of after.entries()) assert.equal(text, before[index][1], `${name} is the same after the conversion`)
+        const harnessAfter = harness()
+        assert.deepEqual([...harnessAfter.keys()], [...harnessBefore.keys()], 'the harness lists the same effects')
+        for (const [id, result] of harnessAfter) {
+            if (!HARNESS_KNOWN_DIFFERENCES.includes(id)) {
+                assert.deepEqual(result, harnessBefore.get(id), `${id}: the same structure result`)
+                continue
+            }
+            assert.equal(result.passed, false, `${id}: GAP-030 is still open, or its exception can go`)
+            for (const line of result.lines.slice(1)) {
+                const name = /^\s+global: "([^"]+)" - Must be camelCase$/.exec(line)?.[1]
+                assert.ok(name && INDEXED_NAME.test(name), `${id}: only indexed names are reported, not ${JSON.stringify(line)}`)
+            }
+        }
+        for (const reader of DEFINITION_READERS) run([reader])
+    } finally {
+        fs.rmSync(root, { recursive: true, force: true })
+    }
+})
