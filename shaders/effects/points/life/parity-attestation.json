@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "points/life",
-  "sourceHash": "315e43eb7b4158869c75b43f875ba30e72442f6093cc1d3e9e876189947171dd",
+  "sourceHash": "49c05e1a128c89191b1a3b058eccda95bbe6e92b0243e5158153ac285841b77d",
   "caseHash": "72a3dac8e5d6b086791edd66a0f9f067d3bd9446811c2b19539014db18983057",
   "resolution": [
     64,
@@ -13,14 +13,14 @@
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 578
+      "uniqueColors": 1006
     },
     "webgpu": {
       "width": 64,
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 578
+      "uniqueColors": 1006
     }
   },
   "execution": {

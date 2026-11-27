@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "points/flow",
-  "sourceHash": "e52464fe29873a8d68799f354c6474e1e5d01ced83932df6c8c3d18e0e7541cd",
+  "sourceHash": "8d567497337a22530aa4e3772766fbe4dcdb4b174fde7206492b80526673539c",
   "caseHash": "1c60c0ac2b3eeb6dc6ce134de23b0eec28df99e37e947a24d6959956012b003b",
   "resolution": [
     64,
@@ -13,14 +13,14 @@
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 3620
+      "uniqueColors": 3752
     },
     "webgpu": {
       "width": 64,
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 3620
+      "uniqueColors": 3752
     }
   },
   "execution": {
