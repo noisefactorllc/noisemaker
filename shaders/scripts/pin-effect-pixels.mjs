@@ -44,10 +44,18 @@
  * A baseline file holds one entry for each GPU it was recorded on (see
  * pin-baselines.mjs). --out records this machine's entry and keeps the others;
  * --check compares against this machine's entry and fails when there is none.
+ *
+ * --bundles <dir|url> renders from built bundles instead of the source: the
+ * core and the effect bundles of a dist/ directory that
+ * `npm run bundle:shaders` builds (dist/shaders/ and dist/effects/), or of a
+ * published version at its base URL. --backend webgl2|webgpu renders one
+ * backend and checks it alone. Both only check: a pin is recorded from the
+ * source, on both backends.
  */
 import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
+import http from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
@@ -67,10 +75,50 @@ const entry = flagValue('--entry')
 const outPath = flagValue('--out')
 const checkPath = flagValue('--check')
 const allowBlank = process.argv.includes('--allow-blank')
+const bundles = flagValue('--bundles')
+const backendFlag = flagValue('--backend')
 
-if (!casePath || (!outPath && !checkPath)) {
-    console.error('Usage: node shaders/scripts/pin-effect-pixels.mjs --case <case.json> [--entry <id>] (--out <pin.json> | --check <pin.json>)')
+if (!casePath || (!outPath && !checkPath) || (backendFlag !== null && !['webgl2', 'webgpu'].includes(backendFlag)) ||
+    (outPath && (bundles !== null || backendFlag !== null))) {
+    console.error('Usage: node shaders/scripts/pin-effect-pixels.mjs --case <case.json> [--entry <id>] (--out <pin.json> | --check <pin.json> [--bundles <dir|url>] [--backend webgl2|webgpu])')
     process.exit(2)
+}
+const BACKENDS = backendFlag ? [backendFlag] : ['webgl2', 'webgpu']
+
+const CONTENT_TYPES = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.obj': 'text/plain', '.wasm': 'application/wasm' }
+
+const BUNDLE_MOUNT = '/__bundles/'
+
+// Serve the checkout, and a bundle directory under /__bundles/, from one
+// origin: the page imports the bundles from the origin it renders on, as a
+// browser refuses an import from another loopback port.
+function serveCheckoutAndBundles(checkout, bundleRoot) {
+    const server = http.createServer((request, response) => {
+        const pathname = decodeURIComponent(new URL(request.url, 'http://local').pathname)
+        const [root, relative] = pathname.startsWith(BUNDLE_MOUNT) ? [bundleRoot, pathname.slice(BUNDLE_MOUNT.length)] : [checkout, pathname.slice(1)]
+        const file = path.resolve(root, relative)
+        // A page set with setContent() has no origin of its own, so its
+        // imports are cross-origin.
+        const cors = { 'Access-Control-Allow-Origin': '*' }
+        if (!file.startsWith(path.resolve(root) + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
+            response.writeHead(404, { ...cors, 'Content-Type': 'text/plain' })
+            response.end('not found')
+            return
+        }
+        response.writeHead(200, { ...cors, 'Content-Type': CONTENT_TYPES[path.extname(file)] ?? 'application/octet-stream' })
+        fs.createReadStream(file).pipe(response)
+    })
+    return new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve({ server, url: `http://127.0.0.1:${server.address().port}` })))
+}
+
+/**
+ * Where the page loads the engine and the effects from: the source, or the
+ * core, manifest and effect bundles of a dist/ directory or published version.
+ */
+function bundleSources(base) {
+    const dist = !/^https?:/.test(bundles) && fs.existsSync(path.join(bundles, 'shaders', 'noisemaker-shaders-core.esm.js'))
+    const engineBase = dist ? `${base}/shaders` : base
+    return { core: `${engineBase}/noisemaker-shaders-core.esm.js`, basePath: engineBase, bundlePath: `${base}/effects` }
 }
 
 const caseFile = JSON.parse(fs.readFileSync(casePath, 'utf8'))
@@ -100,7 +148,8 @@ const portablePackages = (pinCase.portablePackages || []).map(({ id, path: direc
     return { id, entries: packageEntries(path.join(repoRoot, directory)) }
 })
 
-async function renderBackend(browser, baseUrl, preferWebGPU) {
+async function renderBackend(browser, baseUrl, preferWebGPU, sources) {
+    const engine = sources ?? { core: `${baseUrl}/shaders/src/index.js`, basePath: `${baseUrl}/shaders`, bundlePath: null }
     const page = await browser.newPage({ viewport: { width, height } })
     const consoleMessages = []
     page.on('console', (message) => {
@@ -117,12 +166,14 @@ async function renderBackend(browser, baseUrl, preferWebGPU) {
 <link rel="icon" href="data:,">
 <canvas id="canvas" width="${width}" height="${height}"></canvas>
 <script type="module">
-import { CanvasRenderer, loadPortablePackage } from '${baseUrl}/shaders/src/index.js';
+import * as engine from '${engine.core}';
+const { CanvasRenderer, loadPortablePackage } = engine;
 const renderer = new CanvasRenderer({
     canvas: document.getElementById('canvas'),
     width: ${width},
     height: ${height},
-    basePath: '${baseUrl}/shaders',
+    basePath: '${engine.basePath}',
+    ...(${JSON.stringify(engine.bundlePath)} ? { useBundles: true, bundlePath: ${JSON.stringify(engine.bundlePath)} } : {}),
     preferWebGPU: ${preferWebGPU}
 });
 const timeline = ${JSON.stringify(timelinePlan)};
@@ -252,7 +303,12 @@ const info = probe?.getExtension('WEBGL_debug_renderer_info');
 const gpu = info ? probe.getParameter(info.UNMASKED_RENDERER_WEBGL) : '';
 window.pinResult = { backend: renderer.pipeline.backend.getName(), settled, gpu, capture };
 </script>`, { waitUntil: 'load' })
-        await page.waitForFunction(() => window.pinResult, null, { timeout: 60000 })
+        try {
+            await page.waitForFunction(() => window.pinResult, null, { timeout: 60000 })
+        } catch (error) {
+            // The page's own errors say why it did not render.
+            throw new Error(`${preferWebGPU ? 'WebGPU' : 'WebGL2'} did not render: ${error.message}${consoleMessages.length ? `\n  ${consoleMessages.join('\n  ')}` : ''}`, { cause: error })
+        }
         const result = await page.evaluate(() => window.pinResult)
         const expectedBackend = preferWebGPU ? 'WebGPU' : 'WebGL2'
         assert.equal(result.backend, expectedBackend, `expected ${expectedBackend}, got ${result.backend}`)
@@ -292,7 +348,9 @@ const effectsDir = path.join(repoRoot, 'shaders/effects')
 process.env.SHADE_EFFECTS_DIR = effectsDir
 process.env.SHADE_PROJECT_ROOT = repoRoot
 const { acquireServer, releaseServer } = await import('../../vendor/shade-mcp/harness/index.js')
-const baseUrl = await acquireServer(undefined, repoRoot, effectsDir)
+// A bundle directory is served with the checkout from one origin.
+const bundleServer = bundles !== null && !/^https?:/.test(bundles) ? await serveCheckoutAndBundles(repoRoot, path.resolve(bundles)) : null
+const baseUrl = bundleServer ? bundleServer.url : await acquireServer(undefined, repoRoot, effectsDir)
 let browser
 
 try {
@@ -304,15 +362,20 @@ try {
             process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=vulkan',
         ],
     })
-    const webgl2 = await renderBackend(browser, baseUrl, false)
-    const webgpu = await renderBackend(browser, baseUrl, true)
-    assert.equal(webgpu.gpu, webgl2.gpu, 'the two backends report different GPUs')
+    let sources = null
+    if (bundles !== null) {
+        sources = bundleSources(bundleServer ? `${bundleServer.url}${BUNDLE_MOUNT.slice(0, -1)}` : bundles.replace(/\/+$/, ''))
+        console.log(`Rendering from the bundles at ${bundles}`)
+    }
+    const captures = {}
+    for (const backend of BACKENDS) captures[backend] = await renderBackend(browser, baseUrl, backend === 'webgpu', sources)
+    const gpus = [...new Set(Object.values(captures).map(capture => capture.gpu))]
+    assert.equal(gpus.length, 1, 'the two backends report different GPUs')
     const pin = {
         case: path.relative(repoRoot, path.resolve(casePath)).split(path.sep).join('/') + (entry === null ? '' : `#${entry}`),
         resolution: [width, height],
-        gpu: webgl2.gpu,
-        webgl2: pinFrame(webgl2),
-        webgpu: pinFrame(webgpu),
+        gpu: gpus[0],
+        ...Object.fromEntries(Object.entries(captures).map(([backend, capture]) => [backend, pinFrame(capture)])),
     }
 
     if (outPath) {
@@ -324,7 +387,7 @@ try {
     } else {
         const expected = baselineForGpu(JSON.parse(fs.readFileSync(checkPath, 'utf8')), pin.gpu)
         const failures = []
-        for (const backend of ['webgl2', 'webgpu']) {
+        for (const backend of BACKENDS) {
             const before = expected[backend]
             const after = pin[backend]
             const status = before?.sha256 === after.sha256 ? 'IDENTICAL' : 'CHANGED'
@@ -336,9 +399,10 @@ try {
         if (failures.length > 0) {
             throw new Error(`PIXEL PIN FAILED:\n  ${failures.join('\n  ')}`)
         }
-        console.log('Pixel pin holds on both backends.')
+        console.log(BACKENDS.length === 2 ? 'Pixel pin holds on both backends.' : `Pixel pin holds on ${BACKENDS[0]}.`)
     }
 } finally {
     if (browser) await browser.close()
-    releaseServer()
+    if (bundleServer) await new Promise(resolve => bundleServer.server.close(resolve))
+    else releaseServer()
 }
