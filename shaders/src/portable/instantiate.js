@@ -92,7 +92,7 @@ export function instantiatePortableEffect(packageData, { registrationContext, ca
     if (namespace !== 'user' && registrationContext !== CATALOG_CONTEXT) {
         throw refuse([{ code: 'reserved-namespace', path: 'namespace', message: `namespace ${namespace} is the engine's; a package registers in user` }])
     }
-    const composed = composeCapabilities(definition, { capabilities, host })
+    const composed = composeCapabilities(definition, { capabilities, host, recordEmptyUse: true })
     const config = { ...composed.fields, shaders, ...composed.hooks }
     const effect = new Effect(config)
     composed.attach(effect)
@@ -109,10 +109,10 @@ export function instantiatePortableEffect(packageData, { registrationContext, ca
  * @param {object} definition - A catalog definition in the runtime form
  */
 export function composeCatalogCapabilities(definition) {
-    return composeCapabilities(definition, { capabilities: defaultCapabilityRegistry, host: {} })
+    return composeCapabilities(definition, { capabilities: defaultCapabilityRegistry, host: {}, recordEmptyUse: false })
 }
 
-function composeCapabilities(definition, { capabilities, host }) {
+function composeCapabilities(definition, { capabilities, host, recordEmptyUse }) {
     const { resolved, diagnostics } = resolvePortableCapabilities(definition, capabilities)
     if (diagnostics.length > 0) throw refuse(diagnostics)
 
@@ -199,11 +199,14 @@ function composeCapabilities(definition, { capabilities, host }) {
         for (const controller of controllers) controller.abort()
         throw refuse(problems)
     }
-    // The parameters and resources whose change draws the effect again. An
-    // effect whose providers depend on none records no use, as the built-ins do.
+    // The parameters and resources whose change draws the effect again. A
+    // package records an empty use, which the pipeline reads as no dependency:
+    // without one, a change of any parameter draws an asyncInit again. A
+    // catalog effect records one only when it depends on something, as its
+    // module did before it was generated.
     const dependencies = [...new Set(resolved.flatMap(({ declaration, provider }) => dependencyGlobals(declaration, provider.descriptor)))]
     const resources = [...new Set(resolved.flatMap(({ declaration, provider }) => dependencyTextures(declaration, provider.descriptor)))]
-    const use = dependencies.length || resources.length ? { dependencies, resources } : null
+    const use = resolved.length > 0 && (recordEmptyUse || dependencies.length || resources.length) ? { dependencies, resources } : null
     return {
         fields,
         hooks: config,

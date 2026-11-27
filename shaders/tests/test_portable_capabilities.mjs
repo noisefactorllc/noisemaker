@@ -486,6 +486,23 @@ test('under the pipeline: declared dependencies compare by value, vectors and al
     assert.deepEqual(capabilityUseOf(fibers), { dependencies: ['seed', 'density'], resources: [] })
 })
 
+test('under the pipeline: a package whose provider declares no dependencies records that, and no parameter change draws it again', async () => {
+    const registry = createCapabilityRegistry()
+    const events = freshEvents()
+    registry.register(second(events))
+    const effect = await new CanvasRenderer().registerPortableEffect(pkg('capabilityIndependent', [{ id: 'example/second', version: 1 }]), { capabilities: registry })
+    assert.deepEqual(capabilityUseOf(effect.instance), { dependencies: [], resources: [] }, 'an empty use, which the pipeline reads as no dependency')
+    const { pipeline } = await pipelineFor('search user\ncapabilityIndependent().write(o0)\nrender(o0)')
+    const nodeId = pipeline.graph.passes.find(pass => pass.effectKey === 'user.capabilityIndependent').nodeId
+    await pipeline.whenAsyncInitsSettled()
+    const draws = () => events.hooks.filter(([name, hook]) => name === 'second' && hook === 'asyncInit').length
+    const before = draws()
+    pipeline.checkAsyncRegen(nodeId, 'user.capabilityIndependent', { seed: 42, alpha: 0.9 })
+    await pipeline.whenAsyncInitsSettled()
+    assert.equal(draws() - before, 0, 'seed and alpha are not its dependencies')
+    pipeline.dispose()
+})
+
 test('under the pipeline: an asyncInit that fails leaves the pipeline rendering', async () => {
     const registry = createCapabilityRegistry()
     registry.register({
