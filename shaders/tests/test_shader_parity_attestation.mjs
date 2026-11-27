@@ -56,6 +56,21 @@ try {
     assert.equal(computeEffectSourceHash(tempRoot, 'filter/example'), originalHash,
         'effect source hashing must be deterministic')
 
+    // An effect's authored definition is its definition.json once it has one,
+    // and its definition.js is generated from it: both are sources. An effect
+    // without one hashes as before.
+    fs.writeFileSync(path.join(effectDir, 'definition.json'), '{"version": 2}\n')
+    const jsonHash = computeEffectSourceHash(tempRoot, 'filter/example')
+    assert.notEqual(jsonHash, originalHash, 'adding a definition.json must invalidate parity evidence')
+    fs.writeFileSync(path.join(effectDir, 'definition.json'), '{"version": 2, "description": "changed"}\n')
+    assert.notEqual(computeEffectSourceHash(tempRoot, 'filter/example'), jsonHash,
+        'changing the definition.json must invalidate parity evidence')
+    fs.rmSync(path.join(effectDir, 'definition.json'))
+    assert.equal(computeEffectSourceHash(tempRoot, 'filter/example'), originalHash,
+        'an effect without a definition.json hashes as before')
+    assert.deepEqual(changedEffectIds(['shaders/effects/filter/example/definition.json']), ['filter/example'],
+        'a changed definition.json names its effect')
+
     const dependencyDir = path.join(tempRoot, 'shaders/effects/synth/dependency')
     fs.mkdirSync(path.join(dependencyDir, 'glsl'), { recursive: true })
     fs.mkdirSync(path.join(dependencyDir, 'wgsl'), { recursive: true })

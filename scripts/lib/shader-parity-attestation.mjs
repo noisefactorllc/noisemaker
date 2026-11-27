@@ -33,8 +33,12 @@ export function effectDirectory(repoRoot, effectId) {
 
 export function effectSourceFiles(repoRoot, effectId) {
     const dir = effectDirectory(repoRoot, effectId)
+    // An effect's definition.json is its authored definition, when it has one,
+    // and its definition.js is generated from it. An effect without one hashes
+    // as before.
     const files = [
         path.join(dir, 'definition.js'),
+        path.join(dir, 'definition.json'),
         ...filesRecursively(path.join(dir, 'glsl')),
         ...filesRecursively(path.join(dir, 'wgsl')),
     ].filter((file) => fs.existsSync(file))
@@ -135,7 +139,7 @@ export function changedEffectIds(files) {
     const ids = new Set()
     for (const file of files) {
         const normalized = file.split(path.sep).join('/')
-        const match = normalized.match(/^shaders\/effects\/([^/]+)\/([^/]+)\/(definition\.js|glsl\/|wgsl\/|parity-(?:case|attestation)\.json)/)
+        const match = normalized.match(/^shaders\/effects\/([^/]+)\/([^/]+)\/(definition\.js|definition\.json|glsl\/|wgsl\/|parity-(?:case|attestation)\.json)/)
         if (match) ids.add(`${match[1]}/${match[2]}`)
     }
     return [...ids].sort()
