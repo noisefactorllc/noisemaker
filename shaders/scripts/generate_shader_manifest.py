@@ -1,9 +1,21 @@
 #!/usr/bin/env python3
-"""Generate a single top-level shader manifest for all effects."""
+"""Generate a single top-level shader manifest for all effects.
+
+Retired: it fails on start, before it reads or writes anything, and names the
+replacement, `npm run manifest` (shaders/scripts/generate-shader-manifest.mjs),
+which reads each effect's metadata from either form of its definition.
+"""
 
 import json
 import re
+import sys
 from pathlib import Path
+
+RETIRED = "\n".join([
+    "generate_shader_manifest.py is retired: it reads definition.js text, and a generated definition.js is not the legacy form.",
+    "Generate the manifest with",
+    "  npm run manifest",
+])
 
 # Resolve paths relative to this script's location
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -239,6 +251,10 @@ def scan_effect(effect_dir):
     return result
 
 def main():
+    # Retired: it fails on start, before it reads or writes anything.
+    print(RETIRED, file=sys.stderr)
+    sys.exit(1)
+
     manifest = {}
     
     for namespace in ["classicNoisedeck", "filter", "filter3d", "mixer", "points", "render", "synth", "synth3d"]:

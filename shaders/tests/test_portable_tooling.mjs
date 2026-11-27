@@ -332,13 +332,14 @@ test('--convert refuses an effect whose Effect config holds a key that the effec
     }
 })
 
-test('the retired definition writers fail on start, name the replacement, and change no file', () => {
-    // Each would change this effect: its seed is a float, which
+test('the retired definition writers and readers fail on start, name the replacement, and change no file', () => {
+    // Each writer would change this effect: its seed is a float, which
     // standardize-params.js makes an int, and no global maps a uniform, which
-    // fix_uniform_mappings.py adds.
+    // fix_uniform_mappings.py adds. generate_shader_manifest.py would write
+    // shaders/effects/manifest.json.
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'portable-writers-'))
     try {
-        for (const file of ['shaders/scripts/standardize-params.js', 'shaders/scripts/param-rename-map.js', 'scripts/fix_uniform_mappings.py']) {
+        for (const file of ['shaders/scripts/standardize-params.js', 'shaders/scripts/param-rename-map.js', 'scripts/fix_uniform_mappings.py', 'shaders/scripts/generate_shader_manifest.py']) {
             fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
             fs.copyFileSync(path.join(ROOT, file), path.join(root, file))
         }
@@ -375,17 +376,21 @@ test('the retired definition writers fail on start, name the replacement, and ch
         }
         const before = snapshot()
         const python = process.platform === 'win32' ? 'python' : 'python3'
-        for (const [command, args] of [
-            [process.execPath, [path.join(root, 'shaders/scripts/standardize-params.js')]],
-            [process.execPath, [path.join(root, 'shaders/scripts/standardize-params.js'), '--dry-run']],
-            [python, [path.join(root, 'scripts/fix_uniform_mappings.py')]],
+        const writerReplacement = [
+            /edit the effect's definition\.json/,
+            /node scripts\/migrate-portable-effects\.mjs --convert <namespace\/effect>/,
+            /node scripts\/migrate-portable-effects\.mjs --check/,
+        ]
+        for (const [command, args, replacement] of [
+            [process.execPath, [path.join(root, 'shaders/scripts/standardize-params.js')], writerReplacement],
+            [process.execPath, [path.join(root, 'shaders/scripts/standardize-params.js'), '--dry-run'], writerReplacement],
+            [python, [path.join(root, 'scripts/fix_uniform_mappings.py')], writerReplacement],
+            [python, [path.join(root, 'shaders/scripts/generate_shader_manifest.py')], [/npm run manifest/]],
         ]) {
             const run = spawnSync(command, args, { cwd: root, encoding: 'utf8' })
             const name = path.basename(args[0])
             assert.notEqual(run.status, 0, `${name} fails`)
-            assert.match(run.stderr, /edit the effect's definition\.json/, `${name} names the replacement`)
-            assert.match(run.stderr, /node scripts\/migrate-portable-effects\.mjs --convert <namespace\/effect>/, `${name} names the conversion`)
-            assert.match(run.stderr, /node scripts\/migrate-portable-effects\.mjs --check/, `${name} names the check`)
+            for (const pattern of replacement) assert.match(run.stderr, pattern, `${name} names the replacement`)
             assert.equal(run.stdout, '', `${name} reads no definition`)
             assert.deepEqual(snapshot(), before, `${name} changes no file`)
         }
