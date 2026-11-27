@@ -82,6 +82,11 @@ Create effect definitions with the ``Effect`` constructor and a configuration ob
     ``count``, ``countUniform``, ``blend``, ``workgroups``, ``storageBuffers``,
     and ``storageTextures``.
 
+``storageTextures`` maps WGSL storage-texture binding names to texture references.
+When a pass uses a declared non-global texture as a storage target, the compiler
+adds storage usage. For an undeclared non-global target, the compiler creates
+a screen-sized ``rgba16f`` texture spec with storage usage.
+
 2b. Tags and Namespaces
 -----------------------
 
@@ -883,6 +888,13 @@ The runtime synthesizes these textures automatically. Do not define them in ``te
 
 * ``inputGeo`` — Geometry buffer (normals + depth) from upstream raymarched effect
 * ``outputGeo`` — Effect-level property pointing to an internal texture to expose as geometry output
+
+The ``Effect`` constructor copies these fields from its configuration object:
+
+* ``outputTex`` names the texture for the next effect's 2D input.
+* ``outputXyz`` names the texture for the next effect's agent positions.
+* ``outputVel`` names the texture for the next effect's agent velocities.
+* ``outputRgba`` names the texture for the next effect's agent colors.
 
 Effects that produce 3D volumes or geometry buffers declare the output at effect level:
 
