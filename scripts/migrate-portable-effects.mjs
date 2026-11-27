@@ -112,10 +112,40 @@ async function effectConfigKeys(effectsRoot, ids) {
 }
 
 /**
+ * What a module holds that its metadata does not, so that a definition.json
+ * cannot: named exports beside the default one, static members of an exported
+ * class, accessors on the effect's class, and own properties of the effect
+ * that are not enumerable, other than its declared starter.
+ */
+export function unheldMembers(module, exported, instance) {
+    const held = []
+    held.push(...Object.keys(module).filter(name => name !== 'default').map(name => `the named export ${name}`))
+    if (typeof exported === 'function') {
+        held.push(...Reflect.ownKeys(exported).filter(name => !['length', 'name', 'prototype'].includes(name)).map(name => `the static member ${String(name)}`))
+    }
+    const chain = []
+    for (let proto = Object.getPrototypeOf(instance); proto && proto !== Object.prototype; proto = Object.getPrototypeOf(proto)) chain.push(proto)
+    for (const proto of chain.slice(0, -1)) {
+        for (const name of Reflect.ownKeys(proto)) {
+            const descriptor = Object.getOwnPropertyDescriptor(proto, name)
+            if (descriptor.get || descriptor.set) held.push(`the accessor ${String(name)}`)
+        }
+    }
+    const enumerable = new Set(Object.keys(instance))
+    for (const name of Reflect.ownKeys(instance)) {
+        const descriptor = Object.getOwnPropertyDescriptor(instance, name)
+        if (descriptor.get || descriptor.set) held.push(`the accessor ${String(name)}`)
+        else if (!enumerable.has(name) && name !== 'starter') held.push(`the hidden property ${String(name)}`)
+    }
+    return held
+}
+
+/**
  * Convert the legacy definition.js of each effect to a definition.json and
  * its generated definition.js. Refuses, writing nothing for that effect,
  * unless the JSON reads back to the same complete metadata and the same
- * declared starter, and unless the Effect keeps every key of its config.
+ * declared starter, unless the Effect keeps every key of its config, and
+ * unless the module holds nothing that its metadata does not (unheldMembers).
  */
 export async function convertEffects(ids, { effectsRoot = EFFECTS_ROOT, shapes = baselineExportShapes().shapes } = {}) {
     const converted = []
@@ -131,6 +161,8 @@ export async function convertEffects(ids, { effectsRoot = EFFECTS_ROOT, shapes =
         const instance = typeof exported === 'function' ? new exported() : exported
         const methods = definedMethods(instance)
         if (methods.length) throw new Error(`${effectId}: its class defines ${methods.join(', ')}, which a definition.json does not hold, so it is not converted`)
+        const unheld = unheldMembers(module, exported, instance)
+        if (unheld.length) throw new Error(`${effectId}: its module has ${unheld.join(', ')}, which a definition.json does not hold, so it is not converted`)
         const dropped = unkept.get(effectId) ?? []
         if (dropped.length) throw new Error(`${effectId}: its Effect config holds ${dropped.join(', ')}, which the effect does not keep, so it is not converted`)
         const before = definitionSchema(instance)
@@ -142,13 +174,21 @@ export async function convertEffects(ids, { effectsRoot = EFFECTS_ROOT, shapes =
         // The declared starter, which the Effect keeps out of its schema.
         if (typeof instance.starter === 'boolean') json.starter = instance.starter
         fs.writeFileSync(jsonFile, `${JSON.stringify(json, null, 4)}\n`)
-        const read = readDefinitionJson(directory, { catalog: true })
-        const after = read.diagnostics.length ? null : instantiateCatalogDefinition({ definition: read.definition, ...shape })
-        if (!after || !isDeepStrictEqual(definitionSchema(after), before) || after.starter !== instance.starter) {
-            fs.rmSync(jsonFile)
-            throw Object.assign(new Error(`${effectId}: its definition.json does not load as the same effect, so it is not converted`), { diagnostics: read.diagnostics })
+        // Until the module is written, a failure of any kind takes the
+        // definition.json back out.
+        let wrapper
+        try {
+            const read = readDefinitionJson(directory, { catalog: true })
+            const after = read.diagnostics.length ? null : instantiateCatalogDefinition({ definition: read.definition, ...shape })
+            if (!after || !isDeepStrictEqual(definitionSchema(after), before) || after.starter !== instance.starter) {
+                throw Object.assign(new Error(`${effectId}: its definition.json does not load as the same effect, so it is not converted`), { diagnostics: read.diagnostics })
+            }
+            wrapper = generateWrapper({ definition: read.definition, ...shape })
+        } catch (error) {
+            fs.rmSync(jsonFile, { force: true })
+            throw error
         }
-        fs.writeFileSync(path.join(directory, 'definition.js'), generateWrapper({ definition: read.definition, ...shape }))
+        fs.writeFileSync(path.join(directory, 'definition.js'), wrapper)
         converted.push(effectId)
     }
     return converted

@@ -332,6 +332,60 @@ test('--convert refuses an effect whose Effect config holds a key that the effec
     }
 })
 
+test('--convert refuses a module with what a definition.json does not hold, and leaves nothing behind when a read-back fails', async () => {
+    const { root, effectsRoot } = engineTree('portable-shape-')
+    try {
+        const passes = "passes: [{ name: 'main', program: 'main', inputs: {}, outputs: { fragColor: 'outputTex' } }]"
+        const legacy = path.join(FIXTURE_CATALOG, 'synth/fixtureLegacy')
+        const cases = {
+            // A named export beside the default one.
+            'synth/namedExport': ["import { Effect } from '../../../src/runtime/effect.js'",
+                `export default new Effect({ name: 'Named', namespace: 'synth', func: 'namedExport', ${passes} })`,
+                'export const RECIPE = 1'],
+            // A static member of an exported class.
+            'synth/staticMember': ["import { Effect } from '../../../src/runtime/effect.js'",
+                `export default class StaticMember extends Effect { static VERSION = 1; name = 'Static'; namespace = 'synth'; func = 'staticMember'; ${passes.replace(':', ' =')} }`],
+            // An accessor, which is no method and no field.
+            'synth/accessor': ["import { Effect } from '../../../src/runtime/effect.js'",
+                `export default class Accessor extends Effect { name = 'Accessor'; namespace = 'synth'; func = 'accessor'; ${passes.replace(':', ' =')}; get description() { return 'computed' } }`],
+            // An own property that is not enumerable.
+            'synth/hiddenField': ["import { Effect } from '../../../src/runtime/effect.js'",
+                `const effect = new Effect({ name: 'Hidden', namespace: 'synth', func: 'hiddenField', ${passes} })`,
+                "Object.defineProperty(effect, 'secret', { value: 1, enumerable: false })",
+                'export default effect'],
+        }
+        const expected = { 'synth/namedExport': 'RECIPE', 'synth/staticMember': 'VERSION', 'synth/accessor': 'description', 'synth/hiddenField': 'secret' }
+        const shapes = new Map([
+            ['synth/namedExport', { exportKind: 'instance' }],
+            ['synth/staticMember', { exportKind: 'class', className: 'StaticMember' }],
+            ['synth/accessor', { exportKind: 'class', className: 'Accessor' }],
+            ['synth/hiddenField', { exportKind: 'instance' }],
+            // An instance export recorded as a class with no name: the
+            // definition.json reads back, and the module cannot be built.
+            ['synth/fixtureLegacy', { exportKind: 'class' }],
+        ])
+        for (const [id, lines] of Object.entries(cases)) {
+            const dir = path.join(effectsRoot, ...id.split('/'))
+            fs.cpSync(path.join(legacy, 'glsl'), path.join(dir, 'glsl'), { recursive: true })
+            fs.cpSync(path.join(legacy, 'wgsl'), path.join(dir, 'wgsl'), { recursive: true })
+            fs.writeFileSync(path.join(dir, 'definition.js'), `${lines.join('\n')}\n`)
+        }
+        const fixture = copyEffect(effectsRoot, 'synth/fixtureLegacy', legacy)
+        fs.writeFileSync(path.join(fixture, 'definition.js'), fs.readFileSync(path.join(fixture, 'definition.js'), 'utf8')
+            .replace("'../../../../../../src/runtime/effect.js'", "'../../../src/runtime/effect.js'"))
+        for (const id of [...Object.keys(cases), 'synth/fixtureLegacy']) {
+            const dir = path.join(effectsRoot, ...id.split('/'))
+            const before = fs.readFileSync(path.join(dir, 'definition.js'), 'utf8')
+            const reason = expected[id] ? new RegExp(`${id}: its module has [^,]*\\b${expected[id]}\\b.*which a definition\\.json does not hold`) : /class name/
+            await assert.rejects(convertEffects([id], { effectsRoot, shapes }), reason, id)
+            assert.equal(fs.existsSync(path.join(dir, 'definition.json')), false, `${id}: no definition.json is left`)
+            assert.equal(fs.readFileSync(path.join(dir, 'definition.js'), 'utf8'), before, `${id}: its definition.js is unchanged`)
+        }
+    } finally {
+        fs.rmSync(root, { recursive: true, force: true })
+    }
+})
+
 test('the retired definition writers and readers fail on start, name the replacement, and change no file', () => {
     // Each writer would change this effect: its seed is a float, which
     // standardize-params.js makes an int, and no global maps a uniform, which
