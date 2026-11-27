@@ -10,7 +10,9 @@
 // are checked on the catalog itself and on a mixed fixture catalog
 // (shaders/tests/fixtures/portable/catalog/): a version 2 definition.json with
 // its generated module, which holds every field and pass control the reduced
-// Shade projection used to drop, and a legacy definition.js.
+// Shade projection used to drop, and a legacy definition.js. The fixture's
+// generated definition.js is compared as text and never imported, because its
+// relative import resolves only at shaders/effects/<namespace>/<name>/.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
