@@ -278,8 +278,13 @@ test('the generated module of an effect that declares capabilities has the legac
 // effects' modules import them.
 function engineTree(prefix) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
-    fs.cpSync(path.join(ROOT, 'shaders/src'), path.join(root, 'shaders/src'), { recursive: true })
-    fs.cpSync(path.join(ROOT, 'share'), path.join(root, 'share'), { recursive: true })
+    try {
+        fs.cpSync(path.join(ROOT, 'shaders/src'), path.join(root, 'shaders/src'), { recursive: true })
+        fs.cpSync(path.join(ROOT, 'share'), path.join(root, 'share'), { recursive: true })
+    } catch (error) {
+        fs.rmSync(root, { recursive: true, force: true })
+        throw error
+    }
     return { root, effectsRoot: path.join(root, 'shaders/effects') }
 }
 
@@ -383,6 +388,29 @@ test('--convert refuses a module with what a definition.json does not hold, and 
         }
     } finally {
         fs.rmSync(root, { recursive: true, force: true })
+    }
+})
+
+test('the conversion and bundle-render tools refuse arguments with no value, and an empty list', () => {
+    const cases = path.join(ROOT, 'shaders/tests/fixtures/portable/render-cases.json')
+    const bundles = fs.mkdtempSync(path.join(os.tmpdir(), 'portable-args-'))
+    try {
+        fs.mkdirSync(path.join(bundles, 'effects'))
+        for (const [script, args, message] of [
+            ['scripts/migrate-portable-effects.mjs', ['--convert'], /--convert needs one or more <namespace\/effect> IDs/],
+            ['scripts/migrate-portable-effects.mjs', ['--convert', 'synth/noise', '--check'], /--convert and --check are separate runs/],
+            ['scripts/migrate-portable-effects.mjs', ['--effects-root'], /--effects-root needs a directory/],
+            ['shaders/scripts/pin-effect-pixels.mjs', ['--case', cases, '--entries', 'synth/noise', '--pins'], /--pins: no value given/],
+            ['shaders/scripts/pin-effect-pixels.mjs', ['--case', cases, '--entries', ',', '--pins', bundles], /Usage:/],
+            ['shaders/tests/test_portable_bundle_render.mjs', ['--bundles', bundles, '--backend', 'webgl2', '--effects', ','], /--effects needs one or more IDs/],
+        ]) {
+            const run = spawnSync(process.execPath, [path.join(ROOT, script), ...args], { cwd: ROOT, encoding: 'utf8' })
+            assert.notEqual(run.status, 0, `${script} ${args.join(' ')} fails`)
+            assert.match(`${run.stdout}${run.stderr}`, message, `${script} ${args.join(' ')}`)
+            assert.doesNotMatch(`${run.stdout}${run.stderr}`, /TypeError|Regenerated|Converted/, `${script} ${args.join(' ')} does nothing`)
+        }
+    } finally {
+        fs.rmSync(bundles, { recursive: true, force: true })
     }
 })
 
@@ -496,9 +524,17 @@ test('a conversion writes a version 2 definition.json and its module, and refuse
     } finally {
         fs.rmSync(root, { recursive: true, force: true })
     }
-    const mediaJson = path.join(EFFECTS_ROOT, 'synth/media/definition.json')
-    await assert.rejects(() => convertEffects(['synth/media']), /synth\/media: its class defines onInit, onUpdate, setMediaDimensions/)
-    assert.equal(fs.existsSync(mediaJson), false, 'nothing is written for a refused effect')
+    // In a copy, so that a regression of the refusal cannot write to the checkout.
+    const media = engineTree('portable-media-')
+    try {
+        const dir = copyEffect(media.effectsRoot, 'synth/media', path.join(EFFECTS_ROOT, 'synth/media'))
+        const before = fs.readFileSync(path.join(dir, 'definition.js'), 'utf8')
+        await assert.rejects(() => convertEffects(['synth/media'], { effectsRoot: media.effectsRoot }), /synth\/media: its class defines onInit, onUpdate, setMediaDimensions/)
+        assert.equal(fs.existsSync(path.join(dir, 'definition.json')), false, 'nothing is written for a refused effect')
+        assert.equal(fs.readFileSync(path.join(dir, 'definition.js'), 'utf8'), before)
+    } finally {
+        fs.rmSync(media.root, { recursive: true, force: true })
+    }
 })
 
 test('the complete reader keeps what the Shade projection loses, and the loss audit reports it', async () => {

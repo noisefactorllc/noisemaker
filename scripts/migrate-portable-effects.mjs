@@ -198,14 +198,21 @@ async function main(argv) {
     let effectsRoot = EFFECTS_ROOT
     let check = false
     const convert = []
+    let converting = false
     for (let index = 0; index < argv.length; index++) {
         const arg = argv[index]
         if (arg === '--check') check = true
-        else if (arg === '--effects-root') effectsRoot = path.resolve(argv[++index])
-        else if (arg === '--convert') {
+        else if (arg === '--effects-root') {
+            if (argv[index + 1] === undefined || argv[index + 1].startsWith('--')) throw new Error('--effects-root needs a directory')
+            effectsRoot = path.resolve(argv[++index])
+        } else if (arg === '--convert') {
+            converting = true
             while (argv[index + 1] && !argv[index + 1].startsWith('--')) convert.push(argv[++index])
         } else throw new Error(`unknown argument ${arg}`)
     }
+    // A conversion names its effects, and is not a check.
+    if (converting && !convert.length) throw new Error('--convert needs one or more <namespace/effect> IDs')
+    if (converting && check) throw new Error('--convert and --check are separate runs')
     if (convert.length) {
         const converted = await convertEffects(convert, { effectsRoot })
         console.log(`Converted ${converted.join(', ')}`)

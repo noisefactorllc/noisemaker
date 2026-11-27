@@ -71,9 +71,18 @@ import { baselineForGpu, pinCaseErrors, withGpuBaseline } from './pin-baselines.
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..', '..')
 
+// A flag's value, null when the flag is absent. A flag given with no value is
+// a usage error, not an absent flag.
+const missingValues = []
 function flagValue(name) {
     const index = process.argv.indexOf(name)
-    return index === -1 ? null : process.argv[index + 1]
+    if (index === -1) return null
+    const value = process.argv[index + 1]
+    if (value === undefined || value.startsWith('--')) {
+        missingValues.push(name)
+        return null
+    }
+    return value
 }
 
 const casePath = flagValue('--case')
@@ -88,7 +97,9 @@ const pinsDir = flagValue('--pins')
 
 const single = entries === null && pinsDir === null && Boolean(outPath || checkPath)
 const batch = entries !== null && pinsDir !== null && !outPath && !checkPath && entry === null
-if (!casePath || !(single || batch) || (backendFlag !== null && !['webgl2', 'webgpu'].includes(backendFlag)) ||
+if (missingValues.length) console.error(`${missingValues.join(', ')}: no value given`)
+if (missingValues.length || (entries !== null && !entries.length) ||
+    !casePath || !(single || batch) || (backendFlag !== null && !['webgl2', 'webgpu'].includes(backendFlag)) ||
     (outPath && (bundles !== null || backendFlag !== null))) {
     console.error([
         'Usage: node shaders/scripts/pin-effect-pixels.mjs --case <case.json> [--entry <id>] (--out <pin.json> | --check <pin.json> [--bundles <dir|url>] [--backend webgl2|webgpu])',

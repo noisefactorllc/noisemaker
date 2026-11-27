@@ -31,8 +31,11 @@ function parseArgs(argv) {
         }
         if (arg === '--bundles') args.bundles = value()
         else if (arg === '--backend') args.backend = value()
-        else if (arg === '--effects') args.effects = value().split(',').filter(Boolean)
-        else throw new Error(`unknown argument ${arg}`)
+        else if (arg === '--effects') {
+            args.effects = value().split(',').filter(Boolean)
+            // An empty list would render nothing and pass.
+            if (!args.effects.length) throw new Error('--effects needs one or more IDs')
+        } else throw new Error(`unknown argument ${arg}`)
     }
     if (!args.bundles) throw new Error('--bundles <dir|url> is required')
     if (!['webgl2', 'webgpu'].includes(args.backend)) throw new Error('--backend webgl2|webgpu is required')
