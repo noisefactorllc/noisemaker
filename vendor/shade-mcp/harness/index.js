@@ -28878,6 +28878,9 @@ var checkEffectStructureSchema = {
 function checkCamelCase(name) {
   return /^[a-z][a-zA-Z0-9]*$/.test(name);
 }
+function checkIndexedName(name) {
+  return /^[a-z][a-zA-Z0-9]*[0-9]_[a-z][a-zA-Z0-9]*$/.test(name);
+}
 async function checkEffectStructure(effectId) {
   const config2 = getConfig();
   const effectDir = resolveEffectDir(effectId, config2.effectsDir);
@@ -28909,7 +28912,7 @@ async function checkEffectStructure(effectId) {
   }
   const INTERNAL = /* @__PURE__ */ new Set(["channels", "time", "resolution", "mouse"]);
   for (const [name, spec] of Object.entries(def.globals || {})) {
-    if (!checkCamelCase(name)) {
+    if (!checkCamelCase(name) && !checkIndexedName(name)) {
       issues.namingIssues.push({ type: "global", name, reason: "Must be camelCase" });
     }
     if (INTERNAL.has(spec.uniform || name)) {
