@@ -22,6 +22,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { lex } from '../src/lang/lexer.js'
+import { readCatalogMetadata } from '../../scripts/lib/portable-catalog.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -45,27 +46,19 @@ function test(name, fn) {
 }
 
 /**
- * Walk every effect's `definition.js` file under shaders/effects and pull
- * out the string assigned to its `defaultProgram` field. Crude regex but
- * covers the canonical pattern used in every effect definition we ship.
+ * Every effect's `defaultProgram`, from its metadata through the catalog
+ * reader (scripts/lib/portable-catalog.mjs): the same from a definition.json
+ * as from a legacy definition.js.
  */
-function collectDefaultPrograms() {
+async function collectDefaultPrograms() {
     const programs = []
     const namespaces = fs.readdirSync(EFFECTS_DIR).filter(n => fs.statSync(path.join(EFFECTS_DIR, n)).isDirectory())
     for (const ns of namespaces) {
         const nsDir = path.join(EFFECTS_DIR, ns)
         for (const effect of fs.readdirSync(nsDir)) {
-            const def = path.join(nsDir, effect, 'definition.js')
-            if (!fs.existsSync(def)) continue
-            const src = fs.readFileSync(def, 'utf8')
-            // Match: defaultProgram: "..."  (single-line, double-quoted)
-            const m = src.match(/defaultProgram\s*:\s*"((?:[^"\\]|\\.)*)"/)
-            if (m) {
-                programs.push({
-                    label: `${ns}/${effect}`,
-                    source: m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
-                })
-            }
+            if (!fs.existsSync(path.join(nsDir, effect, 'definition.js'))) continue
+            const source = (await readCatalogMetadata(path.join(nsDir, effect)))?.defaultProgram
+            if (typeof source === 'string') programs.push({ label: `${ns}/${effect}`, source })
         }
     }
     return programs
@@ -87,7 +80,7 @@ const ARRAY_LITERAL_PROGRAMS = new Set([
     'synth/remap', // zone vertex lists (be6bb0eb)
 ])
 
-const allPrograms = collectDefaultPrograms()
+const allPrograms = await collectDefaultPrograms()
 const plainPrograms = allPrograms.filter(p => !ARRAY_LITERAL_PROGRAMS.has(p.label))
 console.log(`Scanning ${allPrograms.length} existing shader DSL programs (${ARRAY_LITERAL_PROGRAMS.size} use array literals on purpose)…`)
 

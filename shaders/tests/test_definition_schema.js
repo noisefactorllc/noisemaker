@@ -121,7 +121,10 @@ const sameSchema = auditSchemaLoss(
 assert.deepEqual(sameSchema.contradictions, [])
 
 // Shared fields agree; lost fields are reported as drops, not alterations.
-const noiseAudit = await auditDefinitionLoss('shaders/effects/synth/noise')
+// The subject is a legacy definition.js that stays one: a catalog effect may
+// be converted to a definition.json, which the vendored reader reads in full.
+// Like synth/noise, it has a uniformLayout and a define-only global with ui.
+const noiseAudit = await auditDefinitionLoss('shaders/tests/fixtures/portable/catalog/synth/fixtureLegacy')
 assert.equal(noiseAudit.format, 'js')
 // The projection does not model Noisemaker-specific top-level fields.
 assert.ok(noiseAudit.loss.droppedTopLevelFields.includes('uniformLayout'))

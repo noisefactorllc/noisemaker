@@ -25,54 +25,28 @@
  * is a house style choice and not this test's business. Only effects that
  * already present a table are held to it.
  *
- * Globals are read out of the definition source rather than by importing it,
- * matching how test_effect_tags.js and the manifest generator read tags: these
- * files import the runtime, and the check has to work without standing one up.
- *
- * A definition is either an object literal (`globals: {`) or a class with a
- * field (`globals = {`). The first version read only the object-literal form,
- * so the ten class definitions returned no globals and were skipped without a
- * message, and seven of them shipped undocumented parameters. Both forms are
- * read now, and a definition whose globals cannot be read is a failure, not a
- * skip.
+ * Globals are the keys of the effect's metadata, read through the catalog
+ * reader (scripts/lib/portable-catalog.mjs): the same from a definition.json
+ * as from a legacy definition.js, whether it is an object literal or a class
+ * with a `globals` field. They were read out of the definition source before,
+ * which missed the ten class definitions until both forms were parsed, and
+ * which cannot read a generated module, whose keys are quoted. A definition
+ * whose globals cannot be read is a failure, not a skip.
  */
 import { readFileSync, readdirSync, existsSync, statSync } from 'fs'
+import { readCatalogMetadata } from '../../scripts/lib/portable-catalog.mjs'
+import { Effect } from '../src/runtime/effect.js'
+import { definitionSchema } from './definition-schema.js'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const EFFECTS_DIR = join(__dirname, '..', 'effects')
 
-/**
- * Keys at depth 1 of the `globals: { ... }` object literal, or of the
- * `globals = { ... }` class field — the parameter
- * names the DSL accepts. Brace-walked rather than matched with one regex,
- * because parameter bodies are themselves objects (`ui`, `choices`) and a flat
- * pattern would pick up their keys as parameters.
- *
- * Two details keep prose out of the parameter list. Line comments are stripped
- * first, or `// Symmetry: if true...` in points/life reads as a parameter
- * named `Symmetry`; the pattern spares `://` so a URL survives. And a key
- * counts only when an object opens after it, because every real parameter is
- * one (`seed: { type: ... }`). Without both, comment text enters the list —
- * which not only invents parameters but could let a genuinely stale name in a
- * table look legitimate.
- */
-function globalsOf(source) {
-    const code = source.replace(/(^|[^:])\/\/[^\n]*/g, '$1')
-    const at = code.search(/\bglobals\s*[:=]\s*\{/)
-    if (at < 0) return null
-    const keys = []
-    let depth = 0
-    for (let i = code.indexOf('{', at); i < code.length; i++) {
-        const ch = code[i]
-        if (ch === '{') { depth++; continue }
-        if (ch === '}') { depth--; if (depth === 0) break; continue }
-        if (depth !== 1) continue
-        const m = /^["']?([A-Za-z_][A-Za-z0-9_]*)["']?\s*:\s*\{/.exec(code.slice(i))
-        if (m) { keys.push(m[1]); i += m[0].length - 2 }
-    }
-    return keys
+/** The parameter names the DSL accepts: the keys of the metadata's globals. */
+function globalsOf(definition) {
+    const globals = definition?.globals
+    return globals && typeof globals === 'object' ? Object.keys(globals) : null
 }
 
 /**
@@ -107,7 +81,7 @@ function documentedParams(markdown) {
 
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/
 
-function collect() {
+async function collect() {
     const effects = []
     const unreadable = []
     for (const ns of readdirSync(EFFECTS_DIR)) {
@@ -117,7 +91,7 @@ function collect() {
             const def = join(nsDir, name, 'definition.js')
             const help = join(nsDir, name, 'help.md')
             if (!existsSync(def) || !existsSync(help)) continue
-            const globals = globalsOf(readFileSync(def, 'utf8'))
+            const globals = globalsOf(await readCatalogMetadata(join(nsDir, name)))
             if (globals === null) { unreadable.push(`${ns}/${name}`); continue }
             effects.push({
                 id: `${ns}/${name}`,
@@ -170,23 +144,21 @@ function test(name, fn) {
     }
 }
 
-const { effects, unreadable } = collect()
+const { effects, unreadable } = await collect()
 
 test('a class definition with an undocumented parameter fails the check', () => {
-    const source = [
-        'export default class Probe extends Effect {',
-        '    globals = {',
-        '        documented: { type: "float", default: 1, ui: { label: "documented" } },',
-        '        missing: { type: "float", default: 0, ui: { label: "missing" } }',
-        '    }',
-        '}',
-    ].join('\n')
+    class Probe extends Effect {
+        globals = {
+            documented: { type: 'float', default: 1, ui: { label: 'documented' } },
+            missing: { type: 'float', default: 0, ui: { label: 'missing' } },
+        }
+    }
     const table = [
         '| Parameter | Type | Default | Range | Description |',
         '|-----------|------|---------|-------|-------------|',
         '| documented | float | 1 | - | Documented |',
     ].join('\n')
-    const globals = globalsOf(source)
+    const globals = globalsOf(definitionSchema(new Probe()))
     if (globals === null) throw new Error('globalsOf read no globals from a `globals = {` class field')
     if (globals.join(',') !== 'documented,missing') {
         throw new Error(`globalsOf read [${globals.join(', ')}] from the class field, expected [documented, missing]`)
@@ -201,8 +173,8 @@ test('a class definition with an undocumented parameter fails the check', () => 
 test('every effect definition with a help.md has globals the check can read', () => {
     if (unreadable.length) {
         throw new Error(
-            'No `globals: {` or `globals = {` block was found in these\n' +
-            'definitions, so their help.md tables cannot be checked:\n  ' +
+            'No globals were found in the metadata of these definitions, so\n' +
+            'their help.md tables cannot be checked:\n  ' +
             unreadable.join('\n  '),
         )
     }
@@ -215,7 +187,7 @@ test('every parameter in a help.md table exists in the effect definition', () =>
             'help.md documents parameters the definition does not declare. The\n' +
             'usual cause is documenting a parameter\'s ui.label instead of its\n' +
             'name; the other is a parameter that was renamed or removed. The\n' +
-            'globals block in definition.js is the authority:\n  ' +
+            'globals of the effect definition are the authority:\n  ' +
             violations.join('\n  '),
         )
     }
