@@ -125,6 +125,7 @@ test('shaders-2x.yml runs this test for every workflow change, on 2.x pushes and
   assert.match(jobBlock(text, 'bundle'), /\n {6}run: node --test shaders\/tests\/test_portable_bundle_compat\.mjs\n/)
   const gpuBundles = jobBlock(text, 'gpu-bundles')
   assert.match(gpuBundles, /\n {4}needs: bundle\n/)
+  assert.match(gpuBundles, /\n {4}if: github\.ref == 'refs\/heads\/2\.x'\n/, 'gpu-bundles runs for 2.x only, as the gpu job does')
   assert.match(gpuBundles, /\n {6}group: noisemaker-gpu\n/)
   assert.match(gpuBundles, /\n {8}name: noisemaker-shaders\n/)
   for (const backend of ['webgl2', 'webgpu']) {

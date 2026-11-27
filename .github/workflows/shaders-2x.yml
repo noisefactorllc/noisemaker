@@ -216,6 +216,8 @@ jobs:
       group: noisemaker-gpu
       labels: [noisemaker-gpu]
     needs: bundle
+    # Like the gpu job, for 2.x pushes and dispatches only.
+    if: github.ref == 'refs/heads/2.x'
     timeout-minutes: 45
     permissions:
       contents: read
