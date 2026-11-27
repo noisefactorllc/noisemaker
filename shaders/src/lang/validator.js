@@ -2279,14 +2279,12 @@ export function validate(ast) {
                             if (!hasEffectExpressionArgument(node)) Object.defineProperty(surf, 'sourceLetPlain', { value: true })
                         }
                         args[argKey] = surf
-                    } else if (node && node.type === 'Call' && node.args?.length === (node.name === 'vec2' ? 2 : 4) && (
+                    } else if (node && node.type === 'Call' && node.args?.length === (node.name === 'vec2' ? 2 : node.name === 'vec3' ? 3 : 4) && (
                         (def.type === 'vec2' && node.name === 'vec2') ||
-                        (def.type === 'color' && node.name === 'vec4' && Array.isArray(def.default) && def.default.length === 4))) {
-                        // vec2(x, y) on a vec2 parameter, and vec4(x, y, z, w) on a
-                        // vec4 parameter. The loader registers vec4 parameters as
-                        // `color`; their default keeps its four components. Any
-                        // other form, including a wrong component count, takes
-                        // the branches below.
+                        (def.type === 'color' && !node.kwargs && (node.name === 'vec3' || node.name === 'vec4')))) {
+                        // Color constructors preserve the supplied components,
+                        // independently of the parameter's default length.
+                        // Invalid constructor arity takes the branches below.
                         args[argKey] = node.args.map(arg => {
                             if (arg.type === 'Number') return arg.value
                             pushDiag('S002', arg, `Argument out of range for '${def.name}' in ${call.name}()`)

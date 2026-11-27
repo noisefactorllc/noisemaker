@@ -19,6 +19,11 @@
 //      immutable tag target commit.
 //   4. The vendored delivery must still be present (the four pulled subtrees
 //      the release delivery consists of).
+//   5. The LEDGER.md AI-contract checkpoint names the same two source SHAs
+//      as the snapshot block once the pass is recorded as completed, which
+//      is the freshness rule the contract section itself states. During a
+//      pending pass the snapshot may lead the checkpoint, so the equality
+//      applies only in the completed state.
 //
 // Run: node shaders/tests/test_contract_delivery_pair.mjs
 
@@ -70,6 +75,50 @@ function documentedDelivery() {
     return { pin: pins[0], version: versions[0], release: releases[0] }
 }
 
+function documentedCheckpoint() {
+    // The AI development contract section's checkpoint records the audited
+    // pair. Its freshness rule requires the checkpoint and the snapshot block
+    // to carry the same two SHAs once a pass completes.
+    const ledger = read('LEDGER.md')
+    const section = ledger.split('## AI development contract (llms-full.txt)')[1]
+    assert.ok(section, 'LEDGER.md must carry the AI development contract section')
+    const lines = [...section.matchAll(/^- \*\*Checkpoint:\*\* noisemaker `([0-9a-f]{40})` \/ shade-mcp `([0-9a-f]{40})`/gm)]
+    assert.equal(lines.length, 1,
+        'LEDGER.md must state the AI-contract checkpoint pair exactly once')
+    return { noisemaker: lines[0][1], shadeMcp: lines[0][2] }
+}
+
+function documentedPassState() {
+    // The section's completion rule is stateful: during pending CI and live
+    // readback the candidate snapshot may lead the checkpoint, and the
+    // equality holds only once the pass is recorded as completed. The first
+    // log entry after `- **Log:**` states the pass state ("completed ..." or
+    // "candidate ...").
+    const ledger = read('LEDGER.md')
+    const section = ledger.split('## AI development contract (llms-full.txt)')[1]
+    assert.ok(section, 'LEDGER.md must carry the AI development contract section')
+    const log = section.split('- **Log:**')[1]
+    assert.ok(log, 'LEDGER.md must carry the AI-contract log')
+    const first = log.match(/^  - \d{4}-\d{2}-\d{2} — ([a-z]+)/m)
+    assert.ok(first, 'LEDGER.md must start the AI-contract log with a dated pass entry')
+    assert.ok(['completed', 'candidate'].includes(first[1]),
+        `LEDGER.md log entry must state a known pass state, got '${first[1]}'`)
+    return first[1]
+}
+
+function latestCompletedNoisemaker() {
+    // The most recent "completed" log entry names the completed Noisemaker
+    // SHA right after the word "Noisemaker".
+    const ledger = read('LEDGER.md')
+    const section = ledger.split('## AI development contract (llms-full.txt)')[1]
+    const log = section.split('- **Log:**')[1] || ''
+    const start = log.indexOf('— completed')
+    assert.ok(start !== -1, 'LEDGER.md must record a completed pass in the AI-contract log')
+    const sha = log.slice(start, start + 600).match(/Noisemaker\s+`([0-9a-f]{40})`/)
+    assert.ok(sha, 'the completed log entry must name the completed Noisemaker SHA')
+    return sha[1]
+}
+
 function vendoredDelivery() {
     for (const subdir of ['harness', 'ai', 'formats', 'analysis']) {
         const dir = `${repoRoot}/vendor/shade-mcp/${subdir}`
@@ -95,5 +144,29 @@ describe('AI development contract tracks the configured Shade MCP delivery', () 
 
     test('the vendored delivery is present', () => {
         vendoredDelivery()
+    })
+
+    test('the LEDGER checkpoint pair matches the snapshot block', () => {
+        const checkpoint = documentedCheckpoint()
+        const contract = read('llms-full.txt')
+        const snapshots = [...contract.matchAll(/^- (Noisemaker|Shade MCP): `([0-9a-f]{40})`\.$/gm)]
+        const snapshot = Object.fromEntries(snapshots.map((m) => [m[1], m[2]]))
+        if (documentedPassState() === 'completed') {
+            assert.equal(checkpoint.noisemaker, snapshot.Noisemaker,
+                'LEDGER.md checkpoint and llms-full.txt snapshot block must name the same Noisemaker SHA')
+            assert.equal(checkpoint.shadeMcp, snapshot['Shade MCP'],
+                'LEDGER.md checkpoint and llms-full.txt snapshot block must name the same Shade MCP SHA')
+        } else {
+            // Pending pass: the snapshot may lead, but the checkpoint must
+            // keep the latest completed pair until all checks pass. The
+            // Noisemaker half reads the completed log entry; the Shade MCP
+            // half must still name the configured pin, which the checkpoint
+            // cannot leave without a completed pass and an operator-gated
+            // pin move.
+            assert.equal(checkpoint.noisemaker, latestCompletedNoisemaker(),
+                'during a pending pass the checkpoint must keep the latest completed pair')
+            assert.equal(checkpoint.shadeMcp, configuredPin(),
+                'during a pending pass the Shade MCP checkpoint must keep the configured pin')
+        }
     })
 })

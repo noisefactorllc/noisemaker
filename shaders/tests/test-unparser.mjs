@@ -9,6 +9,7 @@ import { compile } from '../src/lang/index.js';
 import { registerOp } from '../src/lang/ops.js';
 import { registerStarterOps } from '../src/lang/validator.js';
 import solid from '../effects/synth/solid/definition.js';
+import tint from '../effects/filter/tint/definition.js';
 import invert from '../effects/filter/invert/definition.js';
 import noise from '../effects/synth/noise/definition.js';
 import scale from '../effects/filter/scale/definition.js';
@@ -724,7 +725,7 @@ test('Arrow-function arguments and let values unparse to DSL with the same funct
 // parameters as `color`, so these effects use the loader's registration.
 const vectorRenderer = new CanvasRenderer();
 const vectorDefinitions = new Map();
-for (const [namespace, name, definition] of [['synth', 'media', media], ['synth', 'remap', remap], ['filter', 'grade', grade]]) {
+for (const [namespace, name, definition] of [['synth', 'media', media], ['synth', 'remap', remap], ['filter', 'grade', grade], ['synth', 'solid', solid], ['filter', 'tint', tint]]) {
     const instance = typeof definition === 'function' ? new definition() : definition;
     vectorRenderer.registerEffectWithRuntime({ namespace, name, instance });
     vectorRenderer.registerStarterOpForEffect({ namespace, name, instance });
@@ -778,6 +779,31 @@ test('vec2() and vec4() with the wrong number of components give a diagnostic', 
         assert.deepEqual(value, fallback, source);
     }
 });
+
+for (const [op, call] of [
+    ['synth.solid', color => `solid(color: ${color})`],
+    ['filter.tint', color => `solid().tint(color: ${color})`]
+]) {
+    for (const [constructor, array, expected] of [
+        ['vec3(0.3, 0.2, 0.25)', '[0.3, 0.2, 0.25]', [0.3, 0.2, 0.25]],
+        ['vec4(0.3, 0.2, 0.25, 0.4)', '[0.3, 0.2, 0.25, 0.4]', [0.3, 0.2, 0.25, 0.4]]
+    ]) {
+        test(`${op} color preserves ${constructor} like its array literal`, () => {
+            for (const input of [array, constructor]) {
+                const { value, codes } = vectorArg(call(input), op, 'color');
+                assert.deepEqual(value, expected, input);
+                assert.deepEqual(codes, [], input);
+            }
+        });
+    }
+    test(`${op} color rejects malformed vector constructors`, () => {
+        for (const input of ['vec2(0.3, 0.2)', 'vec3(0.3, 0.2)', 'vec3(0.3, 0.2, 0.25, 0.4)', 'vec4(0.3, 0.2, 0.25)', 'vec4(0.3, 0.2, 0.25, 0.4, 1)', 'vec3(0.3, 0.2, 0.25, bogus: 1)', 'vec4(0.3, 0.2, 0.25, 0.4, bogus: 1)']) {
+            const { value, codes } = vectorArg(call(input), op, 'color');
+            assert.deepEqual(codes, ['S002'], input);
+            assert.deepEqual(value, op === 'synth.solid' ? [0.5, 0.5, 0.5] : [1, 1, 1], input);
+        }
+    });
+}
 
 // The parser and validator accept if/elif/else, break, continue and return,
 // but the runtime does not execute them. compileGraph() rejects them with the
