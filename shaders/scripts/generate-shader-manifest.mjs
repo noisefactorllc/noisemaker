@@ -1,44 +1,19 @@
 #!/usr/bin/env node
 /**
- * Generate a single top-level shader manifest for all effects.
- * Node.js equivalent of generate_shader_manifest.py — same logic, same output.
+ * Generate a single top-level shader manifest for all effects. Each effect's
+ * metadata comes through the catalog reader, the same from its
+ * definition.json as from its legacy definition.js.
  */
 
-import { readFileSync, readdirSync, existsSync, writeFileSync, statSync } from 'fs';
+import { readdirSync, existsSync, writeFileSync, statSync } from 'fs';
 import { resolve, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { baselineExportShapes, readCatalogMetadata } from '../../scripts/lib/portable-catalog.mjs';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(SCRIPT_DIR, '..', '..');
 const EFFECTS_ROOT = join(PROJECT_ROOT, 'shaders', 'effects');
 const OUTPUT_FILE = join(EFFECTS_ROOT, 'manifest.json');
-
-// Regex to extract description from definition.js
-// Matches both object literal (description: "...") and class field (description = "...") syntax
-// Handles escaped quotes within the string
-const DESCRIPTION_RE = /description[:\s=]+"((?:[^"\\]|\\.)*)"|description[:\s=]+'((?:[^'\\]|\\.)*)'/;
-
-// Regex to extract externalTexture from definition.js
-const EXTERNAL_TEXTURE_RE = /externalTexture[:\s=]+"((?:[^"\\]|\\.)*)"|externalTexture[:\s=]+'((?:[^'\\]|\\.)*)'/;
-
-// Regex to extract externalMesh from definition.js
-const EXTERNAL_MESH_RE = /externalMesh[:\s=]+"((?:[^"\\]|\\.)*)"|externalMesh[:\s=]+'((?:[^'\\]|\\.)*)'/;
-
-// Regex to extract tags array from definition.js
-const TAGS_RE = /\btags\s*[:=]\s*\[([^\]]*)\]/;
-
-// Regex to detect hidden: true
-const HIDDEN_RE = /\bhidden\s*[:=]\s*true\b/;
-
-// Regex to detect explicit starter: true/false
-const STARTER_TRUE_RE = /\bstarter\s*[:=]\s*true\b/;
-const STARTER_FALSE_RE = /\bstarter\s*[:=]\s*false\b/;
-
-// Regex to extract deprecatedBy from definition.js
-const DEPRECATED_BY_RE = /deprecatedBy[:\s=]+"((?:[^"\\]|\\.)*)"|deprecatedBy[:\s=]+'((?:[^'\\]|\\.)*)'/;
-
-// Regex to detect tex global with type: "surface"
-const TEX_SURFACE_RE = /\btex\s*[:=]\s*\{[^}]*type\s*[:=]\s*["']surface["']/s;
 
 // Known pipeline inputs that indicate a non-starter effect
 const PIPELINE_INPUTS = new Set([
@@ -52,110 +27,23 @@ const AGENT_STATE_SURFACES = new Set([
     'global_xyz0', 'global_vel0', 'global_rgba0',
 ]);
 
-function readDefinition(effectDir) {
-    const defFile = join(effectDir, 'definition.js');
-    if (!existsSync(defFile)) return null;
-    try {
-        return readFileSync(defFile, 'utf-8');
-    } catch {
-        return null;
-    }
-}
-
-function extractMatch(content, re) {
-    const m = content.match(re);
-    if (!m) return null;
-    const raw = m[1] !== undefined ? m[1] : m[2];
-    if (!raw) return null;
-    return raw.replace(/\\"/g, '"').replace(/\\'/g, "'");
-}
-
-function extractDescription(effectDir) {
-    const content = readDefinition(effectDir);
-    return content ? extractMatch(content, DESCRIPTION_RE) : null;
-}
-
-function extractExternalTexture(effectDir) {
-    const content = readDefinition(effectDir);
-    return content ? extractMatch(content, EXTERNAL_TEXTURE_RE) : null;
-}
-
-function extractExternalMesh(effectDir) {
-    const content = readDefinition(effectDir);
-    return content ? extractMatch(content, EXTERNAL_MESH_RE) : null;
-}
-
-function hasTexSurface(effectDir) {
-    const content = readDefinition(effectDir);
-    return content ? TEX_SURFACE_RE.test(content) : false;
-}
-
-function isHidden(effectDir) {
-    const content = readDefinition(effectDir);
-    if (!content) return false;
-    // Only match hidden: true before the globals section — param-level
-    // ui.hidden must not flag the entire effect as hidden
-    const globalsIndex = content.search(/\bglobals\s*[:=]\s*\{/);
-    const searchContent = globalsIndex > 0 ? content.substring(0, globalsIndex) : content;
-    return HIDDEN_RE.test(searchContent);
-}
-
-function extractTags(effectDir) {
-    const content = readDefinition(effectDir);
-    if (!content) return null;
-    const m = content.match(TAGS_RE);
-    if (!m) return null;
-    const tags = [];
-    for (const tm of m[1].matchAll(/["']([^"']+)["']/g)) {
-        tags.push(tm[1]);
-    }
-    return tags.length ? tags : null;
-}
-
-function isStarterEffect(effectDir) {
-    const content = readDefinition(effectDir);
-    if (!content) return null;
-
-    // Check for explicit starter property first
-    if (STARTER_TRUE_RE.test(content)) return true;
-    if (STARTER_FALSE_RE.test(content)) return false;
-
-    // Fall through to autodetection
-
-    // Look for passes array
-    const passesMatch = content.match(/passes\s*[=:]\s*\[/);
-    if (!passesMatch) return true;
-
-    // Check if effect defines agent state surfaces
-    const texturesMatch = content.match(/textures\s*[:=]\s*\{[\s\S]*?\}/);
-    let definesAgentSurfaces = false;
-    if (texturesMatch) {
-        for (const surface of AGENT_STATE_SURFACES) {
-            if (texturesMatch[0].includes(surface)) {
-                definesAgentSurfaces = true;
-                break;
-            }
+// Whether an effect starts a chain: explicitly, or because no pass reads a
+// pipeline input or an agent state surface that it does not define.
+function isStarterEffect(definition) {
+    if (typeof definition.starter === 'boolean') return definition.starter;
+    if (!Array.isArray(definition.passes)) return true;
+    const textures = Object.keys(definition.textures ?? {});
+    const definesAgentSurfaces = textures.some(name => AGENT_STATE_SURFACES.has(name));
+    for (const pass of definition.passes) {
+        for (const input of Object.values(pass?.inputs ?? {})) {
+            if (PIPELINE_INPUTS.has(input)) return false;
+            if (!definesAgentSurfaces && AGENT_STATE_SURFACES.has(input)) return false;
         }
     }
-
-    // Find inputs sections and check for pipeline inputs as VALUES
-    const inputsSections = content.matchAll(/inputs:\s*\{[\s\S]*?\}/g);
-    for (const inputsMatch of inputsSections) {
-        const inputs = inputsMatch[0];
-        for (const pipelineInput of PIPELINE_INPUTS) {
-            const pattern = new RegExp(`:\\s*["']${pipelineInput}["']`);
-            if (pattern.test(inputs)) return false;
-        }
-        if (!definesAgentSurfaces) {
-            for (const surface of AGENT_STATE_SURFACES) {
-                const pattern = new RegExp(`:\\s*["']${surface}["']`);
-                if (pattern.test(inputs)) return false;
-            }
-        }
-    }
-
     return true;
 }
+
+const text = value => (typeof value === 'string' && value ? value : null);
 
 function scanEffect(effectDir) {
     const result = { glsl: {}, wgsl: {} };
@@ -210,8 +98,13 @@ function sortKeys(obj) {
     return obj;
 }
 
-function main() {
+/**
+ * The manifest of the effects under `effectsRoot`, with its keys sorted, as
+ * main() writes it.
+ */
+export async function buildManifest(effectsRoot = EFFECTS_ROOT, { exportShapes = baselineExportShapes().shapes } = {}) {
     const manifest = {};
+    const shapes = exportShapes;
 
     const namespaces = [
         'classicNoisedeck', 'filter', 'filter3d',
@@ -219,7 +112,7 @@ function main() {
     ];
 
     for (const namespace of namespaces) {
-        const nsDir = join(EFFECTS_ROOT, namespace);
+        const nsDir = join(effectsRoot, namespace);
         if (!existsSync(nsDir)) continue;
 
         const entries = readdirSync(nsDir).sort();
@@ -231,39 +124,42 @@ function main() {
             const effectId = `${namespace}/${entry}`;
             const effectManifest = scanEffect(effectDir);
 
-            const description = extractDescription(effectDir);
+            // The effect's metadata, from its definition.json or its legacy
+            // definition.js, through the catalog reader.
+            const definition = await readCatalogMetadata(effectDir, { exportShapes: shapes });
+
+            const description = text(definition.description);
             if (description) effectManifest.description = description;
 
-            const starter = isStarterEffect(effectDir);
-            if (starter !== null) effectManifest.starter = starter;
+            effectManifest.starter = isStarterEffect(definition);
 
-            const externalTexture = extractExternalTexture(effectDir);
+            const externalTexture = text(definition.externalTexture);
             if (externalTexture) effectManifest.externalTexture = externalTexture;
 
-            const externalMesh = extractExternalMesh(effectDir);
+            const externalMesh = text(definition.externalMesh);
             if (externalMesh) effectManifest.externalMesh = externalMesh;
 
-            if (hasTexSurface(effectDir)) effectManifest.hasTex = true;
+            if (definition.globals?.tex?.type === 'surface') effectManifest.hasTex = true;
 
-            const tags = extractTags(effectDir);
-            if (tags) effectManifest.tags = tags;
+            if (Array.isArray(definition.tags) && definition.tags.length) effectManifest.tags = [...definition.tags];
 
-            if (isHidden(effectDir)) {
+            if (definition.hidden === true) {
                 effectManifest.hidden = true;
-                const content = readDefinition(effectDir);
-                if (content) {
-                    const deprecatedBy = extractMatch(content, DEPRECATED_BY_RE);
-                    if (deprecatedBy) effectManifest.deprecatedBy = deprecatedBy;
-                }
+                const deprecatedBy = text(definition.deprecatedBy);
+                if (deprecatedBy) effectManifest.deprecatedBy = deprecatedBy;
             }
 
             manifest[effectId] = effectManifest;
         }
     }
 
-    writeFileSync(OUTPUT_FILE, JSON.stringify(sortKeys(manifest)));
+    return sortKeys(manifest);
+}
 
+async function main() {
+    const manifest = await buildManifest();
+    writeFileSync(OUTPUT_FILE, JSON.stringify(manifest));
     console.log(`Generated ${OUTPUT_FILE} (${Object.keys(manifest).length} effects)`);
 }
 
-main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

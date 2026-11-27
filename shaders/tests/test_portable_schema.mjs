@@ -161,7 +161,10 @@ test('every catalog declaration is written in the version 2 form, validates and 
         const result = normalizePortableDefinition(structuredClone(pkg))
         assert.deepEqual(result.diagnostics, [], `${id}: normalizer`)
         assert.equal(result.profile, 'v2')
-        assert.deepEqual(validateEffectDefinition(result.definition), [], `${id}: runtime validator`)
+        // starter is a package field that registration reads, which the
+        // normalizer leaves out of what it validates, as here.
+        const { starter: _starter, ...effectDefinition } = result.definition
+        assert.deepEqual(validateEffectDefinition(effectDefinition), [], `${id}: runtime validator`)
         assert.deepEqual(result.definition, declaration, `${id}: the version 2 form reads back as the declaration`)
         assert.deepEqual(Object.keys(result.definition.globals || {}), Object.keys(declaration.globals || {}), `${id}: declaration order`)
         if (instance.paramAliases !== undefined) {

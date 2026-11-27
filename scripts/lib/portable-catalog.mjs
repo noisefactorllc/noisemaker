@@ -182,11 +182,16 @@ export function instantiateCatalogDefinition(shape) {
             Object.defineProperty(Named.prototype, method, { value: function (...args) { return composed.methods[method].apply(this, args) }, writable: true, configurable: true })
         }
     } else {
-        const fields = structuredClone(definition)
-        Named = { [className]: class extends Effect { constructor() { super(); Object.assign(this, structuredClone(fields)) } } }[className]
+        const { starter, ...fields } = structuredClone(definition)
+        const config = starterConfig(starter)
+        Named = { [className]: class extends Effect { constructor() { super(config); Object.assign(this, structuredClone(fields)) } } }[className]
     }
     return new Named()
 }
+
+// The Effect config that keeps a declared starter, which the Effect holds as a
+// property that is not enumerable, so a class field must not declare it.
+const starterConfig = starter => (typeof starter === 'boolean' ? { starter } : undefined)
 
 /**
  * The text of the compatibility module generated for a definition: it embeds
@@ -215,8 +220,10 @@ export function generateWrapper(shape) {
         }
         lines.push('}')
     } else {
+        const { starter, ...fields } = definition
         lines.push('', `class ${className} extends Effect {`)
-        for (const [key, value] of Object.entries(definition)) lines.push(`    ${JSON.stringify(key)} = ${literal(value, '    ')}`)
+        if (starterConfig(starter)) lines.push('    constructor() {', `        super(${JSON.stringify(starterConfig(starter))})`, '    }', '')
+        for (const [key, value] of Object.entries(fields)) lines.push(`    ${JSON.stringify(key)} = ${literal(value, '    ')}`)
         lines.push('}')
     }
     lines.push('', exportKind === 'class' ? `export default ${className}` : `export default new ${className}()`)
@@ -236,7 +243,13 @@ export function readEffectDefinition(dir, { exportShapes } = {}) {
     if (read.diagnostics.length) throw Object.assign(new Error(`${effectId}: definition.json does not load`), { diagnostics: read.diagnostics })
     const shape = (exportShapes ?? baselineExportShapes().shapes).get(effectId) ?? { exportKind: 'instance' }
     const instance = instantiateCatalogDefinition({ definition: read.definition, ...shape })
-    return { effectId, definition: definitionSchema(instance), shaders: read.shaders, exportKind: shape.exportKind }
+    return { effectId, definition: definitionSchema(instance), shaders: read.shaders, exportKind: shape.exportKind, starter: instance.starter }
+}
+
+// An effect's schema with the starter it declares, which the Effect holds as a
+// property that is not enumerable, so its schema does not carry it.
+function withStarter(schema, starter) {
+    return typeof starter === 'boolean' ? { ...schema, starter } : schema
 }
 
 /**
@@ -247,11 +260,15 @@ export function readEffectDefinition(dir, { exportShapes } = {}) {
  * generated form is not the legacy form.
  */
 export async function readCatalogMetadata(dir, { exportShapes } = {}) {
-    if (fs.existsSync(path.join(dir, 'definition.json'))) return readEffectDefinition(dir, { exportShapes }).definition
+    if (fs.existsSync(path.join(dir, 'definition.json'))) {
+        const { definition, starter } = readEffectDefinition(dir, { exportShapes })
+        return withStarter(definition, starter)
+    }
     const file = path.join(dir, 'definition.js')
     if (!fs.existsSync(file)) return null
     const exported = (await import(pathToFileURL(file).href)).default
-    return definitionSchema(typeof exported === 'function' ? new exported() : exported)
+    const instance = typeof exported === 'function' ? new exported() : exported
+    return withStarter(definitionSchema(instance), instance.starter)
 }
 
 /** The catalog baseline's export kinds and class names, by effect ID. */

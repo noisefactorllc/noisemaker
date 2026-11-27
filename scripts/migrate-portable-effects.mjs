@@ -19,6 +19,7 @@
  */
 
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { isDeepStrictEqual } from 'node:util'
@@ -73,13 +74,52 @@ export function writeWrappers(options = {}) {
     return drift.map(entry => entry.effectId)
 }
 
+const CONSTRUCTOR = '    constructor(config = {}) {\n'
+const RECORD = 'noisemaker:effectConfigKeys'
+
+/**
+ * The keys of the config that each effect's module gives the Effect
+ * constructor, by effect ID. A key the Effect does not keep is not in its
+ * metadata, so a conversion that compared metadata alone would drop it. The
+ * modules run in a copy of the tree whose Effect records each config.
+ */
+async function effectConfigKeys(effectsRoot, ids) {
+    const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'portable-convert-'))
+    try {
+        fs.cpSync(path.resolve(effectsRoot, '..', 'src'), path.join(sandbox, 'shaders/src'), { recursive: true })
+        fs.cpSync(effectsRoot, path.join(sandbox, 'shaders/effects'), { recursive: true })
+        const share = path.resolve(effectsRoot, '..', '..', 'share')
+        if (fs.existsSync(share)) fs.cpSync(share, path.join(sandbox, 'share'), { recursive: true })
+        const effectJs = path.join(sandbox, 'shaders/src/runtime/effect.js')
+        const source = fs.readFileSync(effectJs, 'utf8').replace(/\r\n/g, '\n')
+        if (!source.includes(CONSTRUCTOR)) throw new Error('shaders/src/runtime/effect.js: the Effect constructor is not where --convert records its config')
+        fs.writeFileSync(effectJs, source.replace(CONSTRUCTOR, `${CONSTRUCTOR}        globalThis[${JSON.stringify(RECORD)}]?.push([this, Object.keys(config)])\n`))
+        const found = new Map()
+        for (const effectId of ids) {
+            const records = []
+            globalThis[RECORD] = records
+            const exported = (await import(pathToFileURL(path.join(sandbox, 'shaders/effects', ...effectId.split('/'), 'definition.js')).href)).default
+            const instance = typeof exported === 'function' ? new exported() : exported
+            const keys = records.find(([made]) => made === instance)?.[1] ?? []
+            const kept = new Set(Object.getOwnPropertyNames(instance))
+            found.set(effectId, keys.filter(key => !kept.has(key)))
+        }
+        return found
+    } finally {
+        delete globalThis[RECORD]
+        fs.rmSync(sandbox, { recursive: true, force: true })
+    }
+}
+
 /**
  * Convert the legacy definition.js of each effect to a definition.json and
  * its generated definition.js. Refuses, writing nothing for that effect,
- * unless the JSON reads back to the same complete metadata.
+ * unless the JSON reads back to the same complete metadata and the same
+ * declared starter, and unless the Effect keeps every key of its config.
  */
 export async function convertEffects(ids, { effectsRoot = EFFECTS_ROOT, shapes = baselineExportShapes().shapes } = {}) {
     const converted = []
+    const unkept = await effectConfigKeys(effectsRoot, ids.filter(effectId => !fs.existsSync(path.join(effectsRoot, ...effectId.split('/'), 'definition.json'))))
     for (const effectId of ids) {
         const directory = path.join(effectsRoot, ...effectId.split('/'))
         const jsonFile = path.join(directory, 'definition.json')
@@ -91,15 +131,20 @@ export async function convertEffects(ids, { effectsRoot = EFFECTS_ROOT, shapes =
         const instance = typeof exported === 'function' ? new exported() : exported
         const methods = definedMethods(instance)
         if (methods.length) throw new Error(`${effectId}: its class defines ${methods.join(', ')}, which a definition.json does not hold, so it is not converted`)
+        const dropped = unkept.get(effectId) ?? []
+        if (dropped.length) throw new Error(`${effectId}: its Effect config holds ${dropped.join(', ')}, which the effect does not keep, so it is not converted`)
         const before = definitionSchema(instance)
         // The version 2 package of the definition, which Shade's reader and
         // the engine's loader both read in full.
         const json = toPortablePackage(JSON.parse(JSON.stringify(before)))
         // Deprecated parameter names, which the catalog context keeps.
         if (before.paramAliases !== undefined) json.paramAliases = before.paramAliases
+        // The declared starter, which the Effect keeps out of its schema.
+        if (typeof instance.starter === 'boolean') json.starter = instance.starter
         fs.writeFileSync(jsonFile, `${JSON.stringify(json, null, 4)}\n`)
         const read = readDefinitionJson(directory, { catalog: true })
-        if (read.diagnostics.length || !isDeepStrictEqual(definitionSchema(instantiateCatalogDefinition({ definition: read.definition, ...shape })), before)) {
+        const after = read.diagnostics.length ? null : instantiateCatalogDefinition({ definition: read.definition, ...shape })
+        if (!after || !isDeepStrictEqual(definitionSchema(after), before) || after.starter !== instance.starter) {
             fs.rmSync(jsonFile)
             throw Object.assign(new Error(`${effectId}: its definition.json does not load as the same effect, so it is not converted`), { diagnostics: read.diagnostics })
         }

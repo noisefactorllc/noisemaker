@@ -21,8 +21,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { isDeepStrictEqual } from 'node:util'
 import {
     EFFECTS_ROOT, baselineExportShapes, definedMethods, generateWrapper, instantiateCatalogDefinition,
-    readDefinitionJson, readPortableCatalog,
+    readCatalogMetadata, readDefinitionJson, readPortableCatalog,
 } from '../../scripts/lib/portable-catalog.mjs'
+import { buildManifest } from '../scripts/generate-shader-manifest.mjs'
 import { convertEffects, wrapperDrift } from '../../scripts/migrate-portable-effects.mjs'
 import { toPortablePackage } from '../src/portable/definition.js'
 import { capabilityUseOf } from '../src/portable/capabilities.js'
@@ -31,9 +32,9 @@ import { auditSchemaLoss, definitionSchema, loadCompleteDefinition, loadUpstream
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const MAP = JSON.parse(fs.readFileSync(path.join(ROOT, 'shaders/tests/fixtures/portable/relocation-map.json'), 'utf8'))
 const FIXTURE_CATALOG = path.join(ROOT, 'shaders/tests/fixtures/portable/catalog')
+const BASELINE = JSON.parse(fs.readFileSync(path.join(ROOT, 'shaders/tests/fixtures/portable/catalog-baseline.json'), 'utf8'))
 const FIXTURE_VOLUME = path.join(FIXTURE_CATALOG, 'filter3d/fixtureVolume')
 const FIXTURE_SHAPES = new Map([['filter3d/fixtureVolume', { exportKind: 'instance' }]])
-const EFFECT_JS = pathToFileURL(path.join(ROOT, 'shaders/src/runtime/effect.js')).href
 
 // A copy of a fixture effect under a temporary catalog root, as <root>/<id>/.
 function copyEffect(root, id, from) {
@@ -273,6 +274,64 @@ test('the generated module of an effect that declares capabilities has the legac
     }
 })
 
+// A copy of the engine's source and data beside an effects tree, as the
+// effects' modules import them.
+function engineTree(prefix) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
+    fs.cpSync(path.join(ROOT, 'shaders/src'), path.join(root, 'shaders/src'), { recursive: true })
+    fs.cpSync(path.join(ROOT, 'share'), path.join(root, 'share'), { recursive: true })
+    return { root, effectsRoot: path.join(root, 'shaders/effects') }
+}
+
+test('channelCombine keeps starter: false from either form, without a new key, and --convert writes it', async () => {
+    const { root, effectsRoot } = engineTree('portable-starter-')
+    try {
+        const id = 'mixer/channelCombine'
+        const dir = copyEffect(effectsRoot, id, path.join(EFFECTS_ROOT, ...id.split('/')))
+        const { shapes } = baselineExportShapes()
+        const recorded = BASELINE.metadata[id].definition
+        const load = async () => {
+            const exported = (await import(`${pathToFileURL(path.join(dir, 'definition.js')).href}?${process.hrtime.bigint()}`)).default
+            return typeof exported === 'function' ? new exported() : exported
+        }
+        for (const form of ['legacy', 'generated']) {
+            if (form === 'generated') {
+                assert.deepEqual(await convertEffects([id], { effectsRoot, shapes }), [id])
+                const json = JSON.parse(fs.readFileSync(path.join(dir, 'definition.json'), 'utf8'))
+                assert.equal(json.starter, false, '--convert writes the declared starter')
+            }
+            const instance = await load()
+            assert.equal(instance.starter, false, `${form}: the effect declares it is not a starter`)
+            assert.ok(!Object.keys(instance).includes('starter'), `${form}: starter is not one of its own keys`)
+            assert.deepEqual(definitionSchema(instance), recorded, `${form}: its schema is the baseline's`)
+            assert.deepEqual(structuredClone(instance).starter, undefined, `${form}: a clone of it carries no starter`)
+            assert.equal((await readCatalogMetadata(dir, { exportShapes: shapes })).starter, false, `${form}: its metadata holds starter`)
+            assert.equal((await buildManifest(effectsRoot, { exportShapes: shapes }))[id].starter, false, `${form}: the manifest lists it as no starter`)
+        }
+    } finally {
+        fs.rmSync(root, { recursive: true, force: true })
+    }
+})
+
+test('--convert refuses an effect whose Effect config holds a key that the effect does not keep, and names it', async () => {
+    const { root, effectsRoot } = engineTree('portable-dropped-')
+    try {
+        const dir = copyEffect(effectsRoot, 'synth/fixtureLegacy', path.join(FIXTURE_CATALOG, 'synth/fixtureLegacy'))
+        const file = path.join(dir, 'definition.js')
+        fs.writeFileSync(file, fs.readFileSync(file, 'utf8')
+            .replace("'../../../../../../src/runtime/effect.js'", "'../../../src/runtime/effect.js'")
+            .replace("    func: 'fixtureLegacy',", "    func: 'fixtureLegacy',\n    unkept: 'a key the Effect constructor does not copy',"))
+        const shapes = new Map([['synth/fixtureLegacy', { exportKind: 'instance' }]])
+        const before = fs.readFileSync(file, 'utf8')
+        await assert.rejects(convertEffects(['synth/fixtureLegacy'], { effectsRoot, shapes }),
+            /synth\/fixtureLegacy: its Effect config holds unkept, which the effect does not keep, so it is not converted/)
+        assert.equal(fs.existsSync(path.join(dir, 'definition.json')), false, 'no definition.json is written')
+        assert.equal(fs.readFileSync(file, 'utf8'), before, 'its definition.js is unchanged')
+    } finally {
+        fs.rmSync(root, { recursive: true, force: true })
+    }
+})
+
 test('the retired definition writers fail on start, name the replacement, and change no file', () => {
     // Each would change this effect: its seed is a float, which
     // standardize-params.js makes an int, and no global maps a uniform, which
@@ -336,21 +395,21 @@ test('the retired definition writers fail on start, name the replacement, and ch
 })
 
 test('a conversion writes a version 2 definition.json and its module, and refuses an effect whose class defines methods', async () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'portable-convert-'))
+    const { root, effectsRoot } = engineTree('portable-convert-')
     try {
-        const dir = copyEffect(root, 'synth/fixtureLegacy', path.join(FIXTURE_CATALOG, 'synth/fixtureLegacy'))
+        const dir = copyEffect(effectsRoot, 'synth/fixtureLegacy', path.join(FIXTURE_CATALOG, 'synth/fixtureLegacy'))
         const legacyFile = path.join(dir, 'definition.js')
-        fs.writeFileSync(legacyFile, fs.readFileSync(legacyFile, 'utf8').replace("'../../../../../../src/runtime/effect.js'", JSON.stringify(EFFECT_JS)))
+        fs.writeFileSync(legacyFile, fs.readFileSync(legacyFile, 'utf8').replace("'../../../../../../src/runtime/effect.js'", "'../../../src/runtime/effect.js'"))
         const shapes = new Map([['synth/fixtureLegacy', { exportKind: 'instance' }]])
         const before = definitionSchema((await import(pathToFileURL(legacyFile).href)).default)
-        assert.deepEqual(await convertEffects(['synth/fixtureLegacy'], { effectsRoot: root, shapes }), ['synth/fixtureLegacy'])
+        assert.deepEqual(await convertEffects(['synth/fixtureLegacy'], { effectsRoot, shapes }), ['synth/fixtureLegacy'])
         const json = JSON.parse(fs.readFileSync(path.join(dir, 'definition.json'), 'utf8'))
         assert.equal(json.format, 'noisemaker-portable-effect')
         assert.equal(json.version, 2)
         const generated = fs.readFileSync(legacyFile, 'utf8')
         assert.match(generated, /^\/\/ Generated from definition\.json/)
         assert.deepEqual(definitionSchema(await importGenerated(generated, dir)), before, 'the converted effect is the same effect')
-        assert.deepEqual(wrapperDrift({ effectsRoot: root, shapes }), [])
+        assert.deepEqual(wrapperDrift({ effectsRoot, shapes }), [])
     } finally {
         fs.rmSync(root, { recursive: true, force: true })
     }

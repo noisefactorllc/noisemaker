@@ -97,6 +97,13 @@ export class Effect {
         if (config.defaultProgram) this.defaultProgram = config.defaultProgram
         if (config.hidden) this.hidden = true
         if (config.deprecatedBy) this.deprecatedBy = config.deprecatedBy
+        // Whether the effect starts a chain, which the manifest reads when the
+        // definition declares it. It is not enumerable, so the effect's own
+        // keys, its schema and a clone of it are what they were before the
+        // Effect kept it: the effects that declare it are the same effects.
+        if (typeof config.starter === 'boolean') {
+            Object.defineProperty(this, 'starter', { value: config.starter, writable: true, configurable: true, enumerable: false })
+        }
 
         // Allow lifecycle hooks via config
         if (config.onInit) this._configOnInit = config.onInit
