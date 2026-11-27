@@ -17,6 +17,17 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 export const VIEWER_PATH = '/demo/shaders/package.html'
 
+// What a capture of the canvas hides: the viewer's status line, and the
+// notices the demo shows after a compile, both drawn over the canvas. A capture
+// compares the canvas, not what the page draws over it, and a notice can still
+// be showing or already gone when a capture is taken.
+export const CANVAS_SCREENSHOT_STYLE = '#status, .hf-toast-container { visibility: hidden !important; }'
+
+/** A PNG of the realm's canvas, as the page shows it, without its overlays. */
+export function captureCanvas(frame) {
+    return frame.locator('#canvas').screenshot({ style: CANVAS_SCREENSHOT_STYLE, scale: 'css' })
+}
+
 /** Portable's URL prefixes, and the directories of this checkout they name. */
 export const PORTABLE_ALIASES = Object.freeze({
     '/effect/': 'shaders/portable/examples/gradient-sweep/',

@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
-import { fileFor, startPortableViewerServer, VIEWER_PATH } from '../../scripts/lib/portable-viewer-server.mjs'
+import { captureCanvas, fileFor, startPortableViewerServer, VIEWER_PATH } from '../../scripts/lib/portable-viewer-server.mjs'
 
 const effectDir = fileFor('/effect/')
 const DEFINITION = JSON.parse(readFileSync(join(effectDir, 'definition.json'), 'utf8'))
@@ -357,5 +357,42 @@ test('a package that cannot be read is watched until it is fixed, without reload
     assert.equal(state.definitionGets, reads, 'no reload while the file stays broken')
     edit({ definition: DEFINITION, shader: solid([0, 0, 1]) })
     await waitForPixel(page, [0, 0, 255])
+    await page.close()
+})
+
+test('a capture of the canvas shows the canvas, not a notice the demo draws over it', async () => {
+    const { page, errors } = await openViewer(browser)
+    // The 3D example, whose canvas fills this viewport, so a notice covers it.
+    await page.goto(`${origin}${VIEWER_PATH}?package=/examples/portableBlock3d/`)
+    await waitForStatus(page, /^Loaded: user\.portableBlock3d/, 'success')
+    // Hold one frame, so the canvas does not change between the captures.
+    await page.evaluate(() => {
+        window.__portableCanvasRenderer.stop()
+        window.__portableCanvasRenderer.render(0)
+    })
+    const realm = await realmOf(page)
+    await realm.waitForFunction(() => !document.querySelector('.hf-toast-container .hf-toast'), null, { timeout: 15000 })
+    const plain = await captureCanvas(realm)
+    // The demo's compile notice, as it shows after each compile, fully shown,
+    // and placed over the canvas, as it falls when the canvas fills the frame.
+    await realm.evaluate(() => {
+        const canvas = document.getElementById('canvas').getBoundingClientRect()
+        window.__portableRealm.ui.showStatus('compiled successfully', 'success')
+        const placed = document.querySelector('.hf-toast-container')
+        Object.assign(placed.style, { position: 'fixed', left: `${canvas.left}px`, top: `${canvas.top}px`, right: 'auto', bottom: 'auto' })
+    })
+    await realm.waitForFunction(() => {
+        const notice = document.querySelector('.hf-toast-container .hf-toast.show')
+        return notice && getComputedStyle(notice).opacity === '1'
+    })
+    const overlaps = await realm.evaluate(() => {
+        const notice = document.querySelector('.hf-toast-container .hf-toast').getBoundingClientRect()
+        const canvas = document.getElementById('canvas').getBoundingClientRect()
+        return notice.left < canvas.right && notice.right > canvas.left && notice.top < canvas.bottom && notice.bottom > canvas.top
+    })
+    assert.ok(overlaps, 'the notice is drawn over the canvas')
+    const withNotice = await captureCanvas(realm)
+    assert.ok(Buffer.from(withNotice).equals(Buffer.from(plain)), 'the capture with the notice showing is the capture without it')
+    assert.deepEqual(errors, [])
     await page.close()
 })

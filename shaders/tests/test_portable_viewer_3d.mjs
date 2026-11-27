@@ -11,8 +11,9 @@
 //     the step that radio ran;
 //   - the Reload button (#reload-btn) is window.__portableSelectEffect of the
 //     same package, which loads it again;
-//   - the canvas is the visible realm's #canvas (the screenshot hides the
-//     viewer's #status, as Portable's hid its panel), and the frame's dimensions
+//   - the canvas is the visible realm's #canvas, captured without the viewer's
+//     #status and the demo's compile notices drawn over it (captureCanvas), as
+//     Portable's capture hid its panel, and the frame's dimensions
 //     are read from the frame, as the demo sizes its canvas to its layout;
 //   - "registers no effect" is that no realm is left once the package is
 //     refused, as each revision registers in its own realm;
@@ -26,7 +27,7 @@
 import assert from 'node:assert/strict';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileFor, VIEWER_PATH } from '../../scripts/lib/portable-viewer-server.mjs';
+import { captureCanvas, fileFor, VIEWER_PATH } from '../../scripts/lib/portable-viewer-server.mjs';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname } from 'node:path';
@@ -95,9 +96,7 @@ try {
         });
         // Capture the compositor output. Reading a WebGPU canvas with drawImage
         // can return a discarded swap buffer on Linux even while it displays.
-        const png = await (await realmOf(page)).locator('#canvas').screenshot({
-            style: '#status { visibility: hidden !important; }', scale: 'css'
-        });
+        const png = await captureCanvas(await realmOf(page));
         state.displayed = await page.evaluate(async encoded => {
             const blob = await (await fetch(`data:image/png;base64,${encoded}`)).blob();
             const bitmap = await createImageBitmap(blob);
