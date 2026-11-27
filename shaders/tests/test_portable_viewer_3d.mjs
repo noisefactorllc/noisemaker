@@ -17,7 +17,10 @@
 //   - "registers no effect" is that no realm is left once the package is
 //     refused, as each revision registers in its own realm;
 //   - the diagnostic output on a failed load no longer imports a released build;
-//   - screenshots are written to the system's temporary directory.
+//   - screenshots are written to the system's temporary directory;
+//   - the browser launches as every Noisemaker browser test does, through
+//     shaderTestBrowserOptions(), in place of Portable's Chrome channel,
+//     SwiftShader arguments and Xvfb mode.
 // The server keeps Portable's /effect/ and /examples/<name>/ URLs
 // (scripts/lib/portable-viewer-server.mjs).
 import assert from 'node:assert/strict';
@@ -28,6 +31,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname } from 'node:path';
 import { chromium } from 'playwright';
+import { shaderTestBrowserOptions } from '../../scripts/lib/shader-test-browser.mjs';
 
 // Catches lost texture sizes, ignored defaultProgram, missing 3D outputs,
 // incorrect starter registration, and backend-specific shader/render failures.
@@ -55,23 +59,9 @@ const server = createServer(async (req, res) => {
 let browser;
 try {
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-    const linux = process.platform === 'linux';
-    const xvfb = process.env.PORTABLE_TEST_XVFB === '1';
-    if (xvfb) {
-        assert(linux, 'The Xvfb test mode requires Linux');
-        assert(process.env.DISPLAY, 'The Xvfb test mode requires a virtual display');
-    }
-    browser = await chromium.launch({
-        channel: linux ? 'chromium' : 'chrome',
-        headless: !xvfb,
-        // Linux CI uses SwiftShader for both APIs and Vulkan compositing.
-        args: ['--enable-unsafe-webgpu', ...(linux ? [
-            '--enable-unsafe-swiftshader', '--use-angle=swiftshader',
-            '--enable-features=Vulkan', '--use-vulkan=swiftshader',
-            '--disable-vulkan-surface', '--use-webgpu-adapter=swiftshader',
-            '--ignore-gpu-blocklist'
-        ] : [])]
-    });
+    // Noisemaker's browser tests launch Playwright's Chromium, headless, with
+    // both GPU backends.
+    browser = await chromium.launch(shaderTestBrowserOptions());
     // The visible realm of a viewer page.
     const realmOf = async viewer => (await viewer.$('iframe.portable-realm.active')).contentFrame();
     const page = await browser.newPage({ viewport: { width: 384, height: 384 } });
