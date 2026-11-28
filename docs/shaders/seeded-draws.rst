@@ -21,7 +21,9 @@ array component, arithmetic, an automation argument (``osc()``, ``midi()``,
 ``audio()``), a ``maybe`` probability, a ``use`` argument, the part of
 ``use(pick(...))``, and an ``if`` or ``elif`` condition. It may not appear in a
 surface argument, an effect name, a header directive, an arrow function, a
-meta argument (``_id``, ``_skip``, ``_seed``) or a call-level ``seed:``.
+meta argument (``_id``, ``_skip``, ``_seed``), a call-level ``seed:``, or a
+``subchain`` argument (whose values must be string literals and are rejected by
+the parser otherwise).
 
 The draw
 --------
@@ -151,15 +153,17 @@ Names
 -----
 
 An element's or a use's ``<name>`` is its key name. Key names are assigned in
-each naming body: the program outside every part, and each part body.
+each naming body: the program outside every part, and each part body. A
+``subchain`` body belongs to the naming body that encloses it and adds no
+segment to ``<scope>``.
 
 1. Every element has an occurrence name ``<effect>_<n>``: ``n`` counts, from 1,
    the elements of that effect in source order in its naming body, including
-   elements that carry an ``_id:``, elements in every ``if`` branch and in
-   untaken ``maybe`` blocks, and the elements of a ``let``, in its chain or
-   passed as values inside it, counted once where the ``let`` is written. Uses
-   (``use_<n>``), ``maybe`` blocks (``maybe_<n>``) and ``if`` statements
-   (``if_<n>``) are counted the same way.
+   elements inside ``subchain`` bodies, elements that carry an ``_id:``,
+   elements in every ``if`` branch and in untaken ``maybe`` blocks, and the
+   elements of a ``let``, in its chain or passed as values inside it, counted
+   once where the ``let`` is written. Uses (``use_<n>``), ``maybe`` blocks
+   (``maybe_<n>``) and ``if`` statements (``if_<n>``) are counted the same way.
 2. An element or use with an ``_id:`` takes it as its key name, unless an
    earlier one in the body has already taken that id.
 3. Every other element or use takes its occurrence name. If that name is
