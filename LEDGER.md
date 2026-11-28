@@ -354,8 +354,8 @@ work, verify it, then update the checkpoint and append a log line.
     `classicNoisedeck/glitch`, `classicNoisedeck/kaleido`,
     `filter/flipMirror`, `filter/rotate`, and `synth3d/fractal3d` stay
     upscale-only (and `classicNoisedeck/effects` is excluded as
-    upscale-only by noisedeck seam harness `1355a8a4`); the in-scope
-    effects including `filter3d/palette3d`, `render/renderCubemap3d`,
+    upscale-only by noisedeck's seam harness); the in-scope effects
+    including `filter3d/palette3d`, `render/renderCubemap3d`,
     `render/renderCubemapSurface`, `render/render3d`, `render/renderLit3d`,
     `filter/text`, `filter/glyphMap`, `synth/media`, `filter/stipple`, and
     `render/meshLoader` stay tile-aware). Tile-relevant shader edits across
@@ -371,8 +371,8 @@ work, verify it, then update the checkpoint and append a log line.
     `render/renderCubemapSurface` sharded by invocation boundary only using
     the harness's own driver, geometry, and thresholds (stage1 maximum seam
     ratio 0, stage2 boundary scores 0.645 to 1.101 against a 3.0
-    threshold). Against noisemaker `c732659b` using noisedeck seam harness
-    `1355a8a4` on Apple M4 (Metal): on WebGPU/WGSL, `filter/stipple` passed
+    threshold). Against noisemaker `c732659b` using noisedeck's seam
+    harness on Apple M4 (Metal): on WebGPU/WGSL, `filter/stipple` passed
     non-trivially (stage1 maximum seam ratio 0.020 against a 2.0 threshold,
     stage2 boundary scores 1.015 to 1.206 against a 3.0 threshold) and
     `render/meshLoader` passed trivially (stage1 maximum seam ratio 0
@@ -386,9 +386,9 @@ work, verify it, then update the checkpoint and append a log line.
     (`classicNoisedeck/noise`), 0.384 to 0.986 (`filter/crt`), 0.679 to
     1.141 (`render/render3d`), and 0.516 to 1.038 (`render/renderLit3d`)
     against a 3.0 threshold, `filter/glyphMap` passing stage2 with confirm
-    score 0 under its recorded allowance in `1355a8a4`, and `synth/media`
-    passing trivially (stage1 maximum seam ratio 0 because its default
-    program loads no external media; `mediaInput.glsl` and
+    score 0 under its recorded allowance in the seam harness, and
+    `synth/media` passing trivially (stage1 maximum seam ratio 0 because
+    its default program loads no external media; `mediaInput.glsl` and
     `mediaInput.wgsl` consume `tileOffset` and `fullResolution`).
   - 2026-10-08 — caught up through noisemaker `e1fbfd0d` / noisedeck
     `ec401c94`: gap detection from `058d15dc` found zero added effects.
