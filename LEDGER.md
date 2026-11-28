@@ -327,8 +327,8 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Large-format tiling
 
-- **Checkpoint:** noisemaker `e1fbfd0d` / noisedeck `ec401c94` (preview
-  branch), 2026-10-08
+- **Checkpoint:** noisemaker `f4a1382a` / noisedeck `ec401c94` (preview
+  branch), 2026-11-27
 - **Scope:** every effect must be classified for Noisedeck's large-format
   (tiled print) export. Tile-aware effects consume the global `tileOffset`
   and `fullResolution` uniforms in both GLSL and WGSL when their coordinates
@@ -346,6 +346,50 @@ work, verify it, then update the checkpoint and append a log line.
   deny-list. Verify tile-aware claims with noisedeck's seam harness
   (`tests/large-format-seams/`).
 - **Log:**
+  - 2026-11-27 — caught up through noisemaker `f4a1382a` / noisedeck
+    `ec401c94` (unchanged): gap detection over `e1fbfd0d..f4a1382a` found
+    no added effects, and every changed effect keeps its classification
+    (`points/*` behaviors, `filter3d/flow3d`, `render/pointsBillboardRender`,
+    `synth/roll`, and `synth3d/cellularAutomata3d` stay stateful;
+    `classicNoisedeck/glitch`, `classicNoisedeck/kaleido`,
+    `filter/flipMirror`, `filter/rotate`, and `synth3d/fractal3d` stay
+    upscale-only (and `classicNoisedeck/effects` is excluded as
+    upscale-only by noisedeck seam harness `1355a8a4`); the in-scope
+    effects including `filter3d/palette3d`, `render/renderCubemap3d`,
+    `render/renderCubemapSurface`, `render/render3d`, `render/renderLit3d`,
+    `filter/text`, `filter/glyphMap`, `synth/media`, `filter/stipple`, and
+    `render/meshLoader` stay tile-aware). Tile-relevant shader edits across
+    the span are `synth3d/fractal3d` (`10001d79`),
+    `classicNoisedeck/effects` (`d0727f90`), `filter/glyphMap` (`6cb1a3c3`),
+    and `synth/media` (`fde974e5`, `668b82ea`, `b6598330`) before
+    `317c43cc`, plus `filter/stipple` (whose integer refactor keeps global
+    `tileOffset` addressing), a `filter/scatter` comment, and
+    `render/meshLoader`'s added `fullResolution` fallback in
+    `317c43cc..f4a1382a` (`filter/lensWarp`'s change is PRNG-only). On
+    GLSL, the seam harness passed every changed in-scope effect in
+    `317c43cc..f4a1382a`, with `render/renderCubemap3d` and
+    `render/renderCubemapSurface` sharded by invocation boundary only using
+    the harness's own driver, geometry, and thresholds (stage1 maximum seam
+    ratio 0, stage2 boundary scores 0.645 to 1.101 against a 3.0
+    threshold). Against noisemaker `c732659b` using noisedeck seam harness
+    `1355a8a4` on Apple M4 (Metal): on WebGPU/WGSL, `filter/stipple` passed
+    non-trivially (stage1 maximum seam ratio 0.020 against a 2.0 threshold,
+    stage2 boundary scores 1.015 to 1.206 against a 3.0 threshold) and
+    `render/meshLoader` passed trivially (stage1 maximum seam ratio 0
+    because its default program loads no external mesh; `preview.wgsl`
+    consumes `tileOffset` and the `fullResolution` fallback); every
+    in-scope effect with shader edits in `e1fbfd0d..317c43cc`
+    (`classicNoisedeck/noise`, `filter/crt`, `filter/glyphMap`,
+    `render/render3d`, `render/renderLit3d`, `synth/media`) passed on both
+    WebGL2/GLSL and WebGPU/WGSL with stage1 maximum seam ratio 0,
+    non-trivial stage2 boundary scores of 0.198 to 1.407
+    (`classicNoisedeck/noise`), 0.384 to 0.986 (`filter/crt`), 0.679 to
+    1.141 (`render/render3d`), and 0.516 to 1.038 (`render/renderLit3d`)
+    against a 3.0 threshold, `filter/glyphMap` passing stage2 with confirm
+    score 0 under its recorded allowance in `1355a8a4`, and `synth/media`
+    passing trivially (stage1 maximum seam ratio 0 because its default
+    program loads no external media; `mediaInput.glsl` and
+    `mediaInput.wgsl` consume `tileOffset` and `fullResolution`).
   - 2026-10-08 — caught up through noisemaker `e1fbfd0d` / noisedeck
     `ec401c94`: gap detection from `058d15dc` found zero added effects.
     The range (the WebGPU-matches-WebGL2 campaign through 1.0.271) changed
