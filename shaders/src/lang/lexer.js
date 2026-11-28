@@ -348,7 +348,7 @@ export function lex(src) {
             let j = i
             while (j < src.length && (isLetter(src[j]) || isDigit(src[j]) || src[j] === '_')) j++
             const lexeme = src.slice(i, j)
-            if (keywords[lexeme]) {
+            if (Object.hasOwn(keywords, lexeme)) {
                 add(keywords[lexeme], lexeme, startLine, startCol, j)
             } else {
                 add('IDENT', lexeme, startLine, startCol, j)
